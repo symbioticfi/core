@@ -373,6 +373,47 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 0);
     }
 
+    function test_FillCheckpointsDownwardDriftAfterSkippedUpwardDrift() public {
+        address bob = address(0xB0B);
+        uint256 shares = 1 ether;
+        uint256 assets = 1 ether;
+        uint256 drift = 1e11 - 1;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, assets + drift);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, assets + drift);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 firstTokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+        WithdrawalQueue(queue).claim(firstTokenId, type(uint256).max);
+
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), assets);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), drift);
+
+        WithdrawalQueueFillToken(collateral).mint(vault, assets - drift);
+        WithdrawalQueueFillVault(vault).mintShares(bob, shares, assets - drift);
+
+        vm.startPrank(bob);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 secondTokenId = WithdrawalQueue(queue).requestWithdraw(shares, bob);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(secondTokenId);
+
+        assertEq(assetsClaimed, assets - drift);
+        assertEq(sharesClaimed, shares);
+
+        WithdrawalQueue(queue).claim(secondTokenId, type(uint256).max);
+
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(bob), assets - drift);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), drift);
+    }
+
     function test_ClaimPaysCurrentNftOwner() public {
         address bob = address(0xB0B);
         uint256 shares = 100;

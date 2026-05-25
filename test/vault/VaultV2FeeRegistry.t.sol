@@ -167,7 +167,7 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.virtualShares(), 1);
         assertEq(vault.balanceOf(DEAD_SHARES_RECIPIENT), 1e9);
         assertEq(collateral.balanceOf(address(vault)), 1e9);
-        _assertNoDeadSharesGetter(vault);
+        _assertNoLegacyShareGetters(vault);
     }
 
     function test_InitializeStoresAssetAdjustedVirtualShares() public {
@@ -179,7 +179,7 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.decimals(), 18);
         assertEq(vault.balanceOf(DEAD_SHARES_RECIPIENT), 1e18);
         assertEq(collateral.balanceOf(address(vault)), 1e6);
-        _assertNoDeadSharesGetter(vault);
+        _assertNoLegacyShareGetters(vault);
     }
 
     function test_TotalSupplyIncludesAccruedFeeSharesBeforeMinting() public {
@@ -194,7 +194,6 @@ contract VaultV2BehaviorTest is Test {
 
         assertGt(performanceFeeShares + managementFeeShares, 0);
         assertEq(vault.totalSupply(), rawSupply + performanceFeeShares + managementFeeShares);
-        assertEq(vault.activeShares(), vault.totalSupply());
         assertEq(vault.balanceOf(address(this)), 0);
     }
 
@@ -290,8 +289,21 @@ contract VaultV2BehaviorTest is Test {
         return offsetTargetShares > 1e9 ? offsetTargetShares : 1e9;
     }
 
-    function _assertNoDeadSharesGetter(VaultV2 vault) internal view {
-        (bool success,) = address(vault).staticcall(abi.encodeWithSignature("deadShares()"));
+    function _assertNoLegacyShareGetters(VaultV2 vault) internal view {
+        _assertMissingGetter(address(vault), abi.encodeWithSignature("deadShares()"));
+        _assertMissingGetter(address(vault), abi.encodeWithSignature("activeShares()"));
+        _assertMissingGetter(
+            address(vault), abi.encodeWithSignature("activeSharesAt(uint48,bytes)", uint48(block.timestamp), "")
+        );
+        _assertMissingGetter(address(vault), abi.encodeWithSignature("activeSharesOf(address)", alice));
+        _assertMissingGetter(
+            address(vault),
+            abi.encodeWithSignature("activeSharesOfAt(address,uint48,bytes)", alice, uint48(block.timestamp), "")
+        );
+    }
+
+    function _assertMissingGetter(address target, bytes memory data) internal view {
+        (bool success,) = target.staticcall(data);
         assertFalse(success);
     }
 

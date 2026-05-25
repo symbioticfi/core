@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 uint64 constant VAULT_V2_VERSION = 3;
 
@@ -243,39 +243,6 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
      * @return whitelisted Whether the account is whitelisted.
      */
     function isDepositorWhitelisted(address account) external view returns (bool whitelisted);
-
-    /**
-     * @notice Get total active shares at a timestamp using a checkpoint hint.
-     * @param timestamp Timestamp to read.
-     * @param hint Checkpoint hint.
-     * @return shares Total active shares at the timestamp.
-     */
-    function activeSharesAt(uint48 timestamp, bytes calldata hint) external view returns (uint256 shares);
-
-    /**
-     * @notice Get current total active shares.
-     * @return shares Current total active shares.
-     */
-    function activeShares() external view returns (uint256 shares);
-
-    /**
-     * @notice Get active shares for an account at a timestamp using a checkpoint hint.
-     * @param account Account to read.
-     * @param timestamp Timestamp to read.
-     * @param hint Checkpoint hint.
-     * @return shares Active shares for the account at the timestamp.
-     */
-    function activeSharesOfAt(address account, uint48 timestamp, bytes calldata hint)
-        external
-        view
-        returns (uint256 shares);
-
-    /**
-     * @notice Get current active shares for an account.
-     * @param account Account to read.
-     * @return shares Current active shares for the account.
-     */
-    function activeSharesOf(address account) external view returns (uint256 shares);
 
     /**
      * @notice Get the virtual shares used for ERC4626 conversion math.

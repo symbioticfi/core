@@ -55,14 +55,14 @@ interface IUniversalDelegator {
     error InvalidShareLimit();
 
     /**
-     * @notice Raised when the caller is not the associated vault.
-     */
-    error NotVault();
-
-    /**
      * @notice Raised when a function can only be called by the contract itself.
      */
     error NotSelf();
+
+    /**
+     * @notice Raised when the caller is not the associated vault.
+     */
+    error NotVault();
 
     /**
      * @notice Raised when the connected vault version is older than required.
@@ -76,14 +76,14 @@ interface IUniversalDelegator {
     error SimulatedDeallocate(uint256 amount);
 
     /**
-     * @notice Raised if the self-call simulation unexpectedly returns normally.
-     */
-    error UnexpectedSimulationSuccess();
-
-    /**
      * @notice Raised when adding an adapter would exceed MAX_ADAPTERS.
      */
     error TooManyAdapters();
+
+    /**
+     * @notice Raised if the self-call simulation unexpectedly returns normally.
+     */
+    error UnexpectedSimulationSuccess();
 
     /* STRUCTS */
 

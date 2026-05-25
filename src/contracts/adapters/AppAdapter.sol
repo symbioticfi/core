@@ -8,10 +8,10 @@ import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAppAdapter, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/adapters/IAppAdapter.sol";
-import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
-import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IBurner} from "../../interfaces/slasher/IBurner.sol";
+import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
+import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
+import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

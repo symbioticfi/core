@@ -106,6 +106,7 @@ contract WithdrawalQueueClaimHandler is Test {
 
     uint256 public modelTotalRequested;
     uint256 public modelTotalFilled;
+    uint256 public modelFilledAssets;
     uint256 public modelClaimedAssets;
 
     address[] internal _actors;
@@ -171,6 +172,7 @@ contract WithdrawalQueueClaimHandler is Test {
             return;
         }
 
+        uint256 queueBalanceBefore = collateral.balanceOf(address(queue));
         PriceCheckpoint memory checkpoint = _checkpointForNextFill();
         if (_shouldPushCheckpoint(checkpoint)) {
             _checkpointKeys.push(modelTotalFilled);
@@ -179,6 +181,7 @@ contract WithdrawalQueueClaimHandler is Test {
 
         queue.fill();
 
+        modelFilledAssets += collateral.balanceOf(address(queue)) - queueBalanceBefore;
         modelTotalFilled += shares;
         assertEq(queue.totalFilled(), modelTotalFilled);
     }
@@ -235,6 +238,8 @@ contract WithdrawalQueueClaimHandler is Test {
         }
 
         assertEq(actorBalance, modelClaimedAssets);
+        assertLe(modelClaimedAssets, modelFilledAssets);
+        assertEq(collateral.balanceOf(address(queue)), modelFilledAssets - modelClaimedAssets);
     }
 
     function modelClaimable(uint256 tokenId) public view returns (uint256 assetsClaimed, uint256 sharesClaimed) {
@@ -267,6 +272,7 @@ contract WithdrawalQueueClaimHandler is Test {
         _requests[tokenId].claimedAssets += assetsClaimed;
         modelClaimedAssets += assetsClaimed;
 
+        assertLe(modelClaimedAssets, modelFilledAssets);
         assertEq(actualClaimedShares, _requests[tokenId].claimedShares);
     }
 

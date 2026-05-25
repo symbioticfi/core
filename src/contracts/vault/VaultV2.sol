@@ -22,14 +22,14 @@ import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDel
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {
     ERC20PermitUpgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -82,14 +82,10 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     /// @inheritdoc IVaultV2
     uint96 public lastPerformanceFee;
     /// @dev Decimal offset between collateral and vault shares.
-    uint8 internal _decimalOffset;
+    uint8 internal __decimalsOffset;
 
     /// @dev Total assets cached from delegator accounting.
     uint256 internal _totalAssets;
-    /// @dev Checkpointed total active shares.
-    Checkpoints.Trace256 internal _totalSupply;
-    /// @dev Checkpointed active shares per account.
-    mapping(address account => Checkpoints.Trace256 shares) internal _balanceOf;
     /// @inheritdoc IVaultV2
     uint256 public virtualShares;
 
@@ -162,26 +158,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     /// @inheritdoc IERC20Permit
     function nonces(address owner) public view override(ERC20PermitUpgradeable, IERC20Permit) returns (uint256) {
         return super.nonces(owner);
-    }
-
-    /// @inheritdoc IVaultV2
-    function activeSharesAt(uint48 timestamp, bytes calldata) public view returns (uint256) {
-        return _totalSupply.upperLookupRecent(timestamp);
-    }
-
-    /// @inheritdoc IVaultV2
-    function activeShares() public view returns (uint256) {
-        return totalSupply();
-    }
-
-    /// @inheritdoc IVaultV2
-    function activeSharesOfAt(address account, uint48 timestamp, bytes calldata) public view returns (uint256) {
-        return _balanceOf[account].upperLookupRecent(timestamp);
-    }
-
-    /// @inheritdoc IVaultV2
-    function activeSharesOf(address account) public view returns (uint256) {
-        return balanceOf(account);
     }
 
     /// @inheritdoc IVaultV2
@@ -436,13 +412,13 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         __ERC20_init(params.name, params.symbol);
         __ERC4626_init(IERC20(params.asset));
         __ERC20Permit_init(params.name);
-        _decimalOffset = uint8(uint256(SHARES_DECIMALS).saturatingSub(IERC20Metadata(params.asset).decimals()));
-        virtualShares = 10 ** _decimalOffset;
+        __decimalsOffset = uint8(uint256(SHARES_DECIMALS).saturatingSub(IERC20Metadata(params.asset).decimals()));
+        virtualShares = 10 ** __decimalsOffset;
         lastUpdate = uint48(block.timestamp);
         lastPerformanceFee = uint96(IFeeRegistry(FEE_REGISTRY).getPerformanceFee(address(this)));
         lastManagementFee = uint96(IFeeRegistry(FEE_REGISTRY).getManagementFee(address(this)));
 
-        uint256 deadShares = Math.max(MIN_DEAD_SHARES, 10 ** (6 + _decimalOffset));
+        uint256 deadShares = Math.max(MIN_DEAD_SHARES, 10 ** (6 + __decimalsOffset));
         uint256 assets = deadShares.mulDiv(1, virtualShares, Math.Rounding.Ceil);
         IERC20(asset()).safeTransferFrom(owner, address(this), assets);
         _totalAssets = assets;
@@ -472,19 +448,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     /* UTILITY FUNCTIONS */
 
-    /// @dev Update ERC20 balances and active share checkpoints.
-    function _update(address from, address to, uint256 value) internal override {
-        super._update(from, to, value);
-
-        _totalSupply.push(uint48(block.timestamp), super.totalSupply());
-        if (from != address(0)) {
-            _balanceOf[from].push(uint48(block.timestamp), balanceOf(from));
-        }
-        if (to != address(0) && to != from) {
-            _balanceOf[to].push(uint48(block.timestamp), balanceOf(to));
-        }
-    }
-
     /// @dev Grant a role when the holder address is not zero.
     function _grantRoleIfNotZero(bytes32 role, address holder) internal {
         if (holder != address(0)) {
@@ -494,6 +457,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     /// @inheritdoc ERC4626Upgradeable
     function _decimalsOffset() internal view virtual override returns (uint8) {
-        return _decimalOffset;
+        return __decimalsOffset;
     }
 }
