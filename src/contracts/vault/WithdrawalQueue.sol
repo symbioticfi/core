@@ -132,8 +132,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         public
         returns (uint256 assetsClaimed, uint256 sharesClaimed)
     {
-        UniversalDelegator(VaultV2(vault).delegator()).sweepPending();
-
         (assetsClaimed, sharesClaimed) = claimable(tokenId, maxIterations);
 
         requests[tokenId].claimedShares += sharesClaimed;

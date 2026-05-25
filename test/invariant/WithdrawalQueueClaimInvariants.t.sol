@@ -11,7 +11,7 @@ contract WithdrawalQueueClaimInvariantsTest is Test {
     function setUp() public {
         handler = new WithdrawalQueueClaimHandler();
 
-        bytes4[] memory selectors = new bytes4[](7);
+        bytes4[] memory selectors = new bytes4[](8);
         selectors[0] = WithdrawalQueueClaimHandler.request.selector;
         selectors[1] = WithdrawalQueueClaimHandler.increaseAssets.selector;
         selectors[2] = WithdrawalQueueClaimHandler.decreaseAssets.selector;
@@ -19,6 +19,7 @@ contract WithdrawalQueueClaimInvariantsTest is Test {
         selectors[4] = WithdrawalQueueClaimHandler.claim.selector;
         selectors[5] = WithdrawalQueueClaimHandler.claimLimited.selector;
         selectors[6] = WithdrawalQueueClaimHandler.transferPosition.selector;
+        selectors[7] = WithdrawalQueueClaimHandler.reduceLiquidity.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
@@ -29,6 +30,27 @@ contract WithdrawalQueueClaimInvariantsTest is Test {
     }
 
     function invariant_ClaimTransfersMatchFillPriceModel() public {
+        handler.assertActorBalancesMatchClaims();
+    }
+
+    function test_HandlerKeepsModelAlignedWhenFillRedeemsNoShares() public {
+        handler.request(0, 6);
+        handler.decreaseAssets(type(uint256).max);
+
+        handler.fill();
+
+        handler.assertClaimableMatchesModel();
+        handler.assertActorBalancesMatchClaims();
+    }
+
+    function test_HandlerKeepsModelAlignedWhenFillIsLiquidityLimited() public {
+        handler.request(0, 100);
+        handler.reduceLiquidity(40);
+
+        handler.fill();
+
+        assertEq(handler.modelTotalFilled(), 60);
+        handler.assertClaimableMatchesModel();
         handler.assertActorBalancesMatchClaims();
     }
 }

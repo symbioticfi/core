@@ -171,11 +171,24 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(adapter.stake(), observedStake - 40);
     }
 
+    function test_StakeDropsOneSecondAfterRealDelegatorForceDeallocate() public {
+        uint256 observedStake = adapter.stake();
+
+        delegator.forceDeallocate(address(adapter), 40);
+        vm.warp(block.timestamp + 1);
+
+        assertEq(adapter.stake(), observedStake - 40);
+    }
+
     function test_ObservedStakeAtSurvivesRealDelegatorForceDeallocateUntilDurationExpires() public {
         uint48 observedAt = uint48(block.timestamp);
         uint256 observedStake = adapter.stakeAt(observedAt);
 
         delegator.forceDeallocate(address(adapter), 40);
+
+        assertEq(adapter.stakeAt(observedAt), observedStake);
+
+        vm.warp(observedAt + duration - 1);
 
         assertEq(adapter.stakeAt(observedAt), observedStake);
     }

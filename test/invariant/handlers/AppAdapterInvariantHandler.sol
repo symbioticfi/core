@@ -161,8 +161,6 @@ contract AppAdapterInvariantHandler is Test {
     }
 
     function observeCurrentStakeAt() external {
-        _rememberObservation(uint48(block.timestamp));
-
         _afterAction(false);
     }
 
@@ -192,6 +190,9 @@ contract AppAdapterInvariantHandler is Test {
         lastTimestamp = currentTimestamp;
         lastStake = currentStake;
         _checkObservations();
+        if (!slashAction) {
+            _rememberObservation(uint48(currentTimestamp));
+        }
     }
 
     function _rememberObservation(uint48 timestamp) internal {

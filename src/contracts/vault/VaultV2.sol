@@ -312,16 +312,33 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     }
 
     /// @inheritdoc ERC4626Upgradeable
+    function withdraw(uint256 assets, address receiver, address owner)
+        public
+        override(ERC4626Upgradeable, IERC4626)
+        returns (uint256)
+    {
+        accrueInterest();
+        return super.withdraw(assets, receiver, owner);
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function redeem(uint256 shares, address receiver, address owner)
+        public
+        override(ERC4626Upgradeable, IERC4626)
+        returns (uint256)
+    {
+        accrueInterest();
+        return super.redeem(shares, receiver, owner);
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
     function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
         internal
         override
     {
-        accrueInterest();
-
         UniversalDelegator(delegator).onWithdraw(assets.saturatingSub(freeAssets()));
-
-        _totalAssets -= assets;
         super._withdraw(caller, receiver, owner, assets, shares);
+        _totalAssets -= assets;
     }
 
     function freeAssets() public view returns (uint256) {

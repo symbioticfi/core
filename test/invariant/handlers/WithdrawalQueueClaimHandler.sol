@@ -55,6 +55,11 @@ contract WithdrawalQueueInvariantVault is ERC20 {
         managedAssets -= assets;
     }
 
+    function reduceLiquidity(uint256 assets) external {
+        WithdrawalQueueInvariantToken token = WithdrawalQueueInvariantToken(collateral);
+        token.transfer(address(0xDEAD), Math.min(assets, token.balanceOf(address(this))));
+    }
+
     function asset() external view returns (address) {
         return collateral;
     }
@@ -177,20 +182,36 @@ contract WithdrawalQueueClaimHandler is Test {
         vault.decreaseAssets(bound(assetsSeed, 0, managedAssets));
     }
 
-    function fill() external {
-        uint256 shares = queue.pendingShares();
-        if (shares == 0) {
+    function reduceLiquidity(uint256 assetsSeed) external {
+        uint256 balance = collateral.balanceOf(address(vault));
+        if (balance == 0) {
             return;
         }
 
+        vault.reduceLiquidity(bound(assetsSeed, 0, balance));
+    }
+
+    function fill() external {
+        if (queue.pendingShares() == 0) {
+            return;
+        }
+
+        uint256 totalFilledBefore = queue.totalFilled();
         uint256 queueBalanceBefore = collateral.balanceOf(address(queue));
         PriceCheckpoint memory checkpoint = _checkpointForNextFill();
+
+        queue.fill();
+
+        uint256 shares = queue.totalFilled() - totalFilledBefore;
+        if (shares == 0) {
+            assertEq(queue.totalFilled(), modelTotalFilled);
+            return;
+        }
+
         if (_shouldPushCheckpoint(checkpoint)) {
             _checkpointKeys.push(modelTotalFilled);
             _checkpoints.push(checkpoint);
         }
-
-        queue.fill();
 
         modelFilledAssets += collateral.balanceOf(address(queue)) - queueBalanceBefore;
         modelTotalFilled += shares;
@@ -228,6 +249,8 @@ contract WithdrawalQueueClaimHandler is Test {
         assertEq(queue.pendingShares(), modelTotalRequested - modelTotalFilled);
 
         uint256 requestClaimedAssets;
+        uint256 requestClaimableAssets;
+        uint256 requestAccountedShares;
         for (uint256 tokenId; tokenId < _requests.length; ++tokenId) {
             (uint256 expectedAssets, uint256 expectedShares) = modelClaimable(tokenId);
             (uint256 actualAssets, uint256 actualShares) = queue.claimable(tokenId, type(uint256).max);
@@ -238,8 +261,12 @@ contract WithdrawalQueueClaimHandler is Test {
             assertEq(actualClaimedShares, _requests[tokenId].claimedShares);
             assertEq(queue.ownerOf(tokenId), _requests[tokenId].owner);
             requestClaimedAssets += _requests[tokenId].claimedAssets;
+            requestClaimableAssets += actualAssets;
+            requestAccountedShares += _requests[tokenId].claimedShares + actualShares;
         }
         assertEq(requestClaimedAssets, modelClaimedAssets);
+        assertLe(requestClaimedAssets + requestClaimableAssets, modelFilledAssets);
+        assertLe(requestAccountedShares, modelTotalFilled);
     }
 
     function assertActorBalancesMatchClaims() external view {
