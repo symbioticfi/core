@@ -58,11 +58,17 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         }
     }
 
+    /* CONSTRUCTOR */
+
+    constructor() {
+        _disableInitializers();
+    }
+
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IWithdrawalQueue
     function pendingAssets() public view returns (uint256) {
-        return IERC4626(vault).convertToAssets(pendingShares());
+        return IERC4626(vault).previewRedeem(pendingShares());
     }
 
     /// @inheritdoc IWithdrawalQueue
@@ -142,10 +148,14 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     }
 
     /// @inheritdoc IWithdrawalQueue
-    function fill() public {
-        uint256 shares = Math.min(pendingShares(), VaultV2(vault).withdrawable());
+    function fill() public returns (uint256 assets, uint256 shares) {
+        shares = pendingShares();
         if (shares == 0) {
-            return;
+            return (0, 0);
+        }
+        shares = Math.min(shares, IERC4626(vault).previewDeposit(VaultV2(vault).withdrawable()));
+        if (shares == 0) {
+            return (0, 0);
         }
 
         // Update the checkpoint when price decreases or increases past tolerance.
@@ -169,10 +179,10 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
             _sharePriceCheckpoints.push(SharePriceCheckpoint(totalAssets, totalShares));
         }
 
-        uint256 amount = IERC4626(vault).redeem(shares, address(this), address(this));
+        assets = IERC4626(vault).redeem(shares, address(this), address(this));
         totalFilled += shares;
 
-        emit Fill(amount, shares);
+        emit Fill(assets, shares);
     }
 
     /* INITIALIZE */

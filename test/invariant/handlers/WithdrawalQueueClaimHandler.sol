@@ -76,6 +76,10 @@ contract WithdrawalQueueInvariantVault is ERC20 {
         return totalSupply() == 0 ? 0 : shares.mulDiv(managedAssets, totalSupply());
     }
 
+    function previewDeposit(uint256 assets) external view returns (uint256) {
+        return managedAssets == 0 ? 0 : assets.mulDiv(totalSupply() + virtualSharesValue, managedAssets + 1);
+    }
+
     function convertToAssets(uint256 shares) external view returns (uint256) {
         return totalSupply() == 0 ? 0 : shares.mulDiv(managedAssets, totalSupply());
     }
@@ -85,6 +89,10 @@ contract WithdrawalQueueInvariantVault is ERC20 {
             ? 0
             : WithdrawalQueueInvariantToken(collateral).balanceOf(address(this)).mulDiv(totalSupply(), managedAssets);
         return Math.min(balanceOf(owner), byLiquidity);
+    }
+
+    function withdrawable() external view returns (uint256) {
+        return WithdrawalQueueInvariantToken(collateral).balanceOf(address(this));
     }
 
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
@@ -197,13 +205,20 @@ contract WithdrawalQueueClaimHandler is Test {
         }
 
         uint256 totalFilledBefore = queue.totalFilled();
+        uint256 pendingSharesBefore = queue.pendingShares();
+        uint256 withdrawableBefore = vault.withdrawable();
+        uint256 expectedMaxFilledShares = Math.min(pendingSharesBefore, vault.previewDeposit(withdrawableBefore));
         uint256 queueBalanceBefore = collateral.balanceOf(address(queue));
         PriceCheckpoint memory checkpoint = _checkpointForNextFill();
 
-        queue.fill();
+        (uint256 assetsReceived, uint256 shares) = queue.fill();
 
-        uint256 shares = queue.totalFilled() - totalFilledBefore;
+        assertLe(assetsReceived, withdrawableBefore);
+        assertEq(assetsReceived, collateral.balanceOf(address(queue)) - queueBalanceBefore);
+        assertEq(shares, queue.totalFilled() - totalFilledBefore);
+        assertEq(shares, expectedMaxFilledShares);
         if (shares == 0) {
+            assertEq(assetsReceived, 0);
             assertEq(queue.totalFilled(), modelTotalFilled);
             return;
         }
@@ -216,6 +231,7 @@ contract WithdrawalQueueClaimHandler is Test {
         modelFilledAssets += collateral.balanceOf(address(queue)) - queueBalanceBefore;
         modelTotalFilled += shares;
         assertEq(queue.totalFilled(), modelTotalFilled);
+        assertEq(queue.pendingAssets(), vault.previewRedeem(queue.pendingShares()));
     }
 
     function claim(uint256 tokenSeed) external {
@@ -265,6 +281,7 @@ contract WithdrawalQueueClaimHandler is Test {
             requestAccountedShares += _requests[tokenId].claimedShares + actualShares;
         }
         assertEq(requestClaimedAssets, modelClaimedAssets);
+        assertLe(requestClaimableAssets, collateral.balanceOf(address(queue)));
         assertLe(requestClaimedAssets + requestClaimableAssets, modelFilledAssets);
         assertLe(requestAccountedShares, modelTotalFilled);
     }

@@ -65,6 +65,7 @@ contract AppAdapterInvariantHandler is Test {
     uint256 internal lastStake;
     bool internal singleBlockViolated;
     bool internal crossTimeViolated;
+    bool internal emptyQueuePendingRouteViolated;
 
     constructor() {
         _initialize();
@@ -179,6 +180,33 @@ contract AppAdapterInvariantHandler is Test {
         assertFalse(crossTimeViolated);
     }
 
+    function assertAccountingInvariant() external view {
+        uint256 adapterTotalAssets = adapter.totalAssets();
+        uint256 adapterSlashable = adapter.slashable();
+        uint256 adapterDeallocatable = adapter.deallocatable();
+
+        assertEq(adapterTotalAssets, adapterSlashable + adapterDeallocatable);
+        assertEq(collateral.balanceOf(address(adapter)), adapterTotalAssets);
+        assertLe(adapter.stake(), adapterSlashable);
+        assertLe(adapterSlashable, adapterTotalAssets);
+        assertEq(delegator.totalAssets(), adapterTotalAssets);
+        assertEq(vault.totalAssets(), collateral.balanceOf(address(vault)) + adapterTotalAssets);
+        assertEq(adapter.stake(), adapter.stakeAt(uint48(block.timestamp)));
+    }
+
+    function assertQueueInvariant() external view {
+        uint256 claimableAssets;
+        for (uint256 i; i < requestTokenIds.length; ++i) {
+            (uint256 assets,) = queue.claimable(requestTokenIds[i], type(uint256).max);
+            claimableAssets += assets;
+        }
+
+        assertFalse(emptyQueuePendingRouteViolated);
+        assertLe(claimableAssets, collateral.balanceOf(address(queue)));
+        assertLe(queue.totalFilled(), queue.totalRequested());
+        assertEq(queue.pendingShares(), queue.totalRequested() - queue.totalFilled());
+    }
+
     function _afterAction(bool slashAction) internal {
         uint256 currentTimestamp = block.timestamp;
         uint256 currentStake = adapter.stake();
@@ -190,6 +218,7 @@ contract AppAdapterInvariantHandler is Test {
         lastTimestamp = currentTimestamp;
         lastStake = currentStake;
         _checkObservations();
+        _checkQueuePendingRoute();
         if (!slashAction) {
             _rememberObservation(uint48(currentTimestamp));
         }
@@ -219,6 +248,16 @@ contract AppAdapterInvariantHandler is Test {
         for (uint256 i; i < OBSERVATIONS; ++i) {
             delete observations[i];
         }
+    }
+
+    function _checkQueuePendingRoute() internal {
+        if (queue.pendingShares() > 0) {
+            return;
+        }
+
+        try delegator.adaptersWithPending(0) returns (uint16) {
+            emptyQueuePendingRouteViolated = true;
+        } catch {}
     }
 
     function _actor(uint256 seed) internal view returns (address) {

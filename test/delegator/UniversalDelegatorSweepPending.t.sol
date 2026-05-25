@@ -70,7 +70,7 @@ contract UniversalDelegatorSweepQueue {
         pendingAfterFill = pendingAfterFill_;
     }
 
-    function fill() external {
+    function fill() external returns (uint256 assets, uint256 shares) {
         ++fillCalls;
         pendingAssets = pendingAfterFill;
     }

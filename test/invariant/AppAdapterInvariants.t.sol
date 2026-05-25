@@ -33,4 +33,12 @@ contract AppAdapterInvariantsTest is Test {
     function invariant_ObservedGuaranteesSurviveUntilDurationOrSlash() public view {
         handler.assertCrossTimeInvariant();
     }
+
+    function invariant_AdapterDelegatorVaultAccountingMatches() public view {
+        handler.assertAccountingInvariant();
+    }
+
+    function invariant_QueueAccountingMatchesLiquidity() public view {
+        handler.assertQueueInvariant();
+    }
 }

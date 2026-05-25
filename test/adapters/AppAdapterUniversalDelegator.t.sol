@@ -193,6 +193,136 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(adapter.stakeAt(observedAt), observedStake);
     }
 
+    function test_QueuedWithdrawalDoesNotFillBeforeAppAdapterDebtMatures() public {
+        (WithdrawalQueue queue, uint256 tokenId, uint256 shares) = _requestAllocatedWithdrawal(1000);
+        uint48 requestedAt = uint48(block.timestamp);
+        uint256 observedStake = adapter.stakeAt(requestedAt);
+        uint256 adapterAssets = adapter.totalAssets();
+        uint16 adapterIndex = delegator.adapterToIndex(address(adapter));
+
+        assertEq(queue.totalFilled(), 0);
+        assertEq(queue.pendingShares(), shares);
+        assertEq(delegator.adaptersWithPending(0), adapterIndex);
+
+        delegator.sweepPending();
+
+        assertEq(queue.totalFilled(), 0);
+        assertEq(queue.pendingShares(), shares);
+        assertEq(adapter.totalAssets(), adapterAssets);
+        assertEq(adapter.stakeAt(requestedAt), observedStake);
+        assertEq(delegator.adaptersWithPending(0), adapterIndex);
+
+        vm.warp(requestedAt + duration - 1);
+        delegator.sweepPending();
+
+        assertEq(queue.totalFilled(), 0);
+        assertEq(queue.pendingShares(), shares);
+        assertEq(adapter.totalAssets(), adapterAssets);
+        assertEq(adapter.stakeAt(requestedAt), observedStake);
+        (, uint256 claimableShares) = queue.claimable(tokenId, type(uint256).max);
+
+        assertEq(claimableShares, 0);
+    }
+
+    function test_SlashCanConsumeFullStakeInSameBlockAfterForceDeallocate() public {
+        uint256 observedStake = adapter.stake();
+        uint256 burnerBalanceBefore = collateral.balanceOf(BURNER);
+
+        delegator.forceDeallocate(address(adapter), 40);
+
+        vm.prank(networkMiddleware);
+        uint256 slashed = adapter.slash(observedStake);
+
+        assertEq(slashed, observedStake);
+        assertEq(collateral.balanceOf(BURNER), burnerBalanceBefore + observedStake);
+        assertEq(adapter.totalAssets(), 0);
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.stake(), 0);
+
+        vm.warp(block.timestamp + duration);
+
+        assertEq(adapter.totalAssets(), 0);
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.stake(), 0);
+    }
+
+    function test_SweepPendingFillsQueuedWithdrawalAfterDelayedAppAdapterDebt() public {
+        address alice = address(0xA11CE);
+        (WithdrawalQueue queue, uint256 tokenId, uint256 shares) = _requestAllocatedWithdrawal(1000);
+
+        assertEq(queue.totalFilled(), 0);
+        assertEq(queue.pendingShares(), shares);
+
+        uint256 adapterAssetsBefore = adapter.totalAssets();
+
+        vm.warp(block.timestamp + duration);
+        delegator.sweepPending();
+
+        assertEq(queue.pendingShares(), 0);
+        assertEq(queue.totalFilled(), shares);
+        assertLt(adapter.totalAssets(), adapterAssetsBefore);
+
+        (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(tokenId, type(uint256).max);
+        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+
+        assertGt(claimableAssets, 0);
+        assertEq(claimableShares, shares);
+
+        queue.claim(tokenId, type(uint256).max);
+
+        assertEq(collateral.balanceOf(alice), aliceBalanceBefore + claimableAssets);
+    }
+
+    function test_DirectFillUsesVaultWithdrawableDeallocatableAndReturnsExactTuple() public {
+        (WithdrawalQueue queue, uint256 tokenId, uint256 shares) = _requestAllocatedWithdrawal(1000);
+        uint256 queueBalanceBefore = collateral.balanceOf(address(queue));
+        uint256 adapterAssetsBefore = adapter.totalAssets();
+
+        vm.warp(block.timestamp + duration);
+        (uint256 assetsFilled, uint256 sharesFilled) = queue.fill();
+
+        assertEq(sharesFilled, shares);
+        assertEq(assetsFilled, collateral.balanceOf(address(queue)) - queueBalanceBefore);
+        assertEq(queue.totalFilled(), shares);
+        assertEq(queue.pendingShares(), 0);
+        assertLt(adapter.totalAssets(), adapterAssetsBefore);
+
+        (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(tokenId, type(uint256).max);
+        uint256 aliceBalanceBefore = collateral.balanceOf(address(0xA11CE));
+
+        assertEq(claimableAssets, assetsFilled);
+        assertEq(claimableShares, shares);
+
+        queue.claim(tokenId, type(uint256).max);
+
+        assertEq(collateral.balanceOf(address(0xA11CE)), aliceBalanceBefore + assetsFilled);
+    }
+
+    function _requestAllocatedWithdrawal(uint256 assets)
+        internal
+        returns (WithdrawalQueue queue, uint256 tokenId, uint256 shares)
+    {
+        address alice = address(0xA11CE);
+
+        deal(address(collateral), alice, assets);
+        vm.startPrank(alice);
+        collateral.approve(address(vault), assets);
+        shares = vault.deposit(assets, alice);
+        vm.stopPrank();
+
+        delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE);
+        delegator.allocate(address(adapter), type(uint256).max);
+
+        assertEq(vault.freeAssets(), 0);
+
+        queue = WithdrawalQueue(vault.withdrawalQueue());
+
+        vm.startPrank(alice);
+        vault.approve(address(queue), shares);
+        tokenId = queue.requestWithdraw(shares, alice);
+        vm.stopPrank();
+    }
+
     function _createVault() internal returns (VaultV2) {
         bytes memory data = abi.encode(
             IVaultV2.InitParams({

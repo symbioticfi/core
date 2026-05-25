@@ -159,5 +159,5 @@ interface IWithdrawalQueue is IERC721Metadata {
     /**
      * @notice Fills pending withdrawal requests with available vault assets.
      */
-    function fill() external;
+    function fill() external returns (uint256 assets, uint256 shares);
 }

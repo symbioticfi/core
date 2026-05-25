@@ -81,14 +81,14 @@ contract AppAdapter is Adapter, IAppAdapter {
     function stake() public view returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.latest()];
         return curStake.initialStake.saturatingSub(curStake.slashed.latest())
-            .saturatingSub(curStake.debt.upperLookupRecent(uint48(block.timestamp + duration - 1)));
+            .saturatingSub(curStake.debt.upperLookupRecent(uint48(block.timestamp) + duration - 1));
     }
 
     /// @inheritdoc IAppAdapter
     function stakeAt(uint48 timestamp) public view returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.upperLookupRecent(timestamp)];
         return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
-            .saturatingSub(curStake.debt.upperLookupRecent(uint48(timestamp + duration - 1)));
+            .saturatingSub(curStake.debt.upperLookupRecent(uint48(timestamp) + duration - 1));
     }
 
     /* PUBLIC FUNCTIONS (NETWORK) */
@@ -156,7 +156,7 @@ contract AppAdapter is Adapter, IAppAdapter {
             Stake storage curStake = _stakes[_stakePos.latest()];
             // Keep increasing debt when the request grows.
             if (curStake.debt.latest() < amount) {
-                curStake.debt.push(uint48(block.timestamp + duration), amount);
+                curStake.debt.push(uint48(block.timestamp) + duration, amount);
             }
             // Keep existing debt when the request shrinks but cannot release assets yet.
         }
