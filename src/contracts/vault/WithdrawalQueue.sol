@@ -62,7 +62,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
     /// @inheritdoc IWithdrawalQueue
     function pendingAssets() public view returns (uint256) {
-        return IERC4626(vault).previewRedeem(pendingShares());
+        return IERC4626(vault).convertToAssets(pendingShares());
     }
 
     /// @inheritdoc IWithdrawalQueue
@@ -71,90 +71,8 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     }
 
     /// @inheritdoc IWithdrawalQueue
-    function claimable(uint256 tokenId) public view returns (uint256 assetsClaimed, uint256 sharesClaimed) {
-        (assetsClaimed, sharesClaimed) = _claimable(tokenId, type(uint256).max);
-    }
-
-    /* PUBLIC FUNCTIONS */
-
-    /// @inheritdoc IWithdrawalQueue
-    function requestWithdraw(uint256 shares, address receiver) public returns (uint256 tokenId) {
-        if (shares == 0) {
-            revert ZeroShares();
-        }
-
-        IERC4626(vault).safeTransferFrom(msg.sender, address(this), shares);
-
-        tokenId = _nextTokenId++;
-        requests[tokenId] = WithdrawalRequest({shares: shares, claimedShares: 0, prevRequestSum: totalRequested});
-        totalRequested += shares;
-
-        _mint(receiver, tokenId);
-
-        UniversalDelegator(VaultV2(vault).delegator()).onWithdrawRequest();
-
-        emit RequestWithdraw(msg.sender, receiver, shares, tokenId);
-    }
-
-    /// @inheritdoc IWithdrawalQueue
-    function claim(uint256 tokenId, uint256 maxIterations)
+    function claimable(uint256 tokenId, uint256 maxIterations)
         public
-        returns (uint256 assetsClaimed, uint256 sharesClaimed)
-    {
-        UniversalDelegator(VaultV2(vault).delegator()).sweepPending();
-
-        (assetsClaimed, sharesClaimed) = _claimable(tokenId, maxIterations);
-
-        requests[tokenId].claimedShares += sharesClaimed;
-
-        IERC20(IERC4626(vault).asset()).safeTransfer(ownerOf(tokenId), assetsClaimed);
-
-        emit Claim(tokenId, assetsClaimed, sharesClaimed);
-    }
-
-    /// @inheritdoc IWithdrawalQueue
-    function fill() public {
-        uint256 shares = pendingShares();
-        if (shares == 0) {
-            return;
-        }
-
-        // Update the checkpoint when price decreases or increases past tolerance.
-        uint256 totalShares = IERC4626(vault).totalSupply();
-        uint256 totalAssets = IERC4626(vault).totalAssets();
-        uint256 virtualShares = VaultV2(vault).virtualShares();
-        SharePriceCheckpoint storage lastCheckpoint = _sharePriceCheckpoints[_sharePriceCheckpoints.length - 1];
-
-        uint256 sharePriceScale = 10 ** IERC4626(vault).decimals();
-        uint256 lastSharePrice =
-            sharePriceScale.mulDiv(lastCheckpoint.totalAssets + 1, lastCheckpoint.totalShares + virtualShares);
-        uint256 newSharePrice = sharePriceScale.mulDiv(totalAssets + 1, totalShares + virtualShares);
-        if (
-            newSharePrice < lastSharePrice
-                || newSharePrice - lastSharePrice
-                    >= 10
-                        ** (uint256(IERC20Metadata(IERC4626(vault).asset()).decimals()))
-                        .saturatingSub(SHARE_PRICE_TOLERANCE_DECIMALS)
-        ) {
-            _totalFilledSharesToSharePrice.push(totalFilled, _sharePriceCheckpoints.length);
-            _sharePriceCheckpoints.push(SharePriceCheckpoint(totalAssets, totalShares));
-        }
-
-        uint256 amount = IERC4626(vault).redeem(shares, address(this), address(this));
-        totalFilled += shares;
-
-        emit Fill(amount, shares);
-    }
-
-    /* INTERNAL FUNCTIONS */
-
-    /// @dev Returns the claimable assets and shares for a withdrawal request.
-    /// @param tokenId The withdrawal NFT id.
-    /// @param maxIterations The maximum number of iterations to claim.
-    /// @return assetsClaimed The claimable assets.
-    /// @return sharesClaimed The claimable shares.
-    function _claimable(uint256 tokenId, uint256 maxIterations)
-        internal
         view
         returns (uint256 assetsClaimed, uint256 sharesClaimed)
     {
@@ -186,6 +104,77 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         }
 
         sharesClaimed = cumClaimedShares - request.prevRequestSum - request.claimedShares;
+    }
+
+    /* PUBLIC FUNCTIONS */
+
+    /// @inheritdoc IWithdrawalQueue
+    function requestWithdraw(uint256 shares, address receiver) public returns (uint256 tokenId) {
+        if (shares == 0) {
+            revert ZeroShares();
+        }
+
+        IERC4626(vault).safeTransferFrom(msg.sender, address(this), shares);
+
+        tokenId = _nextTokenId++;
+        requests[tokenId] = WithdrawalRequest({shares: shares, claimedShares: 0, prevRequestSum: totalRequested});
+        totalRequested += shares;
+
+        _safeMint(receiver, tokenId);
+
+        UniversalDelegator(VaultV2(vault).delegator()).onWithdrawRequest();
+
+        emit RequestWithdraw(msg.sender, receiver, shares, tokenId);
+    }
+
+    /// @inheritdoc IWithdrawalQueue
+    function claim(uint256 tokenId, uint256 maxIterations)
+        public
+        returns (uint256 assetsClaimed, uint256 sharesClaimed)
+    {
+        UniversalDelegator(VaultV2(vault).delegator()).sweepPending();
+
+        (assetsClaimed, sharesClaimed) = claimable(tokenId, maxIterations);
+
+        requests[tokenId].claimedShares += sharesClaimed;
+
+        IERC20(IERC4626(vault).asset()).safeTransfer(ownerOf(tokenId), assetsClaimed);
+
+        emit Claim(tokenId, assetsClaimed, sharesClaimed);
+    }
+
+    /// @inheritdoc IWithdrawalQueue
+    function fill() public {
+        uint256 shares = Math.min(pendingShares(), VaultV2(vault).maxRedeem(address(this)));
+        if (shares == 0) {
+            return;
+        }
+
+        // Update the checkpoint when price decreases or increases past tolerance.
+        uint256 totalShares = IERC4626(vault).totalSupply();
+        uint256 totalAssets = IERC4626(vault).totalAssets();
+        uint256 virtualShares = VaultV2(vault).virtualShares();
+        SharePriceCheckpoint storage lastCheckpoint = _sharePriceCheckpoints[_sharePriceCheckpoints.length - 1];
+
+        uint256 sharePriceScale = 10 ** IERC4626(vault).decimals();
+        uint256 lastSharePrice =
+            sharePriceScale.mulDiv(lastCheckpoint.totalAssets + 1, lastCheckpoint.totalShares + virtualShares);
+        uint256 newSharePrice = sharePriceScale.mulDiv(totalAssets + 1, totalShares + virtualShares);
+        if (
+            newSharePrice < lastSharePrice
+                || newSharePrice - lastSharePrice
+                    >= 10
+                        ** (uint256(IERC20Metadata(IERC4626(vault).asset()).decimals()))
+                        .saturatingSub(SHARE_PRICE_TOLERANCE_DECIMALS)
+        ) {
+            _totalFilledSharesToSharePrice.push(totalFilled, _sharePriceCheckpoints.length);
+            _sharePriceCheckpoints.push(SharePriceCheckpoint(totalAssets, totalShares));
+        }
+
+        uint256 amount = IERC4626(vault).redeem(shares, address(this), address(this));
+        totalFilled += shares;
+
+        emit Fill(amount, shares);
     }
 
     /* INITIALIZE */

@@ -251,20 +251,12 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         if (assets == type(uint256).max) {
             return type(uint256).max;
         }
-        if (assets == 0) {
-            return 0;
-        }
         return previewDeposit(assets);
     }
 
-    /// @inheritdoc ERC4626Upgradeable
-    function maxWithdraw(address owner) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
-        return Math.min(previewRedeem(balanceOf(owner)), freeAssets());
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function maxRedeem(address owner) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
-        return Math.min(balanceOf(owner), previewDeposit(freeAssets()));
+    /// @inheritdoc IVaultV2
+    function withdrawable() public returns (uint256) {
+        return freeAssets() + UniversalDelegator(delegator).deallocatable();
     }
 
     /* PUBLIC FUNCTIONS (ACCOUNTING) */
@@ -315,8 +307,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
         super._deposit(caller, receiver, assets, shares);
         _totalAssets += assets;
-
-        WithdrawalQueue(withdrawalQueue).fill();
 
         UniversalDelegator(delegator).onDeposit();
     }
@@ -420,7 +410,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
         uint256 deadShares = Math.max(MIN_DEAD_SHARES, 10 ** (6 + __decimalsOffset));
         uint256 assets = deadShares.mulDiv(1, virtualShares, Math.Rounding.Ceil);
-        IERC20(asset()).safeTransferFrom(owner, address(this), assets);
+        IERC20(params.asset).safeTransferFrom(owner, address(this), assets);
         _totalAssets = assets;
         _mint(DEAD_SHARES_RECIPIENT, deadShares);
 

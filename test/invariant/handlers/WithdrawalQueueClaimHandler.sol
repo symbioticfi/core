@@ -71,6 +71,17 @@ contract WithdrawalQueueInvariantVault is ERC20 {
         return totalSupply() == 0 ? 0 : shares.mulDiv(managedAssets, totalSupply());
     }
 
+    function convertToAssets(uint256 shares) external view returns (uint256) {
+        return totalSupply() == 0 ? 0 : shares.mulDiv(managedAssets, totalSupply());
+    }
+
+    function maxRedeem(address owner) external view returns (uint256) {
+        uint256 byLiquidity = managedAssets == 0
+            ? 0
+            : WithdrawalQueueInvariantToken(collateral).balanceOf(address(this)).mulDiv(totalSupply(), managedAssets);
+        return Math.min(balanceOf(owner), byLiquidity);
+    }
+
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
         assets = shares.mulDiv(managedAssets, totalSupply());
         _burn(owner, shares);
@@ -219,7 +230,7 @@ contract WithdrawalQueueClaimHandler is Test {
         uint256 requestClaimedAssets;
         for (uint256 tokenId; tokenId < _requests.length; ++tokenId) {
             (uint256 expectedAssets, uint256 expectedShares) = modelClaimable(tokenId);
-            (uint256 actualAssets, uint256 actualShares) = queue.claimable(tokenId);
+            (uint256 actualAssets, uint256 actualShares) = queue.claimable(tokenId, type(uint256).max);
             (, uint256 actualClaimedShares,) = queue.requests(tokenId);
 
             assertEq(actualAssets, expectedAssets);

@@ -114,6 +114,10 @@ contract WithdrawalQueueFillVault is ERC20 {
         return totalSupply() == 0 ? 0 : shares.mulDiv(managedAssets, totalSupply());
     }
 
+    function convertToAssets(uint256 shares) external view returns (uint256) {
+        return totalSupply() == 0 ? 0 : shares.mulDiv(managedAssets, totalSupply());
+    }
+
     function previewWithdraw(uint256 assets) external view returns (uint256) {
         return managedAssets == 0 ? 0 : assets.mulDiv(totalSupply(), managedAssets, Math.Rounding.Ceil);
     }
@@ -181,7 +185,7 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(vault), 0);
     }
 
-    function test_PendingAssetsUsesPreviewRedeemOfPendingShares() public {
+    function test_PendingAssetsUsesConvertToAssetsOfPendingShares() public {
         uint256 shares = 100;
 
         WithdrawalQueueFillVault(vault).mintShares(alice, shares, 100);
@@ -193,6 +197,31 @@ contract WithdrawalQueueFillTest is Test {
 
         assertEq(WithdrawalQueue(queue).pendingShares(), shares);
         assertEq(WithdrawalQueue(queue).pendingAssets(), 100);
+    }
+
+    function test_FillOnlyRedeemsAvailableSharesWhenVaultLiquidityIsLimited() public {
+        uint256 shares = 100;
+        uint256 liquidAssets = 40;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, liquidAssets);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, shares);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        assertEq(WithdrawalQueue(queue).totalFilled(), liquidAssets);
+        assertEq(WithdrawalQueue(queue).pendingShares(), shares - liquidAssets);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), liquidAssets);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(vault), 0);
+
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId, type(uint256).max);
+
+        assertEq(assetsClaimed, liquidAssets);
+        assertEq(sharesClaimed, liquidAssets);
     }
 
     function test_ClaimableUsesFilledRequest() public {
@@ -208,7 +237,7 @@ contract WithdrawalQueueFillTest is Test {
 
         WithdrawalQueue(queue).fill();
 
-        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(0);
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(0, type(uint256).max);
 
         assertEq(assetsClaimed, 100);
         assertEq(sharesClaimed, shares);
@@ -229,7 +258,7 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 0);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(vault), 1);
 
-        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(0);
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(0, type(uint256).max);
 
         assertEq(assetsClaimed, 0);
         assertEq(sharesClaimed, 1);
@@ -258,8 +287,10 @@ contract WithdrawalQueueFillTest is Test {
 
         WithdrawalQueue(queue).fill();
 
-        (uint256 firstAssetsClaimed, uint256 firstSharesClaimed) = WithdrawalQueue(queue).claimable(firstTokenId);
-        (uint256 secondAssetsClaimed, uint256 secondSharesClaimed) = WithdrawalQueue(queue).claimable(secondTokenId);
+        (uint256 firstAssetsClaimed, uint256 firstSharesClaimed) =
+            WithdrawalQueue(queue).claimable(firstTokenId, type(uint256).max);
+        (uint256 secondAssetsClaimed, uint256 secondSharesClaimed) =
+            WithdrawalQueue(queue).claimable(secondTokenId, type(uint256).max);
 
         assertEq(firstAssetsClaimed, 100);
         assertEq(firstSharesClaimed, shares);
@@ -282,7 +313,7 @@ contract WithdrawalQueueFillTest is Test {
 
         WithdrawalQueue(queue).fill();
 
-        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId);
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId, type(uint256).max);
 
         assertEq(assetsClaimed, assets);
         assertEq(sharesClaimed, shares);
@@ -320,7 +351,7 @@ contract WithdrawalQueueFillTest is Test {
 
         WithdrawalQueue(queue).fill();
 
-        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId);
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId, type(uint256).max);
 
         assertEq(assetsClaimed, assets + 1);
         assertEq(sharesClaimed, shares);
@@ -340,7 +371,7 @@ contract WithdrawalQueueFillTest is Test {
 
         WithdrawalQueue(queue).fill();
 
-        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId);
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId, type(uint256).max);
 
         assertEq(assetsClaimed, 19_999);
         assertEq(sharesClaimed, shares);
@@ -361,7 +392,7 @@ contract WithdrawalQueueFillTest is Test {
 
         WithdrawalQueue(queue).fill();
 
-        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId);
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId, type(uint256).max);
 
         assertEq(assetsClaimed, assets - drift);
         assertEq(sharesClaimed, shares);
@@ -403,7 +434,8 @@ contract WithdrawalQueueFillTest is Test {
 
         WithdrawalQueue(queue).fill();
 
-        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(secondTokenId);
+        (uint256 assetsClaimed, uint256 sharesClaimed) =
+            WithdrawalQueue(queue).claimable(secondTokenId, type(uint256).max);
 
         assertEq(assetsClaimed, assets - drift);
         assertEq(sharesClaimed, shares);

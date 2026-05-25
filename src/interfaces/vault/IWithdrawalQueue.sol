@@ -142,10 +142,14 @@ interface IWithdrawalQueue is IERC721Metadata {
     /**
      * @notice Returns the claimable assets and shares for a withdrawal request.
      * @param tokenId Withdrawal NFT id.
+     * @param maxIterations Maximum number of share price checkpoints to process.
      * @return assetsClaimed Claimable assets.
      * @return sharesClaimed Claimable shares.
      */
-    function claimable(uint256 tokenId) external view returns (uint256 assetsClaimed, uint256 sharesClaimed);
+    function claimable(uint256 tokenId, uint256 maxIterations)
+        external
+        view
+        returns (uint256 assetsClaimed, uint256 sharesClaimed);
 
     /**
      * @notice Initialize withdrawal queue metadata and bind it to the calling vault.
