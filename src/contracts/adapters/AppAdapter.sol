@@ -147,8 +147,8 @@ contract AppAdapter is Adapter, IAppAdapter {
 
         // Reset stake, debt, and slashed when the debt was reduced enough.
         if (
-            IUniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this)).saturatingSub(amount)
-                >= curSlashable
+            Math.min(IUniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this)), totalAssets())
+                    .saturatingSub(amount) >= curSlashable
         ) {
             _stakePos.push(uint48(block.timestamp), uint208(_stakes.length));
             _stakes.push().initialStake = curSlashable;

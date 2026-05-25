@@ -90,6 +90,26 @@ contract AppAdapterTest is Test {
         assertEq(adapter.stake(), 60);
     }
 
+    function test_DeallocationDebtUsesCurrentAssetsWhenLimitExceedsAssets() public {
+        _allocate(100);
+        delegator.setLimit(type(uint256).max);
+
+        delegator.requestDeallocate(address(adapter), 40);
+
+        assertEq(adapter.stake(), 100);
+        assertEq(adapter.deallocatable(), 0);
+
+        vm.warp(block.timestamp + duration);
+
+        assertEq(adapter.stake(), 60);
+        assertEq(adapter.deallocatable(), 40);
+
+        uint256 deallocated = delegator.deallocate(address(adapter), 40);
+
+        assertEq(deallocated, 40);
+        assertEq(adapter.totalAssets(), 60);
+    }
+
     function test_SyncClosesPendingByRestoringStake() public {
         _allocate(100);
 
@@ -201,6 +221,8 @@ contract AppAdapterDelegatorMock {
     uint256 public decreaseLimitsCalls;
     uint256 public lastDecreaseAssets;
     uint256 public lastDecreaseShare;
+    uint256 public limitOverride;
+    bool public isLimitOverride;
 
     function allocate(address adapter, uint256 amount) external {
         IAdapter(adapter).allocate(amount);
@@ -214,11 +236,19 @@ contract AppAdapterDelegatorMock {
         IAdapter(adapter).requestDeallocate(amount);
     }
 
+    function setLimit(uint256 limit) external {
+        limitOverride = limit;
+        isLimitOverride = true;
+    }
+
     function sync(address adapter) external {
         IAdapter(adapter).requestDeallocate(0);
     }
 
     function limitOf(address adapter) external view returns (uint256) {
+        if (isLimitOverride) {
+            return limitOverride;
+        }
         return IAdapter(adapter).totalAssets();
     }
 
