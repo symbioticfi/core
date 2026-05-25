@@ -271,12 +271,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function allocate(address adapter, uint256 assets)
-        public
-        onlyRole(ALLOCATE_ROLE)
-        nonReentrant
-        returns (uint256 deallocated)
-    {
+    function allocate(address adapter, uint256 assets) public onlyRole(ALLOCATE_ROLE) returns (uint256 deallocated) {
         if (sweepPending() > 0) {
             return 0;
         }
@@ -287,7 +282,6 @@ contract UniversalDelegator is
     function deallocate(address adapter, uint256 assets)
         public
         onlyRole(DEALLOCATE_ROLE)
-        nonReentrant
         returns (uint256 deallocated)
     {
         deallocated = _deallocate(adapter, assets);
@@ -295,18 +289,13 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function deallocateAll(uint256 assets) public onlyRole(DEALLOCATE_ROLE) nonReentrant returns (uint256 deallocated) {
+    function deallocateAll(uint256 assets) public onlyRole(DEALLOCATE_ROLE) returns (uint256 deallocated) {
         deallocated = _deallocateAll(assets);
         sweepPending();
     }
 
     /// @inheritdoc IUniversalDelegator
-    function deallocateExact(uint256 assets)
-        public
-        onlyRole(DEALLOCATE_ROLE)
-        nonReentrant
-        returns (uint256 deallocated)
-    {
+    function deallocateExact(uint256 assets) public onlyRole(DEALLOCATE_ROLE) returns (uint256 deallocated) {
         if (sweepPending() > 0) {
             return 0;
         }
@@ -314,7 +303,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function allocate(uint256 assets) public onlyRole(ALLOCATE_ROLE) nonReentrant returns (uint256 allocated) {
+    function allocate(uint256 assets) public onlyRole(ALLOCATE_ROLE) returns (uint256 allocated) {
         if (sweepPending() > 0) {
             return 0;
         }
@@ -325,7 +314,6 @@ contract UniversalDelegator is
     function forceDeallocate(address adapter, uint256 assets)
         public
         onlyRole(DEALLOCATE_ROLE)
-        nonReentrant
         returns (uint256 deallocated, uint256 pending)
     {
         uint256 adapterTotalAssets = IAdapter(adapter).totalAssets();
@@ -368,7 +356,7 @@ contract UniversalDelegator is
 
     /// @dev Called after all pending tried to be filled.
     /// @inheritdoc IUniversalDelegator
-    function onDeposit() public nonReentrant {
+    function onDeposit() public {
         if (vault != msg.sender) {
             revert NotVault();
         }
@@ -382,7 +370,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function onWithdrawRequest() public nonReentrant {
+    function onWithdrawRequest() public {
         if (VaultV2(vault).withdrawalQueue() != msg.sender) {
             revert NotVault();
         }
@@ -391,7 +379,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function onWithdraw(uint256 assets) public nonReentrant {
+    function onWithdraw(uint256 assets) public {
         if (vault != msg.sender) {
             revert NotVault();
         }
