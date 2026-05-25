@@ -7,6 +7,7 @@ import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol"
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract WithdrawalQueueInvariantToken is ERC20 {
     constructor() ERC20("Token", "TKN") {}
@@ -73,7 +74,7 @@ contract WithdrawalQueueInvariantVault is ERC20 {
     }
 
     function previewRedeem(uint256 shares) external view returns (uint256) {
-        return totalSupply() == 0 ? 0 : shares.mulDiv(managedAssets, totalSupply());
+        return shares.mulDiv(managedAssets + 1, totalSupply() + virtualSharesValue);
     }
 
     function previewDeposit(uint256 assets) external view returns (uint256) {
@@ -96,7 +97,7 @@ contract WithdrawalQueueInvariantVault is ERC20 {
     }
 
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
-        assets = shares.mulDiv(managedAssets, totalSupply());
+        assets = shares.mulDiv(managedAssets + 1, totalSupply() + virtualSharesValue);
         _burn(owner, shares);
         managedAssets -= assets;
         WithdrawalQueueInvariantToken(collateral).transfer(receiver, assets);
@@ -144,7 +145,9 @@ contract WithdrawalQueueClaimHandler is Test {
         delegator = new WithdrawalQueueInvariantDelegator();
         vault.setDelegator(address(delegator));
 
-        queue = new WithdrawalQueue();
+        queue = WithdrawalQueue(
+            address(new TransparentUpgradeableProxy(address(new WithdrawalQueue()), address(this), ""))
+        );
         vm.prank(address(vault));
         queue.initialize();
 
@@ -164,7 +167,7 @@ contract WithdrawalQueueClaimHandler is Test {
 
         vm.startPrank(actor);
         vault.approve(address(queue), shares);
-        uint256 tokenId = queue.requestWithdraw(shares, actor);
+        uint256 tokenId = queue.requestRedeem(shares, actor);
         vm.stopPrank();
 
         _requests.push(
@@ -223,9 +226,10 @@ contract WithdrawalQueueClaimHandler is Test {
             return;
         }
 
-        if (_shouldPushCheckpoint(checkpoint)) {
+        (bool pushCheckpoint, PriceCheckpoint memory checkpointToPush) = _checkpointToPush(checkpoint);
+        if (pushCheckpoint) {
             _checkpointKeys.push(modelTotalFilled);
-            _checkpoints.push(checkpoint);
+            _checkpoints.push(checkpointToPush);
         }
 
         modelFilledAssets += collateral.balanceOf(address(queue)) - queueBalanceBefore;
@@ -366,8 +370,13 @@ contract WithdrawalQueueClaimHandler is Test {
         return PriceCheckpoint({totalAssets: vault.managedAssets(), totalShares: vault.totalSupply()});
     }
 
-    function _shouldPushCheckpoint(PriceCheckpoint memory checkpoint) internal view returns (bool) {
+    function _checkpointToPush(PriceCheckpoint memory checkpoint)
+        internal
+        view
+        returns (bool pushCheckpoint, PriceCheckpoint memory checkpointToPush)
+    {
         PriceCheckpoint storage lastCheckpoint = _checkpoints[_checkpoints.length - 1];
+        checkpointToPush = checkpoint;
 
         uint256 sharePriceScale = 10 ** vault.decimals();
         uint256 virtualShares = vault.virtualShares();
@@ -377,11 +386,23 @@ contract WithdrawalQueueClaimHandler is Test {
             sharePriceScale.mulDiv(checkpoint.totalAssets + 1, checkpoint.totalShares + virtualShares);
 
         if (newSharePrice < lastSharePrice) {
-            return true;
+            return (true, checkpointToPush);
         }
 
-        return newSharePrice - lastSharePrice
-            >= 10 ** uint256(collateral.decimals()).saturatingSub(SHARE_PRICE_TOLERANCE_DECIMALS);
+        if (
+            newSharePrice - lastSharePrice
+                >= 10 ** uint256(collateral.decimals()).saturatingSub(SHARE_PRICE_TOLERANCE_DECIMALS)
+        ) {
+            return (true, checkpointToPush);
+        }
+
+        bool needsFillBoundary = _checkpointKeys.length == 0
+            ? modelTotalFilled != 0
+            : _checkpointKeys[_checkpointKeys.length - 1] < modelTotalFilled;
+        if (needsFillBoundary) {
+            checkpointToPush = lastCheckpoint;
+            return (true, checkpointToPush);
+        }
     }
 
     function _checkpointIndex(uint256 sharePosition) internal view returns (uint256 index) {

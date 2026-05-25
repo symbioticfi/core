@@ -115,7 +115,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IWithdrawalQueue
-    function requestWithdraw(uint256 shares, address receiver) public returns (uint256 tokenId) {
+    function requestRedeem(uint256 shares, address receiver) public returns (uint256 tokenId) {
         if (shares == 0) {
             revert ZeroShares();
         }
@@ -126,7 +126,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         requests[tokenId] = WithdrawalRequest({shares: shares, claimedShares: 0, prevRequestSum: totalRequested});
         totalRequested += shares;
 
-        _safeMint(receiver, tokenId);
+        _mint(receiver, tokenId);
 
         UniversalDelegator(VaultV2(vault).delegator()).onWithdrawRequest();
 

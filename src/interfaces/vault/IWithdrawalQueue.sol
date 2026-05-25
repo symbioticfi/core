@@ -126,7 +126,7 @@ interface IWithdrawalQueue is IERC721Metadata {
      * @param receiver Address that receives the withdrawal NFT.
      * @return tokenId Minted withdrawal NFT id.
      */
-    function requestWithdraw(uint256 shares, address receiver) external returns (uint256 tokenId);
+    function requestRedeem(uint256 shares, address receiver) external returns (uint256 tokenId);
 
     /**
      * @notice Claims a withdrawal request.

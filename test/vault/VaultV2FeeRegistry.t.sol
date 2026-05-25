@@ -2,60 +2,36 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 import {AdapterRegistry} from "../../src/contracts/AdapterRegistry.sol";
 import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
+import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
 import {Entity} from "../../src/contracts/common/Entity.sol";
 import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
 import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntityProxy.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
+import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
+import {ProtocolFee} from "../../src/contracts/vault/ProtocolFee.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
 import {IUniversalDelegator, UNIVERSAL_DELEGATOR_TYPE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
-import {IFeeRegistry} from "../../src/interfaces/vault/IFeeRegistry.sol";
-import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
+import {IProtocolFee} from "../../src/interfaces/vault/IProtocolFee.sol";
+import {
+    IVaultV2,
+    VAULT_V2_VERSION,
+    MAX_MANAGEMENT_FEE,
+    MAX_PERFORMANCE_FEE,
+    PERFORMANCE_FEE_ROLE,
+    MANAGEMENT_FEE_ROLE
+} from "../../src/interfaces/vault/IVaultV2.sol";
 import {Token} from "../mocks/Token.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
-
-contract VaultV2FeeRegistryMock is IFeeRegistry {
-    uint256 internal immutable MANAGEMENT_FEE;
-    uint256 internal immutable PERFORMANCE_FEE;
-    address internal immutable MANAGEMENT_FEE_RECIPIENT;
-    address internal immutable PERFORMANCE_FEE_RECIPIENT;
-
-    constructor(
-        uint256 managementFee,
-        uint256 performanceFee,
-        address managementFeeRecipient,
-        address performanceFeeRecipient
-    ) {
-        MANAGEMENT_FEE = managementFee;
-        PERFORMANCE_FEE = performanceFee;
-        MANAGEMENT_FEE_RECIPIENT = managementFeeRecipient;
-        PERFORMANCE_FEE_RECIPIENT = performanceFeeRecipient;
-    }
-
-    function getManagementFee(address) external view returns (uint256) {
-        return MANAGEMENT_FEE;
-    }
-
-    function getManagementFeeRecipient(address) external view returns (address) {
-        return MANAGEMENT_FEE_RECIPIENT;
-    }
-
-    function getPerformanceFee(address) external view returns (uint256) {
-        return PERFORMANCE_FEE;
-    }
-
-    function getPerformanceFeeRecipient(address) external view returns (address) {
-        return PERFORMANCE_FEE_RECIPIENT;
-    }
-}
 
 contract VaultV2MigratableEntityMock is MigratableEntity {
     constructor(address factory) MigratableEntity(factory) {}
@@ -73,21 +49,23 @@ contract VaultV2SixDecimalToken is Token {
     }
 }
 
-contract VaultV2FeeRegistryApiTest is Test {
-    function test_feeRegistryAndVaultExposeSnapshotFeeApi() public pure {
-        assertEq(IFeeRegistry.getManagementFee.selector, bytes4(keccak256("getManagementFee(address)")));
-        assertEq(
-            IFeeRegistry.getManagementFeeRecipient.selector, bytes4(keccak256("getManagementFeeRecipient(address)"))
-        );
-        assertEq(IFeeRegistry.getPerformanceFee.selector, bytes4(keccak256("getPerformanceFee(address)")));
-        assertEq(
-            IFeeRegistry.getPerformanceFeeRecipient.selector, bytes4(keccak256("getPerformanceFeeRecipient(address)"))
-        );
-        assertEq(IVaultV2.lastManagementFee.selector, bytes4(keccak256("lastManagementFee()")));
-        assertEq(IVaultV2.lastPerformanceFee.selector, bytes4(keccak256("lastPerformanceFee()")));
+contract VaultV2FeeApiTest is Test {
+    function test_vaultAndProtocolFeeExposeFeeApi() public pure {
+        assertEq(IVaultV2.PROTOCOL_FEE.selector, bytes4(keccak256("PROTOCOL_FEE()")));
+        assertEq(IVaultV2.lastProtocolFee.selector, bytes4(keccak256("lastProtocolFee()")));
+        assertEq(IVaultV2.lastProtocolFeeReceiver.selector, bytes4(keccak256("lastProtocolFeeReceiver()")));
+        assertEq(IVaultV2.managementFee.selector, bytes4(keccak256("managementFee()")));
+        assertEq(IVaultV2.managementFeeReceiver.selector, bytes4(keccak256("managementFeeReceiver()")));
+        assertEq(IVaultV2.performanceFee.selector, bytes4(keccak256("performanceFee()")));
+        assertEq(IVaultV2.performanceFeeReceiver.selector, bytes4(keccak256("performanceFeeReceiver()")));
+        assertEq(IVaultV2.setManagementFee.selector, bytes4(keccak256("setManagementFee(uint96,address)")));
+        assertEq(IVaultV2.setPerformanceFee.selector, bytes4(keccak256("setPerformanceFee(uint96,address)")));
+        assertEq(IVaultV2.setSlasher.selector, bytes4(keccak256("setSlasher(address)")));
         assertEq(IVaultV2.getAccrueInterest.selector, bytes4(keccak256("getAccrueInterest()")));
         assertEq(IVaultV2.virtualShares.selector, bytes4(keccak256("virtualShares()")));
         assertEq(IVaultV2.withdrawable.selector, bytes4(keccak256("withdrawable()")));
+        assertEq(IProtocolFee.getFee.selector, bytes4(keccak256("getFee(address)")));
+        assertEq(IProtocolFee.getReceiver.selector, bytes4(keccak256("getReceiver(address)")));
         assertEq(
             IERC20Permit.permit.selector,
             bytes4(keccak256("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)"))
@@ -107,15 +85,19 @@ contract VaultV2BehaviorTest is Test {
     VaultFactory internal vaultFactory;
     DelegatorFactory internal delegatorFactory;
     AdapterRegistry internal adapterRegistry;
-    VaultV2FeeRegistryMock internal feeRegistry;
+    ProtocolFee internal protocolFee;
+
+    address internal protocolFeeReceiver = address(0xFEE);
+    address internal nextProtocolFeeReceiver = address(0xFEE2);
+    address internal performanceFeeReceiver = address(0xF00D);
+    address internal managementFeeReceiver = address(0xCAFE);
 
     function setUp() public {
         collateral = new Token("Collateral");
         vaultFactory = new VaultFactory(address(this));
         delegatorFactory = new DelegatorFactory(address(this));
-        adapterRegistry = new AdapterRegistry();
-        adapterRegistry.initialize(address(this));
-        feeRegistry = new VaultV2FeeRegistryMock(7, 11, address(this), address(this));
+        adapterRegistry = new AdapterRegistry(address(this));
+        protocolFee = new ProtocolFee(address(this), protocolFeeReceiver);
 
         vaultFactory.whitelist(address(new VaultV2MigratableEntityMock(address(vaultFactory))));
         vaultFactory.whitelist(address(new VaultV2MigratableEntityMock(address(vaultFactory))));
@@ -123,7 +105,7 @@ contract VaultV2BehaviorTest is Test {
             address(
                 new VaultV2(
                     address(0x1),
-                    address(feeRegistry),
+                    address(protocolFee),
                     address(vaultFactory),
                     address(0x2),
                     address(adapterRegistry),
@@ -167,11 +149,18 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.withdrawable(), vault.freeAssets());
     }
 
-    function test_InitializeSnapshotsCurrentFees() public {
+    function test_InitializeStartsWithDefaultFeeConfig() public {
         VaultV2 vault = _createVault(false, false, 0);
 
-        assertEq(vault.lastManagementFee(), 7);
-        assertEq(vault.lastPerformanceFee(), 11);
+        assertEq(vault.PROTOCOL_FEE(), address(protocolFee));
+        assertEq(vault.lastProtocolFee(), 0);
+        assertEq(vault.lastProtocolFeeReceiver(), protocolFeeReceiver);
+        assertEq(vault.managementFee(), 0);
+        assertEq(vault.performanceFee(), 0);
+        assertEq(vault.managementFeeReceiver(), address(0));
+        assertEq(vault.performanceFeeReceiver(), address(0));
+        assertTrue(vault.hasRole(PERFORMANCE_FEE_ROLE, address(this)));
+        assertTrue(vault.hasRole(MANAGEMENT_FEE_ROLE, address(this)));
         assertEq(vault.virtualShares(), 1);
         assertEq(vault.balanceOf(DEAD_SHARES_RECIPIENT), 1e9);
         assertEq(collateral.balanceOf(address(vault)), 1e9);
@@ -190,45 +179,162 @@ contract VaultV2BehaviorTest is Test {
         _assertNoLegacyShareGetters(vault);
     }
 
-    function test_TotalSupplyIncludesAccruedFeeSharesBeforeMinting() public {
+    function test_SetCuratorFeesEnforcesCapsReceiversAndRoles() public {
         VaultV2 vault = _createVault(false, false, 0);
+
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
+        vault.setPerformanceFee(1, address(0));
+
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
+        vault.setManagementFee(1, address(0));
+
+        vm.expectRevert(IVaultV2.FeeTooHigh.selector);
+        vault.setPerformanceFee(uint96(MAX_PERFORMANCE_FEE + 1), performanceFeeReceiver);
+
+        vm.expectRevert(IVaultV2.FeeTooHigh.selector);
+        vault.setManagementFee(uint96(MAX_MANAGEMENT_FEE + 1), managementFeeReceiver);
+
+        vault.setPerformanceFee(uint96(MAX_PERFORMANCE_FEE), performanceFeeReceiver);
+
+        vm.recordLogs();
+        vault.setManagementFee(uint96(MAX_MANAGEMENT_FEE), managementFeeReceiver);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        assertEq(logs.length, 2);
+        assertEq(logs[1].topics[0], keccak256("SetManagementFee(uint256,address)"));
+        assertEq(logs[1].topics[1], bytes32(uint256(uint160(managementFeeReceiver))));
+        assertEq(abi.decode(logs[1].data, (uint256)), MAX_MANAGEMENT_FEE);
+
+        assertEq(vault.performanceFee(), MAX_PERFORMANCE_FEE);
+        assertEq(vault.performanceFeeReceiver(), performanceFeeReceiver);
+        assertEq(vault.managementFee(), MAX_MANAGEMENT_FEE);
+        assertEq(vault.managementFeeReceiver(), managementFeeReceiver);
+
+        vm.startPrank(bob);
+        vm.expectRevert();
+        vault.setPerformanceFee(0, address(0));
+        vm.expectRevert();
+        vault.setManagementFee(0, address(0));
+        vm.stopPrank();
+    }
+
+    function test_TotalSupplyIncludesAccruedCuratorAndProtocolFeeSharesBeforeMinting() public {
+        VaultV2 vault = _createVault(false, false, 0);
+        _setCuratorFees(vault);
+        protocolFee.setGlobalFee(13);
         _deposit(vault, alice, 100 ether);
         uint256 rawSupply = vault.totalSupply();
 
         vm.warp(block.timestamp + 30 days);
         collateral.transfer(address(vault), 100_000 ether);
 
-        (, uint256 performanceFeeShares, uint256 managementFeeShares) = vault.getAccrueInterest();
+        (, uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares) =
+            vault.getAccrueInterest();
 
-        assertGt(performanceFeeShares + managementFeeShares, 0);
-        assertEq(vault.totalSupply(), rawSupply + performanceFeeShares + managementFeeShares);
+        assertGt(protocolFeeShares + performanceFeeShares + managementFeeShares, 0);
+        assertEq(vault.totalSupply(), rawSupply + protocolFeeShares + performanceFeeShares + managementFeeShares);
         assertEq(vault.balanceOf(address(this)), 0);
     }
 
-    function test_AccrueInterestMintsPreviewedFeeSharesWithoutChangingVisibleSupply() public {
+    function test_AccrueInterestMintsPreviewedFeeSharesToReceiversWithoutChangingVisibleSupply() public {
         VaultV2 vault = _createVault(false, false, 0);
+        _setCuratorFees(vault);
+        protocolFee.setGlobalFee(13);
         _deposit(vault, alice, 100 ether);
 
         vm.warp(block.timestamp + 30 days);
         collateral.transfer(address(vault), 100_000 ether);
 
         uint256 previewSupply = vault.totalSupply();
-        (, uint256 previewPerformanceFeeShares, uint256 previewManagementFeeShares) = vault.getAccrueInterest();
+        (, uint256 previewPerformanceFeeShares, uint256 previewManagementFeeShares, uint256 previewProtocolFeeShares) =
+            vault.getAccrueInterest();
 
-        (uint256 performanceFeeShares, uint256 managementFeeShares) = vault.accrueInterest();
+        (uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares) = vault.accrueInterest();
 
+        assertEq(protocolFeeShares, previewProtocolFeeShares);
         assertEq(performanceFeeShares, previewPerformanceFeeShares);
         assertEq(managementFeeShares, previewManagementFeeShares);
-        assertEq(vault.balanceOf(address(this)), performanceFeeShares + managementFeeShares);
+        assertEq(vault.balanceOf(protocolFeeReceiver), protocolFeeShares);
+        assertEq(vault.balanceOf(performanceFeeReceiver), performanceFeeShares);
+        assertEq(vault.balanceOf(managementFeeReceiver), managementFeeShares);
         assertEq(vault.totalSupply(), previewSupply);
         assertEq(vault.lastUpdate(), block.timestamp);
+    }
+
+    function test_AccrueInterestUsesCachedProtocolFeeAndReceiverThenRefreshes() public {
+        VaultV2 vault = _createVault(false, false, 0);
+        protocolFee.setGlobalFee(13);
+        vault.accrueInterest();
+
+        assertEq(vault.lastProtocolFee(), 13);
+        assertEq(vault.lastProtocolFeeReceiver(), protocolFeeReceiver);
+
+        _deposit(vault, alice, 100 ether);
+        protocolFee.setGlobalFee(0);
+        protocolFee.setGlobalReceiver(nextProtocolFeeReceiver);
+
+        vm.warp(block.timestamp + 30 days);
+        collateral.transfer(address(vault), 100_000 ether);
+
+        (,,, uint256 previewProtocolFeeShares) = vault.getAccrueInterest();
+        assertGt(previewProtocolFeeShares, 0);
+
+        (,, uint256 protocolFeeShares) = vault.accrueInterest();
+
+        assertEq(protocolFeeShares, previewProtocolFeeShares);
+        assertEq(vault.balanceOf(protocolFeeReceiver), protocolFeeShares);
+        assertEq(vault.balanceOf(nextProtocolFeeReceiver), 0);
+        assertEq(vault.lastProtocolFee(), 0);
+        assertEq(vault.lastProtocolFeeReceiver(), nextProtocolFeeReceiver);
+    }
+
+    function test_VaultConfiguratorCanCreateVaultV2WithoutSlasher() public {
+        bytes memory vaultParams = _vaultParams(false, false, 0);
+        bytes memory delegatorParams = _delegatorParams();
+        collateral.approve(_predictVaultAddress(vaultParams), _targetDeadAssets(collateral.decimals()));
+
+        VaultConfigurator configurator =
+            new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(0x2));
+
+        (address vault, address delegator, address slasher) = configurator.create(
+            IVaultConfigurator.InitParams({
+                version: VAULT_V2_VERSION,
+                owner: address(this),
+                vaultParams: vaultParams,
+                delegatorIndex: UNIVERSAL_DELEGATOR_TYPE,
+                delegatorParams: delegatorParams,
+                withSlasher: false,
+                slasherIndex: 0,
+                slasherParams: ""
+            })
+        );
+
+        assertEq(VaultV2(vault).delegator(), delegator);
+        assertEq(slasher, address(0));
     }
 
     function _createVault(bool depositWhitelist, bool isDepositLimit, uint256 depositLimit)
         internal
         returns (VaultV2 vault)
     {
-        bytes memory data = abi.encode(
+        bytes memory data = _vaultParams(depositWhitelist, isDepositLimit, depositLimit);
+        collateral.approve(_predictVaultAddress(data), _targetDeadAssets(collateral.decimals()));
+
+        address vaultAddress = vaultFactory.create(VAULT_V2_VERSION, address(this), data);
+
+        address delegator =
+            delegatorFactory.create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(vaultAddress, _delegatorParams()));
+
+        vault = VaultV2(vaultAddress);
+        vault.setDelegator(delegator);
+    }
+
+    function _vaultParams(bool depositWhitelist, bool isDepositLimit, uint256 depositLimit)
+        internal
+        view
+        returns (bytes memory)
+    {
+        return abi.encode(
             IVaultV2.InitParams({
                 name: "Vault",
                 symbol: "vTKN",
@@ -241,37 +347,29 @@ contract VaultV2BehaviorTest is Test {
                 depositWhitelistSetRoleHolder: address(this),
                 depositorWhitelistRoleHolder: address(this),
                 isDepositLimitSetRoleHolder: address(this),
-                depositLimitSetRoleHolder: address(this)
+                depositLimitSetRoleHolder: address(this),
+                performanceFeeRoleHolder: address(this),
+                managementFeeRoleHolder: address(this)
             })
         );
-        collateral.approve(_predictVaultAddress(data), _targetDeadAssets(collateral.decimals()));
+    }
 
-        address vaultAddress = vaultFactory.create(VAULT_V2_VERSION, address(this), data);
-
-        address delegator = delegatorFactory.create(
-            UNIVERSAL_DELEGATOR_TYPE,
-            abi.encode(
-                vaultAddress,
-                abi.encode(
-                    IUniversalDelegator.InitParams({
-                        defaultAdminRoleHolder: address(this),
-                        addAdapterRoleHolder: address(this),
-                        removeAdapterRoleHolder: address(this),
-                        setAdapterLimitsRoleHolder: address(this),
-                        setAutoAllocateAdaptersRoleHolder: address(this),
-                        swapAdaptersRoleHolder: address(this),
-                        allocateRoleHolder: address(this),
-                        deallocateRoleHolder: address(this),
-                        adapters: new address[](0),
-                        absoluteLimits: new uint256[](0),
-                        shareLimits: new uint256[](0)
-                    })
-                )
-            )
+    function _delegatorParams() internal view returns (bytes memory) {
+        return abi.encode(
+            IUniversalDelegator.InitParams({
+                defaultAdminRoleHolder: address(this),
+                addAdapterRoleHolder: address(this),
+                removeAdapterRoleHolder: address(this),
+                setAdapterLimitsRoleHolder: address(this),
+                setAutoAllocateAdaptersRoleHolder: address(this),
+                swapAdaptersRoleHolder: address(this),
+                allocateRoleHolder: address(this),
+                deallocateRoleHolder: address(this),
+                adapters: new address[](0),
+                absoluteLimits: new uint256[](0),
+                shareLimits: new uint256[](0)
+            })
         );
-
-        vault = VaultV2(vaultAddress);
-        vault.setDelegator(delegator);
     }
 
     function _predictVaultAddress(bytes memory data) internal view returns (address) {
@@ -313,6 +411,11 @@ contract VaultV2BehaviorTest is Test {
     function _assertMissingGetter(address target, bytes memory data) internal view {
         (bool success,) = target.staticcall(data);
         assertFalse(success);
+    }
+
+    function _setCuratorFees(VaultV2 vault) internal {
+        vault.setPerformanceFee(11, performanceFeeReceiver);
+        vault.setManagementFee(7, managementFeeReceiver);
     }
 
     function _deposit(VaultV2 vault, address account, uint256 assets) internal {

@@ -4,9 +4,11 @@ pragma solidity ^0.8.25;
 import {Test} from "forge-std/Test.sol";
 
 import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
+import {IWithdrawalQueue} from "../../src/interfaces/vault/IWithdrawalQueue.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract WithdrawalQueueFillToken is ERC20 {
     uint8 public tokenDecimals = 18;
@@ -192,9 +194,11 @@ contract WithdrawalQueueFillTest is Test {
         delegator = address(new WithdrawalQueueFillDelegator(vault));
         WithdrawalQueueFillVault(vault).setDelegator(delegator);
 
-        queue = address(new WithdrawalQueue());
-        vm.prank(vault);
-        WithdrawalQueue(queue).initialize();
+        queue = _deployQueue();
+    }
+
+    function test_WithdrawalQueueExposesRequestRedeemApi() public pure {
+        assertEq(IWithdrawalQueue.requestRedeem.selector, bytes4(keccak256("requestRedeem(uint256,address)")));
     }
 
     function test_RequestWithdrawNotifiesDelegatorAndFillRedeemsPendingShares() public {
@@ -203,7 +207,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, 100);
-        WithdrawalQueue(queue).requestWithdraw(100, alice);
+        WithdrawalQueue(queue).requestRedeem(100, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -223,7 +227,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         assertEq(WithdrawalQueue(queue).pendingShares(), shares);
@@ -240,7 +244,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         assertEq(WithdrawalQueue(queue).pendingShares(), shares);
@@ -265,7 +269,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -291,7 +295,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -319,7 +323,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         (uint256 assetsFilled, uint256 sharesFilled) = WithdrawalQueue(queue).fill();
@@ -342,7 +346,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         (uint256 assetsFilled, uint256 sharesFilled) = WithdrawalQueue(queue).fill();
@@ -370,7 +374,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -394,7 +398,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -432,7 +436,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -451,7 +455,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -477,7 +481,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, 1);
-        WithdrawalQueue(queue).requestWithdraw(1, alice);
+        WithdrawalQueue(queue).requestRedeem(1, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -500,7 +504,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 firstTokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 firstTokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -510,7 +514,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 secondTokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 secondTokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -536,7 +540,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -571,9 +575,7 @@ contract WithdrawalQueueFillTest is Test {
 
         WithdrawalQueueFillToken(collateral).setDecimals(6);
         WithdrawalQueueFillVault(vault).setShareConfig(18, virtualShares);
-        queue = address(new WithdrawalQueue());
-        vm.prank(vault);
-        WithdrawalQueue(queue).initialize();
+        queue = _deployQueue();
 
         WithdrawalQueueFillToken(collateral).mint(vault, seedAssets + assets + drift);
         WithdrawalQueueFillVault(vault).mintShares(address(0xDEAD), deadShares, seedAssets);
@@ -582,7 +584,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -602,7 +604,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -623,7 +625,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -651,7 +653,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 firstTokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 firstTokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -665,7 +667,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(bob);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 secondTokenId = WithdrawalQueue(queue).requestWithdraw(shares, bob);
+        uint256 secondTokenId = WithdrawalQueue(queue).requestRedeem(shares, bob);
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
@@ -691,7 +693,7 @@ contract WithdrawalQueueFillTest is Test {
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, shares);
-        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
         WithdrawalQueue(queue).transferFrom(alice, bob, tokenId);
         vm.stopPrank();
 
@@ -700,5 +702,11 @@ contract WithdrawalQueueFillTest is Test {
 
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(bob), 100);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), 0);
+    }
+
+    function _deployQueue() internal returns (address queue_) {
+        queue_ = address(new TransparentUpgradeableProxy(address(new WithdrawalQueue()), address(this), ""));
+        vm.prank(vault);
+        WithdrawalQueue(queue_).initialize();
     }
 }

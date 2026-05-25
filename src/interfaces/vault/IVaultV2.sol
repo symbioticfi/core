@@ -16,7 +16,13 @@ bytes32 constant DEPOSITOR_WHITELIST_ROLE = 0x9c56d972d63cbb4195b3c1484691dfc220
 bytes32 constant IS_DEPOSIT_LIMIT_SET_ROLE = 0xc6aaadd7371d5e8f9ed6849dd66a66573a3ba37167d03f4352c9ba5693678fac;
 // Keccak256("DEPOSIT_LIMIT_SET_ROLE").
 bytes32 constant DEPOSIT_LIMIT_SET_ROLE = 0x4a634bc14d77baf979756509ef4298c6f6318af357828612545267ee2eb79233;
+// Keccak256("PERFORMANCE_FEE_ROLE").
+bytes32 constant PERFORMANCE_FEE_ROLE = 0x7d60a5b727427c7c190f6811f2a84845a230233579ff66ee989bfff75d300871;
+// Keccak256("MANAGEMENT_FEE_ROLE").
+bytes32 constant MANAGEMENT_FEE_ROLE = 0x75c709b3ee540481221bc7e0e2078bc69971d591109706c28c3cb1540b251bc1;
 uint256 constant WAD = 1e18;
+uint256 constant MAX_PERFORMANCE_FEE = 5e17; // 50%
+uint256 constant MAX_MANAGEMENT_FEE = 5e16 / uint256(365 days); // 5%
 
 uint8 constant SHARES_DECIMALS = 18;
 
@@ -37,6 +43,11 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
      * @notice Raised when a deposit would exceed the configured deposit limit.
      */
     error DepositLimitReached();
+
+    /**
+     * @notice Raised when a configured fee exceeds its maximum value.
+     */
+    error FeeTooHigh();
 
     /**
      * @notice Raised when the vault does not have enough free assets for the operation.
@@ -94,6 +105,8 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
      * @param depositorWhitelistRoleHolder Address of the initial DEPOSITOR_WHITELIST_ROLE holder.
      * @param isDepositLimitSetRoleHolder Address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder.
      * @param depositLimitSetRoleHolder Address of the initial DEPOSIT_LIMIT_SET_ROLE holder.
+     * @param performanceFeeRoleHolder Address of the initial PERFORMANCE_FEE_ROLE holder.
+     * @param managementFeeRoleHolder Address of the initial MANAGEMENT_FEE_ROLE holder.
      */
     struct InitParams {
         string name;
@@ -108,6 +121,8 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
         address depositorWhitelistRoleHolder;
         address isDepositLimitSetRoleHolder;
         address depositLimitSetRoleHolder;
+        address performanceFeeRoleHolder;
+        address managementFeeRoleHolder;
     }
 
     /* EVENTS */
@@ -124,10 +139,13 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     /**
      * @notice Emitted when fee shares are accrued.
      * @param newTotalAssets Total assets after the accounting update.
-     * @param performanceFeeShares Shares minted to the performance fee recipient.
-     * @param managementFeeShares Shares minted to the management fee recipient.
+     * @param performanceFeeShares Shares minted to the performance fee receiver.
+     * @param managementFeeShares Shares minted to the management fee receiver.
+     * @param protocolFeeShares Shares minted to the protocol fee receiver.
      */
-    event AccrueInterest(uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares);
+    event AccrueInterest(
+        uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares
+    );
 
     /**
      * @notice Emitted when the delegator pulls liquid collateral out of the vault.
@@ -169,6 +187,25 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     event SetDepositLimit(uint256 limit);
 
     /**
+     * @notice Emitted when the performance fee is set.
+     * @param fee Performance fee in WAD.
+     */
+    event SetPerformanceFee(uint256 fee);
+
+    /**
+     * @notice Emitted when the performance fee receiver is set.
+     * @param receiver Performance fee receiver.
+     */
+    event SetPerformanceFeeReceiver(address indexed receiver);
+
+    /**
+     * @notice Emitted when the management fee and receiver are set.
+     * @param fee Management fee per second in WAD.
+     * @param receiver Management fee receiver.
+     */
+    event SetManagementFee(uint256 fee, address indexed receiver);
+
+    /**
      * @notice Emitted when a delegator is set.
      * @param delegator Vault's delegator.
      * @dev Can be set only once.
@@ -202,6 +239,24 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     function withdrawalQueue() external view returns (address withdrawalQueueAddress);
 
     /**
+     * @notice Get the protocol fee contract used by the vault.
+     * @return protocolFeeAddress Address of the protocol fee contract.
+     */
+    function PROTOCOL_FEE() external view returns (address protocolFeeAddress);
+
+    /**
+     * @notice Get the protocol fee cached at the last fee accrual.
+     * @return fee Cached protocol fee in WAD.
+     */
+    function lastProtocolFee() external view returns (uint96 fee);
+
+    /**
+     * @notice Get the protocol fee receiver cached at the last fee accrual.
+     * @return receiver Cached protocol fee receiver.
+     */
+    function lastProtocolFeeReceiver() external view returns (address receiver);
+
+    /**
      * @notice Get whether the deposit whitelist is enabled.
      * @return enabled Whether the deposit whitelist is enabled.
      */
@@ -220,16 +275,28 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     function depositLimit() external view returns (uint256 limit);
 
     /**
-     * @notice Get the performance fee used by the latest accrual snapshot.
-     * @return fee Last performance fee in WAD.
+     * @notice Get the performance fee.
+     * @return fee Performance fee in WAD.
      */
-    function lastPerformanceFee() external view returns (uint96 fee);
+    function performanceFee() external view returns (uint96 fee);
 
     /**
-     * @notice Get the management fee used by the latest accrual snapshot.
-     * @return fee Last management fee per second in WAD.
+     * @notice Get the performance fee receiver.
+     * @return receiver Performance fee receiver.
      */
-    function lastManagementFee() external view returns (uint96 fee);
+    function performanceFeeReceiver() external view returns (address receiver);
+
+    /**
+     * @notice Get the management fee.
+     * @return fee Management fee per second in WAD.
+     */
+    function managementFee() external view returns (uint96 fee);
+
+    /**
+     * @notice Get the management fee receiver.
+     * @return receiver Management fee receiver.
+     */
+    function managementFeeReceiver() external view returns (address receiver);
 
     /**
      * @notice Get the last timestamp when fees were accrued.
@@ -278,20 +345,29 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     /**
      * @notice View total assets and fee shares that would be accrued at the current timestamp.
      * @return newTotalAssets Total assets after the accounting update.
-     * @return performanceFeeShares Shares that would be minted to the performance fee recipient.
-     * @return managementFeeShares Shares that would be minted to the management fee recipient.
+     * @return performanceFeeShares Shares that would be minted to the performance fee receiver.
+     * @return managementFeeShares Shares that would be minted to the management fee receiver.
+     * @return protocolFeeShares Shares that would be minted to the protocol fee receiver.
      */
     function getAccrueInterest()
         external
         view
-        returns (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares);
+        returns (
+            uint256 newTotalAssets,
+            uint256 performanceFeeShares,
+            uint256 managementFeeShares,
+            uint256 protocolFeeShares
+        );
 
     /**
-     * @notice Accrue performance and management fees using the latest known total assets.
-     * @return performanceFeeShares Shares minted to the performance fee recipient.
-     * @return managementFeeShares Shares minted to the management fee recipient.
+     * @notice Accrue performance, management, and protocol fees using the latest known total assets.
+     * @return performanceFeeShares Shares minted to the performance fee receiver.
+     * @return managementFeeShares Shares minted to the management fee receiver.
+     * @return protocolFeeShares Shares minted to the protocol fee receiver.
      */
-    function accrueInterest() external returns (uint256 performanceFeeShares, uint256 managementFeeShares);
+    function accrueInterest()
+        external
+        returns (uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares);
 
     /**
      * @notice Pull liquid collateral from the vault to a receiver.
@@ -349,4 +425,26 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
      * @dev Only a DEPOSIT_LIMIT_SET_ROLE holder can call this function.
      */
     function setDepositLimit(uint256 limit) external;
+
+    /**
+     * @notice Set the performance fee and receiver.
+     * @param fee Performance fee in WAD.
+     * @param receiver Performance fee receiver.
+     * @dev Only a PERFORMANCE_FEE_ROLE holder can call this function.
+     */
+    function setPerformanceFee(uint96 fee, address receiver) external;
+
+    /**
+     * @notice Set the management fee and receiver.
+     * @param fee Management fee per second in WAD.
+     * @param receiver Management fee receiver.
+     * @dev Only a MANAGEMENT_FEE_ROLE holder can call this function.
+     */
+    function setManagementFee(uint96 fee, address receiver) external;
+
+    /**
+     * @notice Compatibility hook for VaultConfigurator slasher wiring.
+     * @param slasher Ignored slasher address.
+     */
+    function setSlasher(address slasher) external;
 }

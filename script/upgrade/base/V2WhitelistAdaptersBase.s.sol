@@ -12,7 +12,9 @@ contract V2WhitelistAdaptersBaseScript is ScriptBase {
         returns (bytes memory data, address target)
     {
         target = adapterRegistry;
-        data = abi.encodeCall(IAdapterRegistry.whitelist, (vault, adapterFactory));
+        data = vault == address(0)
+            ? abi.encodeCall(IAdapterRegistry.setGlobalWhitelistStatus, (adapterFactory, true))
+            : abi.encodeCall(IAdapterRegistry.setVaultWhitelistStatus, (vault, adapterFactory, true));
         sendTransaction(target, data);
 
         Logs.log(

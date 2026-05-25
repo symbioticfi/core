@@ -53,4 +53,16 @@ contract WithdrawalQueueClaimInvariantsTest is Test {
         handler.assertClaimableMatchesModel();
         handler.assertActorBalancesMatchClaims();
     }
+
+    function test_HandlerKeepsModelAlignedAcrossRoundingDustFill() public {
+        handler.request(128, 1e9);
+        handler.reduceLiquidity(14_829_656_329_139_369_085);
+        handler.decreaseAssets(1317);
+
+        handler.fill();
+        handler.fill();
+
+        handler.assertClaimableMatchesModel();
+        handler.assertActorBalancesMatchClaims();
+    }
 }

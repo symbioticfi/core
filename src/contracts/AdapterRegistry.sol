@@ -2,26 +2,44 @@
 // Copyright (c) 2025 Symbiotic
 pragma solidity ^0.8.25;
 
-import {Registry} from "./common/Registry.sol";
-
 import {IAdapterRegistry} from "../interfaces/IAdapterRegistry.sol";
 
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title AdapterRegistry
 /// @notice Registry contract for whitelisted adapter factories.
-contract AdapterRegistry is OwnableUpgradeable, IAdapterRegistry {
-    mapping(address vault => mapping(address adapterFactory => bool)) public isWhitelisted;
+contract AdapterRegistry is Ownable, IAdapterRegistry {
+    /* STATE VARIABLES */
 
-    /// @dev Initializes the contract with the given owner.
-    function initialize(address owner_) external initializer {
-        __Ownable_init(owner_);
+    /// @inheritdoc IAdapterRegistry
+    mapping(address adapter => bool) public globalIsWhitelisted;
+    /// @inheritdoc IAdapterRegistry
+    mapping(address vault => mapping(address adapter => bool)) public vaultIsWhitelisted;
+
+    /* CONSTRUCTOR */
+
+    constructor(address curOwner) Ownable(curOwner) {}
+
+    /* EXTERNAL FUNCTIONS */
+
+    /// @inheritdoc IAdapterRegistry
+    function setGlobalWhitelistStatus(address adapter, bool status) external onlyOwner {
+        globalIsWhitelisted[adapter] = status;
+
+        emit SetGlobalWhitelistStatus(adapter, status);
     }
 
     /// @inheritdoc IAdapterRegistry
-    function whitelist(address vault, address adapterFactory) external onlyOwner {
-        isWhitelisted[vault][adapterFactory] = true;
+    function setVaultWhitelistStatus(address vault, address adapter, bool status) external onlyOwner {
+        vaultIsWhitelisted[vault][adapter] = status;
 
-        emit Whitelist(vault, adapterFactory);
+        emit SetVaultWhitelistStatus(vault, adapter, status);
+    }
+
+    /* VIEW FUNCTIONS */
+
+    /// @inheritdoc IAdapterRegistry
+    function isWhitelisted(address vault, address adapter) external view returns (bool status) {
+        return globalIsWhitelisted[adapter] || vaultIsWhitelisted[vault][adapter];
     }
 }

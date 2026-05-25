@@ -13,6 +13,7 @@ import {Entity} from "../../src/contracts/common/Entity.sol";
 import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
 import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntityProxy.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
+import {ProtocolFee} from "../../src/contracts/vault/ProtocolFee.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
@@ -22,30 +23,11 @@ import {
     UNIVERSAL_DELEGATOR_TYPE,
     MAX_SHARE
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
-import {IFeeRegistry} from "../../src/interfaces/vault/IFeeRegistry.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
 import {Token} from "../mocks/Token.sol";
 
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-contract AppAdapterUniversalFeeRegistryMock is IFeeRegistry {
-    function getManagementFee(address) external pure returns (uint256) {
-        return 0;
-    }
-
-    function getManagementFeeRecipient(address) external view returns (address) {
-        return address(this);
-    }
-
-    function getPerformanceFee(address) external pure returns (uint256) {
-        return 0;
-    }
-
-    function getPerformanceFeeRecipient(address) external view returns (address) {
-        return address(this);
-    }
-}
 
 contract AppAdapterUniversalMigratableEntityMock is MigratableEntity {
     constructor(address factory) MigratableEntity(factory) {}
@@ -74,7 +56,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
     DelegatorFactory internal delegatorFactory;
     AdapterRegistry internal adapterRegistry;
     AdapterFactory internal adapterFactory;
-    AppAdapterUniversalFeeRegistryMock internal feeRegistry;
+    ProtocolFee internal protocolFee;
     AppAdapterUniversalNetworkMiddlewareServiceMock internal networkMiddlewareService;
 
     VaultV2 internal vault;
@@ -92,10 +74,9 @@ contract AppAdapterUniversalDelegatorTest is Test {
         collateral = new Token("Collateral");
         vaultFactory = new VaultFactory(address(this));
         delegatorFactory = new DelegatorFactory(address(this));
-        adapterRegistry = new AdapterRegistry();
-        adapterRegistry.initialize(address(this));
+        adapterRegistry = new AdapterRegistry(address(this));
         adapterFactory = new AdapterFactory(address(this));
-        feeRegistry = new AppAdapterUniversalFeeRegistryMock();
+        protocolFee = new ProtocolFee(address(this), address(this));
         networkMiddlewareService = new AppAdapterUniversalNetworkMiddlewareServiceMock();
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
@@ -105,7 +86,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
             address(
                 new VaultV2(
                     address(0x1),
-                    address(feeRegistry),
+                    address(protocolFee),
                     address(vaultFactory),
                     address(0x2),
                     address(adapterRegistry),
@@ -137,7 +118,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
         vault = _createVault();
         delegator = _createDelegator(vault);
         vault.setDelegator(address(delegator));
-        adapterRegistry.whitelist(address(vault), address(adapterFactory));
+        adapterRegistry.setVaultWhitelistStatus(address(vault), address(adapterFactory), true);
 
         adapter = IAppAdapter(
             adapterFactory.create(
@@ -319,7 +300,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
 
         vm.startPrank(alice);
         vault.approve(address(queue), shares);
-        tokenId = queue.requestWithdraw(shares, alice);
+        tokenId = queue.requestRedeem(shares, alice);
         vm.stopPrank();
     }
 
@@ -337,7 +318,9 @@ contract AppAdapterUniversalDelegatorTest is Test {
                 depositWhitelistSetRoleHolder: address(this),
                 depositorWhitelistRoleHolder: address(this),
                 isDepositLimitSetRoleHolder: address(this),
-                depositLimitSetRoleHolder: address(this)
+                depositLimitSetRoleHolder: address(this),
+                performanceFeeRoleHolder: address(this),
+                managementFeeRoleHolder: address(this)
             })
         );
         IERC20(address(collateral)).approve(_predictVaultAddress(data), 1e9);

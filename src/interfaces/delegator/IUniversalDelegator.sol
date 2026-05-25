@@ -35,6 +35,11 @@ interface IUniversalDelegator {
     error AlreadyAdded();
 
     /**
+     * @notice Raised when removing an adapter that still has assets.
+     */
+    error AdapterHasAssets();
+
+    /**
      * @notice Raised when an adapter address is invalid.
      */
     error InvalidAdapter();

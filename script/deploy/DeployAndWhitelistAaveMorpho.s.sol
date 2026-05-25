@@ -17,8 +17,8 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     address public constant ADAPTER_REGISTRY_OWNER = 0x0000000000000000000000000000000000000001;
     // Address that will own both adapter factories after deployment.
     address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000001;
-    // FeeRegistry address used by VaultV2.
-    address public constant FEE_REGISTRY = 0x3E5a669F673712Bf72De956608E89D36561cbAf1;
+    // ProtocolFee address used by VaultV2.
+    address public constant PROTOCOL_FEE = 0x3E5a669F673712Bf72De956608E89D36561cbAf1;
     // AaveV3 pool used by the Aave adapter.
     address public constant AAVE_POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     // MorphoVaultV2 dependencies used by the Morpho adapter.
@@ -28,14 +28,14 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     address public constant CURATOR_REGISTRY = 0xF75D8d8F790178F0d7F2ee7656874567d382C21e;
     // Rewards contract address used by VaultV2 and adapters.
     address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;
-    // Vault for which the adapter factories are whitelisted.
+    // Vault scope for the adapter factories, or zero address for the global whitelist.
     address public constant VAULT = 0x0000000000000000000000000000000000000000;
 
     struct DeployParams {
         address adapterRegistryOwner;
         address adapterFactoryOwner;
         address vault;
-        address feeRegistry;
+        address protocolFee;
         address aavePool;
         address morphoVaultFactory;
         address morphoAdapterRegistry;
@@ -61,7 +61,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 adapterRegistryOwner: ADAPTER_REGISTRY_OWNER,
                 adapterFactoryOwner: ADAPTER_FACTORY_OWNER,
                 vault: VAULT,
-                feeRegistry: FEE_REGISTRY,
+                protocolFee: PROTOCOL_FEE,
                 aavePool: AAVE_POOL,
                 morphoVaultFactory: MORPHO_VAULT_FACTORY,
                 morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY,
@@ -74,16 +74,14 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     function runBase(DeployParams memory params) public virtual returns (DeploymentData memory data) {
         address deployer = _scriptOwner();
         address adapterRegistryOwner = params.adapterRegistryOwner;
-        address vault = params.vault;
         require(deployer != address(0), "invalid deployer");
         require(adapterRegistryOwner != address(0), "invalid adapter registry owner");
-        require(vault != address(0), "invalid vault");
 
         DeployParams memory deployParams = DeployParams({
             adapterRegistryOwner: deployer,
             adapterFactoryOwner: params.adapterFactoryOwner,
-            vault: vault,
-            feeRegistry: params.feeRegistry,
+            vault: params.vault,
+            protocolFee: params.protocolFee,
             aavePool: params.aavePool,
             morphoVaultFactory: params.morphoVaultFactory,
             morphoAdapterRegistry: params.morphoAdapterRegistry,
@@ -97,9 +95,9 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
 
         address adapterRegistry = address(data.v2.adapterRegistry);
         (data.whitelistAaveFactoryData, data.whitelistAaveFactoryTarget) =
-            _whitelistAdapterFactory(adapterRegistry, vault, data.aave.adapterFactory);
+            _whitelistAdapterFactory(adapterRegistry, params.vault, data.aave.adapterFactory);
         (data.whitelistMorphoFactoryData, data.whitelistMorphoFactoryTarget) =
-            _whitelistAdapterFactory(adapterRegistry, vault, data.morpho.adapterFactory);
+            _whitelistAdapterFactory(adapterRegistry, params.vault, data.morpho.adapterFactory);
         (data.transferAdapterRegistryOwnershipData, data.transferAdapterRegistryOwnershipTarget) =
             _transferAdapterRegistryOwnership(adapterRegistry, adapterRegistryOwner);
 
@@ -112,6 +110,8 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 vm.toString(data.aave.adapterFactory),
                 "\n    morphoAdapterFactory:",
                 vm.toString(data.morpho.adapterFactory),
+                "\n    vault:",
+                vm.toString(params.vault),
                 "\n    adapterRegistryOwner:",
                 vm.toString(adapterRegistryOwner)
             )
@@ -123,7 +123,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         virtual
         returns (V2DeployBaseScript.DeploymentData memory data)
     {
-        data = new V2DeployBaseScript().runBase(params.adapterRegistryOwner, params.feeRegistry, params.rewards);
+        data = new V2DeployBaseScript().runBase(params.adapterRegistryOwner, params.protocolFee, params.rewards);
     }
 
     function _deployAave(DeployParams memory params)

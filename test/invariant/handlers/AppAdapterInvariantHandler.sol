@@ -11,6 +11,7 @@ import {DelegatorFactory} from "../../../src/contracts/DelegatorFactory.sol";
 import {VaultFactory} from "../../../src/contracts/VaultFactory.sol";
 import {MigratableEntityProxy} from "../../../src/contracts/common/MigratableEntityProxy.sol";
 import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDelegator.sol";
+import {ProtocolFee} from "../../../src/contracts/vault/ProtocolFee.sol";
 import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol";
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
@@ -24,7 +25,6 @@ import {IVaultV2, VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2
 import {Token} from "../../mocks/Token.sol";
 import {
     AppAdapterUniversalEntityMock,
-    AppAdapterUniversalFeeRegistryMock,
     AppAdapterUniversalMigratableEntityMock,
     AppAdapterUniversalNetworkMiddlewareServiceMock
 } from "../../adapters/AppAdapterUniversalDelegator.t.sol";
@@ -99,7 +99,7 @@ contract AppAdapterInvariantHandler is Test {
         _afterAction(false);
     }
 
-    function requestWithdraw(uint256 actorSeed, uint256 shares) external {
+    function requestRedeem(uint256 actorSeed, uint256 shares) external {
         address actor = _actor(actorSeed);
         uint256 balance = vault.balanceOf(actor);
         if (balance == 0) {
@@ -110,7 +110,7 @@ contract AppAdapterInvariantHandler is Test {
         shares = bound(shares, 1, balance);
         vm.startPrank(actor);
         vault.approve(address(queue), shares);
-        try queue.requestWithdraw(shares, actor) returns (uint256 tokenId) {
+        try queue.requestRedeem(shares, actor) returns (uint256 tokenId) {
             requestTokenIds.push(tokenId);
         } catch {}
         vm.stopPrank();
@@ -270,10 +270,9 @@ contract AppAdapterInvariantHandler is Test {
         collateral = new Token("Collateral");
         VaultFactory vaultFactory = new VaultFactory(address(this));
         DelegatorFactory delegatorFactory = new DelegatorFactory(address(this));
-        AdapterRegistry adapterRegistry = new AdapterRegistry();
-        adapterRegistry.initialize(address(this));
+        AdapterRegistry adapterRegistry = new AdapterRegistry(address(this));
         AdapterFactory adapterFactory = new AdapterFactory(address(this));
-        AppAdapterUniversalFeeRegistryMock feeRegistry = new AppAdapterUniversalFeeRegistryMock();
+        ProtocolFee protocolFee = new ProtocolFee(address(this), address(this));
         AppAdapterUniversalNetworkMiddlewareServiceMock networkMiddlewareService =
             new AppAdapterUniversalNetworkMiddlewareServiceMock();
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
@@ -284,7 +283,7 @@ contract AppAdapterInvariantHandler is Test {
             address(
                 new VaultV2(
                     address(0x1),
-                    address(feeRegistry),
+                    address(protocolFee),
                     address(vaultFactory),
                     address(0x2),
                     address(adapterRegistry),
@@ -317,7 +316,7 @@ contract AppAdapterInvariantHandler is Test {
         delegator = _createDelegator(delegatorFactory, vault);
         vault.setDelegator(address(delegator));
         queue = WithdrawalQueue(vault.withdrawalQueue());
-        adapterRegistry.whitelist(address(vault), address(adapterFactory));
+        adapterRegistry.setVaultWhitelistStatus(address(vault), address(adapterFactory), true);
 
         adapter = IAppAdapter(
             adapterFactory.create(
@@ -356,7 +355,9 @@ contract AppAdapterInvariantHandler is Test {
                 depositWhitelistSetRoleHolder: address(this),
                 depositorWhitelistRoleHolder: address(this),
                 isDepositLimitSetRoleHolder: address(this),
-                depositLimitSetRoleHolder: address(this)
+                depositLimitSetRoleHolder: address(this),
+                performanceFeeRoleHolder: address(this),
+                managementFeeRoleHolder: address(this)
             })
         );
         IERC20(address(collateral)).approve(_predictVaultAddress(vaultFactory, data), 1e9);

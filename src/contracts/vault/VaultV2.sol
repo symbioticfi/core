@@ -7,7 +7,7 @@ import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {WithdrawalQueue} from "./WithdrawalQueue.sol";
 
 import {IEntity} from "../../interfaces/common/IEntity.sol";
-import {IFeeRegistry} from "../../interfaces/vault/IFeeRegistry.sol";
+import {IProtocolFee} from "../../interfaces/vault/IProtocolFee.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {
     IVaultV2,
@@ -15,7 +15,11 @@ import {
     DEPOSITOR_WHITELIST_ROLE,
     IS_DEPOSIT_LIMIT_SET_ROLE,
     DEPOSIT_LIMIT_SET_ROLE,
+    PERFORMANCE_FEE_ROLE,
+    MANAGEMENT_FEE_ROLE,
     SHARES_DECIMALS,
+    MAX_MANAGEMENT_FEE,
+    MAX_PERFORMANCE_FEE,
     WAD
 } from "../../interfaces/vault/IVaultV2.sol";
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
@@ -49,8 +53,8 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     /// @dev Address of the rewards contract.
     address internal immutable REWARDS;
-    /// @dev Address of the fee registry.
-    address internal immutable FEE_REGISTRY;
+    /// @inheritdoc IVaultV2
+    address public immutable PROTOCOL_FEE;
     /// @dev Address of the slasher factory.
     address internal immutable SLASHER_FACTORY;
     /// @dev Address of the adapter registry.
@@ -78,19 +82,27 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     /// @inheritdoc IVaultV2
     uint48 public lastUpdate;
     /// @inheritdoc IVaultV2
-    uint96 public lastManagementFee;
+    uint96 public managementFee;
     /// @inheritdoc IVaultV2
-    uint96 public lastPerformanceFee;
-    /// @dev Decimal offset between collateral and vault shares.
-    uint8 internal __decimalsOffset;
+    uint96 public performanceFee;
+    /// @inheritdoc IVaultV2
+    uint256 public virtualShares;
+    /// @inheritdoc IVaultV2
+    uint96 public lastProtocolFee;
+    /// @inheritdoc IVaultV2
+    address public managementFeeReceiver;
+    /// @inheritdoc IVaultV2
+    address public performanceFeeReceiver;
+    /// @inheritdoc IVaultV2
+    address public lastProtocolFeeReceiver;
 
     /// @dev Total assets cached from delegator accounting.
     uint256 internal _totalAssets;
-    /// @inheritdoc IVaultV2
-    uint256 public virtualShares;
+    /// @dev Decimal offset between collateral and vault shares.
+    uint8 internal __decimalsOffset;
 
     /// @dev Reserved storage gap for future upgrades.
-    uint256[50] internal __gap;
+    uint256[49] internal __gap;
 
     /* MODIFIERS */
 
@@ -112,7 +124,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     constructor(
         address rewards,
-        address feeRegistry,
+        address protocolFee,
         address vaultFactory,
         address slasherFactory,
         address adapterRegistry,
@@ -120,7 +132,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         address withdrawalQueueImpl
     ) MigratableEntity(vaultFactory) {
         REWARDS = rewards;
-        FEE_REGISTRY = feeRegistry;
+        PROTOCOL_FEE = protocolFee;
         SLASHER_FACTORY = slasherFactory;
         ADAPTER_REGISTRY = adapterRegistry;
         DELEGATOR_FACTORY = delegatorFactory;
@@ -141,13 +153,13 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     /// @inheritdoc IERC20
     function totalSupply() public view override(ERC20Upgradeable, IERC20) returns (uint256) {
-        (, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
-        return super.totalSupply() + performanceFeeShares + managementFeeShares;
+        (, uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares) = getAccrueInterest();
+        return super.totalSupply() + protocolFeeShares + performanceFeeShares + managementFeeShares;
     }
 
     /// @inheritdoc IVaultV2
     function totalAssets() public view override(ERC4626Upgradeable, IVaultV2) returns (uint256 assets) {
-        (assets,,) = getAccrueInterest();
+        (assets,,,) = getAccrueInterest();
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -169,22 +181,34 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     function getAccrueInterest()
         public
         view
-        returns (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares)
+        returns (
+            uint256 newTotalAssets,
+            uint256 performanceFeeShares,
+            uint256 managementFeeShares,
+            uint256 protocolFeeShares
+        )
     {
         newTotalAssets = IERC20(asset()).balanceOf(address(this)) + UniversalDelegator(delegator).totalAssets();
         uint256 elapsed = block.timestamp - lastUpdate;
         uint256 interest = newTotalAssets.saturatingSub(_totalAssets);
 
-        uint256 performanceFeeAssets =
-            interest > 0 && lastPerformanceFee > 0 ? interest.mulDiv(lastPerformanceFee, WAD) : 0;
-        uint256 managementFeeAssets =
-            elapsed > 0 && lastManagementFee > 0 ? (newTotalAssets * elapsed).mulDiv(lastManagementFee, WAD) : 0;
+        uint256 performanceFeeAssets = interest > 0 && performanceFee > 0 && performanceFeeReceiver != address(0)
+            ? interest.mulDiv(performanceFee, WAD)
+            : 0;
+        uint256 managementFeeAssets = elapsed > 0 && managementFee > 0 && managementFeeReceiver != address(0)
+            ? (newTotalAssets * elapsed).mulDiv(managementFee, WAD)
+            : 0;
+        uint256 protocolFeeAssets = interest > 0 && lastProtocolFee > 0 && lastProtocolFeeReceiver != address(0)
+            ? interest.mulDiv(lastProtocolFee, WAD)
+            : 0;
 
-        uint256 newTotalAssetsWithoutFees = newTotalAssets - performanceFeeAssets - managementFeeAssets;
+        uint256 newTotalAssetsWithoutFees =
+            newTotalAssets - performanceFeeAssets - managementFeeAssets - protocolFeeAssets;
         performanceFeeShares =
             performanceFeeAssets.mulDiv(super.totalSupply() + virtualShares, newTotalAssetsWithoutFees + 1);
         managementFeeShares =
             managementFeeAssets.mulDiv(super.totalSupply() + virtualShares, newTotalAssetsWithoutFees + 1);
+        protocolFeeShares = protocolFeeAssets.mulDiv(super.totalSupply() + virtualShares, newTotalAssetsWithoutFees + 1);
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -195,18 +219,21 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         override(ERC4626Upgradeable, IERC4626)
         returns (uint256)
     {
-        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
+        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares) =
+            getAccrueInterest();
         return assets.mulDiv(
-            super.totalSupply() + performanceFeeShares + managementFeeShares + virtualShares, newTotalAssets + 1
+            super.totalSupply() + protocolFeeShares + performanceFeeShares + managementFeeShares + virtualShares,
+            newTotalAssets + 1
         );
     }
 
     /// @inheritdoc ERC4626Upgradeable
     function previewMint(uint256 shares) public view virtual override(ERC4626Upgradeable, IERC4626) returns (uint256) {
-        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
+        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares) =
+            getAccrueInterest();
         return shares.mulDiv(
             newTotalAssets + 1,
-            super.totalSupply() + performanceFeeShares + managementFeeShares + virtualShares,
+            super.totalSupply() + protocolFeeShares + performanceFeeShares + managementFeeShares + virtualShares,
             Math.Rounding.Ceil
         );
     }
@@ -219,8 +246,9 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         override(ERC4626Upgradeable, IERC4626)
         returns (uint256)
     {
-        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
-        uint256 newTotalSupply = super.totalSupply() + performanceFeeShares + managementFeeShares;
+        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares) =
+            getAccrueInterest();
+        uint256 newTotalSupply = super.totalSupply() + protocolFeeShares + performanceFeeShares + managementFeeShares;
         return assets.mulDiv(newTotalSupply + virtualShares, newTotalAssets + 1, Math.Rounding.Ceil);
     }
 
@@ -232,8 +260,9 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         override(ERC4626Upgradeable, IERC4626)
         returns (uint256)
     {
-        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares) = getAccrueInterest();
-        uint256 newTotalSupply = super.totalSupply() + performanceFeeShares + managementFeeShares;
+        (uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares) =
+            getAccrueInterest();
+        uint256 newTotalSupply = super.totalSupply() + protocolFeeShares + performanceFeeShares + managementFeeShares;
         return shares.mulDiv(newTotalAssets + 1, newTotalSupply + virtualShares);
     }
 
@@ -262,20 +291,25 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     /* PUBLIC FUNCTIONS (ACCOUNTING) */
 
     /// @inheritdoc IVaultV2
-    function accrueInterest() public returns (uint256 performanceFeeShares, uint256 managementFeeShares) {
-        (_totalAssets, performanceFeeShares, managementFeeShares) = getAccrueInterest();
+    function accrueInterest()
+        public
+        returns (uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares)
+    {
+        (_totalAssets, performanceFeeShares, managementFeeShares, protocolFeeShares) = getAccrueInterest();
         if (performanceFeeShares > 0) {
-            _mint(IFeeRegistry(FEE_REGISTRY).getPerformanceFeeRecipient(address(this)), performanceFeeShares);
+            _mint(performanceFeeReceiver, performanceFeeShares);
         }
         if (managementFeeShares > 0) {
-            _mint(IFeeRegistry(FEE_REGISTRY).getManagementFeeRecipient(address(this)), managementFeeShares);
+            _mint(managementFeeReceiver, managementFeeShares);
+        }
+        if (protocolFeeShares > 0) {
+            _mint(lastProtocolFeeReceiver, protocolFeeShares);
         }
 
+        _updateProtocolFee();
         lastUpdate = uint48(block.timestamp);
-        lastPerformanceFee = uint96(IFeeRegistry(FEE_REGISTRY).getPerformanceFee(address(this)));
-        lastManagementFee = uint96(IFeeRegistry(FEE_REGISTRY).getManagementFee(address(this)));
 
-        emit AccrueInterest(_totalAssets, performanceFeeShares, managementFeeShares);
+        emit AccrueInterest(_totalAssets, performanceFeeShares, managementFeeShares, protocolFeeShares);
     }
 
     /// @inheritdoc IVaultV2
@@ -374,6 +408,41 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         emit SetDepositLimit(newLimit);
     }
 
+    /// @inheritdoc IVaultV2
+    function setPerformanceFee(uint96 newPerformanceFee, address newPerformanceFeeReceiver)
+        public
+        onlyRole(PERFORMANCE_FEE_ROLE)
+    {
+        if (newPerformanceFee > MAX_PERFORMANCE_FEE) {
+            revert FeeTooHigh();
+        }
+        if (newPerformanceFeeReceiver == address(0) && newPerformanceFee != 0) {
+            revert InvalidAddress();
+        }
+        accrueInterest();
+        performanceFee = newPerformanceFee;
+        performanceFeeReceiver = newPerformanceFeeReceiver;
+        emit SetPerformanceFee(newPerformanceFee);
+        emit SetPerformanceFeeReceiver(newPerformanceFeeReceiver);
+    }
+
+    /// @inheritdoc IVaultV2
+    function setManagementFee(uint96 newManagementFee, address newManagementFeeReceiver)
+        public
+        onlyRole(MANAGEMENT_FEE_ROLE)
+    {
+        if (newManagementFee > MAX_MANAGEMENT_FEE) {
+            revert FeeTooHigh();
+        }
+        if (newManagementFeeReceiver == address(0) && newManagementFee != 0) {
+            revert InvalidAddress();
+        }
+        accrueInterest();
+        managementFee = newManagementFee;
+        managementFeeReceiver = newManagementFeeReceiver;
+        emit SetManagementFee(newManagementFee, newManagementFeeReceiver);
+    }
+
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
     /// @dev Public one-shot initializer for a factory-registered delegator already bound to this vault.
@@ -400,6 +469,9 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         emit SetDelegator(newDelegator);
     }
 
+    /// @inheritdoc IVaultV2
+    function setSlasher(address) public {}
+
     /* INITIALIZATION */
 
     /// @dev Initialize vault state from encoded initialization parameters.
@@ -424,8 +496,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         __decimalsOffset = uint8(uint256(SHARES_DECIMALS).saturatingSub(IERC20Metadata(params.asset).decimals()));
         virtualShares = 10 ** __decimalsOffset;
         lastUpdate = uint48(block.timestamp);
-        lastPerformanceFee = uint96(IFeeRegistry(FEE_REGISTRY).getPerformanceFee(address(this)));
-        lastManagementFee = uint96(IFeeRegistry(FEE_REGISTRY).getManagementFee(address(this)));
+        _updateProtocolFee();
 
         uint256 deadShares = Math.max(MIN_DEAD_SHARES, 10 ** (6 + __decimalsOffset));
         uint256 assets = deadShares.mulDiv(1, virtualShares, Math.Rounding.Ceil);
@@ -444,6 +515,8 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         _grantRoleIfNotZero(DEPOSITOR_WHITELIST_ROLE, params.depositorWhitelistRoleHolder);
         _grantRoleIfNotZero(IS_DEPOSIT_LIMIT_SET_ROLE, params.isDepositLimitSetRoleHolder);
         _grantRoleIfNotZero(DEPOSIT_LIMIT_SET_ROLE, params.depositLimitSetRoleHolder);
+        _grantRoleIfNotZero(PERFORMANCE_FEE_ROLE, params.performanceFeeRoleHolder);
+        _grantRoleIfNotZero(MANAGEMENT_FEE_ROLE, params.managementFeeRoleHolder);
 
         emit Initialize(params);
     }
@@ -462,6 +535,12 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         if (holder != address(0)) {
             _grantRole(role, holder);
         }
+    }
+
+    /// @dev Cache protocol fee config for the next accrual window.
+    function _updateProtocolFee() internal {
+        lastProtocolFee = uint96(IProtocolFee(PROTOCOL_FEE).getFee(address(this)));
+        lastProtocolFeeReceiver = IProtocolFee(PROTOCOL_FEE).getReceiver(address(this));
     }
 
     /// @inheritdoc ERC4626Upgradeable

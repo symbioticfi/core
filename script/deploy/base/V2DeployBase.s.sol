@@ -22,7 +22,7 @@ contract V2DeployBaseScript is Script {
         UniversalDelegator universalDelegator;
     }
 
-    function runBase(address adapterRegistryOwner, address feeRegistry, address rewards)
+    function runBase(address adapterRegistryOwner, address protocolFee, address rewards)
         public
         virtual
         returns (DeploymentData memory data)
@@ -32,12 +32,11 @@ contract V2DeployBaseScript is Script {
         data.core = _core();
 
         _startBroadcast();
-        data.adapterRegistry = new AdapterRegistry();
-        data.adapterRegistry.initialize(adapterRegistryOwner);
+        data.adapterRegistry = new AdapterRegistry(adapterRegistryOwner);
         data.withdrawalQueue = new WithdrawalQueue();
         data.vaultV2 = new VaultV2(
             rewards,
-            feeRegistry,
+            protocolFee,
             address(data.core.vaultFactory),
             address(data.core.slasherFactory),
             address(data.adapterRegistry),

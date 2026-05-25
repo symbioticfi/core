@@ -120,8 +120,7 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     function allocatable(address adapter) public view returns (uint256) {
         // Calculate delegator limit.
-        uint256 limit =
-            Math.min(absoluteLimitOf[adapter], VaultV2(vault).totalAssets().mulDiv(shareLimitOf[adapter], MAX_SHARE));
+        uint256 limit = limitOf(adapter);
 
         // Apply delegator limit.
         uint256 toAllocate = limit.saturatingSub(IAdapter(adapter).totalAssets());
@@ -191,6 +190,9 @@ contract UniversalDelegator is
         uint16 index = adapterToIndex[adapter];
         if (!_isAdapterAdded[adapter]) {
             revert InvalidAdapter();
+        }
+        if (IAdapter(adapter).totalAssets() > 0) {
+            revert AdapterHasAssets();
         }
         _isAdapterAdded[adapter] = false;
         _removeOrdered(adapters, adapter);
