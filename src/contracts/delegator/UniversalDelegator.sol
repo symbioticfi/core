@@ -16,13 +16,13 @@ import {
     IUniversalDelegator,
     MAX_ADAPTERS,
     MAX_SHARE,
+    ALLOCATE_ROLE,
+    DEALLOCATE_ROLE,
     ADD_ADAPTER_ROLE,
+    SWAP_ADAPTERS_ROLE,
     REMOVE_ADAPTER_ROLE,
     SET_ADAPTER_LIMITS_ROLE,
-    SET_AUTO_ALLOCATE_ADAPTERS_ROLE,
-    SWAP_ADAPTERS_ROLE,
-    ALLOCATE_ROLE,
-    DEALLOCATE_ROLE
+    SET_AUTO_ALLOCATE_ADAPTERS_ROLE
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 
@@ -55,23 +55,23 @@ contract UniversalDelegator is
     address public vault;
 
     /// @inheritdoc IUniversalDelegator
-    uint16 public totalAdapters;
-
-    /// @inheritdoc IUniversalDelegator
-    mapping(uint16 index => address adapter) public indexToAdapter;
-    /// @inheritdoc IUniversalDelegator
-    mapping(address adapter => uint16 index) public adapterToIndex;
+    mapping(address adapter => uint256 share) public shareLimitOf;
     /// @inheritdoc IUniversalDelegator
     mapping(address adapter => uint256 assets) public absoluteLimitOf;
-    /// @inheritdoc IUniversalDelegator
-    mapping(address adapter => uint256 share) public shareLimitOf;
 
     /// @inheritdoc IUniversalDelegator
     address[] public adapters;
     /// @inheritdoc IUniversalDelegator
-    address[] public autoAllocateAdapters;
+    uint16 public totalAdapters;
     /// @inheritdoc IUniversalDelegator
     uint16[] public adaptersWithPending;
+    /// @inheritdoc IUniversalDelegator
+    address[] public autoAllocateAdapters;
+    /// @inheritdoc IUniversalDelegator
+    mapping(uint16 index => address adapter) public indexToAdapter;
+    /// @inheritdoc IUniversalDelegator
+    mapping(address adapter => uint16 index) public adapterToIndex;
+
     /// @dev Whether an adapter is currently configured.
     mapping(address adapter => bool status) internal _isAdapterAdded;
 
@@ -129,9 +129,7 @@ contract UniversalDelegator is
         toAllocate = Math.min(toAllocate, VaultV2(vault).freeAssets());
 
         // Apply adapter limit.
-        toAllocate = Math.min(toAllocate, IAdapter(adapter).allocatable());
-
-        return toAllocate;
+        return Math.min(toAllocate, IAdapter(adapter).allocatable());
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -155,6 +153,7 @@ contract UniversalDelegator is
         return _addAdapter(adapter);
     }
 
+    /// @dev Add a validated adapter and assign a stable index when needed.
     function _addAdapter(address adapter) internal returns (uint16 index) {
         address adapterFactory = IEntity(adapter).FACTORY();
         if (
@@ -187,7 +186,6 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function removeAdapter(address adapter) public onlyRole(REMOVE_ADAPTER_ROLE) {
-        uint16 index = adapterToIndex[adapter];
         if (!_isAdapterAdded[adapter]) {
             revert InvalidAdapter();
         }
@@ -197,6 +195,8 @@ contract UniversalDelegator is
         _isAdapterAdded[adapter] = false;
         _removeOrdered(adapters, adapter);
         _removeOrdered(autoAllocateAdapters, adapter);
+
+        uint16 index = adapterToIndex[adapter];
         for (uint256 i; i < adaptersWithPending.length; ++i) {
             if (adaptersWithPending[i] == index) {
                 adaptersWithPending[i] = adaptersWithPending[adaptersWithPending.length - 1];
@@ -273,11 +273,19 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function allocate(address adapter, uint256 assets) public onlyRole(ALLOCATE_ROLE) returns (uint256 deallocated) {
+    function allocate(address adapter, uint256 assets) public onlyRole(ALLOCATE_ROLE) returns (uint256 allocated) {
         if (sweepPending() > 0) {
             return 0;
         }
         return _allocate(adapter, assets);
+    }
+
+    /// @inheritdoc IUniversalDelegator
+    function allocateAll(uint256 assets) public onlyRole(ALLOCATE_ROLE) returns (uint256 allocated) {
+        if (sweepPending() > 0) {
+            return 0;
+        }
+        return _allocateAll(assets);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -302,14 +310,6 @@ contract UniversalDelegator is
             return 0;
         }
         return _deallocateAll(assets);
-    }
-
-    /// @inheritdoc IUniversalDelegator
-    function allocate(uint256 assets) public onlyRole(ALLOCATE_ROLE) returns (uint256 allocated) {
-        if (sweepPending() > 0) {
-            return 0;
-        }
-        return _allocateAll(assets);
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -372,15 +372,6 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function onWithdrawRequest() public {
-        if (VaultV2(vault).withdrawalQueue() != msg.sender) {
-            revert NotVault();
-        }
-
-        _sweepPending();
-    }
-
-    /// @inheritdoc IUniversalDelegator
     function onWithdraw(uint256 assets) public {
         if (vault != msg.sender) {
             revert NotVault();
@@ -411,27 +402,19 @@ contract UniversalDelegator is
 
         InitParams memory params = abi.decode(initData, (InitParams));
 
-        if (
-            params.adapters.length != params.absoluteLimits.length
-                || params.adapters.length != params.shareLimits.length
-        ) {
-            revert InvalidLength();
-        }
-
         vault = initVault;
 
-        _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
+        _grantRoleIfNotZero(ALLOCATE_ROLE, params.allocateRoleHolder);
+        _grantRoleIfNotZero(DEALLOCATE_ROLE, params.deallocateRoleHolder);
         _grantRoleIfNotZero(ADD_ADAPTER_ROLE, params.addAdapterRoleHolder);
+        _grantRoleIfNotZero(SWAP_ADAPTERS_ROLE, params.swapAdaptersRoleHolder);
+        _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         _grantRoleIfNotZero(REMOVE_ADAPTER_ROLE, params.removeAdapterRoleHolder);
         _grantRoleIfNotZero(SET_ADAPTER_LIMITS_ROLE, params.setAdapterLimitsRoleHolder);
         _grantRoleIfNotZero(SET_AUTO_ALLOCATE_ADAPTERS_ROLE, params.setAutoAllocateAdaptersRoleHolder);
-        _grantRoleIfNotZero(SWAP_ADAPTERS_ROLE, params.swapAdaptersRoleHolder);
-        _grantRoleIfNotZero(ALLOCATE_ROLE, params.allocateRoleHolder);
-        _grantRoleIfNotZero(DEALLOCATE_ROLE, params.deallocateRoleHolder);
 
         for (uint256 i; i < params.adapters.length; ++i) {
             _addAdapter(params.adapters[i]);
-            _setLimits(params.adapters[i], params.absoluteLimits[i], params.shareLimits[i]);
         }
 
         emit Initialize(params);
@@ -439,6 +422,7 @@ contract UniversalDelegator is
 
     /* INTERNAL FUNCTIONS */
 
+    /// @dev Fill pending withdrawal requests and synchronize delayed adapter requests.
     function _sweepPending() internal returns (uint256 pendingAssets) {
         address queue = VaultV2(vault).withdrawalQueue();
         _deallocateAll(WithdrawalQueue(queue).pendingAssets().saturatingSub(VaultV2(vault).freeAssets()));
@@ -475,6 +459,7 @@ contract UniversalDelegator is
         }
     }
 
+    /// @dev Allocate collateral through the configured auto-allocation route.
     function _allocateAll(uint256 assets) internal returns (uint256 allocated) {
         for (uint256 i; i < autoAllocateAdapters.length && assets > 0; ++i) {
             uint256 curAllocated = _allocate(autoAllocateAdapters[i], assets);
@@ -483,6 +468,7 @@ contract UniversalDelegator is
         }
     }
 
+    /// @dev Deallocate collateral through the ordered adapter route.
     function _deallocateAll(uint256 assets) internal returns (uint256 deallocated) {
         for (uint256 i; i < adapters.length && assets > 0; ++i) {
             uint256 curDeallocated = _deallocate(adapters[i], assets);
@@ -523,6 +509,7 @@ contract UniversalDelegator is
         }
     }
 
+    /// @dev Remove a value from an ordered address array.
     function _removeOrdered(address[] storage values, address value) internal {
         for (uint256 i; i < values.length; ++i) {
             if (values[i] == value) {
@@ -535,6 +522,7 @@ contract UniversalDelegator is
         }
     }
 
+    /// @dev Prevent manual adapter role revocation while an adapter is configured.
     function _revokeRole(bytes32 role, address account) internal override returns (bool) {
         if ((role == ALLOCATE_ROLE || role == DEALLOCATE_ROLE) && _isAdapterAdded[account]) {
             revert InvalidRole();

@@ -11,13 +11,11 @@ import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {Entity} from "../../src/contracts/common/Entity.sol";
 import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
-import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntityProxy.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
-import {ProtocolFee} from "../../src/contracts/vault/ProtocolFee.sol";
+import {ProtocolFeeRegistry} from "../../src/contracts/ProtocolFeeRegistry.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
-import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
 import {
     IUniversalDelegator,
     UNIVERSAL_DELEGATOR_TYPE,
@@ -25,9 +23,6 @@ import {
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
 import {Token} from "../mocks/Token.sol";
-
-import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract AppAdapterUniversalMigratableEntityMock is MigratableEntity {
     constructor(address factory) MigratableEntity(factory) {}
@@ -56,7 +51,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
     DelegatorFactory internal delegatorFactory;
     AdapterRegistry internal adapterRegistry;
     AdapterFactory internal adapterFactory;
-    ProtocolFee internal protocolFee;
+    ProtocolFeeRegistry internal protocolFee;
     AppAdapterUniversalNetworkMiddlewareServiceMock internal networkMiddlewareService;
 
     VaultV2 internal vault;
@@ -76,7 +71,8 @@ contract AppAdapterUniversalDelegatorTest is Test {
         delegatorFactory = new DelegatorFactory(address(this));
         adapterRegistry = new AdapterRegistry(address(this));
         adapterFactory = new AdapterFactory(address(this));
-        protocolFee = new ProtocolFee(address(this), address(this));
+        protocolFee = new ProtocolFeeRegistry(address(this));
+        protocolFee.setGlobalReceiver(address(this));
         networkMiddlewareService = new AppAdapterUniversalNetworkMiddlewareServiceMock();
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
@@ -86,11 +82,11 @@ contract AppAdapterUniversalDelegatorTest is Test {
             address(
                 new VaultV2(
                     address(0x1),
-                    address(protocolFee),
                     address(vaultFactory),
                     address(0x2),
                     address(adapterRegistry),
                     address(delegatorFactory),
+                    address(protocolFee),
                     address(new WithdrawalQueue())
                 )
             )
@@ -137,6 +133,8 @@ contract AppAdapterUniversalDelegatorTest is Test {
         delegator.addAdapter(address(adapter));
         delegator.setLimits(address(adapter), 100, MAX_SHARE);
 
+        collateral.approve(address(vault), 100);
+        vault.deposit(100, address(this));
         delegator.allocate(address(adapter), 100);
     }
 
@@ -323,8 +321,6 @@ contract AppAdapterUniversalDelegatorTest is Test {
                 managementFeeRoleHolder: address(this)
             })
         );
-        IERC20(address(collateral)).approve(_predictVaultAddress(data), 1e9);
-
         return VaultV2(vaultFactory.create(VAULT_V2_VERSION, address(this), data));
     }
 
@@ -343,24 +339,12 @@ contract AppAdapterUniversalDelegatorTest is Test {
                         swapAdaptersRoleHolder: address(this),
                         allocateRoleHolder: address(this),
                         deallocateRoleHolder: address(this),
-                        adapters: new address[](0),
-                        absoluteLimits: new uint256[](0),
-                        shareLimits: new uint256[](0)
+                        adapters: new address[](0)
                     })
                 )
             )
         );
 
         return UniversalDelegator(delegatorAddress);
-    }
-
-    function _predictVaultAddress(bytes memory data) internal view returns (address) {
-        bytes memory initData = abi.encodeCall(IMigratableEntity.initialize, (VAULT_V2_VERSION, address(this), data));
-        bytes memory initCode = abi.encodePacked(
-            type(MigratableEntityProxy).creationCode,
-            abi.encode(vaultFactory.implementation(VAULT_V2_VERSION), initData)
-        );
-        bytes32 salt = keccak256(abi.encode(vaultFactory.totalEntities(), VAULT_V2_VERSION, address(this), data));
-        return Create2.computeAddress(salt, keccak256(initCode), address(vaultFactory));
     }
 }

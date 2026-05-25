@@ -403,6 +403,20 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(delegator.shareLimitOf(address(adapter)), MAX_SHARE / 4);
     }
 
+    function test_DecreaseLimitsCanDisableShareLimitWhenAbsoluteLimitIsUnlimited() public {
+        UniversalDelegatorSweepAdapter adapter = _newAdapter(100, 0);
+
+        delegator.addAdapterForTest(address(adapter));
+        delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
+        delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE);
+
+        vm.prank(address(adapter));
+        delegator.decreaseLimits(23, MAX_SHARE);
+
+        assertEq(delegator.absoluteLimitOf(address(adapter)), type(uint256).max);
+        assertEq(delegator.shareLimitOf(address(adapter)), 0);
+    }
+
     function test_SweepPendingStoresPendingAdapterIndexes() public {
         UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(100);
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
@@ -455,12 +469,12 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(vault.pushedAssets(), 70);
     }
 
-    function test_OnWithdrawRequestAllowsWithdrawalQueueCaller() public {
+    function test_SweepPendingAllowsWithdrawalQueueCaller() public {
         UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
         delegator.setVault(address(vault));
 
         vm.prank(address(queue));
-        delegator.onWithdrawRequest();
+        delegator.sweepPending();
     }
 }

@@ -45,13 +45,10 @@ contract WithdrawalQueueFillDelegator {
         return totalAssetsValue;
     }
 
-    function onWithdrawRequest() external {
-        ++syncCalls;
-    }
-
     function onDeposit() external {}
 
-    function sweepPending() external pure returns (uint256) {
+    function sweepPending() external returns (uint256) {
+        ++syncCalls;
         return 0;
     }
 }
@@ -582,7 +579,7 @@ contract WithdrawalQueueFillTest is Test {
 
     function test_ClaimReceivesExactSixDecimalAssetsAfterUpwardDrift() public {
         uint256 virtualShares = 1e12;
-        uint256 deadShares = 1e18;
+        uint256 seedShares = 1e18;
         uint256 seedAssets = 1e6;
         uint256 shares = 1e18;
         uint256 assets = 1e6;
@@ -593,7 +590,7 @@ contract WithdrawalQueueFillTest is Test {
         queue = _deployQueue();
 
         WithdrawalQueueFillToken(collateral).mint(vault, seedAssets + assets + drift);
-        WithdrawalQueueFillVault(vault).mintShares(address(0xDEAD), deadShares, seedAssets);
+        WithdrawalQueueFillVault(vault).mintShares(address(0xBEEF), seedShares, seedAssets);
         WithdrawalQueueFillVault(vault).mintShares(alice, shares, assets);
         WithdrawalQueueFillVault(vault).setManagedAssets(seedAssets + assets + drift);
 

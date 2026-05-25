@@ -96,6 +96,7 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
 
     /* INITIALIZATION */
 
+    /// @dev Approves the Aave pool to pull the adapter asset.
     function __initialize(address asset, bytes memory) internal override {
         IERC20(asset).forceApprove(AAVE_POOL, type(uint256).max);
     }

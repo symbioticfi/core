@@ -8,7 +8,7 @@ import {V2DeployBaseScript} from "./base/V2DeployBase.s.sol";
 contract V2DeployScript is V2DeployBaseScript {
     // Address that will own the new AdapterRegistry.
     address public constant ADAPTER_REGISTRY_OWNER = 0x0000000000000000000000000000000000000000;
-    // ProtocolFee address used by VaultV2.
+    // ProtocolFeeRegistry address used by VaultV2.
     address public constant PROTOCOL_FEE = 0x3E5a669F673712Bf72De956608E89D36561cbAf1;
     // Rewards contract address used by VaultV2.
     address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;

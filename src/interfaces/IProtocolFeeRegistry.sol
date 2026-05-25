@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 uint256 constant MAX_PROTOCOL_FEE = 25e16; // 25%
 
-interface IProtocolFee {
+interface IProtocolFeeRegistry {
     /* ERRORS */
 
     /**
@@ -20,14 +20,14 @@ interface IProtocolFee {
 
     /**
      * @notice Emitted when the global protocol fee is set.
-     * @param fee Global protocol fee in WAD.
+     * @param fee Global protocol fee scaled by MAX_FEE.
      */
     event SetGlobalFee(uint256 fee);
 
     /**
      * @notice Emitted when a vault-specific protocol fee is set.
      * @param vault Vault address.
-     * @param fee Vault-specific protocol fee in WAD.
+     * @param fee Vault-specific protocol fee scaled by MAX_FEE.
      */
     event SetVaultFee(address indexed vault, uint256 fee);
 
@@ -48,14 +48,14 @@ interface IProtocolFee {
 
     /**
      * @notice Get the global protocol fee.
-     * @return fee Global protocol fee in WAD.
+     * @return fee Global protocol fee scaled by MAX_FEE.
      */
     function globalFee() external view returns (uint256 fee);
 
     /**
      * @notice Get a vault-specific protocol fee.
      * @param vault Vault address.
-     * @return fee Vault-specific protocol fee in WAD.
+     * @return fee Vault-specific protocol fee scaled by MAX_FEE.
      */
     function vaultFee(address vault) external view returns (uint256 fee);
 
@@ -74,16 +74,17 @@ interface IProtocolFee {
 
     /**
      * @notice Set the global protocol fee.
-     * @param newGlobalFee New global protocol fee in WAD.
+     * @param newGlobalFee New global protocol fee scaled by MAX_FEE.
      */
     function setGlobalFee(uint256 newGlobalFee) external;
 
     /**
      * @notice Set a vault-specific protocol fee.
      * @param vault Vault address.
-     * @param newVaultFee New vault-specific protocol fee in WAD.
+     * @param isEnabled Whether the vault-specific protocol fee override is enabled.
+     * @param newVaultFee New vault-specific protocol fee scaled by MAX_FEE.
      */
-    function setVaultFee(address vault, uint256 newVaultFee) external;
+    function setVaultFee(address vault, bool isEnabled, uint256 newVaultFee) external;
 
     /**
      * @notice Set the global protocol fee receiver.
@@ -101,7 +102,7 @@ interface IProtocolFee {
     /**
      * @notice Get the protocol fee for a vault.
      * @param vault Vault address.
-     * @return fee Protocol fee in WAD.
+     * @return fee Protocol fee scaled by MAX_FEE.
      */
     function getFee(address vault) external view returns (uint256 fee);
 

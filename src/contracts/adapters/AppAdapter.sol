@@ -35,13 +35,13 @@ contract AppAdapter is Adapter, IAppAdapter {
     /* STATE VARIABLES */
 
     /// @inheritdoc IAppAdapter
+    address public burner;
+    /// @inheritdoc IAppAdapter
     uint48 public duration;
     /// @inheritdoc IAppAdapter
     address public operator;
     /// @inheritdoc IAppAdapter
     bytes32 public subnetwork;
-    /// @inheritdoc IAppAdapter
-    address public burner;
 
     /// @dev Stakes for the configured pair.
     Stake[] internal _stakes;
@@ -162,6 +162,7 @@ contract AppAdapter is Adapter, IAppAdapter {
         }
     }
 
+    /// @dev Allocates assets into a fresh stake checkpoint.
     function _allocate(uint256 amount) internal override returns (uint256) {
         if (amount == 0) {
             return 0;
@@ -180,6 +181,7 @@ contract AppAdapter is Adapter, IAppAdapter {
     /// @dev Initializes the configured network-operator pair.
     function __initialize(address, bytes memory data) internal override {
         InitParams memory params = abi.decode(data, (InitParams));
+
         if (params.subnetwork == bytes32(0) || params.operator == address(0)) {
             revert InvalidNetOrOp();
         }
@@ -190,10 +192,10 @@ contract AppAdapter is Adapter, IAppAdapter {
             revert NoBurner();
         }
 
-        subnetwork = params.subnetwork;
-        operator = params.operator;
-        duration = params.duration;
         burner = params.burner;
+        duration = params.duration;
+        operator = params.operator;
+        subnetwork = params.subnetwork;
 
         _stakes.push();
 

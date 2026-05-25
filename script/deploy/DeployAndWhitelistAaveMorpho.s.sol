@@ -17,7 +17,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     address public constant ADAPTER_REGISTRY_OWNER = 0x0000000000000000000000000000000000000001;
     // Address that will own both adapter factories after deployment.
     address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000001;
-    // ProtocolFee address used by VaultV2.
+    // ProtocolFeeRegistry address used by VaultV2.
     address public constant PROTOCOL_FEE = 0x3E5a669F673712Bf72De956608E89D36561cbAf1;
     // AaveV3 pool used by the Aave adapter.
     address public constant AAVE_POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;

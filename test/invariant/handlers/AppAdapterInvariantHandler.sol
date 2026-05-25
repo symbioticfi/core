@@ -9,13 +9,11 @@ import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
 import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
 import {DelegatorFactory} from "../../../src/contracts/DelegatorFactory.sol";
 import {VaultFactory} from "../../../src/contracts/VaultFactory.sol";
-import {MigratableEntityProxy} from "../../../src/contracts/common/MigratableEntityProxy.sol";
 import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDelegator.sol";
-import {ProtocolFee} from "../../../src/contracts/vault/ProtocolFee.sol";
+import {ProtocolFeeRegistry} from "../../../src/contracts/ProtocolFeeRegistry.sol";
 import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol";
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
-import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
 import {
     IUniversalDelegator,
     UNIVERSAL_DELEGATOR_TYPE,
@@ -28,9 +26,6 @@ import {
     AppAdapterUniversalMigratableEntityMock,
     AppAdapterUniversalNetworkMiddlewareServiceMock
 } from "../../adapters/AppAdapterUniversalDelegator.t.sol";
-
-import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract AppAdapterInvariantHandler is Test {
     using Subnetwork for address;
@@ -272,7 +267,8 @@ contract AppAdapterInvariantHandler is Test {
         DelegatorFactory delegatorFactory = new DelegatorFactory(address(this));
         AdapterRegistry adapterRegistry = new AdapterRegistry(address(this));
         AdapterFactory adapterFactory = new AdapterFactory(address(this));
-        ProtocolFee protocolFee = new ProtocolFee(address(this), address(this));
+        ProtocolFeeRegistry protocolFee = new ProtocolFeeRegistry(address(this));
+        protocolFee.setGlobalReceiver(address(this));
         AppAdapterUniversalNetworkMiddlewareServiceMock networkMiddlewareService =
             new AppAdapterUniversalNetworkMiddlewareServiceMock();
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
@@ -283,11 +279,11 @@ contract AppAdapterInvariantHandler is Test {
             address(
                 new VaultV2(
                     address(0x1),
-                    address(protocolFee),
                     address(vaultFactory),
                     address(0x2),
                     address(adapterRegistry),
                     address(delegatorFactory),
+                    address(protocolFee),
                     address(new WithdrawalQueue())
                 )
             )
@@ -360,8 +356,6 @@ contract AppAdapterInvariantHandler is Test {
                 managementFeeRoleHolder: address(this)
             })
         );
-        IERC20(address(collateral)).approve(_predictVaultAddress(vaultFactory, data), 1e9);
-
         return VaultV2(vaultFactory.create(VAULT_V2_VERSION, address(this), data));
     }
 
@@ -383,24 +377,12 @@ contract AppAdapterInvariantHandler is Test {
                         swapAdaptersRoleHolder: address(this),
                         allocateRoleHolder: address(this),
                         deallocateRoleHolder: address(this),
-                        adapters: new address[](0),
-                        absoluteLimits: new uint256[](0),
-                        shareLimits: new uint256[](0)
+                        adapters: new address[](0)
                     })
                 )
             )
         );
 
         return UniversalDelegator(delegatorAddress);
-    }
-
-    function _predictVaultAddress(VaultFactory vaultFactory, bytes memory data) internal view returns (address) {
-        bytes memory initData = abi.encodeCall(IMigratableEntity.initialize, (VAULT_V2_VERSION, address(this), data));
-        bytes memory initCode = abi.encodePacked(
-            type(MigratableEntityProxy).creationCode,
-            abi.encode(vaultFactory.implementation(VAULT_V2_VERSION), initData)
-        );
-        bytes32 salt = keccak256(abi.encode(vaultFactory.totalEntities(), VAULT_V2_VERSION, address(this), data));
-        return Create2.computeAddress(salt, keccak256(initCode), address(vaultFactory));
     }
 }

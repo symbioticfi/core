@@ -24,28 +24,28 @@ interface IAdapter is IMigratableEntity {
     error NotCurator();
 
     /**
-     * @notice Execute a batch of delegatecalls on the adapter.
-     * @param data Calldata items to execute.
-     */
-    function multicall(bytes[] calldata data) external;
-
-    /**
      * @notice Returns the vault served by the adapter.
      * @return vault Vault address.
      */
     function vault() external view returns (address vault);
 
     /**
-     * @notice Get total assets managed by the adapter for a vault.
-     * @return assets Total collateral-equivalent assets managed by the adapter.
+     * @notice Execute a batch of delegatecalls on the adapter.
+     * @param data Calldata items to execute.
      */
-    function totalAssets() external view returns (uint256 assets);
+    function multicall(bytes[] calldata data) external;
 
     /**
      * @notice Get the amount of collateral that can be allocated to the adapter.
      * @return amount Amount of collateral that can be allocated to the adapter.
      */
     function allocatable() external view returns (uint256 amount);
+
+    /**
+     * @notice Get total assets managed by the adapter for a vault.
+     * @return assets Total collateral-equivalent assets managed by the adapter.
+     */
+    function totalAssets() external view returns (uint256 assets);
 
     /**
      * @notice Get the amount of collateral that can be deallocated from the adapter instantly.

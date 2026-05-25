@@ -30,11 +30,6 @@ abstract contract Adapter is MigratableEntity, IAdapter {
     /// @inheritdoc IAdapter
     address public vault;
 
-    /* TRANSIENT STATE VARIABLES */
-
-    /// @dev Marks recovery-triggered deallocations so accounting skips the normal path.
-    bool internal transient _isRecover;
-
     /* MODIFIERS */
 
     modifier onlyCurator() {
@@ -93,18 +88,11 @@ abstract contract Adapter is MigratableEntity, IAdapter {
 
     /// @inheritdoc IAdapter
     function deallocate(uint256 amount) public virtual onlyDelegator returns (uint256 deallocated) {
-        if (IVaultV2(vault).delegator() != msg.sender) {
-            revert NotVault();
-        }
-
         return _deallocate(amount);
     }
 
     /// @inheritdoc IAdapter
-    function requestDeallocate(uint256 amount) public {
-        if (IVaultV2(vault).delegator() != msg.sender) {
-            revert NotVault();
-        }
+    function requestDeallocate(uint256 amount) public onlyDelegator {
         return _requestDeallocate(amount);
     }
 
@@ -124,9 +112,11 @@ abstract contract Adapter is MigratableEntity, IAdapter {
     /// @dev Initializes the adapter vault and adapter-specific state.
     function _initialize(uint64, address, bytes memory data) internal override {
         (address initVault, bytes memory initData) = abi.decode(data, (address, bytes));
+
         if (!IRegistry(VAULT_FACTORY).isEntity(initVault)) {
             revert InvalidVault();
         }
+
         vault = initVault;
 
         IERC20(IVaultV2(vault).asset()).forceApprove(vault, type(uint256).max);

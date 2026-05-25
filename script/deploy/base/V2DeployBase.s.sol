@@ -36,11 +36,11 @@ contract V2DeployBaseScript is Script {
         data.withdrawalQueue = new WithdrawalQueue();
         data.vaultV2 = new VaultV2(
             rewards,
-            protocolFee,
             address(data.core.vaultFactory),
             address(data.core.slasherFactory),
             address(data.adapterRegistry),
             address(data.core.delegatorFactory),
+            protocolFee,
             address(data.withdrawalQueue)
         );
         data.universalDelegator = new UniversalDelegator(

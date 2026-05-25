@@ -49,16 +49,16 @@ interface IAppAdapter is IAdapter {
 
     /**
      * @notice Initialization parameters for the app adapter.
-     * @param subnetwork Full identifier of the subnetwork.
-     * @param operator Operator address.
-     * @param duration Stake checkpoint lookahead duration.
      * @param burner Burner hook target.
+     * @param duration Stake checkpoint lookahead duration.
+     * @param operator Operator address.
+     * @param subnetwork Full identifier of the subnetwork.
      */
     struct InitParams {
-        bytes32 subnetwork;
-        address operator;
-        uint48 duration;
         address burner;
+        uint48 duration;
+        address operator;
+        bytes32 subnetwork;
     }
 
     /**
@@ -90,16 +90,10 @@ interface IAppAdapter is IAdapter {
     /* FUNCTIONS */
 
     /**
-     * @notice Get the configured subnetwork.
-     * @return subnetwork Full identifier of the subnetwork.
+     * @notice Get the configured burner hook target.
+     * @return burner Burner hook target.
      */
-    function subnetwork() external view returns (bytes32 subnetwork);
-
-    /**
-     * @notice Get the configured operator.
-     * @return operator Operator address.
-     */
-    function operator() external view returns (address operator);
+    function burner() external view returns (address burner);
 
     /**
      * @notice Get the configured stake checkpoint lookahead duration.
@@ -108,17 +102,22 @@ interface IAppAdapter is IAdapter {
     function duration() external view returns (uint48 duration);
 
     /**
-     * @notice Get the configured burner hook target.
-     * @return burner Burner hook target.
+     * @notice Get the configured operator.
+     * @return operator Operator address.
      */
-    function burner() external view returns (address burner);
+    function operator() external view returns (address operator);
 
     /**
-     * @notice Get guaranteed stake for the configured pair at a timestamp.
-     * @param timestamp Timestamp to read.
-     * @return amount Guaranteed stake.
+     * @notice Get the configured subnetwork.
+     * @return subnetwork Full identifier of the subnetwork.
      */
-    function stakeAt(uint48 timestamp) external view returns (uint256 amount);
+    function subnetwork() external view returns (bytes32 subnetwork);
+
+    /**
+     * @notice Get current slashable stake for the configured pair.
+     * @return amount Slashable stake.
+     */
+    function slashable() external view returns (uint256 amount);
 
     /**
      * @notice Get current guaranteed stake for the configured pair.
@@ -127,10 +126,11 @@ interface IAppAdapter is IAdapter {
     function stake() external view returns (uint256 amount);
 
     /**
-     * @notice Get current slashable stake for the configured pair.
-     * @return amount Slashable stake.
+     * @notice Get guaranteed stake for the configured pair at a timestamp.
+     * @param timestamp Timestamp to read.
+     * @return amount Guaranteed stake.
      */
-    function slashable() external view returns (uint256 amount);
+    function stakeAt(uint48 timestamp) external view returns (uint256 amount);
 
     /**
      * @notice Slash the configured pair.

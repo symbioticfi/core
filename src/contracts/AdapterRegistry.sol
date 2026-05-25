@@ -20,6 +20,13 @@ contract AdapterRegistry is Ownable, IAdapterRegistry {
 
     constructor(address curOwner) Ownable(curOwner) {}
 
+    /* VIEW FUNCTIONS */
+
+    /// @inheritdoc IAdapterRegistry
+    function isWhitelisted(address vault, address adapter) external view returns (bool status) {
+        return globalIsWhitelisted[adapter] || vaultIsWhitelisted[vault][adapter];
+    }
+
     /* EXTERNAL FUNCTIONS */
 
     /// @inheritdoc IAdapterRegistry
@@ -34,12 +41,5 @@ contract AdapterRegistry is Ownable, IAdapterRegistry {
         vaultIsWhitelisted[vault][adapter] = status;
 
         emit SetVaultWhitelistStatus(vault, adapter, status);
-    }
-
-    /* VIEW FUNCTIONS */
-
-    /// @inheritdoc IAdapterRegistry
-    function isWhitelisted(address vault, address adapter) external view returns (bool status) {
-        return globalIsWhitelisted[adapter] || vaultIsWhitelisted[vault][adapter];
     }
 }

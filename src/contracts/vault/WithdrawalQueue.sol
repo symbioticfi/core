@@ -28,13 +28,13 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     address public vault;
     /// @inheritdoc IWithdrawalQueue
     uint256 public totalRequested;
+    /// @inheritdoc IWithdrawalQueue
+    mapping(uint256 tokenId => WithdrawalRequest) public requests;
 
     /// @dev The next withdrawal NFT id.
     uint256 internal _nextTokenId;
     /// @dev Cumulative filled shares to packed fill index and cumulative assets.
     Checkpoints.Trace256 internal _cumulSharesToCumulAssets;
-    /// @inheritdoc IWithdrawalQueue
-    mapping(uint256 tokenId => WithdrawalRequest) public requests;
 
     /* MULTICALL */
 
@@ -64,13 +64,13 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     }
 
     /// @inheritdoc IWithdrawalQueue
-    function pendingAssets() public view returns (uint256) {
-        return IERC4626(vault).previewRedeem(pendingShares());
+    function pendingShares() public view returns (uint256) {
+        return totalRequested - totalFilled();
     }
 
     /// @inheritdoc IWithdrawalQueue
-    function pendingShares() public view returns (uint256) {
-        return totalRequested - totalFilled();
+    function pendingAssets() public view returns (uint256) {
+        return IERC4626(vault).previewRedeem(pendingShares());
     }
 
     /// @inheritdoc IWithdrawalQueue
@@ -121,7 +121,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
         _mint(receiver, tokenId);
 
-        UniversalDelegator(VaultV2(vault).delegator()).onWithdrawRequest();
+        UniversalDelegator(VaultV2(vault).delegator()).sweepPending();
 
         emit RequestWithdraw(msg.sender, receiver, shares, tokenId);
     }
@@ -169,6 +169,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         __ERC721_init("Withdrawal Queue", "WQ");
 
         vault = msg.sender;
+
         _cumulSharesToCumulAssets.push(0, 0);
     }
 }

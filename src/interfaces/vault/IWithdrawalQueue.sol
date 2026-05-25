@@ -69,34 +69,10 @@ interface IWithdrawalQueue is IERC721Metadata {
     function vault() external view returns (address vaultToken);
 
     /**
-     * @notice Executes multiple calls against the queue.
-     * @param data Encoded calls to execute.
-     */
-    function multicall(bytes[] calldata data) external;
-
-    /**
      * @notice Total vault shares requested for withdrawal.
      * @return requested Total requested shares.
      */
     function totalRequested() external view returns (uint256 requested);
-
-    /**
-     * @notice Total vault shares filled.
-     * @return filled Total filled shares.
-     */
-    function totalFilled() external view returns (uint256 filled);
-
-    /**
-     * @notice Returns the pending assets in the queue.
-     * @return assets Pending assets.
-     */
-    function pendingAssets() external view returns (uint256 assets);
-
-    /**
-     * @notice Returns the pending shares in the queue.
-     * @return shares Pending shares.
-     */
-    function pendingShares() external view returns (uint256 shares);
 
     /**
      * @notice Returns the request details for a withdrawal NFT.
@@ -109,6 +85,42 @@ interface IWithdrawalQueue is IERC721Metadata {
         external
         view
         returns (uint256 shares, uint256 claimedShares, uint256 prevRequestSum);
+
+    /**
+     * @notice Executes multiple calls against the queue.
+     * @param data Encoded calls to execute.
+     */
+    function multicall(bytes[] calldata data) external;
+
+    /**
+     * @notice Total vault shares filled.
+     * @return filled Total filled shares.
+     */
+    function totalFilled() external view returns (uint256 filled);
+
+    /**
+     * @notice Returns the pending shares in the queue.
+     * @return shares Pending shares.
+     */
+    function pendingShares() external view returns (uint256 shares);
+
+    /**
+     * @notice Returns the pending assets in the queue.
+     * @return assets Pending assets.
+     */
+    function pendingAssets() external view returns (uint256 assets);
+
+    /**
+     * @notice Returns the claimable assets and shares for a withdrawal request.
+     * @param tokenId Withdrawal NFT id.
+     * @param maxIterations Unused legacy parameter.
+     * @return assetsClaimed Claimable assets.
+     * @return sharesClaimed Claimable shares.
+     */
+    function claimable(uint256 tokenId, uint256 maxIterations)
+        external
+        view
+        returns (uint256 assetsClaimed, uint256 sharesClaimed);
 
     /**
      * @notice Transfers vault shares into the queue and mints a withdrawal NFT.
@@ -130,24 +142,12 @@ interface IWithdrawalQueue is IERC721Metadata {
         returns (uint256 assetsClaimed, uint256 sharesClaimed);
 
     /**
-     * @notice Returns the claimable assets and shares for a withdrawal request.
-     * @param tokenId Withdrawal NFT id.
-     * @param maxIterations Unused legacy parameter.
-     * @return assetsClaimed Claimable assets.
-     * @return sharesClaimed Claimable shares.
+     * @notice Fills pending withdrawal requests with available vault assets.
      */
-    function claimable(uint256 tokenId, uint256 maxIterations)
-        external
-        view
-        returns (uint256 assetsClaimed, uint256 sharesClaimed);
+    function fill() external returns (uint256 assets, uint256 shares);
 
     /**
      * @notice Initialize withdrawal queue metadata and bind it to the calling vault.
      */
     function initialize() external;
-
-    /**
-     * @notice Fills pending withdrawal requests with available vault assets.
-     */
-    function fill() external returns (uint256 assets, uint256 shares);
 }

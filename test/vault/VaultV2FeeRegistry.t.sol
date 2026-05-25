@@ -10,15 +10,13 @@ import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
 import {Entity} from "../../src/contracts/common/Entity.sol";
 import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
-import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntityProxy.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
 import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
-import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
-import {ProtocolFee} from "../../src/contracts/vault/ProtocolFee.sol";
+import {ProtocolFeeRegistry} from "../../src/contracts/ProtocolFeeRegistry.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
 import {IUniversalDelegator, UNIVERSAL_DELEGATOR_TYPE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
-import {IProtocolFee} from "../../src/interfaces/vault/IProtocolFee.sol";
+import {IProtocolFeeRegistry} from "../../src/interfaces/IProtocolFeeRegistry.sol";
 import {
     IVaultV2,
     VAULT_V2_VERSION,
@@ -31,7 +29,6 @@ import {Token} from "../mocks/Token.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 
 contract VaultV2MigratableEntityMock is MigratableEntity {
     constructor(address factory) MigratableEntity(factory) {}
@@ -51,7 +48,6 @@ contract VaultV2SixDecimalToken is Token {
 
 contract VaultV2FeeApiTest is Test {
     function test_vaultAndProtocolFeeExposeFeeApi() public pure {
-        assertEq(IVaultV2.PROTOCOL_FEE.selector, bytes4(keccak256("PROTOCOL_FEE()")));
         assertEq(IVaultV2.lastProtocolFee.selector, bytes4(keccak256("lastProtocolFee()")));
         assertEq(IVaultV2.lastProtocolFeeReceiver.selector, bytes4(keccak256("lastProtocolFeeReceiver()")));
         assertEq(IVaultV2.managementFee.selector, bytes4(keccak256("managementFee()")));
@@ -63,9 +59,10 @@ contract VaultV2FeeApiTest is Test {
         assertEq(IVaultV2.setSlasher.selector, bytes4(keccak256("setSlasher(address)")));
         assertEq(IVaultV2.getAccrueInterest.selector, bytes4(keccak256("getAccrueInterest()")));
         assertEq(IVaultV2.virtualShares.selector, bytes4(keccak256("virtualShares()")));
+        assertEq(IVaultV2.freeAssets.selector, bytes4(keccak256("freeAssets()")));
         assertEq(IVaultV2.withdrawable.selector, bytes4(keccak256("withdrawable()")));
-        assertEq(IProtocolFee.getFee.selector, bytes4(keccak256("getFee(address)")));
-        assertEq(IProtocolFee.getReceiver.selector, bytes4(keccak256("getReceiver(address)")));
+        assertEq(IProtocolFeeRegistry.getFee.selector, bytes4(keccak256("getFee(address)")));
+        assertEq(IProtocolFeeRegistry.getReceiver.selector, bytes4(keccak256("getReceiver(address)")));
         assertEq(
             IERC20Permit.permit.selector,
             bytes4(keccak256("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)"))
@@ -76,8 +73,6 @@ contract VaultV2FeeApiTest is Test {
 }
 
 contract VaultV2BehaviorTest is Test {
-    address internal constant DEAD_SHARES_RECIPIENT = 0x000000000000000000000000000000000000dEaD;
-
     address internal alice = address(0xA11CE);
     address internal bob = address(0xB0B);
 
@@ -85,7 +80,7 @@ contract VaultV2BehaviorTest is Test {
     VaultFactory internal vaultFactory;
     DelegatorFactory internal delegatorFactory;
     AdapterRegistry internal adapterRegistry;
-    ProtocolFee internal protocolFee;
+    ProtocolFeeRegistry internal protocolFee;
 
     address internal protocolFeeReceiver = address(0xFEE);
     address internal nextProtocolFeeReceiver = address(0xFEE2);
@@ -97,7 +92,8 @@ contract VaultV2BehaviorTest is Test {
         vaultFactory = new VaultFactory(address(this));
         delegatorFactory = new DelegatorFactory(address(this));
         adapterRegistry = new AdapterRegistry(address(this));
-        protocolFee = new ProtocolFee(address(this), protocolFeeReceiver);
+        protocolFee = new ProtocolFeeRegistry(address(this));
+        protocolFee.setGlobalReceiver(protocolFeeReceiver);
 
         vaultFactory.whitelist(address(new VaultV2MigratableEntityMock(address(vaultFactory))));
         vaultFactory.whitelist(address(new VaultV2MigratableEntityMock(address(vaultFactory))));
@@ -105,11 +101,11 @@ contract VaultV2BehaviorTest is Test {
             address(
                 new VaultV2(
                     address(0x1),
-                    address(protocolFee),
                     address(vaultFactory),
                     address(0x2),
                     address(adapterRegistry),
                     address(delegatorFactory),
+                    address(protocolFee),
                     address(new WithdrawalQueue())
                 )
             )
@@ -128,8 +124,7 @@ contract VaultV2BehaviorTest is Test {
     }
 
     function test_MaxDepositAndMaxMintApplyWhitelistAndLimit() public {
-        uint256 seedAssets = _targetDeadAssets(collateral.decimals());
-        VaultV2 vault = _createVault(true, true, seedAssets + 100);
+        VaultV2 vault = _createVault(true, true, 100);
 
         assertEq(vault.maxDeposit(bob), 0);
         assertEq(vault.maxMint(bob), 0);
@@ -152,7 +147,8 @@ contract VaultV2BehaviorTest is Test {
     function test_InitializeStartsWithDefaultFeeConfig() public {
         VaultV2 vault = _createVault(false, false, 0);
 
-        assertEq(vault.PROTOCOL_FEE(), address(protocolFee));
+        (bool success,) = address(vault).staticcall(abi.encodeWithSignature("PROTOCOL_FEE()"));
+        assertFalse(success);
         assertEq(vault.lastProtocolFee(), 0);
         assertEq(vault.lastProtocolFeeReceiver(), protocolFeeReceiver);
         assertEq(vault.managementFee(), 0);
@@ -162,8 +158,9 @@ contract VaultV2BehaviorTest is Test {
         assertTrue(vault.hasRole(PERFORMANCE_FEE_ROLE, address(this)));
         assertTrue(vault.hasRole(MANAGEMENT_FEE_ROLE, address(this)));
         assertEq(vault.virtualShares(), 1);
-        assertEq(vault.balanceOf(DEAD_SHARES_RECIPIENT), 1e9);
-        assertEq(collateral.balanceOf(address(vault)), 1e9);
+        assertEq(vault.totalSupply(), 0);
+        assertEq(vault.freeAssets(), 0);
+        assertEq(collateral.balanceOf(address(vault)), 0);
         _assertNoLegacyShareGetters(vault);
     }
 
@@ -174,8 +171,9 @@ contract VaultV2BehaviorTest is Test {
 
         assertEq(vault.virtualShares(), 1e12);
         assertEq(vault.decimals(), 18);
-        assertEq(vault.balanceOf(DEAD_SHARES_RECIPIENT), 1e18);
-        assertEq(collateral.balanceOf(address(vault)), 1e6);
+        assertEq(vault.totalSupply(), 0);
+        assertEq(vault.freeAssets(), 0);
+        assertEq(collateral.balanceOf(address(vault)), 0);
         _assertNoLegacyShareGetters(vault);
     }
 
@@ -194,7 +192,14 @@ contract VaultV2BehaviorTest is Test {
         vm.expectRevert(IVaultV2.FeeTooHigh.selector);
         vault.setManagementFee(uint96(MAX_MANAGEMENT_FEE + 1), managementFeeReceiver);
 
+        vm.recordLogs();
         vault.setPerformanceFee(uint96(MAX_PERFORMANCE_FEE), performanceFeeReceiver);
+        Vm.Log[] memory performanceFeeLogs = vm.getRecordedLogs();
+
+        assertEq(performanceFeeLogs.length, 2);
+        assertEq(performanceFeeLogs[1].topics[0], keccak256("SetPerformanceFee(uint256,address)"));
+        assertEq(performanceFeeLogs[1].topics[1], bytes32(uint256(uint160(performanceFeeReceiver))));
+        assertEq(abi.decode(performanceFeeLogs[1].data, (uint256)), MAX_PERFORMANCE_FEE);
 
         vm.recordLogs();
         vault.setManagementFee(uint96(MAX_MANAGEMENT_FEE), managementFeeReceiver);
@@ -291,7 +296,6 @@ contract VaultV2BehaviorTest is Test {
     function test_VaultConfiguratorCanCreateVaultV2WithoutSlasher() public {
         bytes memory vaultParams = _vaultParams(false, false, 0);
         bytes memory delegatorParams = _delegatorParams();
-        collateral.approve(_predictVaultAddress(vaultParams), _targetDeadAssets(collateral.decimals()));
 
         VaultConfigurator configurator =
             new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(0x2));
@@ -318,7 +322,6 @@ contract VaultV2BehaviorTest is Test {
         returns (VaultV2 vault)
     {
         bytes memory data = _vaultParams(depositWhitelist, isDepositLimit, depositLimit);
-        collateral.approve(_predictVaultAddress(data), _targetDeadAssets(collateral.decimals()));
 
         address vaultAddress = vaultFactory.create(VAULT_V2_VERSION, address(this), data);
 
@@ -365,38 +368,12 @@ contract VaultV2BehaviorTest is Test {
                 swapAdaptersRoleHolder: address(this),
                 allocateRoleHolder: address(this),
                 deallocateRoleHolder: address(this),
-                adapters: new address[](0),
-                absoluteLimits: new uint256[](0),
-                shareLimits: new uint256[](0)
+                adapters: new address[](0)
             })
         );
     }
 
-    function _predictVaultAddress(bytes memory data) internal view returns (address) {
-        bytes memory initData = abi.encodeCall(IMigratableEntity.initialize, (VAULT_V2_VERSION, address(this), data));
-        bytes memory initCode = abi.encodePacked(
-            type(MigratableEntityProxy).creationCode,
-            abi.encode(vaultFactory.implementation(VAULT_V2_VERSION), initData)
-        );
-        bytes32 salt = keccak256(abi.encode(vaultFactory.totalEntities(), VAULT_V2_VERSION, address(this), data));
-        return Create2.computeAddress(salt, keccak256(initCode), address(vaultFactory));
-    }
-
-    function _targetDeadAssets(uint8 assetDecimals) internal pure returns (uint256) {
-        uint256 decimalsOffset = assetDecimals >= 18 ? 0 : 18 - assetDecimals;
-        uint256 virtualShares = 10 ** decimalsOffset;
-        uint256 targetShares = _targetDeadShares(assetDecimals);
-        return (targetShares + virtualShares - 1) / virtualShares;
-    }
-
-    function _targetDeadShares(uint8 assetDecimals) internal pure returns (uint256) {
-        uint256 decimalsOffset = assetDecimals >= 18 ? 0 : 18 - assetDecimals;
-        uint256 offsetTargetShares = 10 ** (6 + decimalsOffset);
-        return offsetTargetShares > 1e9 ? offsetTargetShares : 1e9;
-    }
-
     function _assertNoLegacyShareGetters(VaultV2 vault) internal view {
-        _assertMissingGetter(address(vault), abi.encodeWithSignature("deadShares()"));
         _assertMissingGetter(address(vault), abi.encodeWithSignature("activeShares()"));
         _assertMissingGetter(
             address(vault), abi.encodeWithSignature("activeSharesAt(uint48,bytes)", uint48(block.timestamp), "")
