@@ -36,7 +36,7 @@ interface IAppAdapter is IAdapter {
     error InvalidNetOrOp();
 
     /**
-     * @notice Raised when a slash needs a burner but the vault has none.
+     * @notice Raised when a slash needs a burner but the adapter has none.
      */
     error NoBurner();
 
@@ -52,11 +52,13 @@ interface IAppAdapter is IAdapter {
      * @param subnetwork Full identifier of the subnetwork.
      * @param operator Operator address.
      * @param duration Stake checkpoint lookahead duration.
+     * @param burner Burner hook target.
      */
     struct InitParams {
         bytes32 subnetwork;
         address operator;
         uint48 duration;
+        address burner;
     }
 
     /**
@@ -104,6 +106,12 @@ interface IAppAdapter is IAdapter {
      * @return duration Stake checkpoint lookahead duration.
      */
     function duration() external view returns (uint48 duration);
+
+    /**
+     * @notice Get the configured burner hook target.
+     * @return burner Burner hook target.
+     */
+    function burner() external view returns (address burner);
 
     /**
      * @notice Get guaranteed stake for the configured pair at a timestamp.

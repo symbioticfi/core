@@ -40,6 +40,8 @@ contract AppAdapter is Adapter, IAppAdapter {
     address public operator;
     /// @inheritdoc IAppAdapter
     bytes32 public subnetwork;
+    /// @inheritdoc IAppAdapter
+    address public burner;
 
     /// @dev Stakes for the configured pair.
     Stake[] internal _stakes;
@@ -110,15 +112,15 @@ contract AppAdapter is Adapter, IAppAdapter {
         // Decrease the adapter limits to avoid new allocations.
         IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(amount, 0);
 
-        // Send slashed collateral to the vault burner.
-        address burner = IVaultV2(vault).burner();
-        IERC20(IVaultV2(vault).asset()).safeTransfer(burner, amount);
+        // Send slashed collateral to the burner.
+        address curBurner = burner;
+        IERC20(IVaultV2(vault).asset()).safeTransfer(curBurner, amount);
         bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));
         if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
             revert InsufficientBurnerGas();
         }
         assembly ("memory-safe") {
-            pop(call(BURNER_GAS_LIMIT, burner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
+            pop(call(BURNER_GAS_LIMIT, curBurner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
         }
 
         emit Slash(amount);
@@ -184,10 +186,14 @@ contract AppAdapter is Adapter, IAppAdapter {
         if (params.duration == 0) {
             revert InvalidDuration();
         }
+        if (params.burner == address(0)) {
+            revert NoBurner();
+        }
 
         subnetwork = params.subnetwork;
         operator = params.operator;
         duration = params.duration;
+        burner = params.burner;
 
         _stakes.push();
 

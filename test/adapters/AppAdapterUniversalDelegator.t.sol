@@ -147,7 +147,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
                     address(vault),
                     abi.encode(
                         IAppAdapter.InitParams({
-                            subnetwork: network.subnetwork(1), operator: operator, duration: duration
+                            subnetwork: network.subnetwork(1), operator: operator, duration: duration, burner: BURNER
                         })
                     )
                 )
@@ -186,7 +186,6 @@ contract AppAdapterUniversalDelegatorTest is Test {
                 name: "Vault",
                 symbol: "vTKN",
                 asset: address(collateral),
-                burner: BURNER,
                 depositWhitelist: false,
                 depositorToWhitelist: address(this),
                 isDepositLimit: false,

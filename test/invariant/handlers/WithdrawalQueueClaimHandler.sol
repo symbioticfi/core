@@ -315,11 +315,11 @@ contract WithdrawalQueueClaimHandler is Test {
         uint256 newSharePrice =
             sharePriceScale.mulDiv(checkpoint.totalAssets + 1, checkpoint.totalShares + virtualShares);
 
-        if (newSharePrice > lastSharePrice) {
+        if (newSharePrice < lastSharePrice) {
             return true;
         }
 
-        return lastSharePrice - newSharePrice
+        return newSharePrice - lastSharePrice
             >= 10 ** uint256(collateral.decimals()).saturatingSub(SHARE_PRICE_TOLERANCE_DECIMALS);
     }
 

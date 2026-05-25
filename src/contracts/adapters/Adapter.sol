@@ -139,8 +139,8 @@ abstract contract Adapter is MigratableEntity, IAdapter {
 
     /* MIGRATION */
 
-    /// @dev Migrates adapter-specific state.
-    function _migrate(uint64, uint64, bytes calldata) internal override {
+    /// @dev Migration is intentionally unsupported for this implementation.
+    function _migrate(uint64, uint64, bytes calldata) internal pure override {
         revert();
     }
 

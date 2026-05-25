@@ -137,10 +137,16 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function deallocatable() public returns (uint256 amount) {
-        (, bytes memory returnData) = address(this).call(abi.encodeCall(this.__deallocateAll, ()));
-        assembly {
-            amount := mload(add(returnData, 0x20))
+        (, bytes memory returnDataInternal) = address(this)
+            .call(abi.encodeCall(this.staticDelegateCall, (address(this), abi.encodeCall(this.__deallocateAll, ()))));
+        (bool success, bytes memory returnData) = abi.decode(returnDataInternal, (bool, bytes));
+        if (!success) {
+            if (returnData.length == 0) revert();
+            assembly {
+                revert(add(32, returnData), mload(returnData))
+            }
         }
+        return abi.decode(returnData, (uint256));
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
@@ -538,14 +544,10 @@ contract UniversalDelegator is
     }
 
     /// @dev Internal self-call target used by deallocatable().
-    function __deallocateAll() public {
+    function __deallocateAll() public returns (uint256) {
         if (address(this) != msg.sender) {
             revert NotSelf();
         }
-        uint256 deallocated = _deallocateAll(type(uint256).max);
-        assembly {
-            mstore(0x00, deallocated)
-            revert(0x00, 0x20)
-        }
+        return _deallocateAll(type(uint256).max);
     }
 }

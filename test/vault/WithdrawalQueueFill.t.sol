@@ -346,6 +346,33 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(sharesClaimed, shares);
     }
 
+    function test_FillCheckpointsTinyDownwardSharePriceDriftToAvoidOverpay() public {
+        uint256 shares = 1 ether;
+        uint256 assets = 1 ether;
+        uint256 drift = 1e11 - 1;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, assets - drift);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, assets - drift);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 tokenId = WithdrawalQueue(queue).requestWithdraw(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claimable(tokenId);
+
+        assertEq(assetsClaimed, assets - drift);
+        assertEq(sharesClaimed, shares);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), assets - drift);
+
+        WithdrawalQueue(queue).claim(tokenId, type(uint256).max);
+
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), assets - drift);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 0);
+    }
+
     function test_ClaimPaysCurrentNftOwner() public {
         address bob = address(0xB0B);
         uint256 shares = 100;

@@ -42,7 +42,6 @@ contract AppAdapterTest is Test {
         collateral = new Token("Collateral");
         vault = new AppAdapterVaultMock(address(collateral), address(delegator));
         vaultFactory.add(address(vault));
-        vault.setBurner(burner);
 
         subnetwork = network.subnetwork(1);
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
@@ -62,6 +61,16 @@ contract AppAdapterTest is Test {
         assertEq(adapter.stake(), 100);
         assertEq(adapter.stakeAt(timestamp), 100);
         assertEq(adapter.stakeAt(timestamp - 1), 0);
+    }
+
+    function test_InitializeStoresConfiguredBurner() public view {
+        assertEq(adapter.burner(), burner);
+    }
+
+    function test_InitializeRejectsZeroBurner() public {
+        vm.expectRevert(IAppAdapter.NoBurner.selector);
+
+        factory.create(1, curator, _initData(address(0)));
     }
 
     function test_DeallocationPreservesStakeUntilDurationAndSettlesAfterDuration() public {
@@ -124,11 +133,11 @@ contract AppAdapterTest is Test {
 
     function test_SlashTransfersToBurnerAndCallsHook() public {
         AppAdapterBurnerMock burnerMock = new AppAdapterBurnerMock();
-        vault.setBurner(address(burnerMock));
-        _allocate(100);
+        IAppAdapter localAdapter = _createAdapter(address(burnerMock));
+        _allocate(localAdapter, 100);
 
         vm.prank(networkMiddleware);
-        adapter.slash(40);
+        localAdapter.slash(40);
 
         assertEq(burnerMock.calls(), 1);
         assertEq(burnerMock.lastSubnetwork(), subnetwork);
@@ -159,13 +168,25 @@ contract AppAdapterTest is Test {
     }
 
     function _createAdapter() internal returns (IAppAdapter) {
-        return IAppAdapter(factory.create(1, curator, _initData()));
+        return _createAdapter(burner);
+    }
+
+    function _createAdapter(address initBurner) internal returns (IAppAdapter) {
+        return IAppAdapter(factory.create(1, curator, _initData(initBurner)));
     }
 
     function _initData() internal view returns (bytes memory) {
+        return _initData(burner);
+    }
+
+    function _initData(address initBurner) internal view returns (bytes memory) {
         return abi.encode(
             address(vault),
-            abi.encode(IAppAdapter.InitParams({subnetwork: subnetwork, operator: operator, duration: duration}))
+            abi.encode(
+                IAppAdapter.InitParams({
+                    subnetwork: subnetwork, operator: operator, duration: duration, burner: initBurner
+                })
+            )
         );
     }
 }
@@ -219,7 +240,6 @@ contract AppAdapterNetworkMiddlewareServiceMock {
 contract AppAdapterVaultMock {
     address public immutable collateral;
     address public delegator;
-    address public burner;
 
     constructor(address collateral_, address delegator_) {
         collateral = collateral_;
@@ -228,10 +248,6 @@ contract AppAdapterVaultMock {
 
     function setDelegator(address delegator_) external {
         delegator = delegator_;
-    }
-
-    function setBurner(address burner_) external {
-        burner = burner_;
     }
 
     function asset() external view returns (address) {

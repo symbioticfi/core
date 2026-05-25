@@ -8,13 +8,13 @@ import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC2
 
 uint64 constant VAULT_V2_VERSION = 3;
 
-// keccak256("DEPOSIT_WHITELIST_SET_ROLE")
+// Keccak256("DEPOSIT_WHITELIST_SET_ROLE").
 bytes32 constant DEPOSIT_WHITELIST_SET_ROLE = 0xbae4ee3de6c709ff9a002e774c5b78cb381560b219213c88ae0f1e207c03c023;
-// keccak256("DEPOSITOR_WHITELIST_ROLE")
+// Keccak256("DEPOSITOR_WHITELIST_ROLE").
 bytes32 constant DEPOSITOR_WHITELIST_ROLE = 0x9c56d972d63cbb4195b3c1484691dfc220fa96a4c47e7b6613bd82a022029e06;
-// keccak256("IS_DEPOSIT_LIMIT_SET_ROLE")
+// Keccak256("IS_DEPOSIT_LIMIT_SET_ROLE").
 bytes32 constant IS_DEPOSIT_LIMIT_SET_ROLE = 0xc6aaadd7371d5e8f9ed6849dd66a66573a3ba37167d03f4352c9ba5693678fac;
-// keccak256("DEPOSIT_LIMIT_SET_ROLE")
+// Keccak256("DEPOSIT_LIMIT_SET_ROLE").
 bytes32 constant DEPOSIT_LIMIT_SET_ROLE = 0x4a634bc14d77baf979756509ef4298c6f6318af357828612545267ee2eb79233;
 uint256 constant WAD = 1e18;
 
@@ -85,7 +85,6 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
      * @param name Name of the vault share token.
      * @param symbol Symbol of the vault share token.
      * @param asset Vault's underlying collateral asset.
-     * @param burner Vault's burner hook target.
      * @param depositWhitelist Whether the deposit whitelist is enabled.
      * @param depositorToWhitelist Initial depositor address to whitelist.
      * @param isDepositLimit Whether the deposit limit is enabled.
@@ -100,7 +99,6 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
         string name;
         string symbol;
         address asset;
-        address burner;
         bool depositWhitelist;
         address depositorToWhitelist;
         bool isDepositLimit;
@@ -190,12 +188,6 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
      * @return asset Address of the underlying collateral.
      */
     function collateral() external view returns (address asset);
-
-    /**
-     * @notice Get the burner used by the vault's slashing flow.
-     * @return burnerAddress Address of the burner.
-     */
-    function burner() external view returns (address burnerAddress);
 
     /**
      * @notice Get the delegator associated with the vault.

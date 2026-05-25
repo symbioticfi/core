@@ -32,29 +32,12 @@ interface IWithdrawalQueue is IERC721Metadata {
         uint256 totalShares;
     }
 
-    /**
-     * @notice Reward checkpoint claimed by the queue for withdrawal requests.
-     * @param timestamp Timestamp of the source vault reward snapshot.
-     * @param amount Amount of reward tokens claimed by the queue.
-     * @param totalShares Total active withdrawal shares linked to the reward.
-     */
-    struct RewardCheckpoint {
-        uint48 timestamp;
-        uint256 amount;
-        uint256 totalShares;
-    }
-
     /* ERRORS */
 
     /**
      * @notice Reverts when a request is made by a non-vault account.
      */
     error NotVault();
-
-    // /**
-    //  * @notice Reverts when there are no rewards to claim.
-    //  */
-    // error NoRewardsToClaim();
 
     /**
      * @notice Reverts when a request is made with zero shares.
@@ -86,44 +69,6 @@ interface IWithdrawalQueue is IERC721Metadata {
      * @param shares Amount of vault shares filled.
      */
     event Fill(uint256 assets, uint256 shares);
-
-    // /**
-    //  * @notice Emitted when the queue claims vault snapshot rewards.
-    //  * @param vaultSnapshotRewards Vault snapshot rewards contract.
-    //  * @param network Network whose rewards were claimed.
-    //  * @param token Reward token claimed.
-    //  * @param amount Amount of reward tokens claimed by the queue.
-    //  * @param firstClaimedReward First source reward index claimed.
-    //  * @param rewardsClaimed Number of source reward distributions claimed.
-    //  */
-    // event ClaimVaultSnapshotRewards(
-    //     address indexed vaultSnapshotRewards,
-    //     address indexed network,
-    //     address indexed token,
-    //     uint256 amount,
-    //     uint256 firstClaimedReward,
-    //     uint256 rewardsClaimed
-    // );
-
-    // /**
-    //  * @notice Emitted when withdrawal rewards are claimed.
-    //  * @param tokenId Withdrawal NFT id.
-    //  * @param vaultSnapshotRewards Vault snapshot rewards contract.
-    //  * @param network Network whose rewards were claimed.
-    //  * @param token Reward token claimed.
-    //  * @param amount Amount of reward tokens sent to the withdrawal receiver.
-    //  * @param firstClaimedReward First queue reward index claimed.
-    //  * @param rewardsClaimed Number of queue reward distributions claimed.
-    //  */
-    // event ClaimRewards(
-    //     uint256 indexed tokenId,
-    //     address indexed vaultSnapshotRewards,
-    //     address indexed network,
-    //     address token,
-    //     uint256 amount,
-    //     uint256 firstClaimedReward,
-    //     uint256 rewardsClaimed
-    // );
 
     /* FUNCTIONS */
 
@@ -193,42 +138,6 @@ interface IWithdrawalQueue is IERC721Metadata {
     function claim(uint256 tokenId, uint256 maxIterations)
         external
         returns (uint256 assetsClaimed, uint256 sharesClaimed);
-
-    // /**
-    //  * @notice Claims vault snapshot rewards for the queue.
-    //  * @param vaultSnapshotRewards Vault snapshot rewards contract.
-    //  * @param network Network whose rewards should be claimed.
-    //  * @param token Reward token to claim.
-    //  * @param rewardsToClaim Maximum number of source rewards to process.
-    //  * @param activeSharesOfHints Hints for the queue active shares lookups in the rewards contract.
-    //  * @return amount Amount of reward tokens claimed by the queue.
-    //  * @return rewardsClaimed Number of source reward distributions claimed.
-    //  */
-    // function claimVaultSnapshotRewards(
-    //     address vaultSnapshotRewards,
-    //     address network,
-    //     address token,
-    //     uint256 rewardsToClaim,
-    //     bytes[] calldata activeSharesOfHints
-    // ) external returns (uint256 amount, uint256 rewardsClaimed);
-
-    // /**
-    //  * @notice Claims queued rewards for a withdrawal NFT.
-    //  * @param tokenId Withdrawal NFT id.
-    //  * @param vaultSnapshotRewards Vault snapshot rewards contract.
-    //  * @param network Network whose rewards should be claimed.
-    //  * @param token Reward token to claim.
-    //  * @param rewardsToClaim Maximum number of queue rewards to process.
-    //  * @return amount Amount of reward tokens sent to the withdrawal receiver.
-    //  * @return rewardsClaimed Number of queue reward distributions claimed.
-    //  */
-    // function claimRewards(
-    //     uint256 tokenId,
-    //     address vaultSnapshotRewards,
-    //     address network,
-    //     address token,
-    //     uint256 rewardsToClaim
-    // ) external returns (uint256 amount, uint256 rewardsClaimed);
 
     /**
      * @notice Returns the claimable assets and shares for a withdrawal request.

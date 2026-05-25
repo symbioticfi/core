@@ -119,7 +119,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
             return;
         }
 
-        // if share price has changed, update the checkpoint
+        // Update the checkpoint when price decreases or increases past tolerance.
         uint256 totalShares = IERC4626(vault).totalSupply();
         uint256 totalAssets = IERC4626(vault).totalAssets();
         uint256 virtualShares = VaultV2(vault).virtualShares();
@@ -130,8 +130,8 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
             sharePriceScale.mulDiv(lastCheckpoint.totalAssets + 1, lastCheckpoint.totalShares + virtualShares);
         uint256 newSharePrice = sharePriceScale.mulDiv(totalAssets + 1, totalShares + virtualShares);
         if (
-            newSharePrice > lastSharePrice
-                || lastSharePrice - newSharePrice
+            newSharePrice < lastSharePrice
+                || newSharePrice - lastSharePrice
                     >= 10
                         ** (uint256(IERC20Metadata(IERC4626(vault).asset()).decimals()))
                         .saturatingSub(SHARE_PRICE_TOLERANCE_DECIMALS)

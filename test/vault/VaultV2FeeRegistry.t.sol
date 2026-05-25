@@ -226,7 +226,6 @@ contract VaultV2BehaviorTest is Test {
                 name: "Vault",
                 symbol: "vTKN",
                 asset: address(collateral),
-                burner: address(0xB),
                 depositWhitelist: depositWhitelist,
                 depositorToWhitelist: alice,
                 isDepositLimit: isDepositLimit,

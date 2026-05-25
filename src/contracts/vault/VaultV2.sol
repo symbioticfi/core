@@ -63,8 +63,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     /* STATE VARIABLES */
 
     /// @inheritdoc IVaultV2
-    address public burner;
-    /// @inheritdoc IVaultV2
     address public delegator;
     /// @inheritdoc IVaultV2
     bool public isDepositLimit;
@@ -450,7 +448,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         _totalAssets = assets;
         _mint(DEAD_SHARES_RECIPIENT, deadShares);
 
-        burner = params.burner;
         depositWhitelist = params.depositWhitelist;
         isDepositorWhitelisted[params.depositorToWhitelist] = true;
 
@@ -468,8 +465,8 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     /* MIGRATION */
 
-    /// @dev Migrate vault state and deploy V2 delegator and slasher contracts.
-    function _migrate(uint64 oldVersion, uint64, bytes calldata data) internal override {
+    /// @dev Migration is intentionally unsupported for this implementation.
+    function _migrate(uint64, uint64, bytes calldata) internal pure override {
         revert();
     }
 
