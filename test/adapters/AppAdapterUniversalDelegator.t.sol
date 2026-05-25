@@ -1,0 +1,241 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {Test} from "forge-std/Test.sol";
+
+import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
+import {AppAdapter} from "../../src/contracts/adapters/AppAdapter.sol";
+import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
+import {AdapterRegistry} from "../../src/contracts/AdapterRegistry.sol";
+import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
+import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
+import {Entity} from "../../src/contracts/common/Entity.sol";
+import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
+import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntityProxy.sol";
+import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
+import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
+import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
+import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
+import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
+import {
+    IUniversalDelegator,
+    UNIVERSAL_DELEGATOR_TYPE,
+    MAX_SHARE
+} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IFeeRegistry} from "../../src/interfaces/vault/IFeeRegistry.sol";
+import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
+import {Token} from "../mocks/Token.sol";
+
+import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract AppAdapterUniversalFeeRegistryMock is IFeeRegistry {
+    function getManagementFee(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function getManagementFeeRecipient(address) external view returns (address) {
+        return address(this);
+    }
+
+    function getPerformanceFee(address) external pure returns (uint256) {
+        return 0;
+    }
+
+    function getPerformanceFeeRecipient(address) external view returns (address) {
+        return address(this);
+    }
+}
+
+contract AppAdapterUniversalMigratableEntityMock is MigratableEntity {
+    constructor(address factory) MigratableEntity(factory) {}
+}
+
+contract AppAdapterUniversalEntityMock is Entity {
+    constructor(address factory, uint64 type_) Entity(factory, type_) {}
+}
+
+contract AppAdapterUniversalNetworkMiddlewareServiceMock {
+    mapping(address network => address middleware) public middleware;
+
+    function setMiddleware(address network, address middleware_) external {
+        middleware[network] = middleware_;
+    }
+}
+
+contract AppAdapterUniversalDelegatorTest is Test {
+    using Subnetwork for address;
+
+    address internal constant BURNER = address(0xB);
+    address internal constant CURATOR = address(0xC);
+
+    Token internal collateral;
+    VaultFactory internal vaultFactory;
+    DelegatorFactory internal delegatorFactory;
+    AdapterRegistry internal adapterRegistry;
+    AdapterFactory internal adapterFactory;
+    AppAdapterUniversalFeeRegistryMock internal feeRegistry;
+    AppAdapterUniversalNetworkMiddlewareServiceMock internal networkMiddlewareService;
+
+    VaultV2 internal vault;
+    UniversalDelegator internal delegator;
+    IAppAdapter internal adapter;
+
+    address internal network = makeAddr("network");
+    address internal networkMiddleware = makeAddr("networkMiddleware");
+    address internal operator = makeAddr("operator");
+    uint48 internal duration = 10;
+
+    function setUp() public {
+        vm.warp(100);
+
+        collateral = new Token("Collateral");
+        vaultFactory = new VaultFactory(address(this));
+        delegatorFactory = new DelegatorFactory(address(this));
+        adapterRegistry = new AdapterRegistry();
+        adapterRegistry.initialize(address(this));
+        adapterFactory = new AdapterFactory(address(this));
+        feeRegistry = new AppAdapterUniversalFeeRegistryMock();
+        networkMiddlewareService = new AppAdapterUniversalNetworkMiddlewareServiceMock();
+        networkMiddlewareService.setMiddleware(network, networkMiddleware);
+
+        vaultFactory.whitelist(address(new AppAdapterUniversalMigratableEntityMock(address(vaultFactory))));
+        vaultFactory.whitelist(address(new AppAdapterUniversalMigratableEntityMock(address(vaultFactory))));
+        vaultFactory.whitelist(
+            address(
+                new VaultV2(
+                    address(0x1),
+                    address(feeRegistry),
+                    address(vaultFactory),
+                    address(0x2),
+                    address(adapterRegistry),
+                    address(delegatorFactory),
+                    address(new WithdrawalQueue())
+                )
+            )
+        );
+
+        for (uint64 i; i < UNIVERSAL_DELEGATOR_TYPE; ++i) {
+            delegatorFactory.whitelist(address(new AppAdapterUniversalEntityMock(address(delegatorFactory), i)));
+        }
+        delegatorFactory.whitelist(
+            address(
+                new UniversalDelegator(
+                    UNIVERSAL_DELEGATOR_TYPE, address(vaultFactory), address(adapterRegistry), address(delegatorFactory)
+                )
+            )
+        );
+
+        adapterFactory.whitelist(
+            address(
+                new AppAdapter(
+                    address(vaultFactory), address(adapterFactory), address(0), address(networkMiddlewareService)
+                )
+            )
+        );
+
+        vault = _createVault();
+        delegator = _createDelegator(vault);
+        vault.setDelegator(address(delegator));
+        adapterRegistry.whitelist(address(vault), address(adapterFactory));
+
+        adapter = IAppAdapter(
+            adapterFactory.create(
+                1,
+                CURATOR,
+                abi.encode(
+                    address(vault),
+                    abi.encode(
+                        IAppAdapter.InitParams({
+                            subnetwork: network.subnetwork(1), operator: operator, duration: duration
+                        })
+                    )
+                )
+            )
+        );
+        delegator.addAdapter(address(adapter));
+        delegator.setLimits(address(adapter), 100, MAX_SHARE);
+
+        delegator.allocate(address(adapter), 100);
+    }
+
+    function test_StakeDoesNotDecreaseInSameBlockAfterRealDelegatorForceDeallocate() public {
+        uint256 observedStake = adapter.stake();
+
+        delegator.forceDeallocate(address(adapter), 40);
+
+        assertEq(adapter.stake(), observedStake);
+
+        vm.warp(block.timestamp + duration);
+
+        assertEq(adapter.stake(), observedStake - 40);
+    }
+
+    function test_ObservedStakeAtSurvivesRealDelegatorForceDeallocateUntilDurationExpires() public {
+        uint48 observedAt = uint48(block.timestamp);
+        uint256 observedStake = adapter.stakeAt(observedAt);
+
+        delegator.forceDeallocate(address(adapter), 40);
+
+        assertEq(adapter.stakeAt(observedAt), observedStake);
+    }
+
+    function _createVault() internal returns (VaultV2) {
+        bytes memory data = abi.encode(
+            IVaultV2.InitParams({
+                name: "Vault",
+                symbol: "vTKN",
+                asset: address(collateral),
+                burner: BURNER,
+                depositWhitelist: false,
+                depositorToWhitelist: address(this),
+                isDepositLimit: false,
+                depositLimit: 0,
+                defaultAdminRoleHolder: address(this),
+                depositWhitelistSetRoleHolder: address(this),
+                depositorWhitelistRoleHolder: address(this),
+                isDepositLimitSetRoleHolder: address(this),
+                depositLimitSetRoleHolder: address(this)
+            })
+        );
+        IERC20(address(collateral)).approve(_predictVaultAddress(data), 1e9);
+
+        return VaultV2(vaultFactory.create(VAULT_V2_VERSION, address(this), data));
+    }
+
+    function _createDelegator(VaultV2 targetVault) internal returns (UniversalDelegator) {
+        address delegatorAddress = delegatorFactory.create(
+            UNIVERSAL_DELEGATOR_TYPE,
+            abi.encode(
+                address(targetVault),
+                abi.encode(
+                    IUniversalDelegator.InitParams({
+                        defaultAdminRoleHolder: address(this),
+                        addAdapterRoleHolder: address(this),
+                        removeAdapterRoleHolder: address(this),
+                        setAdapterLimitsRoleHolder: address(this),
+                        setAutoAllocateAdaptersRoleHolder: address(this),
+                        swapAdaptersRoleHolder: address(this),
+                        allocateRoleHolder: address(this),
+                        deallocateRoleHolder: address(this),
+                        adapters: new address[](0),
+                        absoluteLimits: new uint256[](0),
+                        shareLimits: new uint256[](0)
+                    })
+                )
+            )
+        );
+
+        return UniversalDelegator(delegatorAddress);
+    }
+
+    function _predictVaultAddress(bytes memory data) internal view returns (address) {
+        bytes memory initData = abi.encodeCall(IMigratableEntity.initialize, (VAULT_V2_VERSION, address(this), data));
+        bytes memory initCode = abi.encodePacked(
+            type(MigratableEntityProxy).creationCode,
+            abi.encode(vaultFactory.implementation(VAULT_V2_VERSION), initData)
+        );
+        bytes32 salt = keccak256(abi.encode(vaultFactory.totalEntities(), VAULT_V2_VERSION, address(this), data));
+        return Create2.computeAddress(salt, keccak256(initCode), address(vaultFactory));
+    }
+}

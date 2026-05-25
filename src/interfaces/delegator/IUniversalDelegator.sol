@@ -140,6 +140,13 @@ interface IUniversalDelegator {
     event SetLimits(address indexed adapter, uint256 absoluteLimit, uint256 shareLimit);
 
     /**
+     * @notice Emitted when an adapter decreases its own limits.
+     * @param assets Absolute collateral limit decrease.
+     * @param share Share limit decrease scaled by MAX_SHARE.
+     */
+    event DecreaseLimits(uint256 assets, uint256 share);
+
+    /**
      * @notice Emitted when the ordered auto-allocation route is set.
      * @param adapters Adapter addresses.
      */
@@ -354,6 +361,13 @@ interface IUniversalDelegator {
      * @return pending Amount requested for delayed deallocation.
      */
     function forceDeallocate(address adapter, uint256 assets) external returns (uint256 deallocated, uint256 pending);
+
+    /**
+     * @notice Decrease the caller adapter's absolute and share limits.
+     * @param assets Absolute collateral limit decrease.
+     * @param share Share limit decrease scaled by MAX_SHARE.
+     */
+    function decreaseLimits(uint256 assets, uint256 share) external;
 
     /**
      * @notice Handle a vault deposit.

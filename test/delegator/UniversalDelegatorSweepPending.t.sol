@@ -7,6 +7,7 @@ import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegat
 import {
     IUniversalDelegator,
     UNIVERSAL_DELEGATOR_TYPE,
+    MAX_SHARE,
     REMOVE_ADAPTER_ROLE,
     SET_ADAPTER_LIMITS_ROLE,
     SET_AUTO_ALLOCATE_ADAPTERS_ROLE,
@@ -88,6 +89,10 @@ contract UniversalDelegatorSweepVault {
 
     function mintFreeAssets(uint256 assets) external {
         UniversalDelegatorSweepToken(asset).mint(address(this), assets);
+    }
+
+    function freeAssets() external view returns (uint256) {
+        return UniversalDelegatorSweepToken(asset).balanceOf(address(this));
     }
 
     function push(uint256 assets, address adapter) external {
@@ -334,6 +339,23 @@ contract UniversalDelegatorSweepPendingTest is Test {
 
         assertEq(delegator.absoluteLimitOf(address(adapter)), 123);
         assertEq(delegator.shareLimitOf(address(adapter)), 456);
+    }
+
+    function test_DecreaseLimitsReducesCallerFiniteLimits() public {
+        UniversalDelegatorSweepAdapter adapter = _newAdapter(100, 0);
+
+        delegator.addAdapterForTest(address(adapter));
+        delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
+        delegator.setLimits(address(adapter), 123, MAX_SHARE / 2);
+
+        vm.expectEmit(true, true, true, true, address(delegator));
+        emit IUniversalDelegator.DecreaseLimits(23, MAX_SHARE / 4);
+
+        vm.prank(address(adapter));
+        delegator.decreaseLimits(23, MAX_SHARE / 4);
+
+        assertEq(delegator.absoluteLimitOf(address(adapter)), 100);
+        assertEq(delegator.shareLimitOf(address(adapter)), MAX_SHARE / 4);
     }
 
     function test_SweepPendingStoresPendingAdapterIndexes() public {

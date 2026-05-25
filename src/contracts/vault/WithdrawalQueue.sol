@@ -131,7 +131,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
         uint256 newSharePrice = sharePriceScale.mulDiv(totalAssets + 1, totalShares + virtualShares);
         if (
             newSharePrice > lastSharePrice
-                || lastSharePrice - newSharePrice 
+                || lastSharePrice - newSharePrice
                     >= 10
                         ** (uint256(IERC20Metadata(IERC4626(vault).asset()).decimals()))
                         .saturatingSub(SHARE_PRICE_TOLERANCE_DECIMALS)

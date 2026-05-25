@@ -60,16 +60,16 @@ contract AppAdapterTest is Test {
         _allocate(100);
 
         assertEq(adapter.stake(), 100);
-        assertEq(adapter.stakeAt(timestamp, ""), 100);
-        assertEq(adapter.stakeAt(timestamp - 1, ""), 100);
+        assertEq(adapter.stakeAt(timestamp), 100);
+        assertEq(adapter.stakeAt(timestamp - 1), 0);
     }
 
-    function test_DeallocationImmediatelyUpdatesCheckpointedStakeAndSettlesAfterDuration() public {
+    function test_DeallocationPreservesStakeUntilDurationAndSettlesAfterDuration() public {
         _allocate(100);
 
         delegator.requestDeallocate(address(adapter), 40);
 
-        assertEq(adapter.stake(), 60);
+        assertEq(adapter.stake(), 100);
 
         vm.warp(block.timestamp + duration);
 
@@ -86,10 +86,10 @@ contract AppAdapterTest is Test {
 
         delegator.requestDeallocate(address(adapter), 40);
 
-        assertEq(adapter.stake(), 60);
+        assertEq(adapter.stake(), 100);
 
         delegator.sync(address(adapter));
-        assertEq(adapter.stake(), 60);
+        assertEq(adapter.stake(), 100);
     }
 
     function test_SlashRejectsCallerOutsideConfiguredNetworkMiddleware() public {
@@ -116,10 +116,13 @@ contract AppAdapterTest is Test {
         assertEq(slashedAmount, 40);
         assertEq(adapter.totalAssets(), 60);
         assertEq(adapter.slashable(), 60);
+        assertEq(delegator.decreaseLimitsCalls(), 1);
+        assertEq(delegator.lastDecreaseAssets(), 40);
+        assertEq(delegator.lastDecreaseShare(), 0);
         assertEq(collateral.balanceOf(burner), 40);
     }
 
-    function test_SlashTransfersToBurnerWithoutCallback() public {
+    function test_SlashTransfersToBurnerAndCallsHook() public {
         AppAdapterBurnerMock burnerMock = new AppAdapterBurnerMock();
         vault.setBurner(address(burnerMock));
         _allocate(100);
@@ -127,7 +130,11 @@ contract AppAdapterTest is Test {
         vm.prank(networkMiddleware);
         adapter.slash(40);
 
-        assertEq(burnerMock.calls(), 0);
+        assertEq(burnerMock.calls(), 1);
+        assertEq(burnerMock.lastSubnetwork(), subnetwork);
+        assertEq(burnerMock.lastOperator(), operator);
+        assertEq(burnerMock.lastAmount(), 40);
+        assertEq(burnerMock.lastCaptureTimestamp(), 0);
         assertEq(collateral.balanceOf(address(burnerMock)), 40);
     }
 
@@ -170,6 +177,10 @@ contract AppAdapterRegistryMock is Registry {
 }
 
 contract AppAdapterDelegatorMock {
+    uint256 public decreaseLimitsCalls;
+    uint256 public lastDecreaseAssets;
+    uint256 public lastDecreaseShare;
+
     function allocate(address adapter, uint256 amount) external {
         IAdapter(adapter).allocate(amount);
     }
@@ -188,6 +199,12 @@ contract AppAdapterDelegatorMock {
 
     function limitOf(address adapter) external view returns (uint256) {
         return IAdapter(adapter).totalAssets();
+    }
+
+    function decreaseLimits(uint256 assets, uint256 share) external {
+        ++decreaseLimitsCalls;
+        lastDecreaseAssets = assets;
+        lastDecreaseShare = share;
     }
 }
 

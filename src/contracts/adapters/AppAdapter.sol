@@ -7,10 +7,11 @@ import {Adapter} from "./Adapter.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
-import {IAppAdapter} from "../../interfaces/adapters/IAppAdapter.sol";
+import {IAppAdapter, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/adapters/IAppAdapter.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -23,18 +24,8 @@ contract AppAdapter is Adapter, IAppAdapter {
     using Math for uint256;
     using SafeERC20 for IERC20;
     using Subnetwork for bytes32;
-    using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
-
-    struct Stake {
-        uint256 initialStake;
-        Checkpoints.Trace256 debt;
-        Checkpoints.Trace256 slashed;
-    }
-
-    Stake[] internal _stakes;
-    Checkpoints.Trace208 internal _timestampToStake;
-    Checkpoints.Trace256 internal _timestampTotalAssets;
+    using Checkpoints for Checkpoints.Trace256;
 
     /* IMMUTABLES */
 
@@ -44,11 +35,18 @@ contract AppAdapter is Adapter, IAppAdapter {
     /* STATE VARIABLES */
 
     /// @inheritdoc IAppAdapter
-    bytes32 public subnetwork;
+    uint48 public duration;
     /// @inheritdoc IAppAdapter
     address public operator;
     /// @inheritdoc IAppAdapter
-    uint48 public duration;
+    bytes32 public subnetwork;
+
+    /// @dev Stakes for the configured pair.
+    Stake[] internal _stakes;
+    /// @dev Position of the current stake in the _stakes array.
+    Checkpoints.Trace208 internal _stakePos;
+    /// @dev Total assets for the configured pair.
+    Checkpoints.Trace256 internal _totalAssets;
 
     /* CONSTRUCTOR */
 
@@ -67,90 +65,77 @@ contract AppAdapter is Adapter, IAppAdapter {
 
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
-        return _timestampTotalAssets.latest();
-    }
-
-    /// @inheritdoc IAppAdapter
-    function stake() public view returns (uint256) {
-        return _stakeAt(uint48(block.timestamp));
+        return _totalAssets.latest();
     }
 
     /// @inheritdoc IAppAdapter
     function slashable() public view returns (uint256) {
-        return _slashableAt(uint48(block.timestamp));
+        Stake storage curStake = _stakes[_stakePos.latest()];
+        return curStake.initialStake.saturatingSub(curStake.slashed.latest())
+            .saturatingSub(curStake.debt.upperLookupRecent(block.timestamp));
     }
 
     /// @inheritdoc IAppAdapter
-    function stakeAt(uint48, bytes calldata) public view returns (uint256) {
-        return _stakeAt(uint48(block.timestamp));
+    function stake() public view returns (uint256) {
+        Stake storage curStake = _stakes[_stakePos.latest()];
+        return curStake.initialStake.saturatingSub(curStake.slashed.latest())
+            .saturatingSub(curStake.debt.upperLookupRecent(uint48(block.timestamp + duration - 1)));
     }
 
     /// @inheritdoc IAppAdapter
-    function slashableAt(uint48, bytes calldata) public view returns (uint256) {
-        return _slashableAt(uint48(block.timestamp));
-    }
-
-    /// @dev Returns slashable stake at a timestamp.
-    function _slashableAt(uint48 timestamp) internal view returns (uint256) {
-        if (_stakes.length == 0) {
-            return 0;
-        }
-        Stake storage curStake = _stakes[_timestampToStake.upperLookupRecent(timestamp)];
+    function stakeAt(uint48 timestamp) public view returns (uint256) {
+        Stake storage curStake = _stakes[_stakePos.upperLookupRecent(timestamp)];
         return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
-            .saturatingSub(curStake.debt.upperLookupRecent(timestamp));
-    }
-
-    /// @dev Returns guaranteed stake at a timestamp.
-    function _stakeAt(uint48 timestamp) internal view returns (uint256) {
-        if (_stakes.length == 0) {
-            return 0;
-        }
-        Stake storage curStake = _stakes[_timestampToStake.upperLookupRecent(timestamp)];
-        return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
-            .saturatingSub(curStake.debt.upperLookupRecent(timestamp + duration));
+            .saturatingSub(curStake.debt.upperLookupRecent(uint48(timestamp + duration - 1)));
     }
 
     /* PUBLIC FUNCTIONS (NETWORK) */
 
     /// @inheritdoc IAppAdapter
-    function slash(uint256 amount) public returns (uint256 slashedAmount) {
+    function slash(uint256 amount) public returns (uint256) {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
             revert NotNetworkMiddleware();
         }
 
-        slashedAmount = Math.min(amount, slashable());
-        if (slashedAmount == 0) {
+        amount = Math.min(amount, slashable());
+        if (amount == 0) {
             revert InsufficientSlash();
         }
 
-        address burner = IVaultV2(vault).burner();
-        if (burner == address(0)) {
-            revert NoBurner();
-        }
+        Stake storage curStake = _stakes[_stakePos.latest()];
+        curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + amount);
 
-        Stake storage curStake = _stakes[_timestampToStake.latest()];
-        curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + slashedAmount);
+        _totalAssets.push(uint48(block.timestamp), _totalAssets.latest() - amount);
 
-        _timestampTotalAssets.push(uint48(block.timestamp), _timestampTotalAssets.latest() - slashedAmount);
+        // Decrease the adapter limits to avoid new allocations.
+        IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(amount, 0);
 
         // Send slashed collateral to the vault burner.
-        IERC20(IVaultV2(vault).asset()).safeTransfer(burner, slashedAmount);
+        address burner = IVaultV2(vault).burner();
+        IERC20(IVaultV2(vault).asset()).safeTransfer(burner, amount);
+        bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));
+        if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
+            revert InsufficientBurnerGas();
+        }
+        assembly ("memory-safe") {
+            pop(call(BURNER_GAS_LIMIT, burner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
+        }
 
-        emit Slash(slashedAmount);
+        emit Slash(amount);
+        return amount;
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
     /// @dev Deallocates assets that are not slashable.
-    function _deallocate(uint256 amount) internal override returns (uint256 deallocated) {
-        uint256 curTotalAssets = _timestampTotalAssets.latest();
+    function _deallocate(uint256) internal override returns (uint256 deallocated) {
+        uint256 curTotalAssets = totalAssets();
         if (curTotalAssets == 0) {
             return 0;
         }
-
-        deallocated = Math.min(amount, curTotalAssets.saturatingSub(slashable()));
-        if (deallocated != 0) {
-            _timestampTotalAssets.push(uint48(block.timestamp), curTotalAssets.saturatingSub(deallocated));
+        deallocated = curTotalAssets.saturatingSub(slashable());
+        if (deallocated > 0) {
+            _totalAssets.push(uint48(block.timestamp), curTotalAssets - deallocated);
         }
     }
 
@@ -158,21 +143,20 @@ contract AppAdapter is Adapter, IAppAdapter {
     function _requestDeallocate(uint256 amount) internal override {
         uint256 curSlashable = slashable();
 
-        // it means the debt was somehow reduced and we can reset stake/debt/slashed
+        // Reset stake, debt, and slashed when the debt was reduced enough.
         if (
             IUniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this)).saturatingSub(amount)
                 >= curSlashable
         ) {
-            Stake storage newStake = _stakes.push();
-            newStake.initialStake = curSlashable;
-            _timestampToStake.push(uint48(block.timestamp), uint208(_stakes.length - 1));
+            _stakePos.push(uint48(block.timestamp), uint208(_stakes.length));
+            _stakes.push().initialStake = curSlashable;
         } else {
-            Stake storage curStake = _stakes[_timestampToStake.latest()];
-            // if debt is increased we keep increasing it
+            Stake storage curStake = _stakes[_stakePos.latest()];
+            // Keep increasing debt when the request grows.
             if (curStake.debt.latest() < amount) {
-                curStake.debt.push(uint48(block.timestamp), amount);
+                curStake.debt.push(uint48(block.timestamp + duration), amount);
             }
-            // if debt is decreased but still cannot release assets then we don't do anything
+            // Keep existing debt when the request shrinks but cannot release assets yet.
         }
     }
 
@@ -181,11 +165,10 @@ contract AppAdapter is Adapter, IAppAdapter {
             return 0;
         }
 
-        uint256 curTotalAssets = _timestampTotalAssets.latest() + amount;
-        _timestampTotalAssets.push(uint48(block.timestamp), curTotalAssets);
-        Stake storage newStake = _stakes.push();
-        newStake.initialStake = curTotalAssets;
-        _timestampToStake.push(uint48(block.timestamp), uint208(_stakes.length - 1));
+        uint256 curTotalAssets = _totalAssets.latest() + amount;
+        _totalAssets.push(uint48(block.timestamp), curTotalAssets);
+        _stakePos.push(uint48(block.timestamp), uint208(_stakes.length));
+        _stakes.push().initialStake = curTotalAssets;
 
         return amount;
     }
@@ -201,9 +184,12 @@ contract AppAdapter is Adapter, IAppAdapter {
         if (params.duration == 0) {
             revert InvalidDuration();
         }
+
         subnetwork = params.subnetwork;
         operator = params.operator;
         duration = params.duration;
+
+        _stakes.push();
 
         emit Initialize(params);
     }

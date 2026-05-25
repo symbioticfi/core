@@ -119,17 +119,17 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function allocatable(address adapter) public view returns (uint256) {
-        // delegator limit
+        // Calculate delegator limit.
         uint256 limit =
             Math.min(absoluteLimitOf[adapter], VaultV2(vault).totalAssets().mulDiv(shareLimitOf[adapter], MAX_SHARE));
 
-        // apply delegator limit
+        // Apply delegator limit.
         uint256 toAllocate = limit.saturatingSub(IAdapter(adapter).totalAssets());
 
-        // apply free assets
+        // Apply free assets.
         toAllocate = Math.min(toAllocate, VaultV2(vault).freeAssets());
 
-        // apply adapter limit
+        // Apply adapter limit.
         toAllocate = Math.min(toAllocate, IAdapter(adapter).allocatable());
 
         return toAllocate;
@@ -322,36 +322,52 @@ contract UniversalDelegator is
         nonReentrant
         returns (uint256 deallocated, uint256 pending)
     {
-        uint256 totalAdapterAssets = IAdapter(adapter).totalAssets();
-        uint256 toDeallocate = Math.min(assets, totalAdapterAssets);
+        uint256 adapterTotalAssets = IAdapter(adapter).totalAssets();
+        assets = Math.min(assets, adapterTotalAssets);
 
-        // try to deallocate full amount
-        deallocated = _deallocate(adapter, toDeallocate);
+        // Try to deallocate full amount.
+        deallocated = _deallocate(adapter, assets);
 
-        // if deallocated is less than expected, request the remaining amount
-        if (deallocated < toDeallocate) {
-            IAdapter(adapter).requestDeallocate(toDeallocate - deallocated);
+        // Request the remaining amount if deallocated is less than expected.
+        if (deallocated < assets) {
+            pending = assets - deallocated;
+            IAdapter(adapter).requestDeallocate(pending);
         }
 
-        // update adapter's absolute limit to avoid new allocations
-        uint256 newAbsoluteLimit = Math.min(absoluteLimitOf[adapter], totalAdapterAssets - toDeallocate);
-        _setLimits(adapter, newAbsoluteLimit, shareLimitOf[adapter]);
+        // Update the adapter's absolute limit to avoid new allocations.
+        _setLimits(
+            adapter,
+            Math.min(absoluteLimitOf[adapter], adapterTotalAssets - deallocated - pending),
+            shareLimitOf[adapter]
+        );
 
         sweepPending();
+    }
 
-        return (deallocated, toDeallocate - deallocated);
+    /* PUBLIC FUNCTIONS (ADAPTER) */
+
+    /// @inheritdoc IUniversalDelegator
+    function decreaseLimits(uint256 assets, uint256 share) public {
+        if (absoluteLimitOf[msg.sender] < type(uint256).max || assets == type(uint256).max) {
+            absoluteLimitOf[msg.sender] -= assets;
+        }
+        if (shareLimitOf[msg.sender] < MAX_SHARE || share == MAX_SHARE) {
+            shareLimitOf[msg.sender] -= share;
+        }
+
+        emit DecreaseLimits(assets, share);
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
-    /// called after all pending tried to be filled
+    /// @dev Called after all pending tried to be filled.
     /// @inheritdoc IUniversalDelegator
     function onDeposit() public nonReentrant {
         if (vault != msg.sender) {
             revert NotVault();
         }
 
-        // if still have pending then don't allocate
+        // Skip allocation while pending assets remain.
         if (_sweepPending() > 0) {
             return;
         }
@@ -424,7 +440,7 @@ contract UniversalDelegator is
         WithdrawalQueue(queue).fill();
         pendingAssets = WithdrawalQueue(queue).pendingAssets();
 
-        // update requests or reset them
+        // Update requests or reset them.
         uint16[] memory previousAdaptersWithPending = adaptersWithPending;
         delete adaptersWithPending;
 
@@ -466,7 +482,7 @@ contract UniversalDelegator is
         for (uint256 i; i < adapters.length && assets > 0; ++i) {
             uint256 curDeallocated = _deallocate(adapters[i], assets);
             deallocated += curDeallocated;
-            assets -= curDeallocated;
+            assets = assets.saturatingSub(curDeallocated);
         }
     }
 

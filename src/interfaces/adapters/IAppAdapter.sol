@@ -3,12 +3,22 @@ pragma solidity ^0.8.0;
 
 import {IAdapter} from "./IAdapter.sol";
 
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
+
+uint256 constant BURNER_GAS_LIMIT = 150_000;
+uint256 constant BURNER_RESERVE = 20_000;
+
 /**
  * @title IAppAdapter
  * @notice Interface for a single app/network-operator guarantee adapter.
  */
 interface IAppAdapter is IAdapter {
     /* ERRORS */
+
+    /**
+     * @notice Raised when the burner gas is insufficient.
+     */
+    error InsufficientBurnerGas();
 
     /**
      * @notice Raised when a slash has no slashable stake.
@@ -49,6 +59,18 @@ interface IAppAdapter is IAdapter {
         uint48 duration;
     }
 
+    /**
+     * @notice Stake for the configured pair.
+     * @param initialStake Initial stake.
+     * @param debt Debt.
+     * @param slashed Slashed.
+     */
+    struct Stake {
+        uint256 initialStake;
+        Checkpoints.Trace256 debt;
+        Checkpoints.Trace256 slashed;
+    }
+
     /* EVENTS */
 
     /**
@@ -84,6 +106,13 @@ interface IAppAdapter is IAdapter {
     function duration() external view returns (uint48 duration);
 
     /**
+     * @notice Get guaranteed stake for the configured pair at a timestamp.
+     * @param timestamp Timestamp to read.
+     * @return amount Guaranteed stake.
+     */
+    function stakeAt(uint48 timestamp) external view returns (uint256 amount);
+
+    /**
      * @notice Get current guaranteed stake for the configured pair.
      * @return amount Guaranteed stake.
      */
@@ -94,22 +123,6 @@ interface IAppAdapter is IAdapter {
      * @return amount Slashable stake.
      */
     function slashable() external view returns (uint256 amount);
-
-    /**
-     * @notice Get guaranteed stake for the configured pair at a timestamp.
-     * @param timestamp Timestamp to read.
-     * @param hints Optional lookup hints.
-     * @return amount Guaranteed stake.
-     */
-    function stakeAt(uint48 timestamp, bytes calldata hints) external view returns (uint256 amount);
-
-    /**
-     * @notice Get slashable stake for the configured pair at a timestamp.
-     * @param timestamp Timestamp to read.
-     * @param hints Optional lookup hints.
-     * @return amount Slashable stake.
-     */
-    function slashableAt(uint48 timestamp, bytes calldata hints) external view returns (uint256 amount);
 
     /**
      * @notice Slash the configured pair.
