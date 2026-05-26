@@ -4,7 +4,7 @@ pragma solidity ^0.8.25;
 import {Test} from "forge-std/Test.sol";
 
 import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol";
-import {WithdrawalQueueFactory} from "../../../src/contracts/vault/WithdrawalQueueFactory.sol";
+import {WithdrawalQueueFactory} from "../../../src/contracts/WithdrawalQueueFactory.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";

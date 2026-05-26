@@ -15,7 +15,7 @@ import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {ProtocolFeeRegistry} from "../../src/contracts/ProtocolFeeRegistry.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
-import {WithdrawalQueueFactory} from "../../src/contracts/vault/WithdrawalQueueFactory.sol";
+import {WithdrawalQueueFactory} from "../../src/contracts/WithdrawalQueueFactory.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
 import {IUniversalDelegator, UNIVERSAL_DELEGATOR_TYPE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IProtocolFeeRegistry} from "../../src/interfaces/IProtocolFeeRegistry.sol";
@@ -71,7 +71,6 @@ contract VaultV2FeeApiTest is Test {
         assertEq(IVaultV2.setPerformanceFee.selector, bytes4(keccak256("setPerformanceFee(uint96,address)")));
         assertEq(IVaultV2.setSlasher.selector, bytes4(keccak256("setSlasher(address)")));
         assertEq(IVaultV2.getAccrueInterest.selector, bytes4(keccak256("getAccrueInterest()")));
-        assertEq(IVaultV2.virtualShares.selector, bytes4(keccak256("virtualShares()")));
         assertEq(IVaultV2.freeAssets.selector, bytes4(keccak256("freeAssets()")));
         assertEq(IVaultV2.withdrawable.selector, bytes4(keccak256("withdrawable()")));
         assertEq(IVaultV2.totalSupplyAt.selector, bytes4(keccak256("totalSupplyAt(uint48)")));
@@ -176,7 +175,7 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.performanceFeeReceiver(), address(0));
         assertTrue(vault.hasRole(PERFORMANCE_FEE_ROLE, address(this)));
         assertTrue(vault.hasRole(MANAGEMENT_FEE_ROLE, address(this)));
-        assertEq(vault.virtualShares(), 1);
+        assertEq(vault.previewDeposit(1), 1);
         assertEq(vault.totalSupply(), 0);
         assertEq(vault.freeAssets(), 0);
         assertEq(collateral.balanceOf(address(vault)), 0);
@@ -195,12 +194,12 @@ contract VaultV2BehaviorTest is Test {
         assertEq(OwnableView(queue).owner(), vaultAddress);
     }
 
-    function test_InitializeStoresAssetAdjustedVirtualShares() public {
+    function test_InitializeUsesAssetAdjustedVirtualShareOffset() public {
         collateral = new VaultV2SixDecimalToken();
 
         VaultV2 vault = _createVault(false, false, 0);
 
-        assertEq(vault.virtualShares(), 1e12);
+        assertEq(vault.previewDeposit(1), 1e12);
         assertEq(vault.decimals(), 18);
         assertEq(vault.totalSupply(), 0);
         assertEq(vault.freeAssets(), 0);

@@ -15,7 +15,7 @@ import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegat
 import {ProtocolFeeRegistry} from "../../src/contracts/ProtocolFeeRegistry.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
-import {WithdrawalQueueFactory} from "../../src/contracts/vault/WithdrawalQueueFactory.sol";
+import {WithdrawalQueueFactory} from "../../src/contracts/WithdrawalQueueFactory.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 import {
     IUniversalDelegator,

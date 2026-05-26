@@ -5,7 +5,7 @@ pragma solidity ^0.8.28;
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {Multicallable} from "../common/Multicallable.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
-import {WithdrawalQueueFactory} from "./WithdrawalQueueFactory.sol";
+import {WithdrawalQueueFactory} from "../WithdrawalQueueFactory.sol";
 
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IProtocolFeeRegistry} from "../../interfaces/IProtocolFeeRegistry.sol";
@@ -72,42 +72,41 @@ contract VaultV2 is
     /* STATE VARIABLES */
 
     /// @inheritdoc IVaultV2
-    address public delegator;
-    /// @inheritdoc IVaultV2
     address public withdrawalQueue;
+    /// @inheritdoc IVaultV2
+    address public delegator;
 
-    /// @inheritdoc IVaultV2
-    bool public isDepositLimit;
-    /// @inheritdoc IVaultV2
-    uint256 public depositLimit;
-    /// @inheritdoc IVaultV2
-    bool public depositWhitelist;
-    /// @inheritdoc IVaultV2
-    mapping(address account => bool value) public isDepositorWhitelisted;
+    /// @dev Decimal offset between assets and vault shares.
+    uint8 internal __decimalsOffset;
 
     /// @inheritdoc IVaultV2
     uint48 public lastUpdate;
     /// @inheritdoc IVaultV2
+    bool public isDepositLimit;
+    /// @inheritdoc IVaultV2
+    bool public depositWhitelist;
+    /// @inheritdoc IVaultV2
+    uint256 public depositLimit;
+    /// @inheritdoc IVaultV2
+    mapping(address account => bool value) public isDepositorWhitelisted;
+
+    /// @inheritdoc IVaultV2
     uint96 public managementFee;
-    /// @inheritdoc IVaultV2
-    uint96 public performanceFee;
-    /// @inheritdoc IVaultV2
-    uint256 public virtualShares;
     /// @inheritdoc IVaultV2
     address public managementFeeReceiver;
     /// @inheritdoc IVaultV2
+    uint96 public performanceFee;
+    /// @inheritdoc IVaultV2
     address public performanceFeeReceiver;
     /// @inheritdoc IVaultV2
-    address public lastProtocolFeeReceiver;
-    /// @inheritdoc IVaultV2
     uint96 public lastProtocolManagementFee;
+    /// @inheritdoc IVaultV2
+    address public lastProtocolFeeReceiver;
     /// @inheritdoc IVaultV2
     uint96 public lastProtocolPerformanceFee;
 
     /// @dev Total assets cached from delegator accounting.
     uint256 internal _totalAssets;
-    /// @dev Decimal offset between assets and vault shares.
-    uint8 internal __decimalsOffset;
     /// @dev Total active share checkpoints.
     Checkpoints.Trace256 internal _totalSupply;
     /// @dev Active share checkpoints by account.
@@ -202,11 +201,11 @@ contract VaultV2 is
         uint256 newTotalAssetsWithoutFees =
             newTotalAssets - managementFeeAssets - performanceFeeAssets - protocolFeeAssets;
         managementFeeShares =
-            managementFeeAssets.mulDiv(_totalSupply.latest() + virtualShares, newTotalAssetsWithoutFees + 1);
+            managementFeeAssets.mulDiv(_totalSupply.latest() + 10 ** _decimalsOffset(), newTotalAssetsWithoutFees + 1);
         performanceFeeShares =
-            performanceFeeAssets.mulDiv(_totalSupply.latest() + virtualShares, newTotalAssetsWithoutFees + 1);
+            performanceFeeAssets.mulDiv(_totalSupply.latest() + 10 ** _decimalsOffset(), newTotalAssetsWithoutFees + 1);
         protocolFeeShares =
-            protocolFeeAssets.mulDiv(_totalSupply.latest() + virtualShares, newTotalAssetsWithoutFees + 1);
+            protocolFeeAssets.mulDiv(_totalSupply.latest() + 10 ** _decimalsOffset(), newTotalAssetsWithoutFees + 1);
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -474,7 +473,6 @@ contract VaultV2 is
         emit SetWithdrawalQueue(withdrawalQueue);
 
         __decimalsOffset = uint8(uint256(SHARES_DECIMALS).saturatingSub(IERC20Metadata(params.asset).decimals()));
-        virtualShares = 10 ** __decimalsOffset;
 
         _updateProtocolFee();
         lastUpdate = uint48(block.timestamp);

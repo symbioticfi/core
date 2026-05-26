@@ -55,16 +55,10 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     address public vault;
-
-    /// @inheritdoc IUniversalDelegator
-    mapping(address adapter => uint256 share) public shareLimitOf;
-    /// @inheritdoc IUniversalDelegator
-    mapping(address adapter => uint256 assets) public absoluteLimitOf;
-
-    /// @inheritdoc IUniversalDelegator
-    address[] public adapters;
     /// @inheritdoc IUniversalDelegator
     uint16 public totalAdapters;
+    /// @inheritdoc IUniversalDelegator
+    address[] public adapters;
     /// @inheritdoc IUniversalDelegator
     uint16[] public adaptersWithPending;
     /// @inheritdoc IUniversalDelegator
@@ -73,6 +67,11 @@ contract UniversalDelegator is
     mapping(uint16 index => address adapter) public indexToAdapter;
     /// @inheritdoc IUniversalDelegator
     mapping(address adapter => uint16 index) public adapterToIndex;
+
+    /// @inheritdoc IUniversalDelegator
+    mapping(address adapter => uint256 share) public shareLimitOf;
+    /// @inheritdoc IUniversalDelegator
+    mapping(address adapter => uint256 assets) public absoluteLimitOf;
 
     /// @dev Whether an adapter is currently configured.
     mapping(address adapter => bool status) internal _isAdapterAdded;

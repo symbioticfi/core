@@ -9,7 +9,7 @@ import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
 import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDelegator.sol";
 import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol";
-import {WithdrawalQueueFactory} from "../../../src/contracts/vault/WithdrawalQueueFactory.sol";
+import {WithdrawalQueueFactory} from "../../../src/contracts/WithdrawalQueueFactory.sol";
 
 import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";

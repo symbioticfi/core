@@ -279,12 +279,6 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
     function performanceFee() external view returns (uint96 fee);
 
     /**
-     * @notice Get the virtual shares used for ERC4626 conversion math.
-     * @return shares Virtual shares.
-     */
-    function virtualShares() external view returns (uint256 shares);
-
-    /**
      * @notice Get the protocol management fee cached at the last fee accrual.
      * @return fee Cached protocol management fee per second scaled by MAX_FEE.
      */
