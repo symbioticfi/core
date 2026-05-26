@@ -2,12 +2,13 @@
 pragma solidity ^0.8.0;
 
 import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+import {IMulticallable} from "../common/IMulticallable.sol";
 
 /**
  * @title IWithdrawalQueue
  * @notice Interface for the WithdrawalQueue contract.
  */
-interface IWithdrawalQueue is IERC721Metadata {
+interface IWithdrawalQueue is IERC721Metadata, IMulticallable {
     /* STRUCTS */
 
     /**
@@ -85,12 +86,6 @@ interface IWithdrawalQueue is IERC721Metadata {
         external
         view
         returns (uint256 shares, uint256 claimedShares, uint256 prevRequestSum);
-
-    /**
-     * @notice Executes multiple calls against the queue.
-     * @param data Encoded calls to execute.
-     */
-    function multicall(bytes[] calldata data) external;
 
     /**
      * @notice Total vault shares filled.

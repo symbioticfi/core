@@ -3,6 +3,7 @@
 pragma solidity ^0.8.28;
 
 import {MigratableEntity} from "../common/MigratableEntity.sol";
+import {Multicallable} from "../common/Multicallable.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {WithdrawalQueue} from "./WithdrawalQueue.sol";
 
@@ -40,7 +41,7 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 
 /// @title VaultV2
 /// @dev Supports standard ERC20 assets only; fee-on-transfer, rebasing, and other nonstandard balance-changing assets are unsupported.
-contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeable, ERC20PermitUpgradeable, IVaultV2 {
+contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeable, ERC20PermitUpgradeable, Multicallable, IVaultV2 {
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using SafeERC20 for IERC20;
@@ -108,20 +109,6 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     /// @dev Reserved storage gap for future upgrades.
     uint256[50] internal __gap;
 
-    /* MULTICALL */
-
-    /// @inheritdoc IVaultV2
-    function multicall(bytes[] calldata data) public {
-        for (uint256 i; i < data.length; ++i) {
-            (bool success, bytes memory returnData) = address(this).delegatecall(data[i]);
-            if (!success) {
-                assembly ("memory-safe") {
-                    revert(add(32, returnData), mload(returnData))
-                }
-            }
-        }
-    }
-
     /* CONSTRUCTOR */
 
     constructor(
@@ -180,7 +167,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
             uint256 protocolFeeShares
         )
     {
-        newTotalAssets = IERC20(asset()).balanceOf(address(this)) + UniversalDelegator(delegator).totalAssets();
+        newTotalAssets = freeAssets() + UniversalDelegator(delegator).totalAssets();
         uint256 elapsed = block.timestamp - lastUpdate;
         uint256 interest = newTotalAssets.saturatingSub(_totalAssets);
 
@@ -289,6 +276,11 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     /// @inheritdoc IVaultV2
     function withdrawable() public returns (uint256) {
         return freeAssets() + UniversalDelegator(delegator).deallocatable();
+    }
+
+    /// @inheritdoc IVaultV2
+    function redeemable() public returns (uint256) {
+        return previewWithdraw(withdrawable());
     }
 
     /// @inheritdoc IVaultV2

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
+import {IMulticallable} from "../common/IMulticallable.sol";
 
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -32,7 +33,7 @@ uint8 constant SHARES_DECIMALS = 18;
  * @notice Interface for the VaultV2 contract.
  * @dev VaultV2 supports standard ERC20 assets only; fee-on-transfer, rebasing, and other nonstandard balance-changing assets are unsupported.
  */
-interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
+interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit, IMulticallable {
     /* ERRORS */
 
     /**
@@ -317,12 +318,6 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     function lastProtocolFeeReceiver() external view returns (address receiver);
 
     /**
-     * @notice Execute a batch of delegatecalls on the vault.
-     * @param data Calldata items to execute.
-     */
-    function multicall(bytes[] calldata data) external;
-
-    /**
      * @notice Check if the vault is initialized.
      * @return initialized Whether the vault is initialized.
      */
@@ -369,8 +364,16 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     /**
      * @notice Get assets available for instant withdrawal from free and deallocatable assets.
      * @return assets Withdrawable asset amount.
+     * @dev This function is non-veiw since it simulates deallocation internally.
      */
     function withdrawable() external returns (uint256 assets);
+
+    /**
+     * @notice Get shares available for instant redemption from free and deallocatable assets.
+     * @return shares Redeemable shares amount.
+     * @dev This function is non-veiw since it simulates deallocation internally.
+     */
+    function redeemable() external returns (uint256 shares);
 
     /**
      * @notice Get liquid assets currently held by the vault.

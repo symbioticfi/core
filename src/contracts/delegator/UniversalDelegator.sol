@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 
 import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
+import {Multicallable} from "../common/Multicallable.sol";
 import {VaultV2} from "../vault/VaultV2.sol";
 import {WithdrawalQueue} from "../vault/WithdrawalQueue.sol";
 
@@ -36,6 +37,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 contract UniversalDelegator is
     Entity,
     StaticDelegateCallable,
+    Multicallable,
     AccessControlUpgradeable,
     ReentrancyGuard,
     IUniversalDelegator
@@ -74,20 +76,6 @@ contract UniversalDelegator is
 
     /// @dev Whether an adapter is currently configured.
     mapping(address adapter => bool status) internal _isAdapterAdded;
-
-    /* MULTICALL */
-
-    /// @inheritdoc IUniversalDelegator
-    function multicall(bytes[] calldata data) public {
-        for (uint256 i; i < data.length; ++i) {
-            (bool success, bytes memory returnData) = address(this).delegatecall(data[i]);
-            if (!success) {
-                assembly ("memory-safe") {
-                    revert(add(32, returnData), mload(returnData))
-                }
-            }
-        }
-    }
 
     /* CONSTRUCTOR */
 
