@@ -4,10 +4,10 @@ pragma solidity ^0.8.25;
 import {Test} from "forge-std/Test.sol";
 
 import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol";
+import {WithdrawalQueueFactory} from "../../../src/contracts/vault/WithdrawalQueueFactory.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract WithdrawalQueueInvariantToken is ERC20 {
     constructor() ERC20("Token", "TKN") {}
@@ -139,11 +139,9 @@ contract WithdrawalQueueClaimHandler is Test {
         delegator = new WithdrawalQueueInvariantDelegator();
         vault.setDelegator(address(delegator));
 
-        queue = WithdrawalQueue(
-            address(new TransparentUpgradeableProxy(address(new WithdrawalQueue()), address(this), ""))
-        );
-        vm.prank(address(vault));
-        queue.initialize();
+        WithdrawalQueueFactory factory = new WithdrawalQueueFactory(address(this));
+        factory.whitelist(address(new WithdrawalQueue(address(factory))));
+        queue = WithdrawalQueue(factory.create(1, address(vault), abi.encode(vault.name(), vault.symbol())));
 
         _actors.push(address(0xA11CE));
         _actors.push(address(0xB0B));

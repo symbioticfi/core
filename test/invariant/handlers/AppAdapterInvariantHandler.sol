@@ -13,6 +13,7 @@ import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDele
 import {ProtocolFeeRegistry} from "../../../src/contracts/ProtocolFeeRegistry.sol";
 import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol";
+import {WithdrawalQueueFactory} from "../../../src/contracts/vault/WithdrawalQueueFactory.sol";
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
 import {
     IUniversalDelegator,
@@ -371,6 +372,7 @@ contract AppAdapterInvariantHandler is Test {
 
         collateral = new Token("Collateral");
         VaultFactory vaultFactory = new VaultFactory(address(this));
+        WithdrawalQueueFactory withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
         DelegatorFactory delegatorFactory = new DelegatorFactory(address(this));
         AdapterRegistry adapterRegistry = new AdapterRegistry(address(this));
         AdapterFactory adapterFactory = new AdapterFactory(address(this));
@@ -379,6 +381,8 @@ contract AppAdapterInvariantHandler is Test {
         AppAdapterUniversalNetworkMiddlewareServiceMock networkMiddlewareService =
             new AppAdapterUniversalNetworkMiddlewareServiceMock();
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
+
+        withdrawalQueueFactory.whitelist(address(new WithdrawalQueue(address(withdrawalQueueFactory))));
 
         vaultFactory.whitelist(address(new AppAdapterUniversalMigratableEntityMock(address(vaultFactory))));
         vaultFactory.whitelist(address(new AppAdapterUniversalMigratableEntityMock(address(vaultFactory))));
@@ -391,7 +395,7 @@ contract AppAdapterInvariantHandler is Test {
                     address(adapterRegistry),
                     address(delegatorFactory),
                     address(protocolFee),
-                    address(new WithdrawalQueue())
+                    address(withdrawalQueueFactory)
                 )
             )
         );

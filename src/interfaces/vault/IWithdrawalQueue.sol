@@ -3,12 +3,15 @@ pragma solidity ^0.8.0;
 
 import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import {IMulticallable} from "../common/IMulticallable.sol";
+import {IMigratableEntity} from "../common/IMigratableEntity.sol";
+
+uint64 constant WITHDRAWAL_QUEUE_VERSION = 1;
 
 /**
  * @title IWithdrawalQueue
  * @notice Interface for the WithdrawalQueue contract.
  */
-interface IWithdrawalQueue is IERC721Metadata, IMulticallable {
+interface IWithdrawalQueue is IMigratableEntity, IERC721Metadata, IMulticallable {
     /* STRUCTS */
 
     /**
@@ -133,9 +136,4 @@ interface IWithdrawalQueue is IERC721Metadata, IMulticallable {
      * @notice Fills pending withdrawal requests with available vault assets.
      */
     function fill() external returns (uint256 assets, uint256 shares);
-
-    /**
-     * @notice Initialize withdrawal queue metadata and bind it to the calling vault.
-     */
-    function initialize() external;
 }

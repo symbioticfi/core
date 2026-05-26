@@ -9,6 +9,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
+import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {Multicallable} from "../common/Multicallable.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {VaultV2} from "./VaultV2.sol";
@@ -16,7 +17,7 @@ import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
 
 /// @title Withdrawal Queue
 /// @notice Holds pending share withdrawal requests as ERC721 positions.
-contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue, Multicallable {
+contract WithdrawalQueue is MigratableEntity, ERC721Upgradeable, IWithdrawalQueue, Multicallable {
     using Checkpoints for Checkpoints.Trace256;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -38,9 +39,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue, Multicallable {
 
     /* CONSTRUCTOR */
 
-    constructor() {
-        _disableInitializers();
-    }
+    constructor(address factory) MigratableEntity(factory) {}
 
     /* VIEW FUNCTIONS */
 
@@ -145,14 +144,21 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue, Multicallable {
         emit Fill(assets, shares);
     }
 
-    /* INITIALIZE */
+    /* INITIALIZATION */
 
-    /// @dev Initialize withdrawal queue metadata and bind it to the calling vault.
-    function initialize() public initializer {
-        vault = msg.sender;
+    /// @dev Initialize withdrawal queue metadata and bind it to a vault.
+    function _initialize(uint64, address owner, bytes memory data) internal override {
+        (string memory vaultName, string memory vaultSymbol) = abi.decode(data, (string, string));
 
-        __ERC721_init(string.concat(VaultV2(vault).name(), "(WQ)"), string.concat(VaultV2(vault).symbol(), "_WQ"));
+        __ERC721_init(string.concat(vaultName, "(WQ)"), string.concat(vaultSymbol, "_WQ"));
+
+        vault = owner;
 
         _cumulSharesToCumulAssets.push(0, 0);
+    }
+
+    /// @dev Migration is intentionally unsupported for this implementation.
+    function _migrate(uint64, uint64, bytes calldata) internal pure override {
+        revert();
     }
 }

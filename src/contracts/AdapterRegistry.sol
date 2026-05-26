@@ -16,7 +16,7 @@ contract AdapterRegistry is Ownable, IAdapterRegistry {
 
     /* CONSTRUCTOR */
 
-    constructor(address curOwner) Ownable(curOwner) {}
+    constructor(address newOwner) Ownable(newOwner) {}
 
     /* PUBLIC FUNCTIONS */
 

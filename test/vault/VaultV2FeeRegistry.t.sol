@@ -15,6 +15,8 @@ import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {ProtocolFeeRegistry} from "../../src/contracts/ProtocolFeeRegistry.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
+import {WithdrawalQueueFactory} from "../../src/contracts/vault/WithdrawalQueueFactory.sol";
+import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
 import {IUniversalDelegator, UNIVERSAL_DELEGATOR_TYPE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IProtocolFeeRegistry} from "../../src/interfaces/IProtocolFeeRegistry.sol";
 import {
@@ -44,6 +46,10 @@ contract VaultV2SixDecimalToken is Token {
     function decimals() public pure override returns (uint8) {
         return 6;
     }
+}
+
+interface OwnableView {
+    function owner() external view returns (address);
 }
 
 contract VaultV2FeeApiTest is Test {
@@ -86,6 +92,7 @@ contract VaultV2BehaviorTest is Test {
 
     Token internal collateral;
     VaultFactory internal vaultFactory;
+    WithdrawalQueueFactory internal withdrawalQueueFactory;
     DelegatorFactory internal delegatorFactory;
     AdapterRegistry internal adapterRegistry;
     ProtocolFeeRegistry internal protocolFee;
@@ -98,10 +105,13 @@ contract VaultV2BehaviorTest is Test {
     function setUp() public {
         collateral = new Token("Collateral");
         vaultFactory = new VaultFactory(address(this));
+        withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
         delegatorFactory = new DelegatorFactory(address(this));
         adapterRegistry = new AdapterRegistry(address(this));
         protocolFee = new ProtocolFeeRegistry(address(this));
         protocolFee.setGlobalReceiver(protocolFeeReceiver);
+
+        withdrawalQueueFactory.whitelist(address(new WithdrawalQueue(address(withdrawalQueueFactory))));
 
         vaultFactory.whitelist(address(new VaultV2MigratableEntityMock(address(vaultFactory))));
         vaultFactory.whitelist(address(new VaultV2MigratableEntityMock(address(vaultFactory))));
@@ -114,7 +124,7 @@ contract VaultV2BehaviorTest is Test {
                     address(adapterRegistry),
                     address(delegatorFactory),
                     address(protocolFee),
-                    address(new WithdrawalQueue())
+                    address(withdrawalQueueFactory)
                 )
             )
         );
@@ -171,6 +181,18 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.freeAssets(), 0);
         assertEq(collateral.balanceOf(address(vault)), 0);
         _assertEmptyShareCheckpoints(vault);
+    }
+
+    function test_InitializeCreatesWithdrawalQueueThroughFactoryOwnedByVault() public {
+        address initOwner = address(0x1234);
+        address vaultAddress = vaultFactory.create(VAULT_V2_VERSION, initOwner, _vaultParams(false, false, 0));
+        address queue = VaultV2(vaultAddress).withdrawalQueue();
+
+        assertTrue(withdrawalQueueFactory.isEntity(queue));
+        assertEq(IMigratableEntity(queue).FACTORY(), address(withdrawalQueueFactory));
+        assertEq(IMigratableEntity(queue).version(), 1);
+        assertEq(WithdrawalQueue(queue).vault(), vaultAddress);
+        assertEq(OwnableView(queue).owner(), vaultAddress);
     }
 
     function test_InitializeStoresAssetAdjustedVirtualShares() public {

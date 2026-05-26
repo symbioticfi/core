@@ -15,6 +15,7 @@ import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegat
 import {ProtocolFeeRegistry} from "../../src/contracts/ProtocolFeeRegistry.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
+import {WithdrawalQueueFactory} from "../../src/contracts/vault/WithdrawalQueueFactory.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 import {
     IUniversalDelegator,
@@ -49,6 +50,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
     Token internal collateral;
     VaultFactory internal vaultFactory;
     DelegatorFactory internal delegatorFactory;
+    WithdrawalQueueFactory internal withdrawalQueueFactory;
     AdapterRegistry internal adapterRegistry;
     AdapterFactory internal adapterFactory;
     ProtocolFeeRegistry internal protocolFee;
@@ -68,6 +70,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
 
         collateral = new Token("Collateral");
         vaultFactory = new VaultFactory(address(this));
+        withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
         delegatorFactory = new DelegatorFactory(address(this));
         adapterRegistry = new AdapterRegistry(address(this));
         adapterFactory = new AdapterFactory(address(this));
@@ -75,6 +78,8 @@ contract AppAdapterUniversalDelegatorTest is Test {
         protocolFee.setGlobalReceiver(address(this));
         networkMiddlewareService = new AppAdapterUniversalNetworkMiddlewareServiceMock();
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
+
+        withdrawalQueueFactory.whitelist(address(new WithdrawalQueue(address(withdrawalQueueFactory))));
 
         vaultFactory.whitelist(address(new AppAdapterUniversalMigratableEntityMock(address(vaultFactory))));
         vaultFactory.whitelist(address(new AppAdapterUniversalMigratableEntityMock(address(vaultFactory))));
@@ -87,7 +92,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
                     address(adapterRegistry),
                     address(delegatorFactory),
                     address(protocolFee),
-                    address(new WithdrawalQueue())
+                    address(withdrawalQueueFactory)
                 )
             )
         );

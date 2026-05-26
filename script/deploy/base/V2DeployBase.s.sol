@@ -9,6 +9,7 @@ import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
 import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDelegator.sol";
 import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol";
+import {WithdrawalQueueFactory} from "../../../src/contracts/vault/WithdrawalQueueFactory.sol";
 
 import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
@@ -17,6 +18,7 @@ contract V2DeployBaseScript is Script {
     struct DeploymentData {
         SymbioticCoreConstants.Core core;
         AdapterRegistry adapterRegistry;
+        WithdrawalQueueFactory withdrawalQueueFactory;
         WithdrawalQueue withdrawalQueue;
         VaultV2 vaultV2;
         UniversalDelegator universalDelegator;
@@ -33,7 +35,9 @@ contract V2DeployBaseScript is Script {
 
         _startBroadcast();
         data.adapterRegistry = new AdapterRegistry(adapterRegistryOwner);
-        data.withdrawalQueue = new WithdrawalQueue();
+        data.withdrawalQueueFactory = new WithdrawalQueueFactory(adapterRegistryOwner);
+        data.withdrawalQueue = new WithdrawalQueue(address(data.withdrawalQueueFactory));
+        data.withdrawalQueueFactory.whitelist(address(data.withdrawalQueue));
         data.vaultV2 = new VaultV2(
             rewards,
             address(data.core.vaultFactory),
@@ -41,7 +45,7 @@ contract V2DeployBaseScript is Script {
             address(data.adapterRegistry),
             address(data.core.delegatorFactory),
             protocolFee,
-            address(data.withdrawalQueue)
+            address(data.withdrawalQueueFactory)
         );
         data.universalDelegator = new UniversalDelegator(
             UNIVERSAL_DELEGATOR_TYPE,
@@ -52,10 +56,12 @@ contract V2DeployBaseScript is Script {
         _stopBroadcast();
 
         assert(data.adapterRegistry.owner() == adapterRegistryOwner);
+        assert(data.withdrawalQueueFactory.owner() == adapterRegistryOwner);
         assert(IMigratableEntity(address(data.vaultV2)).FACTORY() == address(data.core.vaultFactory));
         assert(data.universalDelegator.TYPE() == UNIVERSAL_DELEGATOR_TYPE);
 
         Logs.log(string.concat("Deployed AdapterRegistry: ", vm.toString(address(data.adapterRegistry))));
+        Logs.log(string.concat("Deployed WithdrawalQueueFactory: ", vm.toString(address(data.withdrawalQueueFactory))));
         Logs.log(string.concat("Deployed WithdrawalQueue: ", vm.toString(address(data.withdrawalQueue))));
         Logs.log(string.concat("Deployed VaultV2: ", vm.toString(address(data.vaultV2))));
         Logs.log(string.concat("Deployed UniversalDelegator: ", vm.toString(address(data.universalDelegator))));

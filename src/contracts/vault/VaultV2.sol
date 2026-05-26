@@ -5,8 +5,9 @@ pragma solidity ^0.8.28;
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {Multicallable} from "../common/Multicallable.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
-import {WithdrawalQueue} from "./WithdrawalQueue.sol";
+import {WithdrawalQueueFactory} from "./WithdrawalQueueFactory.sol";
 
+import {WITHDRAWAL_QUEUE_VERSION} from "../../interfaces/vault/IWithdrawalQueue.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IProtocolFeeRegistry} from "../../interfaces/IProtocolFeeRegistry.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
@@ -37,11 +38,17 @@ import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC2
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /// @title VaultV2
 /// @dev Supports standard ERC20 assets only; fee-on-transfer, rebasing, and other nonstandard balance-changing assets are unsupported.
-contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeable, ERC20PermitUpgradeable, Multicallable, IVaultV2 {
+contract VaultV2 is
+    MigratableEntity,
+    AccessControlUpgradeable,
+    ERC4626Upgradeable,
+    ERC20PermitUpgradeable,
+    Multicallable,
+    IVaultV2
+{
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using SafeERC20 for IERC20;
@@ -59,8 +66,8 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     address internal immutable DELEGATOR_FACTORY;
     /// @dev Address of the protocol fee registry.
     address internal immutable PROTOCOL_FEE_REGISTRY;
-    /// @dev Address of the withdrawal queue implementation.
-    address internal immutable WITHDRAWAL_QUEUE_IMPLEMENTATION;
+    /// @dev Address of the withdrawal queue factory.
+    address internal immutable WITHDRAWAL_QUEUE_FACTORY;
 
     /* STATE VARIABLES */
 
@@ -118,14 +125,14 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         address adapterRegistry,
         address delegatorFactory,
         address protocolFeeRegistry,
-        address withdrawalQueueImplementation
+        address withdrawalQueueFactory
     ) MigratableEntity(vaultFactory) {
         REWARDS = rewards;
         SLASHER_FACTORY = slasherFactory;
         ADAPTER_REGISTRY = adapterRegistry;
         DELEGATOR_FACTORY = delegatorFactory;
         PROTOCOL_FEE_REGISTRY = protocolFeeRegistry;
-        WITHDRAWAL_QUEUE_IMPLEMENTATION = withdrawalQueueImplementation;
+        WITHDRAWAL_QUEUE_FACTORY = withdrawalQueueFactory;
     }
 
     /* VIEW FUNCTIONS */
@@ -511,11 +518,8 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         __ERC4626_init(IERC20(params.asset));
         __ERC20Permit_init(params.name);
 
-        withdrawalQueue = address(
-            new TransparentUpgradeableProxy(
-                WITHDRAWAL_QUEUE_IMPLEMENTATION, address(this), abi.encodeCall(WithdrawalQueue.initialize, ())
-            )
-        );
+        withdrawalQueue = WithdrawalQueueFactory(WITHDRAWAL_QUEUE_FACTORY)
+            .create(WITHDRAWAL_QUEUE_VERSION, address(this), abi.encode(name(), symbol()));
         emit SetWithdrawalQueue(withdrawalQueue);
 
         __decimalsOffset = uint8(uint256(SHARES_DECIMALS).saturatingSub(IERC20Metadata(params.asset).decimals()));

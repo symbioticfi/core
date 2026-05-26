@@ -21,7 +21,7 @@ contract ProtocolFeeRegistry is Ownable, IProtocolFeeRegistry {
 
     /* CONSTRUCTOR */
 
-    constructor(address curOwner) Ownable(curOwner) {}
+    constructor(address newOwner) Ownable(newOwner) {}
 
     /* VIEW FUNCTIONS */
 
