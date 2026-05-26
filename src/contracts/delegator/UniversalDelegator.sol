@@ -352,7 +352,7 @@ contract UniversalDelegator is
         }
 
         // Skip allocation while pending assets remain.
-        if (_sweepPending() > 0) {
+        if (sweepPending() > 0) {
             return;
         }
 
@@ -372,7 +372,45 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function sweepPending() public returns (uint256 pendingAssets) {
-        return _sweepPending();
+        address withdrawalQueue = VaultV2(vault).withdrawalQueue();
+
+        // Try to deallocate assets as much as possible to fill the queue.
+        _deallocateAll(WithdrawalQueue(withdrawalQueue).pendingAssets().saturatingSub(VaultV2(vault).freeAssets()));
+        WithdrawalQueue(withdrawalQueue).fill();
+
+        // Fetch actual pending assets after filling the queue.
+        pendingAssets = WithdrawalQueue(withdrawalQueue).pendingAssets();
+
+        // Update requests or reset them.
+        uint16[] memory previousAdaptersWithPending = adaptersWithPending;
+        delete adaptersWithPending;
+
+        // Request deallocation for remaining pending assets.
+        uint256 remainingPendingAssets = pendingAssets;
+        for (uint256 i; remainingPendingAssets > 0 && i < adapters.length; ++i) {
+            address adapter = adapters[i];
+            uint256 toRequest = Math.min(remainingPendingAssets, IAdapter(adapter).totalAssets());
+            if (toRequest == 0) {
+                continue;
+            }
+            _requestDeallocate(adapter, toRequest);
+            adaptersWithPending.push(adapterToIndex[adapter]);
+            remainingPendingAssets -= toRequest;
+        }
+
+        // Reset requests for adapters that are no longer pending.
+        for (uint256 i; i < previousAdaptersWithPending.length; ++i) {
+            bool found;
+            for (uint256 j; j < adaptersWithPending.length; ++j) {
+                if (previousAdaptersWithPending[i] == adaptersWithPending[j]) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                _requestDeallocate(indexToAdapter[previousAdaptersWithPending[i]], 0);
+            }
+        }
     }
 
     /* INITIALIZATION */
@@ -409,49 +447,6 @@ contract UniversalDelegator is
     }
 
     /* INTERNAL FUNCTIONS */
-
-    /// @dev Fill pending withdrawal requests and synchronize delayed adapter requests.
-    function _sweepPending() internal returns (uint256 pendingAssets) {
-        address queue = VaultV2(vault).withdrawalQueue();
-
-        // Try to deallocate assets as much as possible to fill the queue.
-        _deallocateAll(WithdrawalQueue(queue).pendingAssets().saturatingSub(VaultV2(vault).freeAssets()));
-        WithdrawalQueue(queue).fill();
-
-        // Fetch actual pending assets after filling the queue.
-        pendingAssets = WithdrawalQueue(queue).pendingAssets();
-
-        // Update requests or reset them.
-        uint16[] memory previousAdaptersWithPending = adaptersWithPending;
-        delete adaptersWithPending;
-
-        // Request deallocation for remaining pending assets.
-        uint256 remainingPendingAssets = pendingAssets;
-        for (uint256 i; remainingPendingAssets > 0 && i < adapters.length; ++i) {
-            address adapter = adapters[i];
-            uint256 toRequest = Math.min(remainingPendingAssets, IAdapter(adapter).totalAssets());
-            if (toRequest == 0) {
-                continue;
-            }
-            _requestDeallocate(adapter, toRequest);
-            adaptersWithPending.push(adapterToIndex[adapter]);
-            remainingPendingAssets -= toRequest;
-        }
-
-        // Reset requests for adapters that are no longer pending.
-        for (uint256 i; i < previousAdaptersWithPending.length; ++i) {
-            bool found;
-            for (uint256 j; j < adaptersWithPending.length; ++j) {
-                if (previousAdaptersWithPending[i] == adaptersWithPending[j]) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                _requestDeallocate(indexToAdapter[previousAdaptersWithPending[i]], 0);
-            }
-        }
-    }
 
     /// @dev Allocate assets through the configured auto-allocation route.
     function _allocateAll(uint256 assets) internal returns (uint256 allocated) {

@@ -210,34 +210,6 @@ contract VaultV2 is
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewDeposit(uint256 assets) public view virtual override returns (uint256) {
-        (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
-            getAccrueInterest();
-        return assets.mulDiv(totalSupply() + virtualShares, newTotalAssets + 1);
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function previewMint(uint256 shares) public view virtual override returns (uint256) {
-        (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
-            getAccrueInterest();
-        return shares.mulDiv(newTotalAssets + 1, totalSupply() + virtualShares, Math.Rounding.Ceil);
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
-        (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
-            getAccrueInterest();
-        return assets.mulDiv(totalSupply() + virtualShares, newTotalAssets + 1, Math.Rounding.Ceil);
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
-        (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
-            getAccrueInterest();
-        return shares.mulDiv(newTotalAssets + 1, totalSupply() + virtualShares);
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
     function maxDeposit(address receiver) public view override returns (uint256) {
         if (depositWhitelist && !isDepositorWhitelisted[receiver]) {
             return 0;
