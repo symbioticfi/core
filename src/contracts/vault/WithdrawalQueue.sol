@@ -149,9 +149,9 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue, Multicallable {
 
     /// @dev Initialize withdrawal queue metadata and bind it to the calling vault.
     function initialize() public initializer {
-        __ERC721_init(string.concat(VaultV2(vault).name(), "(WQ)"), string.concat(VaultV2(vault).symbol(), "_WQ"));
-
         vault = msg.sender;
+
+        __ERC721_init(string.concat(VaultV2(vault).name(), "(WQ)"), string.concat(VaultV2(vault).symbol(), "_WQ"));
 
         _cumulSharesToCumulAssets.push(0, 0);
     }
