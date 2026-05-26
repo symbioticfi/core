@@ -13,7 +13,6 @@ concurrency:
 env:
   FOUNDRY_PROFILE: ${{ github.event_name == 'push' && 'ci' || 'pr' }}
   ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
-  RUN_RPC_TESTS: true
 
 jobs:
   forge-test:

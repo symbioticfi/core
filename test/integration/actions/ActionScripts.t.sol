@@ -141,11 +141,6 @@ contract ActionScriptsTest is SymbioticCoreInit {
     uint256 internal constant DEFAULT_DEPOSIT = 800 ether;
 
     function setUp() public virtual override {
-        if (!vm.envOr("RUN_RPC_TESTS", false)) {
-            vm.skip(true, "RPC tests disabled");
-            return;
-        }
-
         vm.selectFork(vm.createFork(vm.rpcUrl("mainnet")));
         SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;
 
