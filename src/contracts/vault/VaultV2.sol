@@ -145,7 +145,12 @@ contract VaultV2 is
     /// @inheritdoc IERC20
     function totalSupply() public view override(ERC20Upgradeable, IERC20) returns (uint256) {
         (, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) = getAccrueInterest();
-        return super.totalSupply() + managementFeeShares + performanceFeeShares + protocolFeeShares;
+        return _totalSupply.latest() + managementFeeShares + performanceFeeShares + protocolFeeShares;
+    }
+
+    /// @inheritdoc IVaultV2
+    function totalSupplyAt(uint48 timestamp) public view returns (uint256) {
+        return _totalSupply.upperLookupRecent(timestamp);
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -153,9 +158,9 @@ contract VaultV2 is
         (assets,,,) = getAccrueInterest();
     }
 
-    /// @inheritdoc IVaultV2
-    function totalSupplyAt(uint48 timestamp) public view returns (uint256) {
-        return _totalSupply.upperLookupRecent(timestamp);
+    /// @inheritdoc ERC20Upgradeable
+    function balanceOf(address account) public view override(ERC20Upgradeable, IERC20) returns (uint256) {
+        return _balances[account].latest();
     }
 
     /// @inheritdoc IVaultV2
@@ -197,52 +202,39 @@ contract VaultV2 is
         uint256 newTotalAssetsWithoutFees =
             newTotalAssets - managementFeeAssets - performanceFeeAssets - protocolFeeAssets;
         managementFeeShares =
-            managementFeeAssets.mulDiv(super.totalSupply() + virtualShares, newTotalAssetsWithoutFees + 1);
+            managementFeeAssets.mulDiv(_totalSupply.latest() + virtualShares, newTotalAssetsWithoutFees + 1);
         performanceFeeShares =
-            performanceFeeAssets.mulDiv(super.totalSupply() + virtualShares, newTotalAssetsWithoutFees + 1);
-        protocolFeeShares = protocolFeeAssets.mulDiv(super.totalSupply() + virtualShares, newTotalAssetsWithoutFees + 1);
+            performanceFeeAssets.mulDiv(_totalSupply.latest() + virtualShares, newTotalAssetsWithoutFees + 1);
+        protocolFeeShares =
+            protocolFeeAssets.mulDiv(_totalSupply.latest() + virtualShares, newTotalAssetsWithoutFees + 1);
     }
 
     /// @inheritdoc ERC4626Upgradeable
     function previewDeposit(uint256 assets) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
             getAccrueInterest();
-        return assets.mulDiv(
-            super.totalSupply() + managementFeeShares + performanceFeeShares + protocolFeeShares + virtualShares,
-            newTotalAssets + 1
-        );
+        return assets.mulDiv(totalSupply() + virtualShares, newTotalAssets + 1);
     }
 
     /// @inheritdoc ERC4626Upgradeable
     function previewMint(uint256 shares) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
             getAccrueInterest();
-        return shares.mulDiv(
-            newTotalAssets + 1,
-            super.totalSupply() + managementFeeShares + performanceFeeShares + protocolFeeShares + virtualShares,
-            Math.Rounding.Ceil
-        );
+        return shares.mulDiv(newTotalAssets + 1, totalSupply() + virtualShares, Math.Rounding.Ceil);
     }
 
     /// @inheritdoc ERC4626Upgradeable
     function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
             getAccrueInterest();
-        return assets.mulDiv(
-            super.totalSupply() + managementFeeShares + performanceFeeShares + protocolFeeShares + virtualShares,
-            newTotalAssets + 1,
-            Math.Rounding.Ceil
-        );
+        return assets.mulDiv(totalSupply() + virtualShares, newTotalAssets + 1, Math.Rounding.Ceil);
     }
 
     /// @inheritdoc ERC4626Upgradeable
     function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
             getAccrueInterest();
-        return shares.mulDiv(
-            newTotalAssets + 1,
-            super.totalSupply() + managementFeeShares + performanceFeeShares + protocolFeeShares + virtualShares
-        );
+        return shares.mulDiv(newTotalAssets + 1, totalSupply() + virtualShares);
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -361,25 +353,43 @@ contract VaultV2 is
         internal
         override
     {
-        UniversalDelegator(delegator).onWithdraw(assets.saturatingSub(freeAssets()));
+        uint256 toWithdraw = assets.saturatingSub(freeAssets());
+        if (toWithdraw > 0) {
+            UniversalDelegator(delegator).onWithdraw(toWithdraw);
+        }
         super._withdraw(caller, receiver, owner, assets, shares);
         _totalAssets -= assets;
     }
 
     /// @inheritdoc ERC20Upgradeable
     function _update(address from, address to, uint256 value) internal override {
-        super._update(from, to, value);
+        if (from == address(0)) {
+            // Overflow check required: The rest of the code assumes that totalSupply never overflows
+            _totalSupply.push(uint48(block.timestamp), _totalSupply.latest() + value);
+        } else {
+            uint256 fromBalance = _balances[from].latest();
+            if (fromBalance < value) {
+                revert ERC20InsufficientBalance(from, fromBalance, value);
+            }
+            unchecked {
+                // Overflow not possible: value <= fromBalance <= totalSupply.
+                _balances[from].push(uint48(block.timestamp), fromBalance - value);
+            }
+        }
 
-        uint48 timestamp = uint48(block.timestamp);
-        if (from == address(0) || to == address(0)) {
-            _totalSupply.push(timestamp, super.totalSupply());
+        if (to == address(0)) {
+            unchecked {
+                // Overflow not possible: value <= totalSupply or value <= fromBalance <= totalSupply.
+                _totalSupply.push(uint48(block.timestamp), _totalSupply.latest() - value);
+            }
+        } else {
+            unchecked {
+                // Overflow not possible: balance + value is at most totalSupply, which we know fits into a uint256.
+                _balances[to].push(uint48(block.timestamp), _balances[to].latest() + value);
+            }
         }
-        if (from != address(0)) {
-            _balances[from].push(timestamp, balanceOf(from));
-        }
-        if (to != address(0) && to != from) {
-            _balances[to].push(timestamp, balanceOf(to));
-        }
+
+        emit Transfer(from, to, value);
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
