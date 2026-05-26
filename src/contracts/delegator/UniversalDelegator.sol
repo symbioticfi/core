@@ -33,7 +33,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title UniversalDelegator
-/// @notice Simple delegator that allocates vault collateral across ordered adapters.
+/// @notice Simple delegator that allocates vault assets across ordered adapters.
 contract UniversalDelegator is
     Entity,
     StaticDelegateCallable,
@@ -315,7 +315,7 @@ contract UniversalDelegator is
         // Request the remaining amount if deallocated is less than expected.
         if (deallocated < assets) {
             pending = assets - deallocated;
-            IAdapter(adapter).requestDeallocate(pending);
+            _requestDeallocate(adapter, pending);
         }
 
         // Update the adapter's absolute limit to avoid new allocations.
@@ -428,7 +428,7 @@ contract UniversalDelegator is
             if (toRequest == 0) {
                 continue;
             }
-            IAdapter(adapter).requestDeallocate(toRequest);
+            _requestDeallocate(adapter, toRequest);
             adaptersWithPending.push(adapterToIndex[adapter]);
             remainingPendingAssets -= toRequest;
         }
@@ -442,12 +442,12 @@ contract UniversalDelegator is
                 }
             }
             if (!found) {
-                IAdapter(indexToAdapter[previousAdaptersWithPending[i]]).requestDeallocate(0);
+                _requestDeallocate(indexToAdapter[previousAdaptersWithPending[i]], 0);
             }
         }
     }
 
-    /// @dev Allocate collateral through the configured auto-allocation route.
+    /// @dev Allocate assets through the configured auto-allocation route.
     function _allocateAll(uint256 assets) internal returns (uint256 allocated) {
         for (uint256 i; i < autoAllocateAdapters.length && assets > 0; ++i) {
             uint256 curAllocated = _allocate(autoAllocateAdapters[i], assets);
@@ -456,7 +456,7 @@ contract UniversalDelegator is
         }
     }
 
-    /// @dev Deallocate collateral through the ordered adapter route.
+    /// @dev Deallocate assets through the ordered adapter route.
     function _deallocateAll(uint256 assets) internal returns (uint256 deallocated) {
         for (uint256 i; i < adapters.length && assets > 0; ++i) {
             uint256 curDeallocated = _deallocate(adapters[i], assets);
@@ -465,7 +465,7 @@ contract UniversalDelegator is
         }
     }
 
-    /// @dev Allocate vault collateral to an adapter.
+    /// @dev Allocate vault assets to an adapter.
     function _allocate(address adapter, uint256 assets) internal returns (uint256 allocated) {
         assets = Math.min(assets, allocatable(adapter));
 
@@ -478,7 +478,7 @@ contract UniversalDelegator is
         emit Allocate(adapter, allocated);
     }
 
-    /// @dev Deallocate adapter collateral back into the vault.
+    /// @dev Deallocate adapter assets back into the vault.
     function _deallocate(address adapter, uint256 assets) internal returns (uint256 deallocated) {
         assets = Math.min(assets, IAdapter(adapter).totalAssets());
 
@@ -488,6 +488,12 @@ contract UniversalDelegator is
         }
 
         emit Deallocate(adapter, deallocated);
+    }
+
+    function _requestDeallocate(address adapter, uint256 assets) internal {
+        IAdapter(adapter).requestDeallocate(assets);
+
+        emit RequestDeallocate(adapter, assets);
     }
 
     /// @dev Grant a role when the holder address is not zero.

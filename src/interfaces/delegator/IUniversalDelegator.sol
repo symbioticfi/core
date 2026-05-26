@@ -137,14 +137,14 @@ interface IUniversalDelegator is IMulticallable {
     /**
      * @notice Emitted when adapter limits are set.
      * @param adapter Adapter address.
-     * @param absoluteLimit Absolute collateral limit.
+     * @param absoluteLimit Absolute asset limit.
      * @param shareLimit Share limit scaled by MAX_SHARE.
      */
     event SetLimits(address indexed adapter, uint256 absoluteLimit, uint256 shareLimit);
 
     /**
      * @notice Emitted when an adapter decreases its own limits.
-     * @param assets Absolute collateral limit decrease.
+     * @param assets Absolute asset limit decrease.
      * @param share Share limit decrease scaled by MAX_SHARE.
      */
     event DecreaseLimits(uint256 assets, uint256 share);
@@ -163,18 +163,31 @@ interface IUniversalDelegator is IMulticallable {
     event SwapAdapters(address indexed adapter1, address indexed adapter2);
 
     /**
-     * @notice Emitted when collateral is allocated to an adapter.
+     * @notice Emitted when assets are allocated to an adapter.
      * @param adapter Adapter address.
      * @param assets Amount allocated.
      */
     event Allocate(address indexed adapter, uint256 assets);
 
     /**
-     * @notice Emitted when collateral is deallocated from an adapter.
+     * @notice Emitted when assets are deallocated from an adapter.
      * @param adapter Adapter address.
      * @param assets Amount deallocated.
      */
     event Deallocate(address indexed adapter, uint256 assets);
+
+    /**
+     * @notice Emitted when delayed deallocation is requested from an adapter.
+     * @param adapter Adapter address.
+     * @param assets Amount requested for delayed deallocation.
+     */
+    event RequestDeallocate(address indexed adapter, uint256 assets);
+
+    /**
+     * @notice Emitted after pending queue assets are swept.
+     * @param pendingAssets Assets still pending after the sweep.
+     */
+    event SweepPending(uint256 pendingAssets);
 
     /**
      * @notice Emitted when the delegator is initialized.
@@ -200,7 +213,7 @@ interface IUniversalDelegator is IMulticallable {
     /**
      * @notice Get an adapter's absolute allocation limit.
      * @param adapter Adapter address.
-     * @return limit Absolute collateral limit.
+     * @return limit Absolute asset limit.
      */
     function absoluteLimitOf(address adapter) external view returns (uint256 limit);
 
@@ -295,7 +308,7 @@ interface IUniversalDelegator is IMulticallable {
     /**
      * @notice Set adapter absolute and share limits.
      * @param adapter Adapter address.
-     * @param assets Absolute collateral limit.
+     * @param assets Absolute asset limit.
      * @param share Share limit scaled by MAX_SHARE.
      */
     function setLimits(address adapter, uint256 assets, uint256 share) external;
@@ -314,38 +327,38 @@ interface IUniversalDelegator is IMulticallable {
     function setAutoAllocateAdapters(address[] calldata adapters) external;
 
     /**
-     * @notice Allocate collateral to an adapter.
+     * @notice Allocate assets to an adapter.
      * @param adapter Adapter address.
-     * @param assets Amount of collateral to allocate.
+     * @param assets Amount of assets to allocate.
      * @return allocated Amount allocated.
      */
     function allocate(address adapter, uint256 assets) external returns (uint256 allocated);
 
     /**
-     * @notice Allocate collateral through the configured allocation route.
-     * @param assets Amount of collateral to allocate.
+     * @notice Allocate assets through the configured allocation route.
+     * @param assets Amount of assets to allocate.
      * @return allocated Amount allocated.
      */
     function allocateAll(uint256 assets) external returns (uint256 allocated);
 
     /**
-     * @notice Deallocate collateral from a specific adapter.
+     * @notice Deallocate assets from a specific adapter.
      * @param adapter Adapter address.
-     * @param assets Amount of collateral to deallocate.
+     * @param assets Amount of assets to deallocate.
      * @return deallocated Amount deallocated.
      */
     function deallocate(address adapter, uint256 assets) external returns (uint256 deallocated);
 
     /**
-     * @notice Deallocate collateral through the configured deallocation route.
-     * @param assets Amount of collateral to deallocate.
+     * @notice Deallocate assets through the configured deallocation route.
+     * @param assets Amount of assets to deallocate.
      * @return deallocated Amount deallocated.
      */
     function deallocateAll(uint256 assets) external returns (uint256 deallocated);
 
     /**
      * @notice Deallocate an exact amount through the configured route.
-     * @param assets Amount of collateral to deallocate.
+     * @param assets Amount of assets to deallocate.
      * @return deallocated Amount deallocated.
      */
     function deallocateExact(uint256 assets) external returns (uint256 deallocated);
@@ -353,7 +366,7 @@ interface IUniversalDelegator is IMulticallable {
     /**
      * @notice Force deallocation from a specific adapter and request any delayed remainder.
      * @param adapter Adapter address.
-     * @param assets Amount of collateral to deallocate.
+     * @param assets Amount of assets to deallocate.
      * @return deallocated Amount deallocated now.
      * @return pending Amount requested for delayed deallocation.
      */
@@ -361,7 +374,7 @@ interface IUniversalDelegator is IMulticallable {
 
     /**
      * @notice Decrease the caller adapter's absolute and share limits.
-     * @param assets Absolute collateral limit decrease.
+     * @param assets Absolute asset limit decrease.
      * @param share Share limit decrease scaled by MAX_SHARE.
      */
     function decreaseLimits(uint256 assets, uint256 share) external;
@@ -375,7 +388,7 @@ interface IUniversalDelegator is IMulticallable {
     /**
      * @notice Handle a withdrawal from the vault.
      * @dev Only the associated vault can call this function.
-     * @param assets Amount of collateral to deallocate.
+     * @param assets Amount of assets to deallocate.
      */
     function onWithdraw(uint256 assets) external;
 

@@ -32,7 +32,7 @@ contract MockERC4626OffsetVault is ERC4626 {
         IERC20(asset()).safeTransfer(receiver, assets);
     }
 
-    function accrueInterest() external pure returns (uint256 performanceFeeShares, uint256 managementFeeShares) {}
+    function accrueInterest() external pure returns (uint256 managementFeeShares, uint256 performanceFeeShares) {}
 
     function _decimalsOffset() internal view override returns (uint8) {
         uint8 assetDecimals = IERC20Metadata(asset()).decimals();

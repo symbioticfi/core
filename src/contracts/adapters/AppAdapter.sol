@@ -112,7 +112,7 @@ contract AppAdapter is Adapter, IAppAdapter {
         // Decrease the adapter limits to avoid new allocations.
         IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(amount, 0);
 
-        // Send slashed collateral to the burner.
+        // Send slashed assets to the burner.
         address curBurner = burner;
         IERC20(IVaultV2(vault).asset()).safeTransfer(curBurner, amount);
         bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));

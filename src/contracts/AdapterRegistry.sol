@@ -7,39 +7,23 @@ import {IAdapterRegistry} from "../interfaces/IAdapterRegistry.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title AdapterRegistry
-/// @notice Registry contract for whitelisted adapter factories.
+/// @notice Registry contract for vault-scoped whitelisted adapter factories.
 contract AdapterRegistry is Ownable, IAdapterRegistry {
     /* STATE VARIABLES */
 
     /// @inheritdoc IAdapterRegistry
-    mapping(address adapter => bool) public globalIsWhitelisted;
-    /// @inheritdoc IAdapterRegistry
-    mapping(address vault => mapping(address adapter => bool)) public vaultIsWhitelisted;
+    mapping(address vault => mapping(address adapter => bool status)) public isWhitelisted;
 
     /* CONSTRUCTOR */
 
     constructor(address curOwner) Ownable(curOwner) {}
 
-    /* VIEW FUNCTIONS */
+    /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IAdapterRegistry
-    function isWhitelisted(address vault, address adapter) public view returns (bool status) {
-        return globalIsWhitelisted[adapter] || vaultIsWhitelisted[vault][adapter];
-    }
+    function setWhitelistedStatus(address vault, address adapter, bool status) public onlyOwner {
+        isWhitelisted[vault][adapter] = status;
 
-    /* EXTERNAL FUNCTIONS */
-
-    /// @inheritdoc IAdapterRegistry
-    function setGlobalWhitelistStatus(address adapter, bool status) public onlyOwner {
-        globalIsWhitelisted[adapter] = status;
-
-        emit SetGlobalWhitelistStatus(adapter, status);
-    }
-
-    /// @inheritdoc IAdapterRegistry
-    function setVaultWhitelistStatus(address vault, address adapter, bool status) public onlyOwner {
-        vaultIsWhitelisted[vault][adapter] = status;
-
-        emit SetVaultWhitelistStatus(vault, adapter, status);
+        emit SetWhitelistedStatus(vault, adapter, status);
     }
 }

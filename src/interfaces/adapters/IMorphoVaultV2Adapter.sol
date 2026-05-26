@@ -24,7 +24,7 @@ interface IMorphoVaultV2Adapter is IAdapter {
     error InsufficientAmount();
 
     /**
-     * @notice Raised when the provided Morpho vault does not match the vault collateral.
+     * @notice Raised when the provided Morpho vault does not match the vault asset.
      */
     error InvalidMorphoVault();
 
