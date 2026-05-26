@@ -46,6 +46,18 @@ interface IVaultStorage {
     function SLASHER_FACTORY() external view returns (address);
 
     /**
+     * @notice Get if the deposit whitelist is enabled.
+     * @return If The deposit whitelist is enabled.
+     */
+    function depositWhitelist() external view returns (bool);
+
+    /**
+     * @notice Get if the deposit limit is set.
+     * @return If The deposit limit is set.
+     */
+    function isDepositLimit() external view returns (bool);
+
+    /**
      * @notice Get a vault collateral.
      * @return Address Of the underlying collateral.
      */
@@ -56,6 +68,18 @@ interface IVaultStorage {
      * @return Address Of the burner.
      */
     function burner() external view returns (address);
+
+    /**
+     * @notice Get a time point of the epoch duration set.
+     * @return Time Point of the epoch duration set.
+     */
+    function epochDurationInit() external view returns (uint48);
+
+    /**
+     * @notice Get a duration of the vault epoch.
+     * @return Duration Of the epoch.
+     */
+    function epochDuration() external view returns (uint48);
 
     /**
      * @notice Get a delegator (it delegates the vault's stake to networks and operators).
@@ -82,16 +106,47 @@ interface IVaultStorage {
     function isSlasherInitialized() external view returns (bool);
 
     /**
-     * @notice Get a time point of the epoch duration set.
-     * @return Time Point of the epoch duration set.
+     * @notice Get a deposit limit (maximum amount of the active stake that can be in the vault simultaneously).
+     * @return Deposit Limit.
      */
-    function epochDurationInit() external view returns (uint48);
+    function depositLimit() external view returns (uint256);
 
     /**
-     * @notice Get a duration of the vault epoch.
-     * @return Duration Of the epoch.
+     * @notice Get if a given account is whitelisted as a depositor.
+     * @param account Address to check.
+     * @return If The account is whitelisted as a depositor.
      */
-    function epochDuration() external view returns (uint48);
+    function isDepositorWhitelisted(address account) external view returns (bool);
+
+    /**
+     * @notice Get a total amount of the withdrawals at a given epoch.
+     * @param epoch Epoch to get the total amount of the withdrawals at.
+     * @return Total Amount of the withdrawals at the epoch.
+     */
+    function withdrawals(uint256 epoch) external view returns (uint256);
+
+    /**
+     * @notice Get a total number of withdrawal shares at a given epoch.
+     * @param epoch Epoch to get the total number of withdrawal shares at.
+     * @return Total Number of withdrawal shares at the epoch.
+     */
+    function withdrawalShares(uint256 epoch) external view returns (uint256);
+
+    /**
+     * @notice Get a number of withdrawal shares for a particular account at a given epoch (zero if claimed).
+     * @param epoch Epoch to get the number of withdrawal shares for the account at.
+     * @param account Account to get the number of withdrawal shares for.
+     * @return Number Of withdrawal shares for the account at the epoch.
+     */
+    function withdrawalSharesOf(uint256 epoch, address account) external view returns (uint256);
+
+    /**
+     * @notice Get if the withdrawals are claimed for a particular account at a given epoch.
+     * @param epoch Epoch to check the withdrawals for the account at.
+     * @param account Account to check the withdrawals for.
+     * @return If The withdrawals are claimed for the account at the epoch.
+     */
+    function isWithdrawalsClaimed(uint256 epoch, address account) external view returns (bool);
 
     /**
      * @notice Get an epoch at a given timestamp.
@@ -125,31 +180,6 @@ interface IVaultStorage {
      * @return Start Of the next epoch.
      */
     function nextEpochStart() external view returns (uint48);
-
-    /**
-     * @notice Get if the deposit whitelist is enabled.
-     * @return If The deposit whitelist is enabled.
-     */
-    function depositWhitelist() external view returns (bool);
-
-    /**
-     * @notice Get if a given account is whitelisted as a depositor.
-     * @param account Address to check.
-     * @return If The account is whitelisted as a depositor.
-     */
-    function isDepositorWhitelisted(address account) external view returns (bool);
-
-    /**
-     * @notice Get if the deposit limit is set.
-     * @return If The deposit limit is set.
-     */
-    function isDepositLimit() external view returns (bool);
-
-    /**
-     * @notice Get a deposit limit (maximum amount of the active stake that can be in the vault simultaneously).
-     * @return Deposit Limit.
-     */
-    function depositLimit() external view returns (uint256);
 
     /**
      * @notice Get a total number of active shares in the vault at a given timestamp using a hint.
@@ -194,34 +224,4 @@ interface IVaultStorage {
      * @return Number Of active shares for the account.
      */
     function activeSharesOf(address account) external view returns (uint256);
-
-    /**
-     * @notice Get a total amount of the withdrawals at a given epoch.
-     * @param epoch Epoch to get the total amount of the withdrawals at.
-     * @return Total Amount of the withdrawals at the epoch.
-     */
-    function withdrawals(uint256 epoch) external view returns (uint256);
-
-    /**
-     * @notice Get a total number of withdrawal shares at a given epoch.
-     * @param epoch Epoch to get the total number of withdrawal shares at.
-     * @return Total Number of withdrawal shares at the epoch.
-     */
-    function withdrawalShares(uint256 epoch) external view returns (uint256);
-
-    /**
-     * @notice Get a number of withdrawal shares for a particular account at a given epoch (zero if claimed).
-     * @param epoch Epoch to get the number of withdrawal shares for the account at.
-     * @param account Account to get the number of withdrawal shares for.
-     * @return Number Of withdrawal shares for the account at the epoch.
-     */
-    function withdrawalSharesOf(uint256 epoch, address account) external view returns (uint256);
-
-    /**
-     * @notice Get if the withdrawals are claimed for a particular account at a given epoch.
-     * @param epoch Epoch to check the withdrawals for the account at.
-     * @param account Account to check the withdrawals for.
-     * @return If The withdrawals are claimed for the account at the epoch.
-     */
-    function isWithdrawalsClaimed(uint256 epoch, address account) external view returns (bool);
 }

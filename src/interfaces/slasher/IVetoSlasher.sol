@@ -150,18 +150,6 @@ interface IVetoSlasher is IBaseSlasher {
     function NETWORK_REGISTRY() external view returns (address);
 
     /**
-     * @notice Get a duration during which resolvers can veto slash requests.
-     * @return Duration Of the veto period.
-     */
-    function vetoDuration() external view returns (uint48);
-
-    /**
-     * @notice Get a total number of slash requests.
-     * @return Total Number of slash requests.
-     */
-    function slashRequestsLength() external view returns (uint256);
-
-    /**
      * @notice Get a particular slash request.
      * @param slashIndex Index of the slash request.
      * @return subnetwork Subnetwork that requested the slash.
@@ -184,10 +172,22 @@ interface IVetoSlasher is IBaseSlasher {
         );
 
     /**
+     * @notice Get a duration during which resolvers can veto slash requests.
+     * @return Duration Of the veto period.
+     */
+    function vetoDuration() external view returns (uint48);
+
+    /**
      * @notice Get a delay for networks in epochs to update a resolver.
      * @return Updating Resolver delay in epochs.
      */
     function resolverSetEpochsDelay() external view returns (uint256);
+
+    /**
+     * @notice Get a total number of slash requests.
+     * @return Total Number of slash requests.
+     */
+    function slashRequestsLength() external view returns (uint256);
 
     /**
      * @notice Get a resolver for a given subnetwork at a particular timestamp using a hint.

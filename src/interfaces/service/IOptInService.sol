@@ -48,6 +48,14 @@ interface IOptInService {
     function WHERE_REGISTRY() external view returns (address);
 
     /**
+     * @notice Get the nonce of a given "who" to a particular "where" entity.
+     * @param who Address of the "who".
+     * @param where Address of the "where" entity.
+     * @return Nonce.
+     */
+    function nonces(address who, address where) external view returns (uint256);
+
+    /**
      * @notice Get if a given "who" is opted-in to a particular "where" entity at a given timestamp using a hint.
      * @param who Address of the "who".
      * @param where Address of the "where" entity.
@@ -64,14 +72,6 @@ interface IOptInService {
      * @return If The "who" is opted-in.
      */
     function isOptedIn(address who, address where) external view returns (bool);
-
-    /**
-     * @notice Get the nonce of a given "who" to a particular "where" entity.
-     * @param who Address of the "who".
-     * @param where Address of the "where" entity.
-     * @return Nonce.
-     */
-    function nonces(address who, address where) external view returns (uint256);
 
     /**
      * @notice Opt-in a calling "who" to a particular "where" entity.

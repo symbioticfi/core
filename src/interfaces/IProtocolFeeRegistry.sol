@@ -53,6 +53,12 @@ interface IProtocolFeeRegistry {
     /* FUNCTIONS */
 
     /**
+     * @notice Get the global protocol fee receiver.
+     * @return receiver Global protocol fee receiver.
+     */
+    function globalReceiver() external view returns (address receiver);
+
+    /**
      * @notice Get the global protocol management fee.
      * @return fee Global protocol management fee per second scaled by MAX_FEE.
      */
@@ -78,10 +84,13 @@ interface IProtocolFeeRegistry {
         returns (bool isEnabled, address receiver, uint96 managementFee, uint96 performanceFee);
 
     /**
-     * @notice Get the global protocol fee receiver.
-     * @return receiver Global protocol fee receiver.
+     * @notice Get the protocol fee receiver and fees for a vault.
+     * @param vault Vault address.
+     * @return receiver Protocol fee receiver.
+     * @return managementFee Protocol management fee per second scaled by MAX_FEE.
+     * @return performanceFee Protocol performance fee scaled by MAX_FEE.
      */
-    function globalReceiver() external view returns (address receiver);
+    function getFee(address vault) external view returns (address receiver, uint96 managementFee, uint96 performanceFee);
 
     /**
      * @notice Set global protocol fees.
@@ -89,6 +98,12 @@ interface IProtocolFeeRegistry {
      * @param newGlobalPerformanceFee New global protocol performance fee scaled by MAX_FEE.
      */
     function setGlobalFee(uint96 newGlobalManagementFee, uint96 newGlobalPerformanceFee) external;
+
+    /**
+     * @notice Set the global protocol fee receiver.
+     * @param newGlobalReceiver New global protocol fee receiver.
+     */
+    function setGlobalReceiver(address newGlobalReceiver) external;
 
     /**
      * @notice Set a vault-specific protocol fee override.
@@ -105,19 +120,4 @@ interface IProtocolFeeRegistry {
         uint96 newVaultManagementFee,
         uint96 newVaultPerformanceFee
     ) external;
-
-    /**
-     * @notice Set the global protocol fee receiver.
-     * @param newGlobalReceiver New global protocol fee receiver.
-     */
-    function setGlobalReceiver(address newGlobalReceiver) external;
-
-    /**
-     * @notice Get the protocol fee receiver and fees for a vault.
-     * @param vault Vault address.
-     * @return receiver Protocol fee receiver.
-     * @return managementFee Protocol management fee per second scaled by MAX_FEE.
-     * @return performanceFee Protocol performance fee scaled by MAX_FEE.
-     */
-    function getFee(address vault) external view returns (address receiver, uint96 managementFee, uint96 performanceFee);
 }

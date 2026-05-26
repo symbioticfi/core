@@ -224,10 +224,22 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
     /* FUNCTIONS */
 
     /**
+     * @notice Get the withdrawal queue associated with the vault.
+     * @return withdrawalQueueAddress Address of the withdrawal queue.
+     */
+    function withdrawalQueue() external view returns (address withdrawalQueueAddress);
+
+    /**
      * @notice Get the delegator associated with the vault.
      * @return delegatorAddress Address of the delegator.
      */
     function delegator() external view returns (address delegatorAddress);
+
+    /**
+     * @notice Get the last timestamp when fees were accrued.
+     * @return timestamp Last fee accrual timestamp.
+     */
+    function lastUpdate() external view returns (uint48 timestamp);
 
     /**
      * @notice Get whether the deposit limit is enabled.
@@ -236,22 +248,16 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
     function isDepositLimit() external view returns (bool enabled);
 
     /**
-     * @notice Get the configured deposit limit.
-     * @return limit Deposit limit.
-     */
-    function depositLimit() external view returns (uint256 limit);
-
-    /**
      * @notice Get whether the deposit whitelist is enabled.
      * @return enabled Whether the deposit whitelist is enabled.
      */
     function depositWhitelist() external view returns (bool enabled);
 
     /**
-     * @notice Get the withdrawal queue associated with the vault.
-     * @return withdrawalQueueAddress Address of the withdrawal queue.
+     * @notice Get the configured deposit limit.
+     * @return limit Deposit limit.
      */
-    function withdrawalQueue() external view returns (address withdrawalQueueAddress);
+    function depositLimit() external view returns (uint256 limit);
 
     /**
      * @notice Get whether an account is whitelisted as a depositor.
@@ -261,34 +267,10 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
     function isDepositorWhitelisted(address account) external view returns (bool whitelisted);
 
     /**
-     * @notice Get the last timestamp when fees were accrued.
-     * @return timestamp Last fee accrual timestamp.
-     */
-    function lastUpdate() external view returns (uint48 timestamp);
-
-    /**
      * @notice Get the management fee.
      * @return fee Management fee per second scaled by MAX_FEE.
      */
     function managementFee() external view returns (uint96 fee);
-
-    /**
-     * @notice Get the performance fee.
-     * @return fee Performance fee scaled by MAX_FEE.
-     */
-    function performanceFee() external view returns (uint96 fee);
-
-    /**
-     * @notice Get the protocol management fee cached at the last fee accrual.
-     * @return fee Cached protocol management fee per second scaled by MAX_FEE.
-     */
-    function lastProtocolManagementFee() external view returns (uint96 fee);
-
-    /**
-     * @notice Get the protocol performance fee cached at the last fee accrual.
-     * @return fee Cached protocol performance fee scaled by MAX_FEE.
-     */
-    function lastProtocolPerformanceFee() external view returns (uint96 fee);
 
     /**
      * @notice Get the management fee receiver.
@@ -297,16 +279,34 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
     function managementFeeReceiver() external view returns (address receiver);
 
     /**
+     * @notice Get the performance fee.
+     * @return fee Performance fee scaled by MAX_FEE.
+     */
+    function performanceFee() external view returns (uint96 fee);
+
+    /**
      * @notice Get the performance fee receiver.
      * @return receiver Performance fee receiver.
      */
     function performanceFeeReceiver() external view returns (address receiver);
 
     /**
+     * @notice Get the protocol management fee cached at the last fee accrual.
+     * @return fee Cached protocol management fee per second scaled by MAX_FEE.
+     */
+    function lastProtocolManagementFee() external view returns (uint96 fee);
+
+    /**
      * @notice Get the protocol fee receiver cached at the last fee accrual.
      * @return receiver Cached protocol fee receiver.
      */
     function lastProtocolFeeReceiver() external view returns (address receiver);
+
+    /**
+     * @notice Get the protocol performance fee cached at the last fee accrual.
+     * @return fee Cached protocol performance fee scaled by MAX_FEE.
+     */
+    function lastProtocolPerformanceFee() external view returns (uint96 fee);
 
     /**
      * @notice Check if the vault is initialized.

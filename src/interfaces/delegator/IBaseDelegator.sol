@@ -59,11 +59,22 @@ interface IBaseDelegator is IEntity {
     event SetHook(address indexed hook);
 
     /**
-     * @notice Get a version of the delegator (different versions mean different interfaces).
-     * @return Version Of the delegator.
-     * @dev Must return 1 for this one.
+     * @notice Get a gas limit for the hook.
+     * @return Value Of the hook gas limit.
      */
-    function VERSION() external view returns (uint64);
+    function HOOK_GAS_LIMIT() external view returns (uint256);
+
+    /**
+     * @notice Get a reserve gas between the gas limit check and the hook's execution.
+     * @return Value Of the reserve gas.
+     */
+    function HOOK_RESERVE() external view returns (uint256);
+
+    /**
+     * @notice Get a hook setter's role.
+     * @return Identifier Of the hook setter role.
+     */
+    function HOOK_SET_ROLE() external view returns (bytes32);
 
     /**
      * @notice Get the network registry's address.
@@ -90,24 +101,6 @@ interface IBaseDelegator is IEntity {
     function OPERATOR_NETWORK_OPT_IN_SERVICE() external view returns (address);
 
     /**
-     * @notice Get a gas limit for the hook.
-     * @return Value Of the hook gas limit.
-     */
-    function HOOK_GAS_LIMIT() external view returns (uint256);
-
-    /**
-     * @notice Get a reserve gas between the gas limit check and the hook's execution.
-     * @return Value Of the reserve gas.
-     */
-    function HOOK_RESERVE() external view returns (uint256);
-
-    /**
-     * @notice Get a hook setter's role.
-     * @return Identifier Of the hook setter role.
-     */
-    function HOOK_SET_ROLE() external view returns (bytes32);
-
-    /**
      * @notice Get the vault's address.
      * @return Address Of the vault.
      */
@@ -127,6 +120,13 @@ interface IBaseDelegator is IEntity {
      * @return Maximum Limit of the subnetwork.
      */
     function maxNetworkLimit(bytes32 subnetwork) external view returns (uint256);
+
+    /**
+     * @notice Get a version of the delegator (different versions mean different interfaces).
+     * @return Version Of the delegator.
+     * @dev Must return 1 for this one.
+     */
+    function VERSION() external view returns (uint64);
 
     /**
      * @notice Get a stake that a given subnetwork could be able to slash for a certain operator at a given timestamp

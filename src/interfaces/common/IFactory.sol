@@ -27,6 +27,14 @@ interface IFactory is IRegistry {
     event Blacklist(uint64 indexed type_);
 
     /**
+     * @notice Get if a type is blacklisted (e.g., in case of invalid implementation).
+     * @param type_ Type to check.
+     * @return Whether The type is blacklisted.
+     * @dev The given type is still deployable.
+     */
+    function blacklisted(uint64 type_) external view returns (bool);
+
+    /**
      * @notice Get the total number of whitelisted types.
      * @return Total Number of types.
      */
@@ -38,14 +46,6 @@ interface IFactory is IRegistry {
      * @return Address Of the implementation.
      */
     function implementation(uint64 type_) external view returns (address);
-
-    /**
-     * @notice Get if a type is blacklisted (e.g., in case of invalid implementation).
-     * @param type_ Type to check.
-     * @return Whether The type is blacklisted.
-     * @dev The given type is still deployable.
-     */
-    function blacklisted(uint64 type_) external view returns (bool);
 
     /**
      * @notice Whitelist a new type of entity.

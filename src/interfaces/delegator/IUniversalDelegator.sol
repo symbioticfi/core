@@ -204,18 +204,10 @@ interface IUniversalDelegator is IMulticallable {
     function vault() external view returns (address vaultAddress);
 
     /**
-     * @notice Get an adapter's relative share allocation limit.
-     * @param adapter Adapter address.
-     * @return limit Share limit scaled by MAX_SHARE.
+     * @notice Get the total number of unique adapter indexes assigned.
+     * @return count Total assigned adapter indexes.
      */
-    function shareLimitOf(address adapter) external view returns (uint256 limit);
-
-    /**
-     * @notice Get an adapter's absolute allocation limit.
-     * @param adapter Adapter address.
-     * @return limit Absolute asset limit.
-     */
-    function absoluteLimitOf(address adapter) external view returns (uint256 limit);
+    function totalAdapters() external view returns (uint16 count);
 
     /**
      * @notice Get an adapter at an ordered position.
@@ -223,12 +215,6 @@ interface IUniversalDelegator is IMulticallable {
      * @return adapter Adapter address.
      */
     function adapters(uint256 index) external view returns (address adapter);
-
-    /**
-     * @notice Get the total number of unique adapter indexes assigned.
-     * @return count Total assigned adapter indexes.
-     */
-    function totalAdapters() external view returns (uint16 count);
 
     /**
      * @notice Get a pending adapter index.
@@ -257,6 +243,20 @@ interface IUniversalDelegator is IMulticallable {
      * @return index Stable one-based adapter index.
      */
     function adapterToIndex(address adapter) external view returns (uint16 index);
+
+    /**
+     * @notice Get an adapter's relative share allocation limit.
+     * @param adapter Adapter address.
+     * @return limit Share limit scaled by MAX_SHARE.
+     */
+    function shareLimitOf(address adapter) external view returns (uint256 limit);
+
+    /**
+     * @notice Get an adapter's absolute allocation limit.
+     * @param adapter Adapter address.
+     * @return limit Absolute asset limit.
+     */
+    function absoluteLimitOf(address adapter) external view returns (uint256 limit);
 
     /**
      * @notice Get the delegator implementation version.

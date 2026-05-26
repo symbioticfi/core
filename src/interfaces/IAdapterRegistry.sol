@@ -19,6 +19,14 @@ interface IAdapterRegistry {
     /* FUNCTIONS */
 
     /**
+     * @notice Check whether an adapter is whitelisted for a vault.
+     * @param vault Vault address.
+     * @param adapter Adapter address.
+     * @return status Whether the adapter is whitelisted for the vault.
+     */
+    function isWhitelisted(address vault, address adapter) external view returns (bool status);
+
+    /**
      * @notice Set a vault-specific adapter whitelist status.
      * @param vault Vault address.
      * @param adapter Adapter address.
@@ -26,12 +34,4 @@ interface IAdapterRegistry {
      * @dev Only the contract owner can call this function.
      */
     function setWhitelistedStatus(address vault, address adapter, bool status) external;
-
-    /**
-     * @notice Check whether an adapter is whitelisted for a vault.
-     * @param vault Vault address.
-     * @param adapter Adapter address.
-     * @return status Whether the adapter is whitelisted for the vault.
-     */
-    function isWhitelisted(address vault, address adapter) external view returns (bool status);
 }

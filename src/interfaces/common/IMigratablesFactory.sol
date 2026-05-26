@@ -36,6 +36,14 @@ interface IMigratablesFactory is IRegistry {
     event Migrate(address indexed entity, uint64 newVersion);
 
     /**
+     * @notice Get if a version is blacklisted (e.g., in case of invalid implementation).
+     * @param version Version to check.
+     * @return Whether The version is blacklisted.
+     * @dev The given version is still deployable.
+     */
+    function blacklisted(uint64 version) external view returns (bool);
+
+    /**
      * @notice Get the last available version.
      * @return Version Of the last implementation.
      * @dev If zero, no implementations are whitelisted.
@@ -49,14 +57,6 @@ interface IMigratablesFactory is IRegistry {
      * @dev Reverts when an invalid version.
      */
     function implementation(uint64 version) external view returns (address);
-
-    /**
-     * @notice Get if a version is blacklisted (e.g., in case of invalid implementation).
-     * @param version Version to check.
-     * @return Whether The version is blacklisted.
-     * @dev The given version is still deployable.
-     */
-    function blacklisted(uint64 version) external view returns (bool);
 
     /**
      * @notice Whitelist a new implementation for entities.
