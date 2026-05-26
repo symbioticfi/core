@@ -7,7 +7,6 @@ import {Multicallable} from "../common/Multicallable.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {WithdrawalQueueFactory} from "./WithdrawalQueueFactory.sol";
 
-import {WITHDRAWAL_QUEUE_VERSION} from "../../interfaces/vault/IWithdrawalQueue.sol";
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IProtocolFeeRegistry} from "../../interfaces/IProtocolFeeRegistry.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
@@ -25,6 +24,7 @@ import {
     MAX_FEE
 } from "../../interfaces/vault/IVaultV2.sol";
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
+import {WITHDRAWAL_QUEUE_VERSION} from "../../interfaces/vault/IWithdrawalQueue.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";

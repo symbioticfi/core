@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
-import {IMulticallable} from "../common/IMulticallable.sol";
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
+import {IMulticallable} from "../common/IMulticallable.sol";
+
+import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 
 uint64 constant WITHDRAWAL_QUEUE_VERSION = 1;
 

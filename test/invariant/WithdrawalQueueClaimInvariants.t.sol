@@ -32,6 +32,18 @@ contract WithdrawalQueueClaimInvariantsTest is Test {
         handler.assertActorBalancesMatchClaims();
     }
 
+    function invariant_ShareConservationAndRequestLedgerHold() public view {
+        handler.assertShareConservationAndRequestLedger();
+    }
+
+    function invariant_ClaimableAssetsAreBackedByQueueBalance() public view {
+        handler.assertClaimableAssetsBackedByQueueBalance();
+    }
+
+    function invariant_CheckpointsMatchFillModel() public view {
+        handler.assertCheckpointsMatchFillModel();
+    }
+
     function test_HandlerKeepsModelAlignedWhenFillRedeemsNoShares() public {
         handler.request(0, 6);
         handler.decreaseAssets(type(uint256).max);
@@ -63,5 +75,24 @@ contract WithdrawalQueueClaimInvariantsTest is Test {
 
         handler.assertClaimableMatchesModel();
         handler.assertActorBalancesMatchClaims();
+    }
+
+    function test_PermissionlessClaimPaysCurrentWithdrawalNftOwner() public {
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+
+        handler.request(0, 100);
+        handler.transferPosition(0, 1);
+        handler.fill();
+
+        uint256 aliceBalanceBefore = handler.collateral().balanceOf(alice);
+        uint256 bobBalanceBefore = handler.collateral().balanceOf(bob);
+        uint256 callerBalanceBefore = handler.collateral().balanceOf(address(this));
+
+        handler.claim(0);
+
+        assertEq(handler.collateral().balanceOf(alice), aliceBalanceBefore);
+        assertGt(handler.collateral().balanceOf(bob), bobBalanceBefore);
+        assertEq(handler.collateral().balanceOf(address(this)), callerBalanceBefore);
     }
 }

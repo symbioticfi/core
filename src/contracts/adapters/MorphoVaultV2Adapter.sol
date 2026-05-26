@@ -4,13 +4,14 @@ pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
 
-import {IMorphoVaultV2Adapter} from "../../interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IMorphoLiquidityAdapter} from "../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoLiquidityAdapter.sol";
+import {IMorphoVaultV2Adapter} from "../../interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IMorphoVaultV2Factory} from "../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2Factory.sol";
 import {IMorphoVaultV2} from "../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 

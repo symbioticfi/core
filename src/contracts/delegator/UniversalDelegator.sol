@@ -3,8 +3,8 @@
 pragma solidity ^0.8.28;
 
 import {Entity} from "../common/Entity.sol";
-import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 import {Multicallable} from "../common/Multicallable.sol";
+import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 import {VaultV2} from "../vault/VaultV2.sol";
 import {WithdrawalQueue} from "../vault/WithdrawalQueue.sol";
 

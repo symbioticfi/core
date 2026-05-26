@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol";
 import {WithdrawalQueueFactory} from "../../../src/contracts/vault/WithdrawalQueueFactory.sol";
 
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -104,6 +105,31 @@ contract WithdrawalQueueInvariantVault is ERC20 {
     }
 }
 
+contract WithdrawalQueueHarness is WithdrawalQueue {
+    using Checkpoints for Checkpoints.Trace256;
+
+    constructor(address factory) WithdrawalQueue(factory) {}
+
+    function nextTokenId() public view returns (uint256) {
+        return _nextTokenId;
+    }
+
+    function checkpointLength() public view returns (uint256) {
+        return _cumulSharesToCumulAssets.length();
+    }
+
+    function checkpointAt(uint32 i) public view returns (uint256 key, uint256 cumulAssets, uint32 packedIndex) {
+        Checkpoints.Checkpoint256 memory checkpoint = _cumulSharesToCumulAssets.at(i);
+        key = checkpoint._key;
+        cumulAssets = uint224(checkpoint._value);
+        packedIndex = uint32(checkpoint._value >> 224);
+    }
+
+    function latestCumulAssets() public view returns (uint256) {
+        return uint224(_cumulSharesToCumulAssets.latest());
+    }
+}
+
 contract WithdrawalQueueClaimHandler is Test {
     using Math for uint256;
 
@@ -121,7 +147,7 @@ contract WithdrawalQueueClaimHandler is Test {
     WithdrawalQueueInvariantToken public collateral;
     WithdrawalQueueInvariantVault public vault;
     WithdrawalQueueInvariantDelegator public delegator;
-    WithdrawalQueue public queue;
+    WithdrawalQueueHarness public queue;
 
     uint256 public modelTotalRequested;
     uint256 public modelTotalFilled;
@@ -140,8 +166,8 @@ contract WithdrawalQueueClaimHandler is Test {
         vault.setDelegator(address(delegator));
 
         WithdrawalQueueFactory factory = new WithdrawalQueueFactory(address(this));
-        factory.whitelist(address(new WithdrawalQueue(address(factory))));
-        queue = WithdrawalQueue(factory.create(1, address(vault), abi.encode(vault.name(), vault.symbol())));
+        factory.whitelist(address(new WithdrawalQueueHarness(address(factory))));
+        queue = WithdrawalQueueHarness(factory.create(1, address(vault), abi.encode(vault.name(), vault.symbol())));
 
         _actors.push(address(0xA11CE));
         _actors.push(address(0xB0B));
@@ -271,6 +297,93 @@ contract WithdrawalQueueClaimHandler is Test {
         assertLe(requestAccountedShares, modelTotalFilled);
     }
 
+    function assertShareConservationAndRequestLedger() external view {
+        uint256 requested = queue.totalRequested();
+        uint256 filled = queue.totalFilled();
+        uint256 nextTokenId = queue.nextTokenId();
+
+        assertEq(requested, modelTotalRequested);
+        assertEq(filled, modelTotalFilled);
+        assertLe(filled, requested);
+        assertEq(queue.pendingShares(), requested - filled);
+        assertEq(vault.balanceOf(address(queue)), queue.pendingShares());
+        assertEq(nextTokenId, _requests.length);
+
+        uint256 running;
+        uint256 totalFilledAllocated;
+        uint256 totalClaimedShares;
+        uint256 totalClaimableShares;
+        for (uint256 tokenId; tokenId < nextTokenId; ++tokenId) {
+            (uint256 shares, uint256 claimedShares, uint256 prevRequestSum) = queue.requests(tokenId);
+
+            assertEq(prevRequestSum, running);
+            assertGt(shares, 0);
+            assertLe(claimedShares, shares);
+            assertEq(shares, _requests[tokenId].shares);
+            assertEq(claimedShares, _requests[tokenId].claimedShares);
+            assertEq(prevRequestSum, _requests[tokenId].prevRequestSum);
+
+            uint256 filledAfterPrev = filled > prevRequestSum ? filled - prevRequestSum : 0;
+            uint256 filledForRequest = Math.min(filledAfterPrev, shares);
+            (, uint256 claimableShares) = queue.claimable(tokenId);
+
+            assertLe(claimedShares, filledForRequest);
+            assertEq(claimableShares, filledForRequest - claimedShares);
+
+            running += shares;
+            totalFilledAllocated += filledForRequest;
+            totalClaimedShares += claimedShares;
+            totalClaimableShares += claimableShares;
+        }
+
+        assertEq(running, requested);
+        assertEq(totalFilledAllocated, filled);
+        assertEq(totalClaimedShares + totalClaimableShares, filled);
+    }
+
+    function assertClaimableAssetsBackedByQueueBalance() external view {
+        uint256 sumClaimableAssets;
+        for (uint256 tokenId; tokenId < _requests.length; ++tokenId) {
+            (uint256 assets,) = queue.claimable(tokenId);
+            sumClaimableAssets += assets;
+        }
+
+        assertEq(sumClaimableAssets, collateral.balanceOf(address(queue)));
+        assertEq(collateral.balanceOf(address(queue)), modelFilledAssets - modelClaimedAssets);
+    }
+
+    function assertCheckpointsMatchFillModel() external view {
+        uint256 length = queue.checkpointLength();
+
+        assertEq(length, _cumulShares.length + 1);
+        assertGe(length, 1);
+        assertLe(length, uint256(type(uint32).max));
+
+        uint256 lastKey;
+        uint256 lastAssets;
+        for (uint32 i; i < length; ++i) {
+            (uint256 key, uint256 cumulAssets, uint32 packedIndex) = queue.checkpointAt(i);
+
+            assertEq(packedIndex, i);
+            if (i == 0) {
+                assertEq(key, 0);
+                assertEq(cumulAssets, 0);
+            } else {
+                assertGt(key, lastKey);
+                assertGe(cumulAssets, lastAssets);
+                assertEq(key, _cumulShares[i - 1]);
+                assertEq(cumulAssets, _cumulAssets[i - 1]);
+            }
+            assertLe(key, queue.totalRequested());
+
+            lastKey = key;
+            lastAssets = cumulAssets;
+        }
+
+        assertEq(lastKey, queue.totalFilled());
+        assertEq(queue.latestCumulAssets(), modelFilledAssets);
+    }
+
     function assertActorBalancesMatchClaims() external view {
         uint256 actorBalance;
         for (uint256 i; i < _actors.length; ++i) {
@@ -300,17 +413,20 @@ contract WithdrawalQueueClaimHandler is Test {
 
         address owner = queue.ownerOf(tokenId);
         uint256 ownerBalanceBefore = collateral.balanceOf(owner);
+        uint256 queueBalanceBefore = collateral.balanceOf(address(queue));
 
         (uint256 assetsClaimed, uint256 sharesClaimed) = queue.claim(tokenId);
+        uint256 assetsPaidOut = queueBalanceBefore - collateral.balanceOf(address(queue));
 
         assertEq(assetsClaimed, expectedAssets);
         assertEq(sharesClaimed, expectedShares);
+        assertEq(assetsPaidOut, assetsClaimed);
         assertEq(collateral.balanceOf(owner), ownerBalanceBefore + expectedAssets);
         (, uint256 actualClaimedShares,) = queue.requests(tokenId);
 
         _requests[tokenId].claimedShares += sharesClaimed;
-        _requests[tokenId].claimedAssets += assetsClaimed;
-        modelClaimedAssets += assetsClaimed;
+        _requests[tokenId].claimedAssets += assetsPaidOut;
+        modelClaimedAssets += assetsPaidOut;
 
         assertLe(modelClaimedAssets, modelFilledAssets);
         assertEq(actualClaimedShares, _requests[tokenId].claimedShares);

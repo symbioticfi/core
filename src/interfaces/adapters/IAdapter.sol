@@ -17,14 +17,14 @@ interface IAdapter is IMigratableEntity, IMulticallable {
     error InvalidVault();
 
     /**
-     * @notice Raised when the caller is not the adapter's vault or vault delegator.
-     */
-    error NotVault();
-
-    /**
      * @notice Raised when the caller is not the curator for the target vault.
      */
     error NotCurator();
+
+    /**
+     * @notice Raised when the caller is not the adapter's vault or vault delegator.
+     */
+    error NotVault();
 
     /* EVENTS */
 
