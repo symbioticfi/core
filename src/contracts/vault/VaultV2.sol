@@ -277,7 +277,7 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
 
     /// @inheritdoc IVaultV2
     function redeemable() public returns (uint256) {
-        return previewRedeem(withdrawable());
+        return previewWithdraw(withdrawable());
     }
 
     /// @inheritdoc IVaultV2
