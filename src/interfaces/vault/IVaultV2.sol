@@ -326,11 +326,19 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     function totalAssets() external view returns (uint256 assets);
 
     /**
-     * @notice Get an active balance for an account.
-     * @param account Account to get the active balance for.
-     * @return balance Active balance for the account.
+     * @notice Get total share supply at a given timestamp.
+     * @param timestamp Time point to get total supply at.
+     * @return supply Total share supply at the timestamp.
      */
-    function activeBalanceOf(address account) external view returns (uint256 balance);
+    function totalSupplyAt(uint48 timestamp) external view returns (uint256 supply);
+
+    /**
+     * @notice Get an account share balance at a given timestamp.
+     * @param account Account to get the balance for.
+     * @param timestamp Time point to get the balance at.
+     * @return balance Account share balance at the timestamp.
+     */
+    function balanceOfAt(address account, uint48 timestamp) external view returns (uint256 balance);
 
     /**
      * @notice View total assets and fee shares that would be accrued at the current timestamp.

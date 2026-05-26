@@ -23,21 +23,21 @@ contract AdapterRegistry is Ownable, IAdapterRegistry {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IAdapterRegistry
-    function isWhitelisted(address vault, address adapter) external view returns (bool status) {
+    function isWhitelisted(address vault, address adapter) public view returns (bool status) {
         return globalIsWhitelisted[adapter] || vaultIsWhitelisted[vault][adapter];
     }
 
     /* EXTERNAL FUNCTIONS */
 
     /// @inheritdoc IAdapterRegistry
-    function setGlobalWhitelistStatus(address adapter, bool status) external onlyOwner {
+    function setGlobalWhitelistStatus(address adapter, bool status) public onlyOwner {
         globalIsWhitelisted[adapter] = status;
 
         emit SetGlobalWhitelistStatus(adapter, status);
     }
 
     /// @inheritdoc IAdapterRegistry
-    function setVaultWhitelistStatus(address vault, address adapter, bool status) external onlyOwner {
+    function setVaultWhitelistStatus(address vault, address adapter, bool status) public onlyOwner {
         vaultIsWhitelisted[vault][adapter] = status;
 
         emit SetVaultWhitelistStatus(vault, adapter, status);

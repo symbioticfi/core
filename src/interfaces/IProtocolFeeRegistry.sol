@@ -53,11 +53,12 @@ interface IProtocolFeeRegistry {
     function globalFee() external view returns (uint256 fee);
 
     /**
-     * @notice Get a vault-specific protocol fee.
+     * @notice Get a vault-specific protocol fee override.
      * @param vault Vault address.
+     * @return isEnabled Whether the vault-specific override is enabled.
      * @return fee Vault-specific protocol fee scaled by MAX_FEE.
      */
-    function vaultFee(address vault) external view returns (uint256 fee);
+    function vaultFee(address vault) external view returns (bool isEnabled, uint256 fee);
 
     /**
      * @notice Get the global protocol fee receiver.

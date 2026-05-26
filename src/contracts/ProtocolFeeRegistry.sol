@@ -26,8 +26,8 @@ contract ProtocolFeeRegistry is Ownable, IProtocolFeeRegistry {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IProtocolFeeRegistry
-    function getFee(address vault) external view returns (uint256) {
-        (bool isEnabled, uint256 fee) = _deserializeFeeData(_vaultFeeData[vault]);
+    function getFee(address vault) public view returns (uint256) {
+        (bool isEnabled, uint256 fee) = vaultFee(vault);
         if (isEnabled) {
             return fee;
         }
@@ -35,7 +35,7 @@ contract ProtocolFeeRegistry is Ownable, IProtocolFeeRegistry {
     }
 
     /// @inheritdoc IProtocolFeeRegistry
-    function getReceiver(address vault) external view returns (address receiver) {
+    function getReceiver(address vault) public view returns (address receiver) {
         receiver = vaultReceiver[vault];
         if (receiver == address(0)) {
             receiver = globalReceiver;
@@ -43,14 +43,15 @@ contract ProtocolFeeRegistry is Ownable, IProtocolFeeRegistry {
     }
 
     /// @inheritdoc IProtocolFeeRegistry
-    function vaultFee(address vault) external view returns (uint256 fee) {
-        (, fee) = _deserializeFeeData(_vaultFeeData[vault]);
+    function vaultFee(address vault) public view returns (bool, uint256) {
+        uint256 data = _vaultFeeData[vault];
+        return ((data & 1) > 0, data >> 1);
     }
 
     /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IProtocolFeeRegistry
-    function setGlobalFee(uint256 newGlobalFee) external onlyOwner {
+    function setGlobalFee(uint256 newGlobalFee) public onlyOwner {
         if (newGlobalFee > MAX_PROTOCOL_FEE) {
             revert FeeTooHigh();
         }
@@ -59,16 +60,16 @@ contract ProtocolFeeRegistry is Ownable, IProtocolFeeRegistry {
     }
 
     /// @inheritdoc IProtocolFeeRegistry
-    function setVaultFee(address vault, bool isEnabled, uint256 newVaultFee) external onlyOwner {
+    function setVaultFee(address vault, bool isEnabled, uint256 newVaultFee) public onlyOwner {
         if (newVaultFee > MAX_PROTOCOL_FEE) {
             revert FeeTooHigh();
         }
-        _vaultFeeData[vault] = _serializeFeeData(isEnabled, newVaultFee);
+        _vaultFeeData[vault] = (newVaultFee << 1) | (isEnabled ? 1 : 0);
         emit SetVaultFee(vault, newVaultFee);
     }
 
     /// @inheritdoc IProtocolFeeRegistry
-    function setGlobalReceiver(address newGlobalReceiver) external onlyOwner {
+    function setGlobalReceiver(address newGlobalReceiver) public onlyOwner {
         if (newGlobalReceiver == address(0)) {
             revert InvalidReceiver();
         }
@@ -77,20 +78,8 @@ contract ProtocolFeeRegistry is Ownable, IProtocolFeeRegistry {
     }
 
     /// @inheritdoc IProtocolFeeRegistry
-    function setVaultReceiver(address vault, address newVaultReceiver) external onlyOwner {
+    function setVaultReceiver(address vault, address newVaultReceiver) public onlyOwner {
         vaultReceiver[vault] = newVaultReceiver;
         emit SetVaultReceiver(vault, newVaultReceiver);
-    }
-
-    /* INTERNAL FUNCTIONS */
-
-    /// @dev Serializes fee data (enable + fee).
-    function _serializeFeeData(bool isEnabled, uint256 fee) internal pure returns (uint256) {
-        return (fee << 1) | (isEnabled ? 1 : 0);
-    }
-
-    /// @dev Deserializes fee data (enable + fee).
-    function _deserializeFeeData(uint256 data) internal pure returns (bool, uint256) {
-        return ((data & 1) > 0, data >> 1);
     }
 }

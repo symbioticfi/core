@@ -43,13 +43,17 @@ contract ProtocolFeeRegistryTest is Test {
         protocolFeeRegistry.setGlobalFee(1e16);
         protocolFeeRegistry.setVaultFee(vault, true, 0);
 
-        assertEq(protocolFeeRegistry.vaultFee(vault), 0);
+        (bool isEnabled, uint256 fee) = protocolFeeRegistry.vaultFee(vault);
+        assertTrue(isEnabled);
+        assertEq(fee, 0);
         assertEq(protocolFeeRegistry.getFee(vault), 0);
         assertEq(protocolFeeRegistry.getFee(address(0xCAFE)), 1e16);
 
         protocolFeeRegistry.setVaultFee(vault, false, 0);
 
-        assertEq(protocolFeeRegistry.vaultFee(vault), 0);
+        (isEnabled, fee) = protocolFeeRegistry.vaultFee(vault);
+        assertFalse(isEnabled);
+        assertEq(fee, 0);
         assertEq(protocolFeeRegistry.getFee(vault), 1e16);
     }
 

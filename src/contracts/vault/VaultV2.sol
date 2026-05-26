@@ -66,13 +66,14 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     /// @inheritdoc IVaultV2
     address public delegator;
     /// @inheritdoc IVaultV2
+    address public withdrawalQueue;
+
+    /// @inheritdoc IVaultV2
     bool public isDepositLimit;
     /// @inheritdoc IVaultV2
     uint256 public depositLimit;
     /// @inheritdoc IVaultV2
     bool public depositWhitelist;
-    /// @inheritdoc IVaultV2
-    address public withdrawalQueue;
     /// @inheritdoc IVaultV2
     mapping(address account => bool value) public isDepositorWhitelisted;
 
@@ -97,6 +98,10 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     uint256 internal _totalAssets;
     /// @dev Decimal offset between collateral and vault shares.
     uint8 internal __decimalsOffset;
+    /// @dev Total active share checkpoints.
+    Checkpoints.Trace256 internal _totalSupply;
+    /// @dev Active share checkpoints by account.
+    mapping(address account => Checkpoints.Trace256) internal _balances;
 
     /// @dev Reserved storage gap for future upgrades.
     uint256[50] internal __gap;
@@ -157,19 +162,14 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         (assets,,,) = getAccrueInterest();
     }
 
-    /// @inheritdoc ERC4626Upgradeable
-    function decimals() public view override(ERC4626Upgradeable, ERC20Upgradeable, IERC20Metadata) returns (uint8) {
-        return super.decimals();
-    }
-
-    /// @inheritdoc IERC20Permit
-    function nonces(address owner) public view override(ERC20PermitUpgradeable, IERC20Permit) returns (uint256) {
-        return super.nonces(owner);
+    /// @inheritdoc IVaultV2
+    function totalSupplyAt(uint48 timestamp) public view returns (uint256) {
+        return _totalSupply.upperLookupRecent(timestamp);
     }
 
     /// @inheritdoc IVaultV2
-    function activeBalanceOf(address account) public view returns (uint256) {
-        return previewRedeem(balanceOf(account));
+    function balanceOfAt(address account, uint48 timestamp) public view returns (uint256) {
+        return _balances[account].upperLookupRecent(timestamp);
     }
 
     /// @inheritdoc IVaultV2
@@ -293,6 +293,21 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         return IERC20(asset()).balanceOf(address(this));
     }
 
+    /// @inheritdoc ERC4626Upgradeable
+    function _decimalsOffset() internal view virtual override returns (uint8) {
+        return __decimalsOffset;
+    }
+
+    /// @inheritdoc ERC4626Upgradeable
+    function decimals() public view override(ERC4626Upgradeable, ERC20Upgradeable, IERC20Metadata) returns (uint8) {
+        return super.decimals();
+    }
+
+    /// @inheritdoc IERC20Permit
+    function nonces(address owner) public view override(ERC20PermitUpgradeable, IERC20Permit) returns (uint256) {
+        return super.nonces(owner);
+    }
+
     /* PUBLIC FUNCTIONS (ACCOUNTING) */
 
     /// @inheritdoc IVaultV2
@@ -378,6 +393,22 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
         UniversalDelegator(delegator).onWithdraw(assets.saturatingSub(freeAssets()));
         super._withdraw(caller, receiver, owner, assets, shares);
         _totalAssets -= assets;
+    }
+
+    /// @inheritdoc ERC20Upgradeable
+    function _update(address from, address to, uint256 value) internal override {
+        super._update(from, to, value);
+
+        uint48 timestamp = uint48(block.timestamp);
+        if (from == address(0) || to == address(0)) {
+            _totalSupply.push(timestamp, super.totalSupply());
+        }
+        if (from != address(0)) {
+            _balances[from].push(timestamp, balanceOf(from));
+        }
+        if (to != address(0) && to != from) {
+            _balances[to].push(timestamp, balanceOf(to));
+        }
     }
 
     /* PUBLIC FUNCTIONS (CURATOR) */
@@ -534,10 +565,5 @@ contract VaultV2 is MigratableEntity, AccessControlUpgradeable, ERC4626Upgradeab
     function _updateProtocolFee() internal {
         lastProtocolFee = uint96(IProtocolFeeRegistry(PROTOCOL_FEE_REGISTRY).getFee(address(this)));
         lastProtocolFeeReceiver = IProtocolFeeRegistry(PROTOCOL_FEE_REGISTRY).getReceiver(address(this));
-    }
-
-    /// @inheritdoc ERC4626Upgradeable
-    function _decimalsOffset() internal view virtual override returns (uint8) {
-        return __decimalsOffset;
     }
 }

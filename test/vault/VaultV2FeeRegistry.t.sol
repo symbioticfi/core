@@ -61,6 +61,8 @@ contract VaultV2FeeApiTest is Test {
         assertEq(IVaultV2.virtualShares.selector, bytes4(keccak256("virtualShares()")));
         assertEq(IVaultV2.freeAssets.selector, bytes4(keccak256("freeAssets()")));
         assertEq(IVaultV2.withdrawable.selector, bytes4(keccak256("withdrawable()")));
+        assertEq(IVaultV2.totalSupplyAt.selector, bytes4(keccak256("totalSupplyAt(uint48)")));
+        assertEq(IVaultV2.balanceOfAt.selector, bytes4(keccak256("balanceOfAt(address,uint48)")));
         assertEq(IProtocolFeeRegistry.getFee.selector, bytes4(keccak256("getFee(address)")));
         assertEq(IProtocolFeeRegistry.getReceiver.selector, bytes4(keccak256("getReceiver(address)")));
         assertEq(
@@ -161,7 +163,7 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.totalSupply(), 0);
         assertEq(vault.freeAssets(), 0);
         assertEq(collateral.balanceOf(address(vault)), 0);
-        _assertNoLegacyShareGetters(vault);
+        _assertEmptyShareCheckpoints(vault);
     }
 
     function test_InitializeStoresAssetAdjustedVirtualShares() public {
@@ -174,7 +176,7 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.totalSupply(), 0);
         assertEq(vault.freeAssets(), 0);
         assertEq(collateral.balanceOf(address(vault)), 0);
-        _assertNoLegacyShareGetters(vault);
+        _assertEmptyShareCheckpoints(vault);
     }
 
     function test_InitializeRejectsInvalidAssetAndOwner() public {
@@ -192,7 +194,7 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.collateral(), address(collateral));
         assertEq(vault.maxDeposit(alice), type(uint256).max);
         assertEq(vault.maxMint(alice), type(uint256).max);
-        assertEq(vault.activeBalanceOf(alice), 0);
+        assertEq(vault.balanceOf(alice), 0);
         assertEq(vault.nonces(alice), 0);
 
         vault.setDepositWhitelist(true);
@@ -208,6 +210,47 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.maxDeposit(bob), 100);
 
         vault.setSlasher(address(0xBEEF));
+    }
+
+    function test_ActiveShareCheckpointsTrackDepositsTransfersAndBurns() public {
+        VaultV2 vault = _createVault(false, false, 0);
+
+        assertEq(vault.totalSupply(), 0);
+        assertEq(vault.totalSupplyAt(uint48(block.timestamp)), 0);
+        assertEq(vault.balanceOf(alice), 0);
+        assertEq(vault.balanceOfAt(alice, uint48(block.timestamp)), 0);
+
+        vm.warp(block.timestamp + 1);
+        uint48 depositTimestamp = uint48(block.timestamp);
+        _deposit(vault, alice, 100 ether);
+
+        assertEq(vault.totalSupply(), 100 ether);
+        assertEq(vault.totalSupplyAt(depositTimestamp), 100 ether);
+        assertEq(vault.balanceOf(alice), 100 ether);
+        assertEq(vault.balanceOfAt(alice, depositTimestamp), 100 ether);
+        assertEq(vault.balanceOfAt(bob, depositTimestamp), 0);
+
+        vm.warp(block.timestamp + 1);
+        uint48 transferTimestamp = uint48(block.timestamp);
+        vm.prank(alice);
+        vault.transfer(bob, 40 ether);
+
+        assertEq(vault.totalSupplyAt(depositTimestamp), 100 ether);
+        assertEq(vault.totalSupplyAt(transferTimestamp), 100 ether);
+        assertEq(vault.balanceOfAt(alice, depositTimestamp), 100 ether);
+        assertEq(vault.balanceOfAt(alice, transferTimestamp), 60 ether);
+        assertEq(vault.balanceOfAt(bob, transferTimestamp), 40 ether);
+
+        vm.warp(block.timestamp + 1);
+        uint48 withdrawTimestamp = uint48(block.timestamp);
+        vm.prank(alice);
+        vault.withdraw(20 ether, alice, alice);
+
+        assertEq(vault.totalSupply(), 80 ether);
+        assertEq(vault.totalSupplyAt(withdrawTimestamp), 80 ether);
+        assertEq(vault.balanceOf(alice), 40 ether);
+        assertEq(vault.balanceOfAt(alice, withdrawTimestamp), 40 ether);
+        assertEq(vault.balanceOfAt(bob, withdrawTimestamp), 40 ether);
     }
 
     function test_MulticallAppliesCallsAndBubblesReverts() public {
@@ -232,7 +275,7 @@ contract VaultV2BehaviorTest is Test {
         VaultV2 vault = _createVault(false, false, 0);
         _deposit(vault, alice, 100 ether);
 
-        assertEq(vault.activeBalanceOf(alice), 100 ether);
+        assertEq(vault.previewRedeem(vault.balanceOf(alice)), 100 ether);
 
         vm.startPrank(alice);
         vault.withdraw(40 ether, bob, alice);
@@ -478,21 +521,11 @@ contract VaultV2BehaviorTest is Test {
         );
     }
 
-    function _assertNoLegacyShareGetters(VaultV2 vault) internal view {
-        _assertMissingGetter(address(vault), abi.encodeWithSignature("activeShares()"));
-        _assertMissingGetter(
-            address(vault), abi.encodeWithSignature("activeSharesAt(uint48,bytes)", uint48(block.timestamp), "")
-        );
-        _assertMissingGetter(address(vault), abi.encodeWithSignature("activeSharesOf(address)", alice));
-        _assertMissingGetter(
-            address(vault),
-            abi.encodeWithSignature("activeSharesOfAt(address,uint48,bytes)", alice, uint48(block.timestamp), "")
-        );
-    }
-
-    function _assertMissingGetter(address target, bytes memory data) internal view {
-        (bool success,) = target.staticcall(data);
-        assertFalse(success);
+    function _assertEmptyShareCheckpoints(VaultV2 vault) internal view {
+        assertEq(vault.totalSupply(), 0);
+        assertEq(vault.totalSupplyAt(uint48(block.timestamp)), 0);
+        assertEq(vault.balanceOf(alice), 0);
+        assertEq(vault.balanceOfAt(alice, uint48(block.timestamp)), 0);
     }
 
     function _setCuratorFees(VaultV2 vault) internal {
