@@ -3,6 +3,7 @@
 pragma solidity ^0.8.28;
 
 import {MigratableEntity} from "../common/MigratableEntity.sol";
+import {Multicallable} from "../common/Multicallable.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {ICuratorRegistry} from "../../interfaces/adapters/ICuratorRegistry.sol";
@@ -15,7 +16,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title Adapter
 /// @notice Base contract for vault adapters with shared vault validation.
-abstract contract Adapter is MigratableEntity, IAdapter {
+abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
@@ -44,20 +45,6 @@ abstract contract Adapter is MigratableEntity, IAdapter {
             revert NotVault();
         }
         _;
-    }
-
-    /* MULTICALL */
-
-    /// @inheritdoc IAdapter
-    function multicall(bytes[] calldata data) public {
-        for (uint256 i; i < data.length; ++i) {
-            (bool success, bytes memory returnData) = address(this).delegatecall(data[i]);
-            if (!success) {
-                assembly ("memory-safe") {
-                    revert(add(32, returnData), mload(returnData))
-                }
-            }
-        }
     }
 
     /* CONSTRUCTOR */

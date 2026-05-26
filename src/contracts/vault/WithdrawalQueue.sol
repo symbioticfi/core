@@ -9,14 +9,14 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-// import {IVaultSnapshotRewards} from "../../interfaces/vault/IVaultSnapshotRewards.sol";
+import {Multicallable} from "../common/Multicallable.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {VaultV2} from "./VaultV2.sol";
 import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
 
 /// @title Withdrawal Queue
 /// @notice Holds pending share withdrawal requests as ERC721 positions.
-contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
+contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue, Multicallable {
     using Checkpoints for Checkpoints.Trace256;
     using SafeERC20 for IERC20;
     using SafeCast for uint256;
@@ -35,20 +35,6 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
     uint256 internal _nextTokenId;
     /// @dev Cumulative filled shares to packed fill index and cumulative assets.
     Checkpoints.Trace256 internal _cumulSharesToCumulAssets;
-
-    /* MULTICALL */
-
-    /// @inheritdoc IWithdrawalQueue
-    function multicall(bytes[] calldata data) public {
-        for (uint256 i; i < data.length; ++i) {
-            (bool success, bytes memory returnData) = address(this).delegatecall(data[i]);
-            if (!success) {
-                assembly ("memory-safe") {
-                    revert(add(32, returnData), mload(returnData))
-                }
-            }
-        }
-    }
 
     /* CONSTRUCTOR */
 
@@ -163,7 +149,7 @@ contract WithdrawalQueue is ERC721Upgradeable, IWithdrawalQueue {
 
     /// @dev Initialize withdrawal queue metadata and bind it to the calling vault.
     function initialize() public initializer {
-        __ERC721_init("Withdrawal Queue", "WQ");
+        __ERC721_init(string.concat(VaultV2(vault).name(), "(WQ)"), string.concat(VaultV2(vault).symbol(), "_WQ"));
 
         vault = msg.sender;
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {IMulticallable} from "../common/IMulticallable.sol";
+
 uint64 constant UNIVERSAL_DELEGATOR_TYPE = 4;
 
 uint256 constant MAX_SHARE = 1e18;
@@ -26,7 +28,7 @@ bytes32 constant SET_AUTO_ALLOCATE_ADAPTERS_ROLE = 0x8080881212c2315eb2f081d4587
  * @title IUniversalDelegator
  * @notice Interface for the adapter-based universal delegator.
  */
-interface IUniversalDelegator {
+interface IUniversalDelegator is IMulticallable {
     /* ERRORS */
 
     /**
@@ -242,12 +244,6 @@ interface IUniversalDelegator {
      * @return index Stable one-based adapter index.
      */
     function adapterToIndex(address adapter) external view returns (uint16 index);
-
-    /**
-     * @notice Execute a batch of delegatecalls on the delegator.
-     * @param data Calldata items to execute.
-     */
-    function multicall(bytes[] calldata data) external;
 
     /**
      * @notice Get the delegator implementation version.

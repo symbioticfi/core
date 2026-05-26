@@ -2,12 +2,13 @@
 pragma solidity ^0.8.0;
 
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
+import {IMulticallable} from "../common/IMulticallable.sol";
 
 /**
  * @title IAdapter
  * @notice Interface for the adapter contract.
  */
-interface IAdapter is IMigratableEntity {
+interface IAdapter is IMigratableEntity, IMulticallable {
     /**
      * @notice Raised when the provided initialization vault is not registered.
      */
@@ -28,12 +29,6 @@ interface IAdapter is IMigratableEntity {
      * @return vault Vault address.
      */
     function vault() external view returns (address vault);
-
-    /**
-     * @notice Execute a batch of delegatecalls on the adapter.
-     * @param data Calldata items to execute.
-     */
-    function multicall(bytes[] calldata data) external;
 
     /**
      * @notice Get the amount of collateral that can be allocated to the adapter.
