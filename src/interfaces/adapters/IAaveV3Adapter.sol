@@ -13,7 +13,7 @@ interface IAaveV3Adapter is IAdapter {
     /* FUNCTIONS */
 
     /**
-     * @notice Returns the Aave reserve aToken for a vault collateral.
+     * @notice Returns the Aave reserve aToken for a vault asset.
      * @return aToken Aave reserve aToken.
      */
     function aToken() external view returns (address);

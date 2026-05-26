@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {IProtocolFeeRegistry, MAX_PROTOCOL_FEE} from "../interfaces/IProtocolFeeRegistry.sol";
+import {IProtocolFeeRegistry} from "../interfaces/IProtocolFeeRegistry.sol";
+import {MAX_MANAGEMENT_FEE, MAX_PERFORMANCE_FEE} from "../interfaces/vault/IVaultV2.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -10,14 +11,13 @@ contract ProtocolFeeRegistry is Ownable, IProtocolFeeRegistry {
     /* STATE VARIABLES */
 
     /// @inheritdoc IProtocolFeeRegistry
-    uint256 public globalFee;
-    /// @inheritdoc IProtocolFeeRegistry
     address public globalReceiver;
     /// @inheritdoc IProtocolFeeRegistry
-    mapping(address vault => address receiver) public vaultReceiver;
-
-    /// @dev Serialized vault-specific fee override data.
-    mapping(address vault => uint256 data) internal _vaultFeeData;
+    uint96 public globalManagementFee;
+    /// @inheritdoc IProtocolFeeRegistry
+    uint96 public globalPerformanceFee;
+    /// @dev Vault-specific fee override data.
+    mapping(address vault => Fee) public vaultFee;
 
     /* CONSTRUCTOR */
 
@@ -26,46 +26,24 @@ contract ProtocolFeeRegistry is Ownable, IProtocolFeeRegistry {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IProtocolFeeRegistry
-    function getFee(address vault) public view returns (uint256) {
-        (bool isEnabled, uint256 fee) = vaultFee(vault);
-        if (isEnabled) {
-            return fee;
+    function getFee(address vault) public view returns (address, uint96, uint96) {
+        Fee storage fee = vaultFee[vault];
+        if (fee.isEnabled) {
+            return (fee.receiver, fee.managementFee, fee.performanceFee);
         }
-        return globalFee;
-    }
-
-    /// @inheritdoc IProtocolFeeRegistry
-    function getReceiver(address vault) public view returns (address receiver) {
-        receiver = vaultReceiver[vault];
-        if (receiver == address(0)) {
-            receiver = globalReceiver;
-        }
-    }
-
-    /// @inheritdoc IProtocolFeeRegistry
-    function vaultFee(address vault) public view returns (bool, uint256) {
-        uint256 data = _vaultFeeData[vault];
-        return ((data & 1) > 0, data >> 1);
+        return (globalReceiver, globalManagementFee, globalPerformanceFee);
     }
 
     /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IProtocolFeeRegistry
-    function setGlobalFee(uint256 newGlobalFee) public onlyOwner {
-        if (newGlobalFee > MAX_PROTOCOL_FEE) {
+    function setGlobalFee(uint96 newGlobalManagementFee, uint96 newGlobalPerformanceFee) public onlyOwner {
+        if (newGlobalManagementFee > MAX_MANAGEMENT_FEE || newGlobalPerformanceFee > MAX_PERFORMANCE_FEE) {
             revert FeeTooHigh();
         }
-        globalFee = newGlobalFee;
-        emit SetGlobalFee(newGlobalFee);
-    }
-
-    /// @inheritdoc IProtocolFeeRegistry
-    function setVaultFee(address vault, bool isEnabled, uint256 newVaultFee) public onlyOwner {
-        if (newVaultFee > MAX_PROTOCOL_FEE) {
-            revert FeeTooHigh();
-        }
-        _vaultFeeData[vault] = (newVaultFee << 1) | (isEnabled ? 1 : 0);
-        emit SetVaultFee(vault, newVaultFee);
+        globalManagementFee = newGlobalManagementFee;
+        globalPerformanceFee = newGlobalPerformanceFee;
+        emit SetGlobalFee(newGlobalManagementFee, newGlobalPerformanceFee);
     }
 
     /// @inheritdoc IProtocolFeeRegistry
@@ -78,8 +56,22 @@ contract ProtocolFeeRegistry is Ownable, IProtocolFeeRegistry {
     }
 
     /// @inheritdoc IProtocolFeeRegistry
-    function setVaultReceiver(address vault, address newVaultReceiver) public onlyOwner {
-        vaultReceiver[vault] = newVaultReceiver;
-        emit SetVaultReceiver(vault, newVaultReceiver);
+    function setVaultFee(
+        address vault,
+        bool isEnabled,
+        address newVaultReceiver,
+        uint96 newVaultManagementFee,
+        uint96 newVaultPerformanceFee
+    ) public onlyOwner {
+        if (newVaultManagementFee > MAX_MANAGEMENT_FEE || newVaultPerformanceFee > MAX_PERFORMANCE_FEE) {
+            revert FeeTooHigh();
+        }
+        vaultFee[vault] = Fee({
+            isEnabled: isEnabled,
+            receiver: newVaultReceiver,
+            managementFee: newVaultManagementFee,
+            performanceFee: newVaultPerformanceFee
+        });
+        emit SetVaultFee(vault, isEnabled, newVaultReceiver, newVaultManagementFee, newVaultPerformanceFee);
     }
 }

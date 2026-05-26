@@ -118,7 +118,7 @@ contract WithdrawalQueueFillVault is ERC20 {
         return managedAssets;
     }
 
-    function accrueInterest() external returns (uint256 performanceFeeShares, uint256 managementFeeShares) {
+    function accrueInterest() external returns (uint256 managementFeeShares, uint256 performanceFeeShares) {
         ++accrueInterestCalls;
     }
 

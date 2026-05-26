@@ -8,6 +8,8 @@ import {IMigratableEntity} from "../common/IMigratableEntity.sol";
  * @notice Interface for the adapter contract.
  */
 interface IAdapter is IMigratableEntity {
+    /* ERRORS */
+
     /**
      * @notice Raised when the provided initialization vault is not registered.
      */
@@ -23,6 +25,16 @@ interface IAdapter is IMigratableEntity {
      */
     error NotCurator();
 
+    /* EVENTS */
+
+    /**
+     * @notice Emitted when the adapter vault is set.
+     * @param vault Vault address.
+     */
+    event SetVault(address indexed vault);
+
+    /* FUNCTIONS */
+
     /**
      * @notice Returns the vault served by the adapter.
      * @return vault Vault address.
@@ -36,42 +48,42 @@ interface IAdapter is IMigratableEntity {
     function multicall(bytes[] calldata data) external;
 
     /**
-     * @notice Get the amount of collateral that can be allocated to the adapter.
-     * @return amount Amount of collateral that can be allocated to the adapter.
+     * @notice Get the amount of assets that can be allocated to the adapter.
+     * @return amount Amount of assets that can be allocated to the adapter.
      */
     function allocatable() external view returns (uint256 amount);
 
     /**
      * @notice Get total assets managed by the adapter for a vault.
-     * @return assets Total collateral-equivalent assets managed by the adapter.
+     * @return assets Total assets managed by the adapter.
      */
     function totalAssets() external view returns (uint256 assets);
 
     /**
-     * @notice Get the amount of collateral that can be deallocated from the adapter instantly.
-     * @return amount Amount of collateral that can be deallocated from the adapter.
+     * @notice Get the amount of assets that can be deallocated from the adapter instantly.
+     * @return amount Amount of assets that can be deallocated from the adapter.
      */
     function deallocatable() external view returns (uint256 amount);
 
     /**
-     * @notice Allocate collateral to the adapter.
-     * @param amount Amount of the collateral to allocate.
-     * @return allocated Amount of the collateral allocated.
+     * @notice Allocate assets to the adapter.
+     * @param amount Amount of assets to allocate.
+     * @return allocated Amount of assets allocated.
      * @dev Should not revert (except extreme cases to mitigate external manipulations).
      */
     function allocate(uint256 amount) external returns (uint256 allocated);
 
     /**
-     * @notice Deallocate collateral from the adapter.
-     * @param amount Amount of the collateral to deallocate.
-     * @return deallocated Amount of the collateral deallocated now.
+     * @notice Deallocate assets from the adapter.
+     * @param amount Amount of assets to deallocate.
+     * @return deallocated Amount of assets deallocated now.
      * @dev Must not revert.
      */
     function deallocate(uint256 amount) external returns (uint256 deallocated);
 
     /**
      * @notice Request delayed deallocation from the adapter.
-     * @param amount Amount of collateral requested for delayed deallocation.
+     * @param amount Amount of assets requested for delayed deallocation.
      */
     function requestDeallocate(uint256 amount) external;
 }

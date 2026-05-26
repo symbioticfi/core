@@ -118,8 +118,9 @@ abstract contract Adapter is MigratableEntity, IAdapter {
         }
 
         vault = initVault;
+        emit SetVault(initVault);
 
-        IERC20(IVaultV2(vault).asset()).forceApprove(vault, type(uint256).max);
+        IERC20(IVaultV2(initVault).asset()).forceApprove(initVault, type(uint256).max);
 
         __initialize(IVaultV2(vault).asset(), initData);
     }

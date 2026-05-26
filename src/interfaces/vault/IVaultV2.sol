@@ -21,16 +21,16 @@ bytes32 constant IS_DEPOSIT_LIMIT_SET_ROLE = 0xc6aaadd7371d5e8f9ed6849dd66a66573
 // keccak256("DEPOSIT_WHITELIST_SET_ROLE")
 bytes32 constant DEPOSIT_WHITELIST_SET_ROLE = 0xbae4ee3de6c709ff9a002e774c5b78cb381560b219213c88ae0f1e207c03c023;
 
-uint256 constant MAX_FEE = 1e18;
-uint256 constant MAX_PERFORMANCE_FEE = 5e17; // 50%
-uint256 constant MAX_MANAGEMENT_FEE = 5e16 / uint256(365 days); // 5%
+uint96 constant MAX_FEE = 1e18;
+uint96 constant MAX_MANAGEMENT_FEE = 5e16 / uint96(365 days); // 5%
+uint96 constant MAX_PERFORMANCE_FEE = 2e17; // 20%
 
 uint8 constant SHARES_DECIMALS = 18;
 
 /**
  * @title IVaultV2
  * @notice Interface for the VaultV2 contract.
- * @dev VaultV2 supports standard ERC20 collateral only; fee-on-transfer, rebasing, and other nonstandard balance-changing assets are unsupported.
+ * @dev VaultV2 supports standard ERC20 assets only; fee-on-transfer, rebasing, and other nonstandard balance-changing assets are unsupported.
  */
 interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     /* ERRORS */
@@ -59,11 +59,6 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
      * @notice Raised when an address argument is invalid.
      */
     error InvalidAddress();
-
-    /**
-     * @notice Raised when collateral address is invalid.
-     */
-    error InvalidCollateral();
 
     /**
      * @notice Raised when delegator address is invalid.
@@ -96,7 +91,7 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
      * @notice Initial parameters needed for a vault deployment.
      * @param name Name of the vault share token.
      * @param symbol Symbol of the vault share token.
-     * @param asset Vault's underlying collateral asset.
+     * @param asset Vault's underlying ERC4626 asset.
      * @param depositWhitelist Whether the deposit whitelist is enabled.
      * @param depositorToWhitelist Initial depositor address to whitelist.
      * @param depositLimit Deposit limit.
@@ -131,34 +126,42 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     /**
      * @notice Emitted when a withdrawal queue request is claimed through the vault.
      * @param claimer Account that claimed.
-     * @param receiver Account that receives the collateral.
+     * @param receiver Account that receives the assets.
      * @param tokenId Withdrawal queue token id.
-     * @param assets Amount of collateral claimed.
+     * @param assets Amount of assets claimed.
      */
     event Claim(address indexed claimer, address indexed receiver, uint256 tokenId, uint256 assets);
 
     /**
      * @notice Emitted when fee shares are accrued.
      * @param newTotalAssets Total assets after the accounting update.
-     * @param performanceFeeShares Shares minted to the performance fee receiver.
      * @param managementFeeShares Shares minted to the management fee receiver.
+     * @param performanceFeeShares Shares minted to the performance fee receiver.
      * @param protocolFeeShares Shares minted to the protocol fee receiver.
      */
     event AccrueInterest(
-        uint256 newTotalAssets, uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares
+        uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares
     );
 
     /**
-     * @notice Emitted when the delegator pulls liquid collateral out of the vault.
+     * @notice Emitted when cached protocol fee config is updated.
+     * @param receiver Protocol fee receiver.
+     * @param managementFee Protocol management fee per second scaled by MAX_FEE.
+     * @param performanceFee Protocol performance fee scaled by MAX_FEE.
+     */
+    event UpdateProtocolFee(address indexed receiver, uint96 managementFee, uint96 performanceFee);
+
+    /**
+     * @notice Emitted when the delegator pulls liquid assets out of the vault.
      * @param assets Amount pulled.
-     * @param receiver Account that received the collateral.
+     * @param receiver Account that received the assets.
      */
     event Pull(uint256 assets, address indexed receiver);
 
     /**
-     * @notice Emitted when the delegator pushes liquid collateral into the vault.
+     * @notice Emitted when the delegator pushes liquid assets into the vault.
      * @param assets Amount pushed.
-     * @param owner Account that supplied the collateral.
+     * @param owner Account that supplied the assets.
      */
     event Push(uint256 assets, address indexed owner);
 
@@ -188,13 +191,6 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     event SetDepositLimit(uint256 limit);
 
     /**
-     * @notice Emitted when the performance fee and receiver are set.
-     * @param fee Performance fee scaled by MAX_FEE.
-     * @param receiver Performance fee receiver.
-     */
-    event SetPerformanceFee(uint256 fee, address indexed receiver);
-
-    /**
      * @notice Emitted when the management fee and receiver are set.
      * @param fee Management fee per second scaled by MAX_FEE.
      * @param receiver Management fee receiver.
@@ -202,11 +198,24 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     event SetManagementFee(uint256 fee, address indexed receiver);
 
     /**
+     * @notice Emitted when the performance fee and receiver are set.
+     * @param fee Performance fee scaled by MAX_FEE.
+     * @param receiver Performance fee receiver.
+     */
+    event SetPerformanceFee(uint256 fee, address indexed receiver);
+
+    /**
      * @notice Emitted when a delegator is set.
      * @param delegator Vault's delegator.
      * @dev Can be set only once.
      */
     event SetDelegator(address indexed delegator);
+
+    /**
+     * @notice Emitted when the withdrawal queue is deployed and set.
+     * @param withdrawalQueue Withdrawal queue address.
+     */
+    event SetWithdrawalQueue(address indexed withdrawalQueue);
 
     /**
      * @notice Emitted when a vault is initialized.
@@ -278,10 +287,16 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     function virtualShares() external view returns (uint256 shares);
 
     /**
-     * @notice Get the protocol fee cached at the last fee accrual.
-     * @return fee Cached protocol fee scaled by MAX_FEE.
+     * @notice Get the protocol management fee cached at the last fee accrual.
+     * @return fee Cached protocol management fee per second scaled by MAX_FEE.
      */
-    function lastProtocolFee() external view returns (uint96 fee);
+    function lastProtocolManagementFee() external view returns (uint96 fee);
+
+    /**
+     * @notice Get the protocol performance fee cached at the last fee accrual.
+     * @return fee Cached protocol performance fee scaled by MAX_FEE.
+     */
+    function lastProtocolPerformanceFee() external view returns (uint96 fee);
 
     /**
      * @notice Get the management fee receiver.
@@ -314,12 +329,6 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     function isInitialized() external view returns (bool initialized);
 
     /**
-     * @notice Get the vault's underlying collateral asset.
-     * @return asset Address of the underlying collateral.
-     */
-    function collateral() external view returns (address asset);
-
-    /**
      * @notice Get total assets tracked by the vault.
      * @return assets Vault liquid balance plus delegator-managed assets.
      */
@@ -343,8 +352,8 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     /**
      * @notice View total assets and fee shares that would be accrued at the current timestamp.
      * @return newTotalAssets Total assets after the accounting update.
-     * @return performanceFeeShares Shares that would be minted to the performance fee receiver.
      * @return managementFeeShares Shares that would be minted to the management fee receiver.
+     * @return performanceFeeShares Shares that would be minted to the performance fee receiver.
      * @return protocolFeeShares Shares that would be minted to the protocol fee receiver.
      */
     function getAccrueInterest()
@@ -352,45 +361,45 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
         view
         returns (
             uint256 newTotalAssets,
-            uint256 performanceFeeShares,
             uint256 managementFeeShares,
+            uint256 performanceFeeShares,
             uint256 protocolFeeShares
         );
 
     /**
-     * @notice Get assets available for instant withdrawal from free and deallocatable collateral.
+     * @notice Get assets available for instant withdrawal from free and deallocatable assets.
      * @return assets Withdrawable asset amount.
      */
     function withdrawable() external returns (uint256 assets);
 
     /**
-     * @notice Get liquid collateral currently held by the vault.
+     * @notice Get liquid assets currently held by the vault.
      * @return assets Liquid asset balance.
      */
     function freeAssets() external view returns (uint256 assets);
 
     /**
-     * @notice Accrue performance, management, and protocol fees using the latest known total assets.
-     * @return performanceFeeShares Shares minted to the performance fee receiver.
+     * @notice Accrue management, performance, and protocol fees using the latest known total assets.
      * @return managementFeeShares Shares minted to the management fee receiver.
+     * @return performanceFeeShares Shares minted to the performance fee receiver.
      * @return protocolFeeShares Shares minted to the protocol fee receiver.
      */
     function accrueInterest()
         external
-        returns (uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares);
+        returns (uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares);
 
     /**
-     * @notice Pull liquid collateral from the vault to a receiver.
-     * @param assets Amount of collateral to pull.
-     * @param receiver Account that receives the collateral.
+     * @notice Pull liquid assets from the vault to a receiver.
+     * @param assets Amount of assets to pull.
+     * @param receiver Account that receives the assets.
      * @dev Only the configured delegator can call this function.
      */
     function pull(uint256 assets, address receiver) external;
 
     /**
-     * @notice Push liquid collateral from an owner into the vault.
-     * @param assets Amount of collateral to push.
-     * @param owner Account that supplies the collateral.
+     * @notice Push liquid assets from an owner into the vault.
+     * @param assets Amount of assets to push.
+     * @param owner Account that supplies the assets.
      * @dev Only the configured delegator can call this function.
      */
     function push(uint256 assets, address owner) external;
@@ -425,20 +434,20 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit {
     function setDepositLimit(uint256 limit) external;
 
     /**
-     * @notice Set the performance fee and receiver.
-     * @param fee Performance fee scaled by MAX_FEE.
-     * @param receiver Performance fee receiver.
-     * @dev Only a PERFORMANCE_FEE_ROLE holder can call this function.
-     */
-    function setPerformanceFee(uint96 fee, address receiver) external;
-
-    /**
      * @notice Set the management fee and receiver.
      * @param fee Management fee per second scaled by MAX_FEE.
      * @param receiver Management fee receiver.
      * @dev Only a MANAGEMENT_FEE_ROLE holder can call this function.
      */
     function setManagementFee(uint96 fee, address receiver) external;
+
+    /**
+     * @notice Set the performance fee and receiver.
+     * @param fee Performance fee scaled by MAX_FEE.
+     * @param receiver Performance fee receiver.
+     * @dev Only a PERFORMANCE_FEE_ROLE holder can call this function.
+     */
+    function setPerformanceFee(uint96 fee, address receiver) external;
 
     /**
      * @notice Set the delegator.

@@ -419,7 +419,7 @@ contract AppAdapterInvariantHandler is Test {
         delegator = _createDelegator(delegatorFactory, vault);
         vault.setDelegator(address(delegator));
         queue = WithdrawalQueue(vault.withdrawalQueue());
-        adapterRegistry.setVaultWhitelistStatus(address(vault), address(adapterFactory), true);
+        adapterRegistry.setWhitelistedStatus(address(vault), address(adapterFactory), true);
 
         adapter = IAppAdapter(
             adapterFactory.create(
@@ -459,8 +459,8 @@ contract AppAdapterInvariantHandler is Test {
                 depositorWhitelistRoleHolder: address(this),
                 isDepositLimitSetRoleHolder: address(this),
                 depositLimitSetRoleHolder: address(this),
-                performanceFeeRoleHolder: address(this),
-                managementFeeRoleHolder: address(this)
+                managementFeeRoleHolder: address(this),
+                performanceFeeRoleHolder: address(this)
             })
         );
         return VaultV2(vaultFactory.create(VAULT_V2_VERSION, address(this), data));

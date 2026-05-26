@@ -48,7 +48,14 @@ contract VaultV2SixDecimalToken is Token {
 
 contract VaultV2FeeApiTest is Test {
     function test_vaultAndProtocolFeeExposeFeeApi() public pure {
-        assertEq(IVaultV2.lastProtocolFee.selector, bytes4(keccak256("lastProtocolFee()")));
+        uint96 maxManagementFee = MAX_MANAGEMENT_FEE;
+        uint96 maxPerformanceFee = MAX_PERFORMANCE_FEE;
+
+        assertEq(maxManagementFee, 5e16 / uint256(365 days));
+        assertEq(maxPerformanceFee, 2e17);
+
+        assertEq(IVaultV2.lastProtocolManagementFee.selector, bytes4(keccak256("lastProtocolManagementFee()")));
+        assertEq(IVaultV2.lastProtocolPerformanceFee.selector, bytes4(keccak256("lastProtocolPerformanceFee()")));
         assertEq(IVaultV2.lastProtocolFeeReceiver.selector, bytes4(keccak256("lastProtocolFeeReceiver()")));
         assertEq(IVaultV2.managementFee.selector, bytes4(keccak256("managementFee()")));
         assertEq(IVaultV2.managementFeeReceiver.selector, bytes4(keccak256("managementFeeReceiver()")));
@@ -64,7 +71,6 @@ contract VaultV2FeeApiTest is Test {
         assertEq(IVaultV2.totalSupplyAt.selector, bytes4(keccak256("totalSupplyAt(uint48)")));
         assertEq(IVaultV2.balanceOfAt.selector, bytes4(keccak256("balanceOfAt(address,uint48)")));
         assertEq(IProtocolFeeRegistry.getFee.selector, bytes4(keccak256("getFee(address)")));
-        assertEq(IProtocolFeeRegistry.getReceiver.selector, bytes4(keccak256("getReceiver(address)")));
         assertEq(
             IERC20Permit.permit.selector,
             bytes4(keccak256("permit(address,address,uint256,uint256,uint8,bytes32,bytes32)"))
@@ -151,7 +157,8 @@ contract VaultV2BehaviorTest is Test {
 
         (bool success,) = address(vault).staticcall(abi.encodeWithSignature("PROTOCOL_FEE()"));
         assertFalse(success);
-        assertEq(vault.lastProtocolFee(), 0);
+        assertEq(vault.lastProtocolManagementFee(), 0);
+        assertEq(vault.lastProtocolPerformanceFee(), 0);
         assertEq(vault.lastProtocolFeeReceiver(), protocolFeeReceiver);
         assertEq(vault.managementFee(), 0);
         assertEq(vault.performanceFee(), 0);
@@ -180,7 +187,7 @@ contract VaultV2BehaviorTest is Test {
     }
 
     function test_InitializeRejectsInvalidAssetAndOwner() public {
-        vm.expectRevert(IVaultV2.InvalidCollateral.selector);
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
         vaultFactory.create(VAULT_V2_VERSION, address(this), _vaultParamsWithAsset(address(0), false, false, 0));
 
         vm.expectRevert(IVaultV2.InvalidAddress.selector);
@@ -191,7 +198,9 @@ contract VaultV2BehaviorTest is Test {
         VaultV2 vault = _createVault(false, false, 0);
 
         assertTrue(vault.isInitialized());
-        assertEq(vault.collateral(), address(collateral));
+        assertEq(vault.asset(), address(collateral));
+        (bool hasCollateralGetter,) = address(vault).staticcall(abi.encodeWithSignature("collateral()"));
+        assertFalse(hasCollateralGetter);
         assertEq(vault.maxDeposit(alice), type(uint256).max);
         assertEq(vault.maxMint(alice), type(uint256).max);
         assertEq(vault.balanceOf(alice), 0);
@@ -321,101 +330,117 @@ contract VaultV2BehaviorTest is Test {
         VaultV2 vault = _createVault(false, false, 0);
 
         vm.expectRevert(IVaultV2.InvalidAddress.selector);
-        vault.setPerformanceFee(1, address(0));
-
-        vm.expectRevert(IVaultV2.InvalidAddress.selector);
         vault.setManagementFee(1, address(0));
 
-        vm.expectRevert(IVaultV2.FeeTooHigh.selector);
-        vault.setPerformanceFee(uint96(MAX_PERFORMANCE_FEE + 1), performanceFeeReceiver);
+        vm.expectRevert(IVaultV2.InvalidAddress.selector);
+        vault.setPerformanceFee(1, address(0));
 
         vm.expectRevert(IVaultV2.FeeTooHigh.selector);
         vault.setManagementFee(uint96(MAX_MANAGEMENT_FEE + 1), managementFeeReceiver);
 
-        vm.recordLogs();
-        vault.setPerformanceFee(uint96(MAX_PERFORMANCE_FEE), performanceFeeReceiver);
-        Vm.Log[] memory performanceFeeLogs = vm.getRecordedLogs();
-
-        assertEq(performanceFeeLogs.length, 2);
-        assertEq(performanceFeeLogs[1].topics[0], keccak256("SetPerformanceFee(uint256,address)"));
-        assertEq(performanceFeeLogs[1].topics[1], bytes32(uint256(uint160(performanceFeeReceiver))));
-        assertEq(abi.decode(performanceFeeLogs[1].data, (uint256)), MAX_PERFORMANCE_FEE);
+        vm.expectRevert(IVaultV2.FeeTooHigh.selector);
+        vault.setPerformanceFee(uint96(MAX_PERFORMANCE_FEE + 1), performanceFeeReceiver);
 
         vm.recordLogs();
         vault.setManagementFee(uint96(MAX_MANAGEMENT_FEE), managementFeeReceiver);
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        assertEq(logs.length, 2);
-        assertEq(logs[1].topics[0], keccak256("SetManagementFee(uint256,address)"));
-        assertEq(logs[1].topics[1], bytes32(uint256(uint160(managementFeeReceiver))));
-        assertEq(abi.decode(logs[1].data, (uint256)), MAX_MANAGEMENT_FEE);
+        assertEq(logs.length, 3);
+        assertEq(logs[2].topics[0], keccak256("SetManagementFee(uint256,address)"));
+        assertEq(logs[2].topics[1], bytes32(uint256(uint160(managementFeeReceiver))));
+        assertEq(abi.decode(logs[2].data, (uint256)), MAX_MANAGEMENT_FEE);
 
-        assertEq(vault.performanceFee(), MAX_PERFORMANCE_FEE);
-        assertEq(vault.performanceFeeReceiver(), performanceFeeReceiver);
+        vm.recordLogs();
+        vault.setPerformanceFee(uint96(MAX_PERFORMANCE_FEE), performanceFeeReceiver);
+        Vm.Log[] memory performanceFeeLogs = vm.getRecordedLogs();
+
+        assertEq(performanceFeeLogs.length, 3);
+        assertEq(performanceFeeLogs[2].topics[0], keccak256("SetPerformanceFee(uint256,address)"));
+        assertEq(performanceFeeLogs[2].topics[1], bytes32(uint256(uint160(performanceFeeReceiver))));
+        assertEq(abi.decode(performanceFeeLogs[2].data, (uint256)), MAX_PERFORMANCE_FEE);
+
         assertEq(vault.managementFee(), MAX_MANAGEMENT_FEE);
         assertEq(vault.managementFeeReceiver(), managementFeeReceiver);
+        assertEq(vault.performanceFee(), MAX_PERFORMANCE_FEE);
+        assertEq(vault.performanceFeeReceiver(), performanceFeeReceiver);
 
         vm.startPrank(bob);
         vm.expectRevert();
-        vault.setPerformanceFee(0, address(0));
-        vm.expectRevert();
         vault.setManagementFee(0, address(0));
+        vm.expectRevert();
+        vault.setPerformanceFee(0, address(0));
         vm.stopPrank();
     }
 
     function test_TotalSupplyIncludesAccruedCuratorAndProtocolFeeSharesBeforeMinting() public {
         VaultV2 vault = _createVault(false, false, 0);
         _setCuratorFees(vault);
-        protocolFee.setGlobalFee(13);
+        protocolFee.setGlobalFee(17, 13);
         _deposit(vault, alice, 100 ether);
         uint256 rawSupply = vault.totalSupply();
 
         vm.warp(block.timestamp + 30 days);
         collateral.transfer(address(vault), 100_000 ether);
 
-        (, uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares) =
+        (, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
             vault.getAccrueInterest();
 
-        assertGt(protocolFeeShares + performanceFeeShares + managementFeeShares, 0);
-        assertEq(vault.totalSupply(), rawSupply + protocolFeeShares + performanceFeeShares + managementFeeShares);
+        assertGt(managementFeeShares + performanceFeeShares + protocolFeeShares, 0);
+        assertEq(vault.totalSupply(), rawSupply + managementFeeShares + performanceFeeShares + protocolFeeShares);
         assertEq(vault.balanceOf(address(this)), 0);
     }
 
     function test_AccrueInterestMintsPreviewedFeeSharesToReceiversWithoutChangingVisibleSupply() public {
         VaultV2 vault = _createVault(false, false, 0);
         _setCuratorFees(vault);
-        protocolFee.setGlobalFee(13);
+        protocolFee.setGlobalFee(17, 13);
         _deposit(vault, alice, 100 ether);
 
         vm.warp(block.timestamp + 30 days);
         collateral.transfer(address(vault), 100_000 ether);
 
         uint256 previewSupply = vault.totalSupply();
-        (, uint256 previewPerformanceFeeShares, uint256 previewManagementFeeShares, uint256 previewProtocolFeeShares) =
+        (, uint256 previewManagementFeeShares, uint256 previewPerformanceFeeShares, uint256 previewProtocolFeeShares) =
             vault.getAccrueInterest();
 
-        (uint256 performanceFeeShares, uint256 managementFeeShares, uint256 protocolFeeShares) = vault.accrueInterest();
+        (uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) = vault.accrueInterest();
 
         assertEq(protocolFeeShares, previewProtocolFeeShares);
-        assertEq(performanceFeeShares, previewPerformanceFeeShares);
         assertEq(managementFeeShares, previewManagementFeeShares);
+        assertEq(performanceFeeShares, previewPerformanceFeeShares);
         assertEq(vault.balanceOf(protocolFeeReceiver), protocolFeeShares);
-        assertEq(vault.balanceOf(performanceFeeReceiver), performanceFeeShares);
         assertEq(vault.balanceOf(managementFeeReceiver), managementFeeShares);
+        assertEq(vault.balanceOf(performanceFeeReceiver), performanceFeeShares);
         assertEq(vault.totalSupply(), previewSupply);
         assertEq(vault.lastUpdate(), block.timestamp);
     }
 
-    function test_AccrueInterestUsesCachedProtocolFeeAndReceiverThenRefreshes() public {
+    function test_ProtocolManagementFeeAccruesWithoutInterest() public {
         VaultV2 vault = _createVault(false, false, 0);
-        protocolFee.setGlobalFee(13);
+        protocolFee.setGlobalFee(uint96(MAX_MANAGEMENT_FEE), 0);
         vault.accrueInterest();
 
-        assertEq(vault.lastProtocolFee(), 13);
+        _deposit(vault, alice, 100 ether);
+
+        vm.warp(block.timestamp + 30 days);
+
+        (,, uint256 protocolFeeShares) = vault.accrueInterest();
+
+        assertGt(protocolFeeShares, 0);
+        assertEq(vault.balanceOf(protocolFeeReceiver), protocolFeeShares);
+    }
+
+    function test_AccrueInterestUsesCachedProtocolFeeAndReceiverThenRefreshes() public {
+        VaultV2 vault = _createVault(false, false, 0);
+        protocolFee.setGlobalFee(17, 13);
+        vault.accrueInterest();
+
+        assertEq(vault.lastProtocolManagementFee(), 17);
+        assertEq(vault.lastProtocolPerformanceFee(), 13);
         assertEq(vault.lastProtocolFeeReceiver(), protocolFeeReceiver);
 
         _deposit(vault, alice, 100 ether);
-        protocolFee.setGlobalFee(0);
+        protocolFee.setGlobalFee(0, 0);
         protocolFee.setGlobalReceiver(nextProtocolFeeReceiver);
 
         vm.warp(block.timestamp + 30 days);
@@ -429,7 +454,8 @@ contract VaultV2BehaviorTest is Test {
         assertEq(protocolFeeShares, previewProtocolFeeShares);
         assertEq(vault.balanceOf(protocolFeeReceiver), protocolFeeShares);
         assertEq(vault.balanceOf(nextProtocolFeeReceiver), 0);
-        assertEq(vault.lastProtocolFee(), 0);
+        assertEq(vault.lastProtocolManagementFee(), 0);
+        assertEq(vault.lastProtocolPerformanceFee(), 0);
         assertEq(vault.lastProtocolFeeReceiver(), nextProtocolFeeReceiver);
     }
 
@@ -499,8 +525,8 @@ contract VaultV2BehaviorTest is Test {
                 depositorWhitelistRoleHolder: address(this),
                 isDepositLimitSetRoleHolder: address(this),
                 depositLimitSetRoleHolder: address(this),
-                performanceFeeRoleHolder: address(this),
-                managementFeeRoleHolder: address(this)
+                managementFeeRoleHolder: address(this),
+                performanceFeeRoleHolder: address(this)
             })
         );
     }
@@ -529,8 +555,8 @@ contract VaultV2BehaviorTest is Test {
     }
 
     function _setCuratorFees(VaultV2 vault) internal {
-        vault.setPerformanceFee(11, performanceFeeReceiver);
         vault.setManagementFee(7, managementFeeReceiver);
+        vault.setPerformanceFee(11, performanceFeeReceiver);
     }
 
     function _deposit(VaultV2 vault, address account, uint256 assets) internal {

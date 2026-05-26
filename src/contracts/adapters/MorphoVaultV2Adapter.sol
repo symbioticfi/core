@@ -121,8 +121,8 @@ contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
         return 0;
     }
 
-    /// @dev Uses an external self-call so zero-share deposits revert and roll back the Morpho transfer.
-    function deposit(address targetMorphoVault, uint256 amount, address onBehalfOf) external {
+    /// @dev Uses a self-call so zero-share deposits revert and roll back the Morpho transfer.
+    function deposit(address targetMorphoVault, uint256 amount, address onBehalfOf) public {
         if (address(this) != msg.sender) {
             revert NotSelf();
         }

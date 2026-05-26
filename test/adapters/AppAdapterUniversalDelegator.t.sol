@@ -114,7 +114,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
         vault = _createVault();
         delegator = _createDelegator(vault);
         vault.setDelegator(address(delegator));
-        adapterRegistry.setVaultWhitelistStatus(address(vault), address(adapterFactory), true);
+        adapterRegistry.setWhitelistedStatus(address(vault), address(adapterFactory), true);
 
         adapter = IAppAdapter(
             adapterFactory.create(
@@ -317,8 +317,8 @@ contract AppAdapterUniversalDelegatorTest is Test {
                 depositorWhitelistRoleHolder: address(this),
                 isDepositLimitSetRoleHolder: address(this),
                 depositLimitSetRoleHolder: address(this),
-                performanceFeeRoleHolder: address(this),
-                managementFeeRoleHolder: address(this)
+                managementFeeRoleHolder: address(this),
+                performanceFeeRoleHolder: address(this)
             })
         );
         return VaultV2(vaultFactory.create(VAULT_V2_VERSION, address(this), data));
