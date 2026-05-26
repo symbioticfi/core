@@ -14,11 +14,6 @@ interface IMorphoVaultV2Adapter is IAdapter {
     /* ERRORS */
 
     /**
-     * @notice Raised when trying to replace a Morpho vault while a position is still active.
-     */
-    error ActivePosition();
-
-    /**
      * @notice Raised when the provided amount is insufficient for the requested operation.
      */
     error InsufficientAmount();
@@ -34,10 +29,10 @@ interface IMorphoVaultV2Adapter is IAdapter {
     error NotSelf();
 
     /**
-     * @notice Emitted when a Morpho vault is configured for a vault.
+     * @notice Emitted when the adapter is initialized.
      * @param morphoVault Morpho vault address.
      */
-    event SetMorphoVault(address indexed morphoVault);
+    event Initialize(address indexed morphoVault);
 
     /* FUNCTIONS */
 
@@ -46,11 +41,4 @@ interface IMorphoVaultV2Adapter is IAdapter {
      * @return Configured Morpho vault.
      */
     function morphoVault() external view returns (address);
-
-    /**
-     * @notice Sets the Morpho vault for a vault.
-     * @param morphoVault Morpho vault address.
-     * @dev `morphoVault == address(0)` clears the configured vault.
-     */
-    function setMorphoVault(address morphoVault) external;
 }

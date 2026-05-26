@@ -148,8 +148,8 @@ contract VaultV2 is
         return super.totalSupply() + managementFeeShares + performanceFeeShares + protocolFeeShares;
     }
 
-    /// @inheritdoc IVaultV2
-    function totalAssets() public view override(ERC4626Upgradeable, IVaultV2) returns (uint256 assets) {
+    /// @inheritdoc ERC4626Upgradeable
+    function totalAssets() public view override returns (uint256 assets) {
         (assets,,,) = getAccrueInterest();
     }
 
@@ -204,13 +204,7 @@ contract VaultV2 is
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewDeposit(uint256 assets)
-        public
-        view
-        virtual
-        override(ERC4626Upgradeable, IERC4626)
-        returns (uint256)
-    {
+    function previewDeposit(uint256 assets) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
             getAccrueInterest();
         return assets.mulDiv(
@@ -220,7 +214,7 @@ contract VaultV2 is
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewMint(uint256 shares) public view virtual override(ERC4626Upgradeable, IERC4626) returns (uint256) {
+    function previewMint(uint256 shares) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
             getAccrueInterest();
         return shares.mulDiv(
@@ -231,13 +225,7 @@ contract VaultV2 is
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewWithdraw(uint256 assets)
-        public
-        view
-        virtual
-        override(ERC4626Upgradeable, IERC4626)
-        returns (uint256)
-    {
+    function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
             getAccrueInterest();
         return assets.mulDiv(
@@ -248,13 +236,7 @@ contract VaultV2 is
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function previewRedeem(uint256 shares)
-        public
-        view
-        virtual
-        override(ERC4626Upgradeable, IERC4626)
-        returns (uint256)
-    {
+    function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
         (uint256 newTotalAssets, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
             getAccrueInterest();
         return shares.mulDiv(
@@ -264,7 +246,7 @@ contract VaultV2 is
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function maxDeposit(address receiver) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
+    function maxDeposit(address receiver) public view override returns (uint256) {
         if (depositWhitelist && !isDepositorWhitelisted[receiver]) {
             return 0;
         }
@@ -272,7 +254,7 @@ contract VaultV2 is
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function maxMint(address receiver) public view override(ERC4626Upgradeable, IERC4626) returns (uint256) {
+    function maxMint(address receiver) public view override returns (uint256) {
         uint256 assets = maxDeposit(receiver);
         if (assets == type(uint256).max) {
             return type(uint256).max;
@@ -301,13 +283,8 @@ contract VaultV2 is
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function decimals() public view override(ERC4626Upgradeable, ERC20Upgradeable, IERC20Metadata) returns (uint8) {
+    function decimals() public view override(ERC4626Upgradeable, ERC20Upgradeable) returns (uint8) {
         return super.decimals();
-    }
-
-    /// @inheritdoc IERC20Permit
-    function nonces(address owner) public view override(ERC20PermitUpgradeable, IERC20Permit) returns (uint256) {
-        return super.nonces(owner);
     }
 
     /* PUBLIC FUNCTIONS (ACCOUNTING) */
@@ -368,21 +345,13 @@ contract VaultV2 is
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function withdraw(uint256 assets, address receiver, address owner)
-        public
-        override(ERC4626Upgradeable, IERC4626)
-        returns (uint256)
-    {
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
         accrueInterest();
         return super.withdraw(assets, receiver, owner);
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function redeem(uint256 shares, address receiver, address owner)
-        public
-        override(ERC4626Upgradeable, IERC4626)
-        returns (uint256)
-    {
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
         accrueInterest();
         return super.redeem(shares, receiver, owner);
     }

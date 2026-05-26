@@ -51,53 +51,42 @@ contract MorphoVaultV2AdapterTest is Test {
         );
         factory.whitelist(address(implementation));
 
-        adapter = IMorphoVaultV2Adapter(factory.create(1, curator, abi.encode(address(vault), "")));
+        adapter = _createAdapter(address(morphoVault));
     }
 
-    function test_ViewsReturnZeroBeforeMorphoVaultIsSet() public {
-        assertEq(adapter.morphoVault(), address(0));
-        assertEq(adapter.allocatable(), 0);
+    function test_InitializeSetsMorphoVault() public {
+        assertEq(adapter.morphoVault(), address(morphoVault));
+        assertEq(adapter.allocatable(), type(uint256).max);
         assertEq(adapter.deallocatable(), 0);
         assertEq(adapter.totalAssets(), 0);
     }
 
-    function test_SetMorphoVaultValidatesCuratorAndVaultShape() public {
-        vm.expectRevert(IAdapter.NotCurator.selector);
-        adapter.setMorphoVault(address(morphoVault));
-
-        vm.startPrank(curator);
+    function test_InitializeValidatesMorphoVaultShape() public {
+        vm.expectRevert(IMorphoVaultV2Adapter.InvalidMorphoVault.selector);
+        _createAdapter(address(0));
 
         morphoVaultFactory.setVault(address(morphoVault), false);
         vm.expectRevert(IMorphoVaultV2Adapter.InvalidMorphoVault.selector);
-        adapter.setMorphoVault(address(morphoVault));
+        _createAdapter(address(morphoVault));
 
         morphoVaultFactory.setVault(address(morphoVault), true);
         morphoVault.setAdapterRegistry(address(0xBEEF));
         vm.expectRevert(IMorphoVaultV2Adapter.InvalidMorphoVault.selector);
-        adapter.setMorphoVault(address(morphoVault));
+        _createAdapter(address(morphoVault));
 
         morphoVault.setAdapterRegistry(morphoAdapterRegistry);
         morphoVault.setAbdicated(false);
         vm.expectRevert(IMorphoVaultV2Adapter.InvalidMorphoVault.selector);
-        adapter.setMorphoVault(address(morphoVault));
+        _createAdapter(address(morphoVault));
 
         morphoVault.setAbdicated(true);
         MorphoVaultMock wrongAssetVault = new MorphoVaultMock(address(new Token("Wrong")), morphoAdapterRegistry);
         morphoVaultFactory.setVault(address(wrongAssetVault), true);
         vm.expectRevert(IMorphoVaultV2Adapter.InvalidMorphoVault.selector);
-        adapter.setMorphoVault(address(wrongAssetVault));
-
-        vm.expectEmit(true, true, true, true, address(adapter));
-        emit IMorphoVaultV2Adapter.SetMorphoVault(address(morphoVault));
-        adapter.setMorphoVault(address(morphoVault));
-
-        assertEq(adapter.morphoVault(), address(morphoVault));
-        assertEq(adapter.allocatable(), type(uint256).max);
-        vm.stopPrank();
+        _createAdapter(address(wrongAssetVault));
     }
 
     function test_AllocateAndDeallocateThroughMorphoVault() public {
-        _setMorphoVault();
         MorphoLiquidityAdapterMock liquidityAdapter = new MorphoLiquidityAdapterMock();
         liquidityAdapter.setRealAssets(25);
         morphoVault.setLiquidityAdapter(address(liquidityAdapter));
@@ -120,8 +109,6 @@ contract MorphoVaultV2AdapterTest is Test {
     }
 
     function test_AllocateReturnsZeroWhenDepositFailsOrMintsNoShares() public {
-        _setMorphoVault();
-
         collateral.transfer(address(adapter), 100);
         morphoVault.setRevertOnDeposit(true);
 
@@ -139,8 +126,6 @@ contract MorphoVaultV2AdapterTest is Test {
     }
 
     function test_DeallocateReturnsZeroForZeroAmountNoLiquidityAndWithdrawFailure() public {
-        _setMorphoVault();
-
         vm.prank(delegator);
         assertEq(adapter.deallocate(0), 0);
 
@@ -157,29 +142,7 @@ contract MorphoVaultV2AdapterTest is Test {
         assertEq(adapter.deallocate(100), 0);
     }
 
-    function test_SetMorphoVaultRevertsWhenExistingPositionIsActiveAndCanResetAfterExit() public {
-        _setMorphoVault();
-        collateral.transfer(address(adapter), 100);
-
-        vm.prank(delegator);
-        adapter.allocate(100);
-
-        vm.prank(curator);
-        vm.expectRevert(IMorphoVaultV2Adapter.ActivePosition.selector);
-        adapter.setMorphoVault(address(0));
-
-        vm.prank(delegator);
-        adapter.deallocate(100);
-
-        vm.prank(curator);
-        adapter.setMorphoVault(address(0));
-
-        assertEq(adapter.morphoVault(), address(0));
-    }
-
     function test_DepositHelperAndOnlyDelegatorGuards() public {
-        _setMorphoVault();
-
         vm.expectRevert(IMorphoVaultV2Adapter.NotSelf.selector);
         MorphoVaultV2Adapter(address(adapter)).deposit(address(morphoVault), 1, address(adapter));
 
@@ -193,24 +156,17 @@ contract MorphoVaultV2AdapterTest is Test {
         adapter.requestDeallocate(1);
     }
 
-    function test_MulticallCanSetMorphoVaultAndBubbleReverts() public {
+    function test_MulticallBubblesDepositReverts() public {
         bytes[] memory calls = new bytes[](1);
-        calls[0] = abi.encodeCall(IMorphoVaultV2Adapter.setMorphoVault, (address(morphoVault)));
-
-        vm.prank(curator);
-        adapter.multicall(calls);
-
-        assertEq(adapter.morphoVault(), address(morphoVault));
-
         calls[0] = abi.encodeCall(MorphoVaultV2Adapter.deposit, (address(morphoVault), 1, address(adapter)));
 
         vm.expectRevert(IMorphoVaultV2Adapter.NotSelf.selector);
         adapter.multicall(calls);
     }
 
-    function _setMorphoVault() internal {
-        vm.prank(curator);
-        adapter.setMorphoVault(address(morphoVault));
+    function _createAdapter(address targetMorphoVault) internal returns (IMorphoVaultV2Adapter) {
+        return
+            IMorphoVaultV2Adapter(factory.create(1, curator, abi.encode(address(vault), abi.encode(targetMorphoVault))));
     }
 }
 

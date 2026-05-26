@@ -4,9 +4,6 @@ pragma solidity ^0.8.0;
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 import {IMulticallable} from "../common/IMulticallable.sol";
 
-import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-
 uint64 constant VAULT_V2_VERSION = 3;
 
 // keccak256("MANAGEMENT_FEE_ROLE")
@@ -33,7 +30,7 @@ uint8 constant SHARES_DECIMALS = 18;
  * @notice Interface for the VaultV2 contract.
  * @dev VaultV2 supports standard ERC20 assets only; fee-on-transfer, rebasing, and other nonstandard balance-changing assets are unsupported.
  */
-interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit, IMulticallable {
+interface IVaultV2 is IMigratableEntity, IMulticallable {
     /* ERRORS */
 
     /**
@@ -322,12 +319,6 @@ interface IVaultV2 is IMigratableEntity, IERC4626, IERC20Permit, IMulticallable 
      * @return initialized Whether the vault is initialized.
      */
     function isInitialized() external view returns (bool initialized);
-
-    /**
-     * @notice Get total assets tracked by the vault.
-     * @return assets Vault liquid balance plus delegator-managed assets.
-     */
-    function totalAssets() external view returns (uint256 assets);
 
     /**
      * @notice Get total share supply at a given timestamp.

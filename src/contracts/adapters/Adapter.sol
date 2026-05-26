@@ -12,6 +12,7 @@ import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegato
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title Adapter
@@ -107,9 +108,9 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
         vault = initVault;
         emit SetVault(initVault);
 
-        IERC20(IVaultV2(initVault).asset()).forceApprove(initVault, type(uint256).max);
+        IERC20(IERC4626(initVault).asset()).forceApprove(initVault, type(uint256).max);
 
-        __initialize(IVaultV2(vault).asset(), initData);
+        __initialize(initVault, initData);
     }
 
     /// @dev Initializes adapter-specific state.

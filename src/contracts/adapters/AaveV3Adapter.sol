@@ -8,17 +8,17 @@ import {IAaveV3Adapter, REFERRAL_CODE} from "../../interfaces/adapters/IAaveV3Ad
 import {IAaveV3Pool} from "../../interfaces/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IRewards} from "../../interfaces/vault/IRewards.sol";
-import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title AaveV3Adapter
 /// @notice VaultV2 adapter for Aave V3 supply positions.
 contract AaveV3Adapter is Adapter, IAaveV3Adapter {
-    using Math for uint256;
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
     /* IMMUTABLES */
 
@@ -37,7 +37,7 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
 
     /// @inheritdoc IAaveV3Adapter
     function aToken() public view returns (address) {
-        return IAaveV3Pool(AAVE_POOL).getReserveAToken(IVaultV2(vault).asset());
+        return IAaveV3Pool(AAVE_POOL).getReserveAToken(IERC4626(vault).asset());
     }
 
     /// @inheritdoc IAdapter
@@ -53,7 +53,7 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
         if (aToken() == address(0)) {
             return 0;
         }
-        return Math.min(totalAssets(), IAaveV3Pool(AAVE_POOL).getVirtualUnderlyingBalance(IVaultV2(vault).asset()));
+        return Math.min(totalAssets(), IAaveV3Pool(AAVE_POOL).getVirtualUnderlyingBalance(IERC4626(vault).asset()));
     }
 
     /// @inheritdoc IAdapter
@@ -72,7 +72,7 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
             return 0;
         }
 
-        try IAaveV3Pool(AAVE_POOL).supply(IVaultV2(vault).asset(), amount, address(this), REFERRAL_CODE) {
+        try IAaveV3Pool(AAVE_POOL).supply(IERC4626(vault).asset(), amount, address(this), REFERRAL_CODE) {
             return amount;
         } catch {}
         return 0;
@@ -88,7 +88,7 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
             return 0;
         }
 
-        try IAaveV3Pool(AAVE_POOL).withdraw(IVaultV2(vault).asset(), amount, address(this)) returns (uint256) {
+        try IAaveV3Pool(AAVE_POOL).withdraw(IERC4626(vault).asset(), amount, address(this)) returns (uint256) {
             return amount;
         } catch {}
         return 0;
@@ -97,7 +97,7 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
     /* INITIALIZATION */
 
     /// @dev Approves the Aave pool to pull the adapter asset.
-    function __initialize(address asset, bytes memory) internal override {
-        IERC20(asset).forceApprove(AAVE_POOL, type(uint256).max);
+    function __initialize(address vault, bytes memory) internal override {
+        IERC20(IERC4626(vault).asset()).forceApprove(AAVE_POOL, type(uint256).max);
     }
 }
