@@ -133,6 +133,12 @@ interface IAppAdapter is IAdapter {
     function stakeAt(uint48 timestamp) external view returns (uint256 amount);
 
     /**
+     * @notice Transfer reward assets from the caller to the vault.
+     * @param amount Amount of assets to transfer.
+     */
+    function reward(uint256 amount) external;
+
+    /**
      * @notice Slash the configured pair.
      * @param amount Maximum amount to slash.
      * @return slashedAmount Amount slashed.

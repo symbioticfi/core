@@ -73,6 +73,21 @@ contract AppAdapterTest is Test {
         factory.create(1, curator, _initData(address(0)));
     }
 
+    function test_RewardTransfersAssetsFromCallerToVault() public {
+        address rewarder = makeAddr("rewarder");
+        uint256 amount = 123;
+
+        collateral.transfer(rewarder, amount);
+
+        vm.startPrank(rewarder);
+        collateral.approve(address(adapter), amount);
+        adapter.reward(amount);
+        vm.stopPrank();
+
+        assertEq(collateral.balanceOf(rewarder), 0);
+        assertEq(collateral.balanceOf(address(vault)), amount);
+    }
+
     function test_DeallocationPreservesStakeUntilDurationAndSettlesAfterDuration() public {
         _allocate(100);
 

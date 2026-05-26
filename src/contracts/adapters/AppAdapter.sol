@@ -92,6 +92,13 @@ contract AppAdapter is Adapter, IAppAdapter {
             .saturatingSub(curStake.debt.upperLookupRecent(uint48(timestamp) + duration - 1));
     }
 
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+
+    /// @inheritdoc IAppAdapter
+    function reward(uint256 amount) public {
+        IERC20(IERC4626(vault).asset()).safeTransferFrom(msg.sender, vault, amount);
+    }
+
     /* PUBLIC FUNCTIONS (NETWORK) */
 
     /// @inheritdoc IAppAdapter
