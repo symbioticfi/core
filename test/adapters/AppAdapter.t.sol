@@ -284,7 +284,10 @@ contract AppAdapterDelegatorMock {
     }
 
     function deallocate(address adapter, uint256 amount) external returns (uint256 deallocated) {
-        return IAdapter(adapter).deallocate(amount);
+        deallocated = IAdapter(adapter).deallocate(amount);
+        if (deallocated > 0) {
+            AppAdapterVaultMock(IAdapter(adapter).vault()).push(deallocated, adapter);
+        }
     }
 
     function requestDeallocate(address adapter, uint256 amount) external {
@@ -337,6 +340,10 @@ contract AppAdapterVaultMock {
 
     function asset() external view returns (address) {
         return collateral;
+    }
+
+    function push(uint256 amount, address from) external {
+        Token(collateral).transferFrom(from, address(this), amount);
     }
 }
 

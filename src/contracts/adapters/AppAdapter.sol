@@ -48,8 +48,6 @@ contract AppAdapter is Adapter, IAppAdapter {
     Stake[] internal _stakes;
     /// @dev Position of the current stake in the _stakes array.
     Checkpoints.Trace208 internal _stakePos;
-    /// @dev Total assets for the configured pair.
-    Checkpoints.Trace256 internal _totalAssets;
 
     /* CONSTRUCTOR */
 
@@ -62,31 +60,31 @@ contract AppAdapter is Adapter, IAppAdapter {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IAdapter
-    function deallocatable() public view returns (uint256) {
+    function deallocatable() public view virtual returns (uint256) {
         return totalAssets().saturatingSub(slashable());
     }
 
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
-        return _totalAssets.latest();
+        return IERC20(IERC4626(vault).asset()).balanceOf(address(this));
     }
 
     /// @inheritdoc IAppAdapter
-    function slashable() public view returns (uint256) {
+    function slashable() public view virtual returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.latest()];
         return curStake.initialStake.saturatingSub(curStake.slashed.latest())
             .saturatingSub(curStake.debt.upperLookupRecent(block.timestamp));
     }
 
     /// @inheritdoc IAppAdapter
-    function stake() public view returns (uint256) {
+    function stake() public view virtual returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.latest()];
         return curStake.initialStake.saturatingSub(curStake.slashed.latest())
             .saturatingSub(curStake.debt.upperLookupRecent(uint48(block.timestamp) + duration - 1));
     }
 
     /// @inheritdoc IAppAdapter
-    function stakeAt(uint48 timestamp) public view returns (uint256) {
+    function stakeAt(uint48 timestamp) public view virtual returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.upperLookupRecent(timestamp)];
         return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
             .saturatingSub(curStake.debt.upperLookupRecent(uint48(timestamp) + duration - 1));
@@ -95,14 +93,14 @@ contract AppAdapter is Adapter, IAppAdapter {
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IAppAdapter
-    function reward(uint256 amount) public {
+    function reward(uint256 amount) public virtual {
         IERC20(IERC4626(vault).asset()).safeTransferFrom(msg.sender, vault, amount);
     }
 
     /* PUBLIC FUNCTIONS (NETWORK) */
 
     /// @inheritdoc IAppAdapter
-    function slash(uint256 amount) public returns (uint256) {
+    function slash(uint256 amount) public virtual returns (uint256) {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
             revert NotNetworkMiddleware();
         }
@@ -114,8 +112,6 @@ contract AppAdapter is Adapter, IAppAdapter {
 
         Stake storage curStake = _stakes[_stakePos.latest()];
         curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + amount);
-
-        _totalAssets.push(uint48(block.timestamp), _totalAssets.latest() - amount);
 
         // Decrease the adapter limits to avoid new allocations.
         IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(amount, 0);
@@ -137,20 +133,25 @@ contract AppAdapter is Adapter, IAppAdapter {
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
-    /// @dev Deallocates assets that are not slashable.
-    function _deallocate(uint256) internal override returns (uint256 deallocated) {
-        uint256 curTotalAssets = totalAssets();
-        if (curTotalAssets == 0) {
+    /// @dev Allocates assets into a fresh stake checkpoint.
+    function _allocate(uint256 amount) internal override returns (uint256) {
+        if (amount == 0) {
             return 0;
         }
-        deallocated = curTotalAssets.saturatingSub(slashable());
-        if (deallocated > 0) {
-            _totalAssets.push(uint48(block.timestamp), curTotalAssets - deallocated);
-        }
+
+        _stakePos.push(uint48(block.timestamp), uint208(_stakes.length));
+        _stakes.push().initialStake = totalAssets();
+
+        return amount;
+    }
+
+    /// @dev Deallocates assets that are not slashable.
+    function _deallocate(uint256) internal override returns (uint256) {
+        return deallocatable();
     }
 
     /// @dev Requests delayed deallocation debt accounting.
-    function _requestDeallocate(uint256 amount) internal override {
+    function _requestDeallocate(uint256 amount) internal virtual override {
         uint256 curSlashable = slashable();
 
         // Reset stake, debt, and slashed when the debt was reduced enough.
@@ -170,24 +171,10 @@ contract AppAdapter is Adapter, IAppAdapter {
         }
     }
 
-    /// @dev Allocates assets into a fresh stake checkpoint.
-    function _allocate(uint256 amount) internal override returns (uint256) {
-        if (amount == 0) {
-            return 0;
-        }
-
-        uint256 curTotalAssets = _totalAssets.latest() + amount;
-        _totalAssets.push(uint48(block.timestamp), curTotalAssets);
-        _stakePos.push(uint48(block.timestamp), uint208(_stakes.length));
-        _stakes.push().initialStake = curTotalAssets;
-
-        return amount;
-    }
-
     /* INTERNAL FUNCTIONS */
 
     /// @dev Initializes the configured network-operator pair.
-    function __initialize(address, bytes memory data) internal override {
+    function __initialize(address, bytes memory data) internal virtual override {
         InitParams memory params = abi.decode(data, (InitParams));
 
         if (params.subnetwork == bytes32(0) || params.operator == address(0)) {
