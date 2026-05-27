@@ -57,7 +57,6 @@ contract MorphoVaultV2AdapterTest is Test {
     function test_InitializeSetsMorphoVault() public {
         assertEq(adapter.morphoVault(), address(morphoVault));
         assertEq(adapter.allocatable(), type(uint256).max);
-        assertEq(adapter.deallocatable(), 0);
         assertEq(adapter.totalAssets(), 0);
     }
 
@@ -98,13 +97,19 @@ contract MorphoVaultV2AdapterTest is Test {
         assertEq(allocated, 100);
         assertEq(morphoVault.balanceOf(address(adapter)), 100);
         assertEq(adapter.totalAssets(), 100);
-        assertEq(adapter.deallocatable(), 100);
 
         vm.prank(delegator);
         uint256 deallocated = adapter.deallocate(40);
 
         assertEq(deallocated, 40);
         assertEq(collateral.balanceOf(address(adapter)), 40);
+        assertEq(adapter.freeAssets(), 40);
+        assertEq(adapter.totalAssets(), 100);
+
+        vm.prank(address(vault));
+        collateral.transferFrom(address(adapter), address(vault), deallocated);
+
+        assertEq(adapter.freeAssets(), 0);
         assertEq(adapter.totalAssets(), 60);
     }
 
@@ -144,7 +149,7 @@ contract MorphoVaultV2AdapterTest is Test {
 
     function test_DepositHelperAndOnlyDelegatorGuards() public {
         vm.expectRevert(IMorphoVaultV2Adapter.NotSelf.selector);
-        MorphoVaultV2Adapter(address(adapter)).deposit(address(morphoVault), 1, address(adapter));
+        MorphoVaultV2Adapter(address(adapter)).deposit(1);
 
         vm.expectRevert(IAdapter.NotVault.selector);
         adapter.allocate(1);
@@ -158,7 +163,7 @@ contract MorphoVaultV2AdapterTest is Test {
 
     function test_MulticallBubblesDepositReverts() public {
         bytes[] memory calls = new bytes[](1);
-        calls[0] = abi.encodeCall(MorphoVaultV2Adapter.deposit, (address(morphoVault), 1, address(adapter)));
+        calls[0] = abi.encodeCall(MorphoVaultV2Adapter.deposit, (1));
 
         vm.expectRevert(IMorphoVaultV2Adapter.NotSelf.selector);
         adapter.multicall(calls);

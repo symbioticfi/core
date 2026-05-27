@@ -43,6 +43,12 @@ interface IAdapter is IMigratableEntity, IMulticallable {
     function vault() external view returns (address vault);
 
     /**
+     * @notice Returns the asset managed by the adapter.
+     * @return asset Asset address.
+     */
+    function asset() external view returns (address asset);
+
+    /**
      * @notice Get the amount of assets that can be allocated to the adapter.
      * @return amount Amount of assets that can be allocated to the adapter.
      */
@@ -55,10 +61,10 @@ interface IAdapter is IMigratableEntity, IMulticallable {
     function totalAssets() external view returns (uint256 assets);
 
     /**
-     * @notice Get the amount of assets that can be deallocated from the adapter instantly.
-     * @return amount Amount of assets that can be deallocated from the adapter.
+     * @notice Get free assets held directly by the adapter.
+     * @return assets Free assets held directly by the adapter.
      */
-    function deallocatable() external view returns (uint256 amount);
+    function freeAssets() external view returns (uint256 assets);
 
     /**
      * @notice Allocate assets to the adapter.

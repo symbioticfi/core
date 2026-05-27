@@ -15,7 +15,6 @@ import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -60,13 +59,13 @@ contract AppAdapter is Adapter, IAppAdapter {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IAdapter
-    function deallocatable() public view virtual returns (uint256) {
-        return totalAssets().saturatingSub(slashable());
+    function freeAssets() public view virtual override(Adapter, IAdapter) returns (uint256) {
+        return totalAssets() - slashable();
     }
 
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
-        return IERC20(IERC4626(vault).asset()).balanceOf(address(this));
+        return IERC20(asset()).balanceOf(address(this));
     }
 
     /// @inheritdoc IAppAdapter
@@ -94,7 +93,7 @@ contract AppAdapter is Adapter, IAppAdapter {
 
     /// @inheritdoc IAppAdapter
     function reward(uint256 amount) public virtual {
-        IERC20(IERC4626(vault).asset()).safeTransferFrom(msg.sender, vault, amount);
+        IERC20(asset()).safeTransferFrom(msg.sender, vault, amount);
     }
 
     /* PUBLIC FUNCTIONS (NETWORK) */
@@ -118,7 +117,7 @@ contract AppAdapter is Adapter, IAppAdapter {
 
         // Send slashed assets to the burner.
         address curBurner = burner;
-        IERC20(IERC4626(vault).asset()).safeTransfer(curBurner, amount);
+        IERC20(asset()).safeTransfer(curBurner, amount);
         bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));
         if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
             revert InsufficientBurnerGas();
@@ -146,8 +145,8 @@ contract AppAdapter is Adapter, IAppAdapter {
     }
 
     /// @dev Deallocates assets that are not slashable.
-    function _deallocate(uint256) internal override returns (uint256) {
-        return deallocatable();
+    function _deallocate(uint256) internal pure override returns (uint256) {
+        return 0;
     }
 
     /// @dev Requests delayed deallocation debt accounting.

@@ -230,6 +230,35 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(adapter.stake(), 0);
     }
 
+    function test_SlashDoesNotReduceMaxShareLimit() public {
+        delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE);
+
+        collateral.approve(address(vault), 50);
+        vault.deposit(50, address(this));
+        assertEq(vault.freeAssets(), 50);
+
+        vm.prank(networkMiddleware);
+        adapter.slash(40);
+
+        assertEq(delegator.allocatable(address(adapter)), 50);
+        assertGt(delegator.limitOf(address(adapter)), adapter.totalAssets());
+    }
+
+    function test_DeallocateReturnsAllCurrentlyFreeAssetsAfterDebtMatures() public {
+        delegator.forceDeallocate(address(adapter), 80);
+        vm.warp(block.timestamp + duration);
+
+        uint256 freeAssetsBefore = vault.freeAssets();
+        uint256 adapterAssetsBefore = adapter.totalAssets();
+        uint256 adapterFreeAssetsBefore = adapter.freeAssets();
+
+        uint256 deallocated = delegator.deallocate(address(adapter), 1);
+
+        assertEq(deallocated, adapterFreeAssetsBefore);
+        assertEq(vault.freeAssets(), freeAssetsBefore + adapterFreeAssetsBefore);
+        assertEq(adapter.totalAssets(), adapterAssetsBefore - adapterFreeAssetsBefore);
+    }
+
     function test_SweepPendingFillsQueuedWithdrawalAfterDelayedAppAdapterDebt() public {
         address alice = address(0xA11CE);
         (WithdrawalQueue queue, uint256 tokenId, uint256 shares) = _requestAllocatedWithdrawal(1000);

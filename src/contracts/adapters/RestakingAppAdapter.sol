@@ -11,7 +11,7 @@ import {IAppAdapter, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/ad
 import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRestakingAppAdapter} from "../../interfaces/adapters/IRestakingAppAdapter.sol";
-import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
+import {IUniversalDelegator, MAX_SHARE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
@@ -43,13 +43,13 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IAdapter
-    function deallocatable() public view override(AppAdapter, IAdapter) returns (uint256) {
-        return totalAssets().saturatingSub(_slashableShares());
+    function freeAssets() public view override(AppAdapter, IAdapter) returns (uint256) {
+        return totalAssets() - _slashableShares();
     }
 
     /// @inheritdoc IAppAdapter
     function slashable() public view override(AppAdapter, IAppAdapter) returns (uint256) {
-        return IERC4626(IERC4626(vault).asset()).previewRedeem(_slashableShares());
+        return IERC4626(asset()).previewRedeem(_slashableShares());
     }
 
     /// @inheritdoc IAppAdapter
@@ -57,7 +57,7 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         Stake storage curStake = _stakes[_stakePos.latest()];
         uint256 stakeShares = curStake.initialStake.saturatingSub(curStake.slashed.latest())
             .saturatingSub(curStake.debt.upperLookupRecent(uint48(block.timestamp) + duration - 1));
-        return IERC4626(IERC4626(vault).asset()).previewRedeem(stakeShares);
+        return IERC4626(asset()).previewRedeem(stakeShares);
     }
 
     /// @inheritdoc IAppAdapter
@@ -65,7 +65,7 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         Stake storage curStake = _stakes[_stakePos.upperLookupRecent(timestamp)];
         uint256 stakeShares = curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
             .saturatingSub(curStake.debt.upperLookupRecent(uint48(timestamp) + duration - 1));
-        return IERC4626(IERC4626(vault).asset()).previewRedeem(stakeShares);
+        return IERC4626(asset()).previewRedeem(stakeShares);
     }
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
@@ -73,7 +73,7 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /// @inheritdoc IAppAdapter
     function reward(uint256 amount) public override(AppAdapter, IAppAdapter) {
         IERC20(baseAsset).safeTransferFrom(msg.sender, address(this), amount);
-        address restakingToken = IERC4626(vault).asset();
+        address restakingToken = asset();
         if (IERC20(baseAsset).allowance(address(this), restakingToken) < amount) {
             IERC20(baseAsset).forceApprove(restakingToken, type(uint256).max);
         }
@@ -89,17 +89,17 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         }
 
         uint256 slashableShares = _slashableShares();
-        amount = Math.min(amount, IERC4626(IERC4626(vault).asset()).previewRedeem(slashableShares));
+        amount = Math.min(amount, IERC4626(asset()).previewRedeem(slashableShares));
         if (amount == 0) {
             revert InsufficientSlash();
         }
 
         Stake storage curStake = _stakes[_stakePos.latest()];
-        uint256 slashedShares = IERC4626(IERC4626(vault).asset()).withdraw(amount, burner, address(this));
+        uint256 slashedShares = IERC4626(asset()).withdraw(amount, burner, address(this));
         curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + slashedShares);
 
         // Decrease the adapter limits to avoid new allocations.
-        IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(slashedShares, 0);
+        IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(slashedShares, MAX_SHARE);
 
         bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));
         if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
@@ -140,7 +140,7 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /// @dev Initializes the configured base asset and network-operator pair.
     function __initialize(address initVault, bytes memory data) internal override {
         RestakingInitParams memory params = abi.decode(data, (RestakingInitParams));
-        address restakingToken = IERC4626(initVault).asset();
+        address restakingToken = asset();
         if (params.baseAsset == address(0) || IERC4626(restakingToken).asset() != params.baseAsset) {
             revert InvalidBaseAsset();
         }

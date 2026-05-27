@@ -59,6 +59,10 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
 
     /* VIEW FUNCTIONS */
 
+    function asset() public view virtual returns (address) {
+        return IERC4626(vault).asset();
+    }
+
     /// @inheritdoc IAdapter
     function allocatable() public view virtual returns (uint256) {
         return type(uint256).max;
@@ -67,16 +71,22 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
     /// @inheritdoc IAdapter
     function totalAssets() public view virtual returns (uint256);
 
+    /// @inheritdoc IAdapter
+    function freeAssets() public view virtual returns (uint256) {
+        return IERC20(asset()).balanceOf(address(this));
+    }
+
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
     /// @inheritdoc IAdapter
     function allocate(uint256 amount) public onlyDelegator returns (uint256) {
-        return _allocate(amount);
+        return amount > 0 ? _allocate(amount) : 0;
     }
 
     /// @inheritdoc IAdapter
-    function deallocate(uint256 amount) public virtual onlyDelegator returns (uint256 deallocated) {
-        return _deallocate(amount);
+    function deallocate(uint256 amount) public onlyDelegator returns (uint256) {
+        uint256 curFreeAssets = freeAssets();
+        return curFreeAssets + (curFreeAssets < amount ? _deallocate(amount - curFreeAssets) : 0);
     }
 
     /// @inheritdoc IAdapter
@@ -108,7 +118,7 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
         vault = initVault;
         emit SetVault(initVault);
 
-        IERC20(IERC4626(initVault).asset()).forceApprove(initVault, type(uint256).max);
+        IERC20(asset()).forceApprove(initVault, type(uint256).max);
 
         __initialize(initVault, initData);
     }

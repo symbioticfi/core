@@ -126,18 +126,23 @@ contract UniversalDelegatorSweepVault {
 contract UniversalDelegatorSweepAdapter {
     address public immutable FACTORY;
     address public immutable vault;
+    address public immutable asset;
     uint256 public totalAssets;
     uint256 public deallocateReturn;
+    uint256 public freeAssets;
     uint256 public allocatableValue;
     uint256 public allocateReturn;
     uint256 public lastAllocateAmount;
     uint256 public lastDeallocateAmount;
+    uint256 public allocateCalls;
+    uint256 public deallocateCalls;
     uint256 public lastRequestDeallocateAmount;
     uint256 public requestDeallocateCalls;
 
     constructor(address factory, address vault_, uint256 totalAssets_, uint256 deallocateReturn_) {
         FACTORY = factory;
         vault = vault_;
+        asset = vault_.code.length == 0 ? address(0) : UniversalDelegatorSweepVault(vault_).asset();
         totalAssets = totalAssets_;
         deallocateReturn = deallocateReturn_;
     }
@@ -154,17 +159,19 @@ contract UniversalDelegatorSweepAdapter {
         return allocatableValue;
     }
 
-    function deallocatable() external view returns (uint256) {
-        return totalAssets;
+    function setFreeAssets(uint256 freeAssets_) external {
+        freeAssets = freeAssets_;
     }
 
     function allocate(uint256 amount) external returns (uint256 allocated) {
+        ++allocateCalls;
         lastAllocateAmount = amount;
         allocated = allocateReturn > amount ? amount : allocateReturn;
         totalAssets += allocated;
     }
 
     function deallocate(uint256 amount) external returns (uint256 deallocated) {
+        ++deallocateCalls;
         lastDeallocateAmount = amount;
         deallocated = deallocateReturn > amount ? amount : deallocateReturn;
         totalAssets -= deallocated;
@@ -181,11 +188,13 @@ error UniversalDelegatorSweepAdapterBoom();
 contract UniversalDelegatorSweepRevertingAdapter {
     address public immutable FACTORY;
     address public immutable vault;
+    address public immutable asset;
     uint256 public totalAssets;
 
     constructor(address factory, address vault_, uint256 totalAssets_) {
         FACTORY = factory;
         vault = vault_;
+        asset = vault_.code.length == 0 ? address(0) : UniversalDelegatorSweepVault(vault_).asset();
         totalAssets = totalAssets_;
     }
 
@@ -193,8 +202,8 @@ contract UniversalDelegatorSweepRevertingAdapter {
         return 0;
     }
 
-    function deallocatable() external view returns (uint256) {
-        return totalAssets;
+    function freeAssets() external pure returns (uint256) {
+        return 0;
     }
 
     function allocate(uint256) external pure returns (uint256) {
@@ -369,6 +378,48 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(vault.pushedAssets(), 30);
         assertEq(vault.lastPullAdapter(), address(adapter));
         assertEq(vault.lastPushAdapter(), address(adapter));
+    }
+
+    function test_AllocateZeroAmountStillCallsAdapterAfterSweep() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        vault.mintFreeAssets(100);
+        delegator.setVault(address(vault));
+        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
+
+        UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(address(vault), 0, 0);
+        adapter.setAllocatable(100);
+        adapter.setAllocateReturn(100);
+
+        delegator.addAdapterForTest(address(adapter));
+        delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
+        delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE);
+
+        vm.prank(address(adapter));
+        uint256 allocated = delegator.allocate(address(adapter), 0);
+
+        assertEq(allocated, 0);
+        assertEq(adapter.allocateCalls(), 1);
+        assertEq(adapter.lastAllocateAmount(), 0);
+        assertEq(vault.pulledAssets(), 0);
+    }
+
+    function test_DeallocateZeroAmountStillRunsDirectAndSweepPaths() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        delegator.setVault(address(vault));
+        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
+
+        UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(address(vault), 100, 100);
+        delegator.addAdapterForTest(address(adapter));
+
+        vm.prank(address(adapter));
+        uint256 deallocated = delegator.deallocate(address(adapter), 0);
+
+        assertEq(deallocated, 0);
+        assertEq(adapter.deallocateCalls(), 2);
+        assertEq(adapter.lastDeallocateAmount(), 0);
+        assertEq(vault.pushedAssets(), 0);
     }
 
     function test_SwapAdaptersSwapsAdaptersInRoute() public {

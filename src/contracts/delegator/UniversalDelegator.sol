@@ -373,6 +373,11 @@ contract UniversalDelegator is
     function sweepPending() public returns (uint256 pendingAssets) {
         address withdrawalQueue = VaultV2(vault).withdrawalQueue();
 
+        // Try to sweep free assets as much as possible.
+        for (uint256 i; i < adapters.length; ++i) {
+            _deallocate(adapters[i], IAdapter(adapters[i]).freeAssets());
+        }
+
         // Try to deallocate assets as much as possible to fill the queue.
         _deallocateAll(WithdrawalQueue(withdrawalQueue).pendingAssets().saturatingSub(VaultV2(vault).freeAssets()));
         WithdrawalQueue(withdrawalQueue).fill();
@@ -476,8 +481,6 @@ contract UniversalDelegator is
 
     /// @dev Deallocate adapter assets back into the vault.
     function _deallocate(address adapter, uint256 assets) internal returns (uint256 deallocated) {
-        assets = Math.min(assets, IAdapter(adapter).totalAssets());
-
         deallocated = IAdapter(adapter).deallocate(assets);
         if (deallocated > 0) {
             VaultV2(vault).push(deallocated, adapter);

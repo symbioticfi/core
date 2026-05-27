@@ -38,11 +38,11 @@ contract AdapterFactoryTest is Test {
 
     function test_CreateRevertsForNonVault() public {
         vm.expectRevert(IAdapter.InvalidVault.selector);
-        factory.create(1, curator, abi.encode(vault, ""));
+        factory.create(1, curator, _initData(vault));
     }
 
     function test_InitializeRevertsForNonVault() public {
-        bytes memory data = abi.encode(vault, "");
+        bytes memory data = _initData(vault);
         bytes memory initData = abi.encodeCall(IMigratableEntity.initialize, (1, curator, data));
 
         vm.expectRevert(IAdapter.InvalidVault.selector);
@@ -52,10 +52,9 @@ contract AdapterFactoryTest is Test {
     function test_CreateUsesMigratablesFactorySaltAndInitializesAdapterVault() public {
         vaultFactory.add(vault);
 
-        bytes memory data = abi.encode(vault, "");
-        bytes memory initData = abi.encodeCall(IMigratableEntity.initialize, (1, curator, data));
+        bytes memory data = _initData(vault);
         bytes memory initCode =
-            abi.encodePacked(type(MigratableEntityProxy).creationCode, abi.encode(address(implementation), initData));
+            abi.encodePacked(type(MigratableEntityProxy).creationCode, abi.encode(address(implementation), ""));
         address predicted = Create2.computeAddress(
             keccak256(abi.encode(uint256(0), uint64(1), curator, data)), keccak256(initCode), address(factory)
         );
@@ -65,6 +64,7 @@ contract AdapterFactoryTest is Test {
         assertEq(adapter, predicted);
         assertTrue(factory.isEntity(adapter));
         assertEq(IAdapter(adapter).vault(), vault);
+        assertEq(IAdapter(adapter).asset(), address(collateral));
         assertEq(IMigratableEntity(adapter).FACTORY(), address(factory));
         assertEq(IMigratableEntity(adapter).version(), 1);
     }
@@ -72,7 +72,7 @@ contract AdapterFactoryTest is Test {
     function test_CreateAllowsMultipleAdaptersForSameVault() public {
         vaultFactory.add(vault);
 
-        bytes memory data = abi.encode(vault, "");
+        bytes memory data = _initData(vault);
 
         address firstAdapter = factory.create(1, curator, data);
         address secondAdapter = factory.create(1, curator, data);
@@ -82,6 +82,8 @@ contract AdapterFactoryTest is Test {
         assertTrue(factory.isEntity(secondAdapter));
         assertEq(IAdapter(firstAdapter).vault(), vault);
         assertEq(IAdapter(secondAdapter).vault(), vault);
+        assertEq(IAdapter(firstAdapter).asset(), address(collateral));
+        assertEq(IAdapter(secondAdapter).asset(), address(collateral));
     }
 
     function test_SeparateFactoriesCanCreateForSameVault() public {
@@ -92,11 +94,15 @@ contract AdapterFactoryTest is Test {
         vm.prank(owner);
         otherFactory.whitelist(address(otherImplementation));
 
-        address adapter = factory.create(1, curator, abi.encode(vault, ""));
-        address otherAdapter = otherFactory.create(1, curator, abi.encode(vault, ""));
+        address adapter = factory.create(1, curator, _initData(vault));
+        address otherAdapter = otherFactory.create(1, curator, _initData(vault));
 
         assertNotEq(adapter, otherAdapter);
         assertEq(IAdapter(otherAdapter).vault(), vault);
+    }
+
+    function _initData(address targetVault) internal view returns (bytes memory) {
+        return abi.encode(targetVault, "");
     }
 }
 
@@ -115,10 +121,6 @@ contract MockAdapter is Adapter {
 
     function allocatable() public view override returns (uint256) {
         return type(uint256).max;
-    }
-
-    function deallocatable() public view override returns (uint256) {
-        return 0;
     }
 
     function _allocate(uint256 amount) internal override returns (uint256) {

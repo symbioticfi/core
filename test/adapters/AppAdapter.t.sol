@@ -152,17 +152,33 @@ contract AppAdapterTest is Test {
         delegator.requestDeallocate(address(adapter), 40);
 
         assertEq(adapter.stake(), 100);
-        assertEq(adapter.deallocatable(), 0);
+        assertEq(adapter.freeAssets(), 0);
 
         vm.warp(block.timestamp + duration);
 
         assertEq(adapter.stake(), 60);
-        assertEq(adapter.deallocatable(), 40);
+        assertEq(adapter.freeAssets(), 40);
 
         uint256 deallocated = delegator.deallocate(address(adapter), 40);
 
         assertEq(deallocated, 40);
         assertEq(adapter.totalAssets(), 60);
+    }
+
+    function test_DeallocateReturnsAllCurrentlyFreeAssets() public {
+        _allocate(100);
+
+        delegator.requestDeallocate(address(adapter), 80);
+        vm.warp(block.timestamp + duration);
+
+        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
+        uint256 adapterAssetsBefore = adapter.totalAssets();
+
+        uint256 deallocated = delegator.deallocate(address(adapter), 1);
+
+        assertEq(deallocated, 80);
+        assertEq(adapter.totalAssets(), adapterAssetsBefore - 80);
+        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + 80);
     }
 
     function test_SyncClosesPendingByRestoringStake() public {
@@ -225,7 +241,7 @@ contract AppAdapterTest is Test {
     function test_ZeroStateViewsReturnZeroAndSlashRevertsInsufficientSlash() public {
         assertEq(adapter.stake(), 0);
         assertEq(adapter.slashable(), 0);
-        assertEq(adapter.deallocatable(), 0);
+        assertEq(adapter.freeAssets(), 0);
 
         vm.expectRevert(IAppAdapter.InsufficientSlash.selector);
         vm.prank(networkMiddleware);

@@ -42,15 +42,22 @@ contract AaveV3AdapterTest is Test {
         adapter = IAaveV3Adapter(factory.create(1, curator, abi.encode(address(vault), "")));
     }
 
-    function test_ViewsReturnZeroWithoutReserve() public {
-        AaveV3AdapterVaultMock localVault = new AaveV3AdapterVaultMock(address(new Token("Other")), delegator);
+    function test_InitializeRejectsMissingReserve() public {
+        Token localCollateral = new Token("Other");
+        AaveV3AdapterVaultMock localVault = new AaveV3AdapterVaultMock(address(localCollateral), delegator);
         vaultFactory.add(address(localVault));
-        IAaveV3Adapter localAdapter = IAaveV3Adapter(factory.create(1, curator, abi.encode(address(localVault), "")));
 
-        assertEq(localAdapter.aToken(), address(0));
-        assertEq(localAdapter.allocatable(), 0);
-        assertEq(localAdapter.deallocatable(), 0);
-        assertEq(localAdapter.totalAssets(), 0);
+        vm.expectRevert(IAaveV3Adapter.InvalidAToken.selector);
+        factory.create(1, curator, abi.encode(address(localVault), ""));
+    }
+
+    function test_AssetAndFreeAssetsUseVaultAsset() public {
+        assertEq(adapter.asset(), address(collateral));
+        assertEq(adapter.freeAssets(), 0);
+
+        collateral.transfer(address(adapter), 123);
+
+        assertEq(adapter.freeAssets(), 123);
     }
 
     function test_AllocateAndDeallocateThroughAave() public {
@@ -62,16 +69,21 @@ contract AaveV3AdapterTest is Test {
         assertEq(allocated, 100);
         assertEq(aToken.balanceOf(address(adapter)), 100);
         assertEq(adapter.totalAssets(), 100);
-        assertEq(adapter.deallocatable(), 100);
 
         pool.setVirtualUnderlyingBalance(40);
-        assertEq(adapter.deallocatable(), 40);
 
         vm.prank(delegator);
         uint256 deallocated = adapter.deallocate(70);
 
         assertEq(deallocated, 40);
         assertEq(collateral.balanceOf(address(adapter)), 40);
+        assertEq(adapter.freeAssets(), 40);
+        assertEq(adapter.totalAssets(), 100);
+
+        vm.prank(address(vault));
+        collateral.transferFrom(address(adapter), address(vault), deallocated);
+
+        assertEq(adapter.freeAssets(), 0);
         assertEq(adapter.totalAssets(), 60);
     }
 

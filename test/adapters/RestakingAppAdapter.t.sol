@@ -11,6 +11,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 import {IRestakingAppAdapter} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
+import {MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 
 import {Token} from "../mocks/Token.sol";
 
@@ -112,7 +113,7 @@ contract RestakingAppAdapterTest is Test {
         assertEq(adapter.slashable(), restakingToken.previewRedeem(100 - expectedSlashedShares));
         assertEq(delegator.decreaseLimitsCalls(), 1);
         assertEq(delegator.lastDecreaseAssets(), expectedSlashedShares);
-        assertEq(delegator.lastDecreaseShare(), 0);
+        assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
     }
 
     function _allocateRestakingShares(uint256 assets) internal {

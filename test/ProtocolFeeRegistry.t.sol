@@ -19,8 +19,8 @@ contract ProtocolFeeRegistryTest is Test {
     function test_GetFeeFallsBackToGlobalAndUsesVaultOverride() public {
         ProtocolFeeRegistry protocolFeeRegistry = new ProtocolFeeRegistry(owner);
 
-        protocolFeeRegistry.setGlobalFee(7, 1e16);
         protocolFeeRegistry.setGlobalReceiver(globalReceiver);
+        protocolFeeRegistry.setGlobalFee(7, 1e16);
 
         (address receiver, uint96 managementFee, uint96 performanceFee) = protocolFeeRegistry.getFee(vault);
         assertEq(receiver, globalReceiver);
@@ -49,8 +49,8 @@ contract ProtocolFeeRegistryTest is Test {
     function test_VaultFeeCanOverrideGlobalFeesToZero() public {
         ProtocolFeeRegistry protocolFeeRegistry = new ProtocolFeeRegistry(owner);
 
-        protocolFeeRegistry.setGlobalFee(7, 1e16);
         protocolFeeRegistry.setGlobalReceiver(globalReceiver);
+        protocolFeeRegistry.setGlobalFee(7, 1e16);
         protocolFeeRegistry.setVaultFee(vault, true, vaultReceiver, 0, 0);
 
         (bool isEnabled, address receiver, uint96 managementFee, uint96 performanceFee) =
@@ -111,6 +111,45 @@ contract ProtocolFeeRegistryTest is Test {
 
         vm.expectRevert(IProtocolFeeRegistry.InvalidReceiver.selector);
         protocolFeeRegistry.setGlobalReceiver(address(0));
+    }
+
+    function test_SetGlobalFeeRequiresReceiverForNonZeroFees() public {
+        ProtocolFeeRegistry protocolFeeRegistry = new ProtocolFeeRegistry(owner);
+
+        protocolFeeRegistry.setGlobalFee(0, 0);
+
+        vm.expectRevert(IProtocolFeeRegistry.InvalidReceiver.selector);
+        protocolFeeRegistry.setGlobalFee(1, 0);
+
+        vm.expectRevert(IProtocolFeeRegistry.InvalidReceiver.selector);
+        protocolFeeRegistry.setGlobalFee(0, 1);
+
+        protocolFeeRegistry.setGlobalReceiver(globalReceiver);
+        protocolFeeRegistry.setGlobalFee(1, 1);
+
+        (address receiver, uint96 managementFee, uint96 performanceFee) = protocolFeeRegistry.getFee(vault);
+        assertEq(receiver, globalReceiver);
+        assertEq(managementFee, 1);
+        assertEq(performanceFee, 1);
+    }
+
+    function test_SetVaultFeeRequiresReceiverForEnabledNonZeroFees() public {
+        ProtocolFeeRegistry protocolFeeRegistry = new ProtocolFeeRegistry(owner);
+
+        protocolFeeRegistry.setVaultFee(vault, true, address(0), 0, 0);
+
+        vm.expectRevert(IProtocolFeeRegistry.InvalidReceiver.selector);
+        protocolFeeRegistry.setVaultFee(vault, true, address(0), 1, 0);
+
+        vm.expectRevert(IProtocolFeeRegistry.InvalidReceiver.selector);
+        protocolFeeRegistry.setVaultFee(vault, true, address(0), 0, 1);
+
+        protocolFeeRegistry.setVaultFee(vault, true, vaultReceiver, 1, 1);
+
+        (address receiver, uint96 managementFee, uint96 performanceFee) = protocolFeeRegistry.getFee(vault);
+        assertEq(receiver, vaultReceiver);
+        assertEq(managementFee, 1);
+        assertEq(performanceFee, 1);
     }
 
     function test_ProtocolFeeLimitConstantsUseUint96VaultValues() public pure {

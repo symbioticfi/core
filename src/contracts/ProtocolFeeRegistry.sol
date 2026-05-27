@@ -41,6 +41,9 @@ contract ProtocolFeeRegistry is Ownable, IProtocolFeeRegistry {
         if (newGlobalManagementFee > MAX_MANAGEMENT_FEE || newGlobalPerformanceFee > MAX_PERFORMANCE_FEE) {
             revert FeeTooHigh();
         }
+        if ((newGlobalManagementFee > 0 || newGlobalPerformanceFee > 0) && globalReceiver == address(0)) {
+            revert InvalidReceiver();
+        }
         globalManagementFee = newGlobalManagementFee;
         globalPerformanceFee = newGlobalPerformanceFee;
         emit SetGlobalFee(newGlobalManagementFee, newGlobalPerformanceFee);
@@ -65,6 +68,9 @@ contract ProtocolFeeRegistry is Ownable, IProtocolFeeRegistry {
     ) public onlyOwner {
         if (newVaultManagementFee > MAX_MANAGEMENT_FEE || newVaultPerformanceFee > MAX_PERFORMANCE_FEE) {
             revert FeeTooHigh();
+        }
+        if (isEnabled && (newVaultManagementFee > 0 || newVaultPerformanceFee > 0) && newVaultReceiver == address(0)) {
+            revert InvalidReceiver();
         }
         vaultFee[vault] = Fee({
             isEnabled: isEnabled,

@@ -11,7 +11,6 @@ import {IMorphoVaultV2Factory} from "../../interfaces/adapters/morpho_vaultv2_ad
 import {IMorphoVaultV2} from "../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -49,44 +48,20 @@ contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IAdapter
-    function allocatable() public view override(Adapter, IAdapter) returns (uint256) {
-        if (morphoVault == address(0)) {
-            return 0;
-        }
-        return super.allocatable();
-    }
-
-    /// @inheritdoc IAdapter
-    function deallocatable() public view returns (uint256) {
-        address curMorphoVault = morphoVault;
-        if (curMorphoVault == address(0)) {
-            return 0;
-        }
-        address liquidityAdapter = IMorphoVaultV2(curMorphoVault).liquidityAdapter();
-        return Math.min(
-            totalAssets(),
-            IERC20(IMorphoVaultV2(curMorphoVault).asset()).balanceOf(curMorphoVault)
-                + (liquidityAdapter == address(0) ? 0 : IMorphoLiquidityAdapter(liquidityAdapter).realAssets())
-        );
-    }
-
-    /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
-        address curMorphoVault = morphoVault;
-        if (curMorphoVault == address(0)) {
-            return 0;
-        }
-        return IMorphoVaultV2(curMorphoVault).previewRedeem(IMorphoVaultV2(curMorphoVault).balanceOf(address(this)));
+        return
+            freeAssets()
+                + IMorphoVaultV2(morphoVault).previewRedeem(IMorphoVaultV2(morphoVault).balanceOf(address(this)));
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
     /// @dev Uses a self-call so zero-share deposits revert and roll back the Morpho transfer.
-    function deposit(address targetMorphoVault, uint256 amount, address onBehalfOf) public {
+    function deposit(uint256 amount) public {
         if (address(this) != msg.sender) {
             revert NotSelf();
         }
-        if (IMorphoVaultV2(targetMorphoVault).deposit(amount, onBehalfOf) == 0) {
+        if (IMorphoVaultV2(morphoVault).deposit(amount, address(this)) == 0) {
             revert InsufficientAmount();
         }
     }
@@ -95,17 +70,7 @@ contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
 
     /// @dev Deposits asset from the calling vault into the configured Morpho vault.
     function _allocate(uint256 amount) internal override returns (uint256) {
-        if (amount == 0) {
-            return 0;
-        }
-
-        address curMorphoVault = morphoVault;
-        address asset = IMorphoVaultV2(curMorphoVault).asset();
-
-        if (IERC20(asset).allowance(address(this), curMorphoVault) < amount) {
-            IERC20(asset).forceApprove(curMorphoVault, type(uint256).max);
-        }
-        try this.deposit(curMorphoVault, amount, address(this)) {
+        try this.deposit(amount) {
             return amount;
         } catch {}
         return 0;
@@ -113,10 +78,15 @@ contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
 
     /// @dev Withdraws asset for the calling vault from the configured Morpho vault.
     function _deallocate(uint256 amount) internal override returns (uint256) {
-        if (amount == 0) {
-            return 0;
-        }
-        amount = Math.min(deallocatable(), amount);
+        address liquidityAdapter = IMorphoVaultV2(morphoVault).liquidityAdapter();
+        amount = Math.min(
+            amount,
+            Math.min(
+                IMorphoVaultV2(morphoVault).previewRedeem(IMorphoVaultV2(morphoVault).balanceOf(address(this))),
+                IERC20(asset()).balanceOf(morphoVault)
+                    + (liquidityAdapter == address(0) ? 0 : IMorphoLiquidityAdapter(liquidityAdapter).realAssets())
+            )
+        );
         if (amount == 0) {
             return 0;
         }
@@ -130,19 +100,21 @@ contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
     /* INITIALIZATION */
 
     /// @dev Initializes and permanently binds the Morpho vault.
-    function __initialize(address vault, bytes memory data) internal override {
+    function __initialize(address, bytes memory data) internal override {
         address curMorphoVault = abi.decode(data, (address));
 
         if (
             curMorphoVault == address(0) || !IMorphoVaultV2Factory(MORPHO_VAULT_FACTORY).isVaultV2(curMorphoVault)
                 || !IMorphoVaultV2(curMorphoVault).abdicated(IMorphoVaultV2.setAdapterRegistry.selector)
                 || IMorphoVaultV2(curMorphoVault).adapterRegistry() != MORPHO_ADAPTER_REGISTRY
-                || IMorphoVaultV2(curMorphoVault).asset() != IERC4626(vault).asset()
+                || IMorphoVaultV2(curMorphoVault).asset() != asset()
         ) {
             revert InvalidMorphoVault();
         }
 
         morphoVault = curMorphoVault;
+
+        IERC20(asset()).forceApprove(curMorphoVault, type(uint256).max);
 
         emit Initialize(curMorphoVault);
     }

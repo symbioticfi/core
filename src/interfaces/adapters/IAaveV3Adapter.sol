@@ -10,6 +10,13 @@ uint16 constant REFERRAL_CODE = 0;
  * @notice Interface for the Aave V3 vault adapter.
  */
 interface IAaveV3Adapter is IAdapter {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when the Aave pool has no reserve aToken for the vault asset.
+     */
+    error InvalidAToken();
+
     /* FUNCTIONS */
 
     /**

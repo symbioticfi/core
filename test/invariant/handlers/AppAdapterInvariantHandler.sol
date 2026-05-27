@@ -259,9 +259,9 @@ contract AppAdapterInvariantHandler is Test {
     function assertAccountingInvariant() external view {
         uint256 adapterTotalAssets = adapter.totalAssets();
         uint256 adapterSlashable = adapter.slashable();
-        uint256 adapterDeallocatable = adapter.deallocatable();
+        uint256 adapterFreeAssets = adapter.freeAssets();
 
-        assertEq(adapterTotalAssets, adapterSlashable + adapterDeallocatable);
+        assertEq(adapterTotalAssets, adapterSlashable + adapterFreeAssets);
         assertEq(collateral.balanceOf(address(adapter)), adapterTotalAssets);
         assertLe(adapter.stake(), adapterSlashable);
         assertLe(adapterSlashable, adapterTotalAssets);
