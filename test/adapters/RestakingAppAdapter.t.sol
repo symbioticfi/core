@@ -51,6 +51,7 @@ contract RestakingAppAdapterTest is Test {
         restakingToken = new RestakingTokenMock(IERC20(address(baseAsset)));
         vault = new RestakingAppAdapterVaultMock(address(restakingToken), address(delegator));
         vaultFactory.add(address(vault));
+        vaultFactory.add(address(restakingToken));
 
         subnetwork = network.subnetwork(1);
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
@@ -64,7 +65,60 @@ contract RestakingAppAdapterTest is Test {
     }
 
     function test_InitializeStoresBaseAsset() public view {
-        assertEq(adapter.baseAsset(), address(baseAsset));
+        assertEq(adapter.asset(), address(baseAsset));
+    }
+
+    function test_InitializeAcceptsVaultAssetMatchingBaseAsset() public {
+        RestakingAppAdapterVaultMock directVault =
+            new RestakingAppAdapterVaultMock(address(baseAsset), address(delegator));
+        vaultFactory.add(address(directVault));
+
+        IRestakingAppAdapter directAdapter =
+            IRestakingAppAdapter(factory.create(1, curator, _initData(address(directVault), address(baseAsset))));
+
+        assertEq(directAdapter.asset(), address(baseAsset));
+    }
+
+    function test_InitializeAcceptsNestedVaultAssetChain() public {
+        RestakingTokenMock middleVault = new RestakingTokenMock(IERC20(address(baseAsset)));
+        RestakingTokenMock outerVault = new RestakingTokenMock(IERC20(address(middleVault)));
+        RestakingAppAdapterVaultMock nestedVault =
+            new RestakingAppAdapterVaultMock(address(outerVault), address(delegator));
+        vaultFactory.add(address(nestedVault));
+        vaultFactory.add(address(middleVault));
+        vaultFactory.add(address(outerVault));
+
+        IRestakingAppAdapter nestedAdapter =
+            IRestakingAppAdapter(factory.create(1, curator, _initData(address(nestedVault), address(baseAsset))));
+
+        assertEq(nestedAdapter.asset(), address(baseAsset));
+    }
+
+    function test_InitializeRejectsUnregisteredNestedVaultAsset() public {
+        RestakingTokenMock unregisteredVault = new RestakingTokenMock(IERC20(address(baseAsset)));
+        RestakingAppAdapterVaultMock nestedVault =
+            new RestakingAppAdapterVaultMock(address(unregisteredVault), address(delegator));
+        vaultFactory.add(address(nestedVault));
+
+        vm.expectRevert(IRestakingAppAdapter.InvalidBaseAsset.selector);
+
+        factory.create(1, curator, _initData(address(nestedVault), address(baseAsset)));
+    }
+
+    function test_InitializeRejectsAssetFoundAfterMoreThanFiveVaults() public {
+        IERC20 curAsset = IERC20(address(baseAsset));
+        for (uint256 i; i < 6; ++i) {
+            RestakingTokenMock nextVault = new RestakingTokenMock(curAsset);
+            vaultFactory.add(address(nextVault));
+            curAsset = IERC20(address(nextVault));
+        }
+        RestakingAppAdapterVaultMock nestedVault =
+            new RestakingAppAdapterVaultMock(address(curAsset), address(delegator));
+        vaultFactory.add(address(nestedVault));
+
+        vm.expectRevert(IRestakingAppAdapter.InvalidBaseAsset.selector);
+
+        factory.create(1, curator, _initData(address(nestedVault), address(baseAsset)));
     }
 
     function test_StakeSlashableAndStakeAtUseBaseAssetValue() public {
@@ -78,6 +132,31 @@ contract RestakingAppAdapterTest is Test {
         assertEq(adapter.slashable(), expectedStake);
     }
 
+    function test_StakeAtUsesCurrentVaultAssetWhenVaultAssetChanges() public {
+        _allocateRestakingShares(100);
+        uint48 timestamp = uint48(block.timestamp);
+
+        RestakingTokenMock newRestakingToken = new RestakingTokenMock(IERC20(address(baseAsset)));
+        vaultFactory.add(address(newRestakingToken));
+        vault.setAsset(address(newRestakingToken));
+
+        assertEq(adapter.stakeAt(timestamp), newRestakingToken.previewRedeem(100));
+    }
+
+    function test_StakeSlashableAndStakeAtUseNestedBaseAssetValue() public {
+        (IRestakingAppAdapter nestedAdapter, RestakingTokenMock outerVault, RestakingTokenMock middleVault) =
+            _createNestedAdapter();
+
+        _allocateNestedShares(nestedAdapter, outerVault, middleVault, 100);
+        baseAsset.transfer(address(middleVault), 100);
+
+        uint256 expectedStake = middleVault.previewRedeem(outerVault.previewRedeem(100));
+
+        assertEq(nestedAdapter.stake(), expectedStake);
+        assertEq(nestedAdapter.stakeAt(uint48(block.timestamp)), expectedStake);
+        assertEq(nestedAdapter.slashable(), expectedStake);
+    }
+
     function test_RewardDepositsBaseAssetIntoVaultAssetForVault() public {
         _allocateRestakingShares(100);
         baseAsset.transfer(address(restakingToken), 100);
@@ -88,14 +167,33 @@ contract RestakingAppAdapterTest is Test {
 
         vm.startPrank(rewarder);
         baseAsset.approve(address(adapter), 40);
-        adapter.reward(40);
+        adapter.reward(address(baseAsset), 40);
         vm.stopPrank();
 
         assertEq(baseAsset.balanceOf(rewarder), 0);
         assertEq(restakingToken.balanceOf(address(vault)), expectedShares);
     }
 
-    function test_SlashBurnsBaseAssetAndAccountsInVaultAssetShares() public {
+    function test_RewardDepositsBaseAssetThroughNestedVaultsForVault() public {
+        (IRestakingAppAdapter nestedAdapter, RestakingTokenMock outerVault, RestakingTokenMock middleVault) =
+            _createNestedAdapter();
+
+        address rewarder = makeAddr("rewarder");
+        baseAsset.transfer(rewarder, 40);
+        uint256 middleShares = middleVault.previewDeposit(40);
+        uint256 outerShares = outerVault.previewDeposit(middleShares);
+
+        vm.startPrank(rewarder);
+        baseAsset.approve(address(nestedAdapter), 40);
+        nestedAdapter.reward(address(baseAsset), 40);
+        vm.stopPrank();
+
+        assertEq(baseAsset.balanceOf(rewarder), 0);
+        assertEq(middleVault.balanceOf(address(outerVault)), middleShares);
+        assertEq(outerVault.balanceOf(address(nestedAdapter.vault())), outerShares);
+    }
+
+    function test_SlashBurnsVaultAssetAndAccountsInVaultAssetShares() public {
         _allocateRestakingShares(100);
         baseAsset.transfer(address(restakingToken), 100);
         uint256 expectedSlashedShares = restakingToken.previewWithdraw(40);
@@ -107,8 +205,9 @@ contract RestakingAppAdapterTest is Test {
         uint256 slashedAmount = adapter.slash(40);
 
         assertEq(slashedAmount, 40);
-        assertEq(baseAsset.balanceOf(burner), 40);
-        assertEq(restakingToken.balanceOf(address(adapter)), 100 - expectedSlashedShares);
+        assertEq(baseAsset.balanceOf(burner), 0);
+        assertEq(restakingToken.balanceOf(burner), 40);
+        assertEq(restakingToken.balanceOf(address(adapter)), 100 - expectedSlashedShares - 40);
         assertEq(adapter.stake(), restakingToken.previewRedeem(100 - expectedSlashedShares));
         assertEq(adapter.slashable(), restakingToken.previewRedeem(100 - expectedSlashedShares));
         assertEq(delegator.decreaseLimitsCalls(), 1);
@@ -116,12 +215,69 @@ contract RestakingAppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
     }
 
-    function _allocateRestakingShares(uint256 assets) internal {
-        baseAsset.approve(address(restakingToken), assets);
-        uint256 shares = restakingToken.deposit(assets, address(this));
+    function test_SlashWithdrawsThroughNestedVaultsAndBurnsVaultAsset() public {
+        (IRestakingAppAdapter nestedAdapter, RestakingTokenMock outerVault, RestakingTokenMock middleVault) =
+            _createNestedAdapter();
+        _allocateNestedShares(nestedAdapter, outerVault, middleVault, 100);
+        baseAsset.transfer(address(middleVault), 100);
+
+        uint256 expectedMiddleShares = middleVault.previewWithdraw(40);
+        uint256 expectedOuterShares = outerVault.previewWithdraw(expectedMiddleShares);
+
+        vm.expectEmit(true, true, true, true, address(nestedAdapter));
+        emit IAppAdapter.Slash(40);
+
+        vm.prank(networkMiddleware);
+        uint256 slashedAmount = nestedAdapter.slash(40);
+
+        assertEq(slashedAmount, 40);
+        assertEq(baseAsset.balanceOf(burner), 0);
+        assertEq(outerVault.balanceOf(burner), 40);
+        assertEq(middleVault.balanceOf(burner), 0);
+        assertEq(outerVault.balanceOf(address(nestedAdapter)), 100 - expectedOuterShares - 40);
+        assertEq(nestedAdapter.stake(), middleVault.previewRedeem(outerVault.previewRedeem(100 - expectedOuterShares)));
+        assertEq(delegator.decreaseLimitsCalls(), 1);
+        assertEq(delegator.lastDecreaseAssets(), expectedOuterShares);
+        assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
+    }
+
+    function _allocateRestakingShares(uint256 amount) internal {
+        baseAsset.approve(address(restakingToken), amount);
+        uint256 shares = restakingToken.deposit(amount, address(this));
         restakingToken.transfer(address(adapter), shares);
 
         delegator.allocate(address(adapter), shares);
+    }
+
+    function _allocateNestedShares(
+        IRestakingAppAdapter targetAdapter,
+        RestakingTokenMock outerVault,
+        RestakingTokenMock middleVault,
+        uint256 amount
+    ) internal {
+        baseAsset.approve(address(middleVault), amount);
+        uint256 middleShares = middleVault.deposit(amount, address(this));
+        middleVault.approve(address(outerVault), middleShares);
+        uint256 outerShares = outerVault.deposit(middleShares, address(this));
+        outerVault.transfer(address(targetAdapter), outerShares);
+
+        delegator.allocate(address(targetAdapter), outerShares);
+    }
+
+    function _createNestedAdapter()
+        internal
+        returns (IRestakingAppAdapter nestedAdapter, RestakingTokenMock outerVault, RestakingTokenMock middleVault)
+    {
+        middleVault = new RestakingTokenMock(IERC20(address(baseAsset)));
+        outerVault = new RestakingTokenMock(IERC20(address(middleVault)));
+        RestakingAppAdapterVaultMock nestedVault =
+            new RestakingAppAdapterVaultMock(address(outerVault), address(delegator));
+        vaultFactory.add(address(nestedVault));
+        vaultFactory.add(address(middleVault));
+        vaultFactory.add(address(outerVault));
+
+        nestedAdapter =
+            IRestakingAppAdapter(factory.create(1, curator, _initData(address(nestedVault), address(baseAsset))));
     }
 
     function _createAdapter() internal returns (IRestakingAppAdapter) {
@@ -129,15 +285,18 @@ contract RestakingAppAdapterTest is Test {
     }
 
     function _initData() internal view returns (bytes memory) {
+        return _initData(address(vault), address(baseAsset));
+    }
+
+    function _initData(address initVault, address initBaseAsset) internal view returns (bytes memory) {
         return abi.encode(
-            address(vault),
+            initVault,
             abi.encode(
                 IRestakingAppAdapter.RestakingInitParams({
-                    baseAsset: address(baseAsset),
-                    subnetwork: subnetwork,
-                    operator: operator,
-                    duration: duration,
-                    burner: burner
+                    asset: initBaseAsset,
+                    initParams: IAppAdapter.InitParams({
+                        subnetwork: subnetwork, operator: operator, duration: duration, burner: burner
+                    })
                 })
             )
         );
@@ -227,12 +386,16 @@ contract RestakingAppAdapterNetworkMiddlewareServiceMock {
 }
 
 contract RestakingAppAdapterVaultMock {
-    address public immutable collateral;
+    address public collateral;
     address public delegator;
 
     constructor(address collateral_, address delegator_) {
         collateral = collateral_;
         delegator = delegator_;
+    }
+
+    function setAsset(address collateral_) external {
+        collateral = collateral_;
     }
 
     function asset() external view returns (address) {

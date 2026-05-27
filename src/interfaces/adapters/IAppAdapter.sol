@@ -90,6 +90,12 @@ interface IAppAdapter is IAdapter {
     /* FUNCTIONS */
 
     /**
+     * @notice Returns the asset managed by the app adapter.
+     * @return asset Asset address.
+     */
+    function asset() external view returns (address asset);
+
+    /**
      * @notice Get the configured burner hook target.
      * @return burner Burner hook target.
      */
@@ -134,9 +140,10 @@ interface IAppAdapter is IAdapter {
 
     /**
      * @notice Transfer reward assets from the caller to the vault.
+     * @param token Reward token to transfer.
      * @param amount Amount of assets to transfer.
      */
-    function reward(uint256 amount) external;
+    function reward(address token, uint256 amount) external;
 
     /**
      * @notice Slash the configured pair.

@@ -78,9 +78,9 @@ interface IUniversalDelegator is IMulticallable {
 
     /**
      * @notice Internal sentinel used to return simulated deallocation through a revert.
-     * @param amount Simulated deallocated amount.
+     * @param assets Simulated deallocated assets.
      */
-    error SimulatedDeallocate(uint256 amount);
+    error SimulatedDeallocate(uint256 assets);
 
     /**
      * @notice Raised when adding an adapter would exceed MAX_ADAPTERS.
@@ -163,7 +163,7 @@ interface IUniversalDelegator is IMulticallable {
     /**
      * @notice Emitted when assets are allocated to an adapter.
      * @param adapter Adapter address.
-     * @param assets Amount allocated.
+     * @param assets Allocated assets.
      * @param totalAssets Total assets in the adapter.
      */
     event Allocate(address indexed adapter, uint256 assets, uint256 totalAssets);
@@ -171,7 +171,7 @@ interface IUniversalDelegator is IMulticallable {
     /**
      * @notice Emitted when assets are deallocated from an adapter.
      * @param adapter Adapter address.
-     * @param assets Amount deallocated.
+     * @param assets Deallocated assets.
      * @param totalAssets Total assets in the adapter.
      */
     event Deallocate(address indexed adapter, uint256 assets, uint256 totalAssets);
@@ -179,7 +179,7 @@ interface IUniversalDelegator is IMulticallable {
     /**
      * @notice Emitted when delayed deallocation is requested from an adapter.
      * @param adapter Adapter address.
-     * @param assets Amount requested for delayed deallocation.
+     * @param assets Assets requested for delayed deallocation.
      */
     event RequestDeallocate(address indexed adapter, uint256 assets);
 
@@ -285,11 +285,11 @@ interface IUniversalDelegator is IMulticallable {
     function allocatable(address adapter) external view returns (uint256 assets);
 
     /**
-     * @notice Simulate the amount that can be deallocated immediately through the configured route.
+     * @notice Simulate the assets that can be deallocated immediately through the configured route.
      * @dev Intentionally non-view because it uses a reverting self-call to roll back adapter state changes.
-     * @return amount Simulated deallocated amount.
+     * @return assets Simulated deallocated assets.
      */
-    function deallocatable() external returns (uint256 amount);
+    function deallocatable() external returns (uint256 assets);
 
     /**
      * @notice Add an adapter.
@@ -329,46 +329,46 @@ interface IUniversalDelegator is IMulticallable {
     /**
      * @notice Allocate assets to an adapter.
      * @param adapter Adapter address.
-     * @param assets Amount of assets to allocate.
-     * @return allocated Amount allocated.
+     * @param assets Assets to allocate.
+     * @return allocated Allocated assets.
      */
     function allocate(address adapter, uint256 assets) external returns (uint256 allocated);
 
     /**
      * @notice Allocate assets through the configured allocation route.
-     * @param assets Amount of assets to allocate.
-     * @return allocated Amount allocated.
+     * @param assets Assets to allocate.
+     * @return allocated Allocated assets.
      */
     function allocateAll(uint256 assets) external returns (uint256 allocated);
 
     /**
      * @notice Deallocate assets from a specific adapter.
      * @param adapter Adapter address.
-     * @param assets Amount of assets to deallocate.
-     * @return deallocated Amount deallocated.
+     * @param assets Assets to deallocate.
+     * @return deallocated Deallocated assets.
      */
     function deallocate(address adapter, uint256 assets) external returns (uint256 deallocated);
 
     /**
      * @notice Deallocate assets through the configured deallocation route.
-     * @param assets Amount of assets to deallocate.
-     * @return deallocated Amount deallocated.
+     * @param assets Assets to deallocate.
+     * @return deallocated Deallocated assets.
      */
     function deallocateAll(uint256 assets) external returns (uint256 deallocated);
 
     /**
-     * @notice Deallocate an exact amount through the configured route.
-     * @param assets Amount of assets to deallocate.
-     * @return deallocated Amount deallocated.
+     * @notice Deallocate exact assets through the configured route.
+     * @param assets Assets to deallocate.
+     * @return deallocated Deallocated assets.
      */
     function deallocateExact(uint256 assets) external returns (uint256 deallocated);
 
     /**
      * @notice Force deallocation from a specific adapter and request any delayed remainder.
      * @param adapter Adapter address.
-     * @param assets Amount of assets to deallocate.
-     * @return deallocated Amount deallocated now.
-     * @return pending Amount requested for delayed deallocation.
+     * @param assets Assets to deallocate.
+     * @return deallocated Assets deallocated now.
+     * @return pending Assets requested for delayed deallocation.
      */
     function forceDeallocate(address adapter, uint256 assets) external returns (uint256 deallocated, uint256 pending);
 
@@ -388,7 +388,7 @@ interface IUniversalDelegator is IMulticallable {
     /**
      * @notice Handle a withdrawal from the vault.
      * @dev Only the associated vault can call this function.
-     * @param assets Amount of assets to deallocate.
+     * @param assets Assets to deallocate.
      */
     function onWithdraw(uint256 assets) external;
 
@@ -400,7 +400,7 @@ interface IUniversalDelegator is IMulticallable {
 
     /**
      * @notice Simulate full route deallocation through the internal self-call target.
-     * @return deallocated Amount deallocated.
+     * @return deallocated Deallocated assets.
      * @dev Only the delegator can call this function.
      */
     function __deallocateAll() external returns (uint256 deallocated);

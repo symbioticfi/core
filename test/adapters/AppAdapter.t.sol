@@ -81,11 +81,11 @@ contract AppAdapterTest is Test {
 
         vm.startPrank(rewarder);
         collateral.approve(address(adapter), amount);
-        adapter.reward(amount);
+        adapter.reward(address(collateral), amount);
         vm.stopPrank();
 
         assertEq(collateral.balanceOf(rewarder), 0);
-        assertEq(collateral.balanceOf(address(vault)), amount);
+        assertEq(collateral.balanceOf(address(adapter)), amount);
     }
 
     function test_DeallocationPreservesStakeUntilDurationAndSettlesAfterDuration() public {

@@ -10,6 +10,7 @@ import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IRewards} from "../../interfaces/vault/IRewards.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -36,7 +37,7 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
 
     /// @inheritdoc IAaveV3Adapter
     function aToken() public view returns (address) {
-        return IAaveV3Pool(AAVE_POOL).getReserveAToken(asset());
+        return IAaveV3Pool(AAVE_POOL).getReserveAToken(IERC4626(vault).asset());
     }
 
     /// @inheritdoc IAdapter
@@ -48,7 +49,7 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
 
     /// @dev Supplies asset from the calling vault into Aave.
     function _allocate(uint256 amount) internal override returns (uint256) {
-        try IAaveV3Pool(AAVE_POOL).supply(asset(), amount, address(this), REFERRAL_CODE) {
+        try IAaveV3Pool(AAVE_POOL).supply(IERC4626(vault).asset(), amount, address(this), REFERRAL_CODE) {
             return amount;
         } catch {}
         return 0;
@@ -59,14 +60,15 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
         amount = Math.min(
             amount,
             Math.min(
-                IERC20(aToken()).balanceOf(address(this)), IAaveV3Pool(AAVE_POOL).getVirtualUnderlyingBalance(asset())
+                IERC20(aToken()).balanceOf(address(this)),
+                IAaveV3Pool(AAVE_POOL).getVirtualUnderlyingBalance(IERC4626(vault).asset())
             )
         );
         if (amount == 0) {
             return 0;
         }
 
-        try IAaveV3Pool(AAVE_POOL).withdraw(asset(), amount, address(this)) returns (uint256) {
+        try IAaveV3Pool(AAVE_POOL).withdraw(IERC4626(vault).asset(), amount, address(this)) returns (uint256) {
             return amount;
         } catch {}
         return 0;
@@ -79,6 +81,6 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
         if (aToken() == address(0)) {
             revert InvalidAToken();
         }
-        IERC20(asset()).forceApprove(AAVE_POOL, type(uint256).max);
+        IERC20(IERC4626(vault).asset()).forceApprove(AAVE_POOL, type(uint256).max);
     }
 }

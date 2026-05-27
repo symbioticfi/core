@@ -11,6 +11,7 @@ import {IMorphoVaultV2Factory} from "../../interfaces/adapters/morpho_vaultv2_ad
 import {IMorphoVaultV2} from "../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -83,7 +84,7 @@ contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
             amount,
             Math.min(
                 IMorphoVaultV2(morphoVault).previewRedeem(IMorphoVaultV2(morphoVault).balanceOf(address(this))),
-                IERC20(asset()).balanceOf(morphoVault)
+                IERC20(IERC4626(vault).asset()).balanceOf(morphoVault)
                     + (liquidityAdapter == address(0) ? 0 : IMorphoLiquidityAdapter(liquidityAdapter).realAssets())
             )
         );
@@ -107,14 +108,14 @@ contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
             curMorphoVault == address(0) || !IMorphoVaultV2Factory(MORPHO_VAULT_FACTORY).isVaultV2(curMorphoVault)
                 || !IMorphoVaultV2(curMorphoVault).abdicated(IMorphoVaultV2.setAdapterRegistry.selector)
                 || IMorphoVaultV2(curMorphoVault).adapterRegistry() != MORPHO_ADAPTER_REGISTRY
-                || IMorphoVaultV2(curMorphoVault).asset() != asset()
+                || IMorphoVaultV2(curMorphoVault).asset() != IERC4626(vault).asset()
         ) {
             revert InvalidMorphoVault();
         }
 
         morphoVault = curMorphoVault;
 
-        IERC20(asset()).forceApprove(curMorphoVault, type(uint256).max);
+        IERC20(IERC4626(vault).asset()).forceApprove(curMorphoVault, type(uint256).max);
 
         emit Initialize(curMorphoVault);
     }

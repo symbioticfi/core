@@ -324,6 +324,11 @@ contract VaultV2 is
         internal
         override
     {
+        // Fulfill withdrawal queue requests before allowing to do an instant redeem.
+        // msg.sender check - to avoid recursion.
+        if (withdrawalQueue != msg.sender) {
+            UniversalDelegator(delegator).sweepPending();
+        }
         uint256 toWithdraw = assets.saturatingSub(freeAssets());
         if (toWithdraw > 0) {
             UniversalDelegator(delegator).onWithdraw(toWithdraw);

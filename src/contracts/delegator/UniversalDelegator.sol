@@ -120,7 +120,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function deallocatable() public returns (uint256 amount) {
+    function deallocatable() public returns (uint256) {
         (, bytes memory returnDataInternal) = address(this)
             .call(abi.encodeCall(this.staticDelegateCall, (address(this), abi.encodeCall(this.__deallocateAll, ()))));
         (bool success, bytes memory returnData) = abi.decode(returnDataInternal, (bool, bytes));
@@ -311,7 +311,7 @@ contract UniversalDelegator is
         // Try to deallocate full amount.
         deallocated = _deallocate(adapter, assets);
 
-        // Request the remaining amount if deallocated is less than expected.
+        // Request the remaining assets if deallocated is less than expected.
         if (deallocated < assets) {
             pending = assets - deallocated;
             _requestDeallocate(adapter, pending);

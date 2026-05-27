@@ -6,13 +6,13 @@ import {AppAdapter} from "./AppAdapter.sol";
 
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
-import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
-import {IAppAdapter, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/adapters/IAppAdapter.sol";
-import {IBurner} from "../../interfaces/slasher/IBurner.sol";
+import {IAppAdapter} from "../../interfaces/adapters/IAppAdapter.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
-import {IRestakingAppAdapter} from "../../interfaces/adapters/IRestakingAppAdapter.sol";
+import {IRegistry} from "../../interfaces/common/IRegistry.sol";
+import {IRestakingAppAdapter, MAX_DEPTH} from "../../interfaces/adapters/IRestakingAppAdapter.sol";
 import {IUniversalDelegator, MAX_SHARE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -32,7 +32,14 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /* STATE VARIABLES */
 
     /// @inheritdoc IRestakingAppAdapter
-    address public baseAsset;
+    address[] public vaults;
+
+    struct WithdrawalRequests {
+        uint256 firstUnclaimed;
+        uint16[] tokenIds;
+    }
+
+    mapping(address vault => WithdrawalRequests) public withdrawalRequests;
 
     /* CONSTRUCTOR */
 
@@ -42,130 +49,109 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /* VIEW FUNCTIONS */
 
-    /// @inheritdoc IAdapter
-    function freeAssets() public view override(AppAdapter, IAdapter) returns (uint256) {
-        return totalAssets() - _slashableShares();
-    }
-
     /// @inheritdoc IAppAdapter
     function slashable() public view override(AppAdapter, IAppAdapter) returns (uint256) {
-        return IERC4626(asset()).previewRedeem(_slashableShares());
+        return _convertToAsset(super.slashable());
     }
 
     /// @inheritdoc IAppAdapter
     function stake() public view override(AppAdapter, IAppAdapter) returns (uint256) {
-        Stake storage curStake = _stakes[_stakePos.latest()];
-        uint256 stakeShares = curStake.initialStake.saturatingSub(curStake.slashed.latest())
-            .saturatingSub(curStake.debt.upperLookupRecent(uint48(block.timestamp) + duration - 1));
-        return IERC4626(asset()).previewRedeem(stakeShares);
+        return _convertToAsset(super.stake());
     }
 
     /// @inheritdoc IAppAdapter
     function stakeAt(uint48 timestamp) public view override(AppAdapter, IAppAdapter) returns (uint256) {
-        Stake storage curStake = _stakes[_stakePos.upperLookupRecent(timestamp)];
-        uint256 stakeShares = curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
-            .saturatingSub(curStake.debt.upperLookupRecent(uint48(timestamp) + duration - 1));
-        return IERC4626(asset()).previewRedeem(stakeShares);
+        if (asset != IERC4626(vault).asset()) {
+            revert InvalidAsset();
+        }
+        return _convertToAsset(super.stakeAt(timestamp));
     }
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IAppAdapter
-    function reward(uint256 amount) public override(AppAdapter, IAppAdapter) {
-        IERC20(baseAsset).safeTransferFrom(msg.sender, address(this), amount);
-        address restakingToken = asset();
-        if (IERC20(baseAsset).allowance(address(this), restakingToken) < amount) {
-            IERC20(baseAsset).forceApprove(restakingToken, type(uint256).max);
+    function reward(address token, uint256 amount) public override(AppAdapter, IAppAdapter) {
+        super.reward(token, amount);
+        for (uint256 i = vaults.length; i > 0; --i) {
+            if (IERC20(token).allowance(address(this), vaults[i - 1]) < amount) {
+                IERC20(token).forceApprove(vaults[i - 1], type(uint256).max);
+            }
+            amount = IERC4626(vaults[i - 1]).deposit(amount, address(this));
+            token = vaults[i - 1];
         }
-        IERC4626(restakingToken).deposit(amount, vault);
     }
 
-    /* PUBLIC FUNCTIONS (NETWORK) */
-
-    /// @inheritdoc IAppAdapter
-    function slash(uint256 amount) public override(AppAdapter, IAppAdapter) returns (uint256) {
-        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
-            revert NotNetworkMiddleware();
+    /// @inheritdoc IRestakingAppAdapter
+    function syncSlash() public {
+        for (uint256 i; i < vaults.length; ++i) {
+            WithdrawalRequests storage requests = withdrawalRequests[vaults[i]];
+            IWithdrawalQueue withdrawalQueue = IWithdrawalQueue(IVaultV2(vaults[i]).withdrawalQueue());
+            for (; requests.firstUnclaimed < requests.tokenIds.length; ++requests.firstUnclaimed) {
+                uint256 tokenId = requests.tokenIds[requests.firstUnclaimed];
+                (uint256 amount,) = withdrawalQueue.claim(tokenId);
+                if (amount > 0) {
+                    _sendToBurner(i + 1, amount);
+                }
+                if (!withdrawalQueue.isClaimed(tokenId)) {
+                    break;
+                }
+            }
         }
-
-        uint256 slashableShares = _slashableShares();
-        amount = Math.min(amount, IERC4626(asset()).previewRedeem(slashableShares));
-        if (amount == 0) {
-            revert InsufficientSlash();
-        }
-
-        Stake storage curStake = _stakes[_stakePos.latest()];
-        uint256 slashedShares = IERC4626(asset()).withdraw(amount, burner, address(this));
-        curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + slashedShares);
-
-        // Decrease the adapter limits to avoid new allocations.
-        IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(slashedShares, MAX_SHARE);
-
-        bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));
-        if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
-            revert InsufficientBurnerGas();
-        }
-        address curBurner = burner;
-        assembly ("memory-safe") {
-            pop(call(BURNER_GAS_LIMIT, curBurner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
-        }
-
-        emit Slash(amount);
-        return amount;
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Requests delayed deallocation debt accounting in vault-asset shares.
-    function _requestDeallocate(uint256 amount) internal override {
-        uint256 curSlashable = _slashableShares();
+    /// @inheritdoc AppAdapter
+    function _sendToBurner(uint256 amount) internal override {
+        _sendToBurner(0, amount);
+    }
 
-        // Reset stake, debt, and slashed when the debt was reduced enough.
-        if (
-            Math.min(IUniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this)), totalAssets())
-                    .saturatingSub(amount) >= curSlashable
-        ) {
-            _stakePos.push(uint48(block.timestamp), uint208(_stakes.length));
-            _stakes.push().initialStake = curSlashable;
-        } else {
-            Stake storage curStake = _stakes[_stakePos.latest()];
-            // Keep increasing debt when the request grows.
-            if (curStake.debt.latest() < amount) {
-                curStake.debt.push(uint48(block.timestamp) + duration, amount);
+    function _sendToBurner(uint256 index, uint256 amount) internal {
+        for (uint256 i = index; i < vaults.length; ++i) {
+            address withdrawalQueue = IVaultV2(vaults[i]).withdrawalQueue();
+            if (IERC20(vaults[i]).allowance(address(this), withdrawalQueue) < amount) {
+                IERC20(vaults[i]).forceApprove(withdrawalQueue, type(uint256).max);
             }
-            // Keep existing debt when the request shrinks but cannot release assets yet.
+            uint256 tokenId = IWithdrawalQueue(withdrawalQueue).requestRedeem(amount, address(this));
+            try IWithdrawalQueue(withdrawalQueue).claim(tokenId) returns (uint256 curAmount, uint256 shares) {
+                if (shares < amount) {
+                    withdrawalRequests[vaults[i]].tokenIds.push(uint16(tokenId));
+                }
+                amount = curAmount;
+            } catch {
+                withdrawalRequests[vaults[i]].tokenIds.push(uint16(tokenId));
+                return;
+            }
         }
+        super._sendToBurner(amount);
     }
 
     /// @dev Initializes the configured base asset and network-operator pair.
     function __initialize(address initVault, bytes memory data) internal override {
         RestakingInitParams memory params = abi.decode(data, (RestakingInitParams));
-        address restakingToken = asset();
-        if (params.baseAsset == address(0) || IERC4626(restakingToken).asset() != params.baseAsset) {
-            revert InvalidBaseAsset();
+
+        super.__initialize(initVault, abi.encode(params.initParams));
+
+        asset = params.asset;
+        vaults.push(vault);
+        address curAsset = IERC4626(vault).asset();
+        for (uint256 depth; curAsset != params.asset && depth < MAX_DEPTH; ++depth) {
+            if (!IRegistry(VAULT_FACTORY).isEntity(curAsset)) {
+                revert InvalidBaseAsset();
+            }
+            vaults.push(curAsset);
+            curAsset = IERC4626(curAsset).asset();
         }
-
-        baseAsset = params.baseAsset;
-
-        super.__initialize(
-            initVault,
-            abi.encode(
-                IAppAdapter.InitParams({
-                    subnetwork: params.subnetwork,
-                    operator: params.operator,
-                    duration: params.duration,
-                    burner: params.burner
-                })
-            )
-        );
+        if (curAsset != params.asset) {
+            revert InvalidAsset();
+        }
     }
 
-    /* INTERNAL VIEW FUNCTIONS */
-
-    /// @dev Returns the current slashable amount in vault-asset shares.
-    function _slashableShares() internal view returns (uint256) {
-        Stake storage curStake = _stakes[_stakePos.latest()];
-        return curStake.initialStake.saturatingSub(curStake.slashed.latest())
-            .saturatingSub(curStake.debt.upperLookupRecent(block.timestamp));
+    /// @dev Converts current vault-asset shares into the configured base asset with previewRedeem.
+    function _convertToAsset(uint256 amount) internal view returns (uint256) {
+        for (uint256 i; i < vaults.length; ++i) {
+            amount = IERC4626(vaults[i]).previewRedeem(amount);
+        }
+        return amount;
     }
 }

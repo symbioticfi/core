@@ -51,8 +51,7 @@ contract AaveV3AdapterTest is Test {
         factory.create(1, curator, abi.encode(address(localVault), ""));
     }
 
-    function test_AssetAndFreeAssetsUseVaultAsset() public {
-        assertEq(adapter.asset(), address(collateral));
+    function test_FreeAssetsUseVaultAsset() public {
         assertEq(adapter.freeAssets(), 0);
 
         collateral.transfer(address(adapter), 123);

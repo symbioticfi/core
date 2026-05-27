@@ -64,7 +64,6 @@ contract AdapterFactoryTest is Test {
         assertEq(adapter, predicted);
         assertTrue(factory.isEntity(adapter));
         assertEq(IAdapter(adapter).vault(), vault);
-        assertEq(IAdapter(adapter).asset(), address(collateral));
         assertEq(IMigratableEntity(adapter).FACTORY(), address(factory));
         assertEq(IMigratableEntity(adapter).version(), 1);
     }
@@ -82,8 +81,6 @@ contract AdapterFactoryTest is Test {
         assertTrue(factory.isEntity(secondAdapter));
         assertEq(IAdapter(firstAdapter).vault(), vault);
         assertEq(IAdapter(secondAdapter).vault(), vault);
-        assertEq(IAdapter(firstAdapter).asset(), address(collateral));
-        assertEq(IAdapter(secondAdapter).asset(), address(collateral));
     }
 
     function test_SeparateFactoriesCanCreateForSameVault() public {

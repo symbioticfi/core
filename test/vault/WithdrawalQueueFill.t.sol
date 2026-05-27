@@ -23,8 +23,8 @@ contract WithdrawalQueueFillToken is ERC20 {
         return tokenDecimals;
     }
 
-    function mint(address account, uint256 amount) external {
-        _mint(account, amount);
+    function mint(address account, uint256 assets) external {
+        _mint(account, assets);
     }
 }
 
@@ -196,6 +196,7 @@ contract WithdrawalQueueFillTest is Test {
 
     function test_WithdrawalQueueExposesRequestRedeemApi() public pure {
         assertEq(IWithdrawalQueue.requestRedeem.selector, bytes4(keccak256("requestRedeem(uint256,address)")));
+        assertEq(IWithdrawalQueue.isClaimed.selector, bytes4(keccak256("isClaimed(uint256)")));
     }
 
     function test_RequestRedeemRevertsZeroShares() public {
@@ -446,6 +447,31 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(secondSharesClaimed, 0);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), 161);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 0);
+    }
+
+    function test_IsClaimedTracksPartialAndFullClaims() public {
+        uint256 shares = 100;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, 40);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, shares);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
+        vm.stopPrank();
+
+        assertEq(IWithdrawalQueue(queue).isClaimed(tokenId), false);
+
+        WithdrawalQueue(queue).fill();
+        WithdrawalQueue(queue).claim(tokenId);
+
+        assertEq(IWithdrawalQueue(queue).isClaimed(tokenId), false);
+
+        WithdrawalQueueFillToken(collateral).mint(vault, 60);
+        WithdrawalQueue(queue).fill();
+        WithdrawalQueue(queue).claim(tokenId);
+
+        assertEq(IWithdrawalQueue(queue).isClaimed(tokenId), true);
     }
 
     function test_ClaimAcrossManyTinyFills() public {

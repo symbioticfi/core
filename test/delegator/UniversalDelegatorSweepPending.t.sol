@@ -20,8 +20,8 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract UniversalDelegatorSweepToken is ERC20 {
     constructor() ERC20("Token", "TKN") {}
 
-    function mint(address account, uint256 amount) external {
-        _mint(account, amount);
+    function mint(address account, uint256 assets) external {
+        _mint(account, assets);
     }
 }
 
@@ -132,11 +132,11 @@ contract UniversalDelegatorSweepAdapter {
     uint256 public freeAssets;
     uint256 public allocatableValue;
     uint256 public allocateReturn;
-    uint256 public lastAllocateAmount;
-    uint256 public lastDeallocateAmount;
+    uint256 public lastAllocateAssets;
+    uint256 public lastDeallocateAssets;
     uint256 public allocateCalls;
     uint256 public deallocateCalls;
-    uint256 public lastRequestDeallocateAmount;
+    uint256 public lastRequestDeallocateAssets;
     uint256 public requestDeallocateCalls;
 
     constructor(address factory, address vault_, uint256 totalAssets_, uint256 deallocateReturn_) {
@@ -163,22 +163,22 @@ contract UniversalDelegatorSweepAdapter {
         freeAssets = freeAssets_;
     }
 
-    function allocate(uint256 amount) external returns (uint256 allocated) {
+    function allocate(uint256 assets) external returns (uint256 allocated) {
         ++allocateCalls;
-        lastAllocateAmount = amount;
-        allocated = allocateReturn > amount ? amount : allocateReturn;
+        lastAllocateAssets = assets;
+        allocated = allocateReturn > assets ? assets : allocateReturn;
         totalAssets += allocated;
     }
 
-    function deallocate(uint256 amount) external returns (uint256 deallocated) {
+    function deallocate(uint256 assets) external returns (uint256 deallocated) {
         ++deallocateCalls;
-        lastDeallocateAmount = amount;
-        deallocated = deallocateReturn > amount ? amount : deallocateReturn;
+        lastDeallocateAssets = assets;
+        deallocated = deallocateReturn > assets ? assets : deallocateReturn;
         totalAssets -= deallocated;
     }
 
-    function requestDeallocate(uint256 amount) external {
-        lastRequestDeallocateAmount = amount;
+    function requestDeallocate(uint256 assets) external {
+        lastRequestDeallocateAssets = assets;
         ++requestDeallocateCalls;
     }
 }
@@ -372,7 +372,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         uint256 allocated = delegator.allocate(address(adapter), 100);
 
         assertEq(allocated, 40);
-        assertEq(adapter.lastAllocateAmount(), 70);
+        assertEq(adapter.lastAllocateAssets(), 70);
         assertEq(adapter.totalAssets(), 40);
         assertEq(vault.pulledAssets(), 70);
         assertEq(vault.pushedAssets(), 30);
@@ -400,7 +400,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
 
         assertEq(allocated, 0);
         assertEq(adapter.allocateCalls(), 1);
-        assertEq(adapter.lastAllocateAmount(), 0);
+        assertEq(adapter.lastAllocateAssets(), 0);
         assertEq(vault.pulledAssets(), 0);
     }
 
@@ -418,7 +418,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
 
         assertEq(deallocated, 0);
         assertEq(adapter.deallocateCalls(), 2);
-        assertEq(adapter.lastDeallocateAmount(), 0);
+        assertEq(adapter.lastDeallocateAssets(), 0);
         assertEq(vault.pushedAssets(), 0);
     }
 
@@ -499,8 +499,8 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(delegator.deallocatable(), 65);
         assertEq(adapter1.totalAssets(), 100);
         assertEq(adapter2.totalAssets(), 80);
-        assertEq(adapter1.lastDeallocateAmount(), 0);
-        assertEq(adapter2.lastDeallocateAmount(), 0);
+        assertEq(adapter1.lastDeallocateAssets(), 0);
+        assertEq(adapter2.lastDeallocateAssets(), 0);
         assertEq(vault.pushedAssets(), 0);
     }
 
@@ -631,7 +631,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         uint256 pendingAssets = delegator.sweepPending();
 
         assertEq(pendingAssets, 100);
-        assertEq(adapter.lastRequestDeallocateAmount(), 100);
+        assertEq(adapter.lastRequestDeallocateAssets(), 100);
         assertEq(delegator.adaptersWithPending(0), index);
     }
 
@@ -649,9 +649,9 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(queue.fillCalls(), 1);
         assertEq(vault.pushedAssets(), 60);
         assertEq(vault.lastPushAdapter(), address(adapter));
-        assertEq(adapter.lastDeallocateAmount(), 100);
+        assertEq(adapter.lastDeallocateAssets(), 100);
         assertEq(adapter.requestDeallocateCalls(), 0);
-        assertEq(adapter.lastRequestDeallocateAmount(), 0);
+        assertEq(adapter.lastRequestDeallocateAssets(), 0);
     }
 
     function test_SweepPendingOnlyDeallocatesPendingAssetsNetOfVaultFreeAssets() public {
@@ -667,7 +667,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         uint256 pendingAssets = delegator.sweepPending();
 
         assertEq(pendingAssets, 0);
-        assertEq(adapter.lastDeallocateAmount(), 70);
+        assertEq(adapter.lastDeallocateAssets(), 70);
         assertEq(vault.pushedAssets(), 70);
     }
 

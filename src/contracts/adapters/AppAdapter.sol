@@ -15,6 +15,7 @@ import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -42,6 +43,8 @@ contract AppAdapter is Adapter, IAppAdapter {
     address public operator;
     /// @inheritdoc IAppAdapter
     bytes32 public subnetwork;
+    /// @inheritdoc IAppAdapter
+    address public asset;
 
     /// @dev Stakes for the configured pair.
     Stake[] internal _stakes;
@@ -65,7 +68,7 @@ contract AppAdapter is Adapter, IAppAdapter {
 
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
-        return IERC20(asset()).balanceOf(address(this));
+        return IERC20(asset).balanceOf(address(this));
     }
 
     /// @inheritdoc IAppAdapter
@@ -92,8 +95,9 @@ contract AppAdapter is Adapter, IAppAdapter {
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IAppAdapter
-    function reward(uint256 amount) public virtual {
-        IERC20(asset()).safeTransferFrom(msg.sender, vault, amount);
+    function reward(address token, uint256 amount) public virtual override {
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        if (asset != token) {}
     }
 
     /* PUBLIC FUNCTIONS (NETWORK) */
@@ -115,24 +119,16 @@ contract AppAdapter is Adapter, IAppAdapter {
         // Decrease the adapter limits to avoid new allocations.
         IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(amount, 0);
 
-        // Send slashed assets to the burner.
-        address curBurner = burner;
-        IERC20(asset()).safeTransfer(curBurner, amount);
-        bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));
-        if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
-            revert InsufficientBurnerGas();
-        }
-        assembly ("memory-safe") {
-            pop(call(BURNER_GAS_LIMIT, curBurner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
-        }
+        // Send slashed amount to the burner.
+        _sendToBurner(amount);
 
         emit Slash(amount);
         return amount;
     }
 
-    /* PUBLIC FUNCTIONS (INTERNAL) */
+    /* INTERNAL FUNCTIONS */
 
-    /// @dev Allocates assets into a fresh stake checkpoint.
+    /// @dev Allocates an amount into a fresh stake checkpoint.
     function _allocate(uint256 amount) internal override returns (uint256) {
         if (amount == 0) {
             return 0;
@@ -144,7 +140,7 @@ contract AppAdapter is Adapter, IAppAdapter {
         return amount;
     }
 
-    /// @dev Deallocates assets that are not slashable.
+    /// @dev Deallocates an amount that is not slashable.
     function _deallocate(uint256) internal pure override returns (uint256) {
         return 0;
     }
@@ -166,15 +162,28 @@ contract AppAdapter is Adapter, IAppAdapter {
             if (curStake.debt.latest() < amount) {
                 curStake.debt.push(uint48(block.timestamp) + duration, amount);
             }
-            // Keep existing debt when the request shrinks but cannot release assets yet.
+            // Keep existing debt when the request shrinks but cannot release the amount yet.
         }
     }
 
-    /* INTERNAL FUNCTIONS */
+    /// @dev Sends slashed amount to the burner and invokes its hook.
+    function _sendToBurner(uint256 amount) internal virtual {
+        address curBurner = burner;
+        IERC20(asset).safeTransfer(curBurner, amount);
+        bytes memory burnerCalldata = abi.encodeCall(IBurner.onSlash, (subnetwork, operator, amount, 0));
+        if (gasleft() < BURNER_RESERVE + BURNER_GAS_LIMIT * 64 / 63) {
+            revert InsufficientBurnerGas();
+        }
+        assembly ("memory-safe") {
+            pop(call(BURNER_GAS_LIMIT, curBurner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
+        }
+    }
 
     /// @dev Initializes the configured network-operator pair.
     function __initialize(address, bytes memory data) internal virtual override {
         InitParams memory params = abi.decode(data, (InitParams));
+
+        asset = IERC4626(vault).asset();
 
         if (params.subnetwork == bytes32(0) || params.operator == address(0)) {
             revert InvalidNetOrOp();

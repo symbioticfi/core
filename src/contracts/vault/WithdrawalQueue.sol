@@ -60,14 +60,20 @@ contract WithdrawalQueue is MigratableEntity, ERC721Upgradeable, IWithdrawalQueu
     }
 
     /// @inheritdoc IWithdrawalQueue
+    function isClaimed(uint256 tokenId) public view returns (bool) {
+        WithdrawalRequest storage request = requests[tokenId];
+        return request.sharesClaimed == request.shares;
+    }
+
+    /// @inheritdoc IWithdrawalQueue
     function claimable(uint256 tokenId) public view returns (uint256 assets, uint256 shares) {
         WithdrawalRequest storage request = requests[tokenId];
 
-        if (request.claimedShares == request.shares) {
+        if (request.sharesClaimed == request.shares) {
             return (0, 0);
         }
 
-        uint256 startShares = request.prevRequestSum + request.claimedShares;
+        uint256 startShares = request.prevRequestSum + request.sharesClaimed;
         uint256 endShares = Math.min(request.prevRequestSum + request.shares, totalFilled());
         shares = endShares.saturatingSub(startShares);
         if (shares == 0) {
@@ -102,7 +108,7 @@ contract WithdrawalQueue is MigratableEntity, ERC721Upgradeable, IWithdrawalQueu
         IERC20(vault).safeTransferFrom(msg.sender, address(this), shares);
 
         tokenId = _nextTokenId++;
-        requests[tokenId] = WithdrawalRequest({shares: shares, claimedShares: 0, prevRequestSum: totalRequested});
+        requests[tokenId] = WithdrawalRequest({shares: shares, sharesClaimed: 0, prevRequestSum: totalRequested});
         totalRequested += shares;
 
         _mint(receiver, tokenId);
@@ -113,14 +119,14 @@ contract WithdrawalQueue is MigratableEntity, ERC721Upgradeable, IWithdrawalQueu
     }
 
     /// @inheritdoc IWithdrawalQueue
-    function claim(uint256 tokenId) public returns (uint256 assetsClaimed, uint256 sharesClaimed) {
-        (assetsClaimed, sharesClaimed) = claimable(tokenId);
+    function claim(uint256 tokenId) public returns (uint256 assets, uint256 shares) {
+        (assets, shares) = claimable(tokenId);
 
-        requests[tokenId].claimedShares += sharesClaimed;
+        requests[tokenId].sharesClaimed += shares;
 
-        IERC20(IERC4626(vault).asset()).safeTransfer(ownerOf(tokenId), assetsClaimed);
+        IERC20(IERC4626(vault).asset()).safeTransfer(ownerOf(tokenId), assets);
 
-        emit Claim(tokenId, assetsClaimed, sharesClaimed);
+        emit Claim(tokenId, assets, shares);
     }
 
     /// @inheritdoc IWithdrawalQueue

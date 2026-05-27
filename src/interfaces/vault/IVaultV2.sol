@@ -126,7 +126,7 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
      * @param claimer Account that claimed.
      * @param receiver Account that receives the assets.
      * @param tokenId Withdrawal queue token id.
-     * @param assets Amount of assets claimed.
+     * @param assets Assets claimed.
      */
     event Claim(address indexed claimer, address indexed receiver, uint256 tokenId, uint256 assets);
 
@@ -151,14 +151,14 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
 
     /**
      * @notice Emitted when the delegator pulls liquid assets out of the vault.
-     * @param assets Amount pulled.
+     * @param assets Assets pulled.
      * @param receiver Account that received the assets.
      */
     event Pull(uint256 assets, address indexed receiver);
 
     /**
      * @notice Emitted when the delegator pushes liquid assets into the vault.
-     * @param assets Amount pushed.
+     * @param assets Assets pushed.
      * @param owner Account that supplied the assets.
      */
     event Push(uint256 assets, address indexed owner);
@@ -348,14 +348,14 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
 
     /**
      * @notice Get assets available for instant withdrawal from free and deallocatable assets.
-     * @return assets Withdrawable asset amount.
+     * @return assets Withdrawable assets.
      * @dev This function is non-veiw since it simulates deallocation internally.
      */
     function withdrawable() external returns (uint256 assets);
 
     /**
      * @notice Get shares available for instant redemption from free and deallocatable assets.
-     * @return shares Redeemable shares amount.
+     * @return shares Redeemable shares.
      * @dev This function is non-veiw since it simulates deallocation internally.
      */
     function redeemable() external returns (uint256 shares);
@@ -378,7 +378,7 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
 
     /**
      * @notice Pull liquid assets from the vault to a receiver.
-     * @param assets Amount of assets to pull.
+     * @param assets Assets to pull.
      * @param receiver Account that receives the assets.
      * @dev Only the configured delegator can call this function.
      */
@@ -386,7 +386,7 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
 
     /**
      * @notice Push liquid assets from an owner into the vault.
-     * @param assets Amount of assets to push.
+     * @param assets Assets to push.
      * @param owner Account that supplies the assets.
      * @dev Only the configured delegator can call this function.
      */

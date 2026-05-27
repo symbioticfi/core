@@ -31,7 +31,6 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
 
     /// @inheritdoc IAdapter
     address public vault;
-
     /* MODIFIERS */
 
     modifier onlyCurator() {
@@ -59,10 +58,6 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
 
     /* VIEW FUNCTIONS */
 
-    function asset() public view virtual returns (address) {
-        return IERC4626(vault).asset();
-    }
-
     /// @inheritdoc IAdapter
     function allocatable() public view virtual returns (uint256) {
         return type(uint256).max;
@@ -73,7 +68,7 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
 
     /// @inheritdoc IAdapter
     function freeAssets() public view virtual returns (uint256) {
-        return IERC20(asset()).balanceOf(address(this));
+        return IERC20(IERC4626(vault).asset()).balanceOf(address(this));
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
@@ -118,7 +113,7 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
         vault = initVault;
         emit SetVault(initVault);
 
-        IERC20(asset()).forceApprove(initVault, type(uint256).max);
+        IERC20(IERC4626(vault).asset()).forceApprove(initVault, type(uint256).max);
 
         __initialize(initVault, initData);
     }
