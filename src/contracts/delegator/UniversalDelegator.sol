@@ -438,10 +438,6 @@ contract UniversalDelegator is
         _grantRoleIfNotZero(SET_ADAPTER_LIMITS_ROLE, params.setAdapterLimitsRoleHolder);
         _grantRoleIfNotZero(SET_AUTO_ALLOCATE_ADAPTERS_ROLE, params.setAutoAllocateAdaptersRoleHolder);
 
-        for (uint256 i; i < params.adapters.length; ++i) {
-            _addAdapter(params.adapters[i]);
-        }
-
         emit Initialize(params);
     }
 
@@ -475,7 +471,7 @@ contract UniversalDelegator is
             VaultV2(vault).push(assets - allocated, adapter);
         }
 
-        emit Allocate(adapter, allocated);
+        emit Allocate(adapter, allocated, IAdapter(adapter).totalAssets());
     }
 
     /// @dev Deallocate adapter assets back into the vault.
@@ -487,7 +483,7 @@ contract UniversalDelegator is
             VaultV2(vault).push(deallocated, adapter);
         }
 
-        emit Deallocate(adapter, deallocated);
+        emit Deallocate(adapter, deallocated, IAdapter(adapter).totalAssets());
     }
 
     function _requestDeallocate(address adapter, uint256 assets) internal {

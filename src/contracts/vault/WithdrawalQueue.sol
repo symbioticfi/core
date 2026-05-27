@@ -107,9 +107,9 @@ contract WithdrawalQueue is MigratableEntity, ERC721Upgradeable, IWithdrawalQueu
 
         _mint(receiver, tokenId);
 
-        UniversalDelegator(VaultV2(vault).delegator()).sweepPending();
-
         emit RequestWithdraw(msg.sender, receiver, shares, tokenId);
+
+        UniversalDelegator(VaultV2(vault).delegator()).sweepPending();
     }
 
     /// @inheritdoc IWithdrawalQueue

@@ -7,6 +7,7 @@ import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegat
 import {
     IUniversalDelegator,
     UNIVERSAL_DELEGATOR_TYPE,
+    MAX_ADAPTERS,
     MAX_SHARE,
     ALLOCATE_ROLE,
     REMOVE_ADAPTER_ROLE,
@@ -35,6 +36,14 @@ contract UniversalDelegatorSweepHarness is UniversalDelegator {
 
     function addAdapterForTest(address adapter) external returns (uint16) {
         return _addAdapter(adapter);
+    }
+
+    function adaptersWithPendingLength() external view returns (uint256) {
+        return adaptersWithPending.length;
+    }
+
+    function autoAllocateAdaptersLength() external view returns (uint256) {
+        return autoAllocateAdapters.length;
     }
 
     function grantRoleForTest(bytes32 role, address account) external {
@@ -230,6 +239,18 @@ contract UniversalDelegatorSweepPendingTest is Test {
         adapterFactory.setEntity(address(adapter), true);
     }
 
+    function _addAdapters(uint256 count, uint256 totalAssets, uint256 deallocateReturn)
+        internal
+        returns (address[] memory route)
+    {
+        route = new address[](count);
+        for (uint256 i; i < count; ++i) {
+            UniversalDelegatorSweepAdapter adapter = _newAdapter(totalAssets, deallocateReturn);
+            delegator.addAdapterForTest(address(adapter));
+            route[i] = address(adapter);
+        }
+    }
+
     function test_AddAdapterAddsToDeallocationRouteAndReusesStableIndex() public {
         UniversalDelegatorSweepAdapter adapter = _newAdapter(0, 0);
 
@@ -395,6 +416,23 @@ contract UniversalDelegatorSweepPendingTest is Test {
         route[1] = address(adapter);
         vm.expectRevert(IUniversalDelegator.InvalidAdapter.selector);
         delegator.setAutoAllocateAdapters(route);
+    }
+
+    function test_SetAutoAllocateAdaptersClearsFiftyAdapters() public {
+        vm.pauseGasMetering();
+        address[] memory route = _addAdapters(MAX_ADAPTERS, 0, 0);
+        delegator.grantRoleForTest(SET_AUTO_ALLOCATE_ADAPTERS_ROLE, address(this));
+        delegator.setAutoAllocateAdapters(route);
+
+        assertEq(delegator.autoAllocateAdaptersLength(), MAX_ADAPTERS);
+
+        address[] memory emptyRoute = new address[](0);
+        vm.resumeGasMetering();
+        delegator.setAutoAllocateAdapters(emptyRoute);
+        vm.pauseGasMetering();
+
+        assertEq(delegator.autoAllocateAdaptersLength(), 0);
+        vm.resumeGasMetering();
     }
 
     function test_DeallocatableSimulatesFullDeallocationWithoutMutatingState() public {
@@ -589,5 +627,27 @@ contract UniversalDelegatorSweepPendingTest is Test {
 
         vm.prank(address(queue));
         delegator.sweepPending();
+    }
+
+    function test_SweepPendingClearsFiftyPendingAdapters() public {
+        vm.pauseGasMetering();
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(MAX_ADAPTERS);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        delegator.setVault(address(vault));
+        queue.setPendingAfterFill(MAX_ADAPTERS);
+        _addAdapters(MAX_ADAPTERS, 1, 0);
+
+        delegator.sweepPending();
+
+        assertEq(delegator.adaptersWithPendingLength(), MAX_ADAPTERS);
+
+        queue.setPendingAfterFill(0);
+        vm.resumeGasMetering();
+        uint256 pendingAssets = delegator.sweepPending();
+        vm.pauseGasMetering();
+
+        assertEq(pendingAssets, 0);
+        assertEq(delegator.adaptersWithPendingLength(), 0);
+        vm.resumeGasMetering();
     }
 }

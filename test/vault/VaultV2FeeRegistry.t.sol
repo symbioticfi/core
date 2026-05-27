@@ -562,8 +562,7 @@ contract VaultV2BehaviorTest is Test {
                 setAutoAllocateAdaptersRoleHolder: address(this),
                 swapAdaptersRoleHolder: address(this),
                 allocateRoleHolder: address(this),
-                deallocateRoleHolder: address(this),
-                adapters: new address[](0)
+                deallocateRoleHolder: address(this)
             })
         );
     }

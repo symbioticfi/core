@@ -104,7 +104,6 @@ interface IUniversalDelegator is IMulticallable {
      * @param removeAdapterRoleHolder Address of the initial REMOVE_ADAPTER_ROLE holder.
      * @param setAdapterLimitsRoleHolder Address of the initial SET_ADAPTER_LIMITS_ROLE holder.
      * @param setAutoAllocateAdaptersRoleHolder Address of the initial SET_AUTO_ALLOCATE_ADAPTERS_ROLE holder.
-     * @param adapters Initial adapters.
      */
     struct InitParams {
         address allocateRoleHolder;
@@ -115,7 +114,6 @@ interface IUniversalDelegator is IMulticallable {
         address removeAdapterRoleHolder;
         address setAdapterLimitsRoleHolder;
         address setAutoAllocateAdaptersRoleHolder;
-        address[] adapters;
     }
 
     /* EVENTS */
@@ -166,15 +164,17 @@ interface IUniversalDelegator is IMulticallable {
      * @notice Emitted when assets are allocated to an adapter.
      * @param adapter Adapter address.
      * @param assets Amount allocated.
+     * @param totalAssets Total assets in the adapter.
      */
-    event Allocate(address indexed adapter, uint256 assets);
+    event Allocate(address indexed adapter, uint256 assets, uint256 totalAssets);
 
     /**
      * @notice Emitted when assets are deallocated from an adapter.
      * @param adapter Adapter address.
      * @param assets Amount deallocated.
+     * @param totalAssets Total assets in the adapter.
      */
-    event Deallocate(address indexed adapter, uint256 assets);
+    event Deallocate(address indexed adapter, uint256 assets, uint256 totalAssets);
 
     /**
      * @notice Emitted when delayed deallocation is requested from an adapter.
