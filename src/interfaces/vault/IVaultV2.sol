@@ -83,6 +83,11 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
      */
     error NotWithdrawalQueue();
 
+    /**
+     * @notice Raised when instant withdrawal is attempted while withdrawal queue assets are still pending.
+     */
+    error PendingWithdrawalQueue();
+
     /* STRUCTS */
 
     /**

@@ -327,7 +327,9 @@ contract VaultV2 is
         // Fulfill withdrawal queue requests before allowing to do an instant redeem.
         // msg.sender check - to avoid recursion.
         if (withdrawalQueue != msg.sender) {
-            UniversalDelegator(delegator).sweepPending();
+            if (UniversalDelegator(delegator).sweepPending() > 0) {
+                revert PendingWithdrawalQueue();
+            }
         }
         uint256 toWithdraw = assets.saturatingSub(freeAssets());
         if (toWithdraw > 0) {
