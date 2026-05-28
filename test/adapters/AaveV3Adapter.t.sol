@@ -36,7 +36,15 @@ contract AaveV3AdapterTest is Test {
         vaultFactory.add(address(vault));
 
         AaveV3Adapter implementation = new AaveV3Adapter(
-            address(pool), address(vaultFactory), address(factory), address(0), address(0), address(0), 0, address(0)
+            address(0),
+            address(pool),
+            address(vaultFactory),
+            address(factory),
+            address(0),
+            address(0),
+            address(0),
+            0,
+            address(0)
         );
         factory.whitelist(address(implementation));
 

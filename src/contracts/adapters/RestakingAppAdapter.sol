@@ -47,22 +47,24 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /* CONSTRUCTOR */
 
     constructor(
+        address protocol,
         address vaultFactory,
         address adapterFactory,
         address curatorRegistry,
-        address networkMiddlewareService,
         address cowSwapSettlement,
+        uint32 maxValidToDuration,
         address cowSwapVaultRelayer,
-        uint32 maxValidToDuration
+        address networkMiddlewareService
     )
         AppAdapter(
+            protocol,
             vaultFactory,
             adapterFactory,
             curatorRegistry,
-            networkMiddlewareService,
             cowSwapSettlement,
+            maxValidToDuration,
             cowSwapVaultRelayer,
-            maxValidToDuration
+            networkMiddlewareService
         )
     {}
 
@@ -89,21 +91,36 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     }
 
     /// @inheritdoc IAppAdapter
-    function stakeAt(uint48 timestamp) public view override(AppAdapter, IAppAdapter) returns (uint256) {
-        if (asset != IERC4626(vault).asset()) {
-            revert InvalidAsset();
-        }
-        return _convertToAsset(super.stakeAt(timestamp));
+    function stakeAt(uint48) public pure override(AppAdapter, IAppAdapter) returns (uint256) {
+        revert Unsupported();
     }
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
+    /// @inheritdoc IConverter
+    function convert(address tokenIn, uint256 amountIn, bytes calldata data)
+        public
+        override(CoWSwapConverter, IConverter)
+    {
+        if (tokenIn == asset) {
+            revert InvalidTokenIn();
+        }
+        super.convert(tokenIn, amountIn, data);
+    }
+
     /// @inheritdoc IAppAdapter
     function reward(address token, uint256 amount) public override(AppAdapter, IAppAdapter) {
         super.reward(token, amount);
+        if (token == asset) {
+            syncReward();
+        }
+    }
+
+    /// @dev Deposits held base assets through the underlying vault chain.
+    function syncReward() public {
+        uint256 amount = IERC20(asset).balanceOf(address(this));
         for (uint256 i = underlyingVaults.length; i > 0; --i) {
-            token = underlyingVaults[i - 1];
-            amount = IERC4626(token).deposit(amount, address(this));
+            amount = IERC4626(underlyingVaults[i - 1]).deposit(amount, address(this));
         }
     }
 
@@ -154,7 +171,9 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         RestakingInitParams memory params = abi.decode(data, (RestakingInitParams));
 
         super.__initialize(initVault, abi.encode(params.initParams));
-
+        if (asset == params.asset) {
+            revert NotRestaking();
+        }
         asset = params.asset;
 
         address curAsset = IERC4626(vault).asset();
@@ -211,5 +230,10 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
             amount = IERC4626(underlyingVaults[i - 1]).previewDeposit(amount);
         }
         return amount;
+    }
+
+    /// @inheritdoc CoWSwapConverter
+    function _convertTokenOut() internal view override returns (address) {
+        return asset;
     }
 }

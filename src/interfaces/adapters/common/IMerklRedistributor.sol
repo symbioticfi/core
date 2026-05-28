@@ -37,7 +37,7 @@ interface IMerklRedistributor {
     function MERKL_DISTRIBUTOR() external view returns (address distributor);
 
     /**
-     * @notice Claims Merkl rewards for the caller through the configured distributor.
+     * @notice Claims Merkl rewards for this contract through the configured distributor.
      * @param tokens Reward tokens.
      * @param amounts Cumulative reward amounts.
      * @param proofs Merkle proofs.

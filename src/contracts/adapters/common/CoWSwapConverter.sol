@@ -9,6 +9,7 @@ import {
     COW_SWAP_KIND_SELL,
     COW_SWAP_ORDER_TYPEHASH,
     COW_SWAP_ORDER_UID_LENGTH,
+    EXECUTION_DELAY,
     ICoWSwapConverter,
     ICoWSwapSettlement
 } from "../../../interfaces/adapters/common/ICoWSwapConverter.sol";
@@ -16,15 +17,18 @@ import {IConverter} from "../../../interfaces/adapters/common/IConverter.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Nonces} from "@openzeppelin/contracts/utils/Nonces.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title CoWSwapConverter
 /// @notice Converter for asynchronous CoW Protocol sell orders via pre-signing.
-abstract contract CoWSwapConverter is Adapter, ICoWSwapConverter {
+abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
 
+    /// @inheritdoc ICoWSwapConverter
+    address public immutable PROTOCOL;
     /// @inheritdoc ICoWSwapConverter
     address public immutable COW_SWAP_SETTLEMENT;
     /// @inheritdoc ICoWSwapConverter
@@ -32,39 +36,50 @@ abstract contract CoWSwapConverter is Adapter, ICoWSwapConverter {
     /// @inheritdoc ICoWSwapConverter
     uint32 public immutable MAX_VALID_TO_DURATION;
 
+    /* STATE VARIABLES */
+
+    /// @inheritdoc ICoWSwapConverter
+    mapping(uint256 nonce => mapping(bytes32 requestHash => uint48 timestamp)) public executableAt;
+
     /* CONSTRUCTOR */
 
     constructor(
+        address protocol,
         address vaultFactory,
         address adapterFactory,
         address curatorRegistry,
         address cowSwapSettlement,
-        address cowSwapVaultRelayer,
-        uint32 maxValidToDuration
+        uint32 maxValidToDuration,
+        address cowSwapVaultRelayer
     ) Adapter(vaultFactory, adapterFactory, curatorRegistry) {
+        PROTOCOL = protocol;
         COW_SWAP_SETTLEMENT = cowSwapSettlement;
-        COW_SWAP_VAULT_RELAYER = cowSwapVaultRelayer;
         MAX_VALID_TO_DURATION = maxValidToDuration;
+        COW_SWAP_VAULT_RELAYER = cowSwapVaultRelayer;
     }
 
     /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IConverter
-    function convert(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
-        public
-        virtual
-        override
-    {
+    function convert(address tokenIn, uint256 amountIn, bytes calldata data) public virtual override {
         if (tokenIn == IERC4626(vault).asset()) {
             revert InvalidTokenIn();
         }
 
+        if (msg.sender != owner() && msg.sender != PROTOCOL) {
+            uint48 timestamp = executableAt[nonces(tokenIn)][keccak256(abi.encode(tokenIn, amountIn, data))];
+            if (timestamp == 0) {
+                revert InvalidNonce();
+            }
+            if (block.timestamp < timestamp) {
+                revert ExecutionDelayNotElapsed();
+            }
+        }
+        _useNonce(tokenIn);
+
         OrderParams memory params = abi.decode(data, (OrderParams));
         if (amountIn == 0 || params.sellAmount + params.feeAmount != amountIn) {
             revert InvalidSellAmount();
-        }
-        if (params.buyAmount < minAmountOut) {
-            revert InvalidBuyAmount();
         }
         if (params.validTo <= block.timestamp) {
             revert ExpiredOrder();
@@ -88,7 +103,7 @@ abstract contract CoWSwapConverter is Adapter, ICoWSwapConverter {
             _hash(
                 Data({
                     sellToken: tokenIn,
-                    buyToken: tokenOut,
+                    buyToken: _convertTokenOut(),
                     receiver: address(this),
                     sellAmount: params.sellAmount,
                     buyAmount: params.buyAmount,
@@ -107,7 +122,19 @@ abstract contract CoWSwapConverter is Adapter, ICoWSwapConverter {
         );
         ICoWSwapSettlement(COW_SWAP_SETTLEMENT).setPreSignature(orderUid, true);
 
-        emit Convert(orderUid, tokenIn, tokenOut, params);
+        emit Convert(orderUid, tokenIn, amountIn, params);
+    }
+
+    /// @inheritdoc ICoWSwapConverter
+    function prepareConvert(address tokenIn, uint256 amountIn, bytes calldata data)
+        public
+        virtual
+        returns (bytes32 requestHash)
+    {
+        requestHash = keccak256(abi.encode(tokenIn, amountIn, data));
+        executableAt[nonces(tokenIn)][requestHash] = uint48(block.timestamp + EXECUTION_DELAY);
+
+        emit PrepareConvert(tokenIn, amountIn, data);
     }
 
     /* INTERNAL FUNCTIONS */
@@ -154,5 +181,10 @@ abstract contract CoWSwapConverter is Adapter, ICoWSwapConverter {
             mstore(add(orderUid, 52), owner)
             mstore(add(orderUid, 32), orderDigest)
         }
+    }
+
+    /// @dev
+    function _convertTokenOut() internal view virtual returns (address) {
+        return IERC4626(vault).asset();
     }
 }

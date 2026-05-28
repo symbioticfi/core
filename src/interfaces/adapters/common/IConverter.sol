@@ -11,11 +11,8 @@ interface IConverter {
     /**
      * @notice Converts one token into another.
      * @param tokenIn Input token address.
-     * @param tokenOut Output token address.
      * @param amountIn Input token amount.
-     * @param minAmountOut Minimum output token amount.
      * @param data Converter-specific route data.
      */
-    function convert(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
-        external;
+    function convert(address tokenIn, uint256 amountIn, bytes calldata data) external;
 }

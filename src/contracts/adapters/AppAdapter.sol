@@ -55,16 +55,23 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
     /* CONSTRUCTOR */
 
     constructor(
+        address protocol,
         address vaultFactory,
         address adapterFactory,
         address curatorRegistry,
-        address networkMiddlewareService,
         address cowSwapSettlement,
+        uint32 maxValidToDuration,
         address cowSwapVaultRelayer,
-        uint32 maxValidToDuration
+        address networkMiddlewareService
     )
         CoWSwapConverter(
-            vaultFactory, adapterFactory, curatorRegistry, cowSwapSettlement, cowSwapVaultRelayer, maxValidToDuration
+            protocol,
+            vaultFactory,
+            adapterFactory,
+            curatorRegistry,
+            cowSwapSettlement,
+            maxValidToDuration,
+            cowSwapVaultRelayer
         )
     {
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;

@@ -38,18 +38,25 @@ contract MorphoVaultV2Adapter is CoWSwapConverter, MerklRedistributor, IMorphoVa
     /* CONSTRUCTOR */
 
     constructor(
+        address protocol,
         address vaultFactory,
         address adapterFactory,
         address curatorRegistry,
-        address morphoVaultFactory,
-        address morphoAdapterRegistry,
+        address merklDistributor,
         address cowSwapSettlement,
-        address cowSwapVaultRelayer,
         uint32 maxValidToDuration,
-        address merklDistributor
+        address morphoVaultFactory,
+        address cowSwapVaultRelayer,
+        address morphoAdapterRegistry
     )
         CoWSwapConverter(
-            vaultFactory, adapterFactory, curatorRegistry, cowSwapSettlement, cowSwapVaultRelayer, maxValidToDuration
+            protocol,
+            vaultFactory,
+            adapterFactory,
+            curatorRegistry,
+            cowSwapSettlement,
+            maxValidToDuration,
+            cowSwapVaultRelayer
         )
         MerklRedistributor(merklDistributor)
     {

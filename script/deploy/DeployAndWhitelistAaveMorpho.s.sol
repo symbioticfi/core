@@ -29,6 +29,8 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     // CoW Protocol dependencies used by adapter reward converters.
     address public constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address public constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
+    // Protocol address allowed to convert immediately.
+    address public constant PROTOCOL = 0x0000000000000000000000000000000000000001;
     uint32 public constant MAX_VALID_TO_DURATION = 1 days;
     // Rewards contract address used by VaultV2 and adapters.
     address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;
@@ -46,6 +48,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         address curatorRegistry;
         address cowSwapSettlement;
         address cowSwapVaultRelayer;
+        address protocol;
         uint32 maxValidToDuration;
         address rewards;
     }
@@ -75,6 +78,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 curatorRegistry: CURATOR_REGISTRY,
                 cowSwapSettlement: COW_SWAP_SETTLEMENT,
                 cowSwapVaultRelayer: COW_SWAP_VAULT_RELAYER,
+                protocol: PROTOCOL,
                 maxValidToDuration: MAX_VALID_TO_DURATION,
                 rewards: REWARDS
             })
@@ -98,6 +102,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
             curatorRegistry: params.curatorRegistry,
             cowSwapSettlement: params.cowSwapSettlement,
             cowSwapVaultRelayer: params.cowSwapVaultRelayer,
+            protocol: params.protocol,
             maxValidToDuration: params.maxValidToDuration,
             rewards: params.rewards
         });
@@ -152,6 +157,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 curatorRegistry: params.curatorRegistry,
                 cowSwapSettlement: params.cowSwapSettlement,
                 cowSwapVaultRelayer: params.cowSwapVaultRelayer,
+                protocol: params.protocol,
                 maxValidToDuration: params.maxValidToDuration,
                 rewards: params.rewards
             })
@@ -172,6 +178,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 curatorRegistry: params.curatorRegistry,
                 cowSwapSettlement: params.cowSwapSettlement,
                 cowSwapVaultRelayer: params.cowSwapVaultRelayer,
+                protocol: params.protocol,
                 maxValidToDuration: params.maxValidToDuration,
                 rewards: params.rewards
             })

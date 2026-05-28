@@ -15,6 +15,9 @@ bytes32 constant COW_SWAP_ORDER_TYPEHASH = hex"d5a25ba2e97094ad7d83dc28a6572da79
 /// @dev Encoded CoW Protocol order UID length.
 uint256 constant COW_SWAP_ORDER_UID_LENGTH = 56;
 
+/// @dev Delay before a prepared conversion can be executed permissionlessly.
+uint256 constant EXECUTION_DELAY = 1 days;
+
 /**
  * @title ICoWSwapSettlement
  * @notice Interface for the CoW Protocol settlement contract.
@@ -49,6 +52,11 @@ interface ICoWSwapConverter is IConverter {
     error AlreadyReservedOrder();
 
     /**
+     * @notice Raised when a prepared conversion delay has not elapsed yet.
+     */
+    error ExecutionDelayNotElapsed();
+
+    /**
      * @notice Raised when the order is already expired.
      */
     error ExpiredOrder();
@@ -59,9 +67,9 @@ interface ICoWSwapConverter is IConverter {
     error InsufficientSellBalance();
 
     /**
-     * @notice Raised when the requested buy amount is below the minimum output.
+     * @notice Raised when the prepared conversion nonce is no longer current.
      */
-    error InvalidBuyAmount();
+    error InvalidNonce();
 
     /**
      * @notice Raised when the sell amount is zero or inconsistent with the converter input.
@@ -136,13 +144,21 @@ interface ICoWSwapConverter is IConverter {
     /* EVENTS */
 
     /**
+     * @notice Emitted when a conversion request is prepared.
+     * @param tokenIn The sell token.
+     * @param amountIn Input token amount.
+     * @param data Converter-specific route data.
+     */
+    event PrepareConvert(address indexed tokenIn, uint256 amountIn, bytes data);
+
+    /**
      * @notice Emitted when a pre-signed CoW Protocol order is created.
      * @param orderUid The pre-signed order UID.
      * @param tokenIn The sell token.
-     * @param tokenOut The buy token.
+     * @param amountIn Input token amount.
      * @param params The CoW Protocol order parameters.
      */
-    event Convert(bytes orderUid, address indexed tokenIn, address indexed tokenOut, OrderParams params);
+    event Convert(bytes orderUid, address indexed tokenIn, uint256 amountIn, OrderParams params);
 
     /**
      * @notice Emitted when an expired order reservation is released.
@@ -167,8 +183,33 @@ interface ICoWSwapConverter is IConverter {
     function COW_SWAP_VAULT_RELAYER() external view returns (address relayer);
 
     /**
+     * @notice Returns the protocol address that can convert without a delay.
+     * @return protocol Protocol address.
+     */
+    function PROTOCOL() external view returns (address protocol);
+
+    /**
      * @notice Returns the maximum distance allowed between `block.timestamp` and `validTo`.
      * @return duration Maximum valid-to duration in seconds.
      */
     function MAX_VALID_TO_DURATION() external view returns (uint32 duration);
+
+    /**
+     * @notice Returns when a prepared conversion request can be executed.
+     * @param nonce Nonce bucket for the prepared conversion request.
+     * @param requestHash Hash of the prepared conversion request.
+     * @return timestamp Time when the request can be executed.
+     */
+    function executableAt(uint256 nonce, bytes32 requestHash) external view returns (uint48 timestamp);
+
+    /**
+     * @notice Prepares a conversion request for delayed permissionless execution.
+     * @param tokenIn Input token address.
+     * @param amountIn Input token amount.
+     * @param data Converter-specific route data.
+     * @return requestHash Hash of the prepared conversion request.
+     */
+    function prepareConvert(address tokenIn, uint256 amountIn, bytes calldata data)
+        external
+        returns (bytes32 requestHash);
 }

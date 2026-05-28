@@ -17,27 +17,30 @@ contract AdapterNoAccountShapeTest is Test {
         address morphoAdapterRegistry = makeAddr("morphoAdapterRegistry");
         address cowSwapSettlement = makeAddr("cowSwapSettlement");
         address cowSwapVaultRelayer = makeAddr("cowSwapVaultRelayer");
+        address protocol = makeAddr("protocol");
 
         new AaveV3Adapter(
+            protocol,
             aavePool,
             vaultFactory,
             adapterFactory,
             curatorRegistry,
+            rewards,
             cowSwapSettlement,
-            cowSwapVaultRelayer,
             1 hours,
-            rewards
+            cowSwapVaultRelayer
         );
         new MorphoVaultV2Adapter(
+            protocol,
             vaultFactory,
             adapterFactory,
             curatorRegistry,
-            morphoVaultFactory,
-            morphoAdapterRegistry,
+            rewards,
             cowSwapSettlement,
-            cowSwapVaultRelayer,
             1 hours,
-            rewards
+            morphoVaultFactory,
+            cowSwapVaultRelayer,
+            morphoAdapterRegistry
         );
     }
 }

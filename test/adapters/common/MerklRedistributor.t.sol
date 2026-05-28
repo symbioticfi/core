@@ -6,7 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {MerklRedistributor} from "../../../src/contracts/adapters/common/MerklRedistributor.sol";
 
 contract MerklRedistributorTest is Test {
-    function test_ClaimForwardsMerklDistributorClaimCalldata() public {
+    function test_ClaimForwardsMerklDistributorClaimCalldataForRedistributor() public {
         MerklDistributorMock distributor = new MerklDistributorMock();
         MerklRedistributorHarness redistributor = new MerklRedistributorHarness(address(distributor));
 
@@ -23,7 +23,7 @@ contract MerklRedistributorTest is Test {
         redistributor.claim(tokens, amounts, proofs);
 
         assertEq(distributor.calls(), 1);
-        assertEq(distributor.lastUser(), user);
+        assertEq(distributor.lastUser(), address(redistributor));
         assertEq(distributor.lastToken(), tokens[0]);
         assertEq(distributor.lastAmount(), amounts[0]);
         assertEq(distributor.lastProof(), proofs[0][0]);

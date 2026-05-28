@@ -22,6 +22,16 @@ interface IRestakingAppAdapter is IAppAdapter {
      */
     error InvalidBaseAsset();
 
+    /**
+     * @notice Raised when the configured asset is not a restaking wrapper.
+     */
+    error NotRestaking();
+
+    /**
+     * @notice Raised when the operation is not supported for the restaking adapter.
+     */
+    error Unsupported();
+
     /* STRUCTS */
 
     /**

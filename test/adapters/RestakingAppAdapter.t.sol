@@ -60,13 +60,14 @@ contract RestakingAppAdapterTest is Test {
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
         RestakingAppAdapter implementation = new RestakingAppAdapter(
+            address(0),
             address(vaultFactory),
             address(factory),
             address(0),
-            address(networkMiddlewareService),
             address(settlement),
+            1 hours,
             relayer,
-            1 hours
+            address(networkMiddlewareService)
         );
         factory.whitelist(address(implementation));
 
@@ -77,15 +78,13 @@ contract RestakingAppAdapterTest is Test {
         assertEq(adapter.asset(), address(baseAsset));
     }
 
-    function test_InitializeAcceptsVaultAssetMatchingBaseAsset() public {
+    function test_InitializeRejectsVaultAssetMatchingBaseAsset() public {
         RestakingAppAdapterVaultMock directVault =
             new RestakingAppAdapterVaultMock(address(baseAsset), address(delegator));
         vaultFactory.add(address(directVault));
 
-        IRestakingAppAdapter directAdapter =
-            IRestakingAppAdapter(factory.create(1, curator, _initData(address(directVault), address(baseAsset))));
-
-        assertEq(directAdapter.asset(), address(baseAsset));
+        vm.expectRevert(IRestakingAppAdapter.NotRestaking.selector);
+        factory.create(1, curator, _initData(address(directVault), address(baseAsset)));
     }
 
     function test_InitializeAcceptsNestedVaultAssetChain() public {
@@ -114,30 +113,24 @@ contract RestakingAppAdapterTest is Test {
         assertEq(adapter.freeAssets(), freeShares);
     }
 
-    function test_DirectVaultStakeAtReturnsBaseAssetStake() public {
-        RestakingAppAdapterVaultMock directVault =
-            new RestakingAppAdapterVaultMock(address(baseAsset), address(delegator));
-        vaultFactory.add(address(directVault));
-        IRestakingAppAdapter directAdapter =
-            IRestakingAppAdapter(factory.create(1, curator, _initData(address(directVault), address(baseAsset))));
+    function test_StakeAtRevertsBecauseUnsupported() public {
+        _allocateRestakingShares(100);
 
-        uint48 timestamp = uint48(block.timestamp);
-        baseAsset.transfer(address(directAdapter), 100);
-        delegator.allocate(address(directAdapter), 100);
-
-        assertEq(directAdapter.stakeAt(timestamp), 100);
+        vm.expectRevert(IRestakingAppAdapter.Unsupported.selector);
+        adapter.stakeAt(uint48(block.timestamp));
     }
 
-    function test_ConvertRejectsBaseAssetInput() public {
+    function test_ConvertRejectsVaultAssetInput() public {
         vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
-        adapter.convert(address(baseAsset), address(restakingToken), 1, 0, "");
+        adapter.convert(address(restakingToken), 1, "");
     }
 
     function test_ConvertPresignsOrderForNonBaseAssetInput() public {
         Token tokenIn = new Token("Token In");
         tokenIn.transfer(address(adapter), 100);
 
-        adapter.convert(address(tokenIn), address(baseAsset), 100, 90, _orderData(100, 90, 0, 1));
+        vm.prank(curator);
+        adapter.convert(address(tokenIn), 100, _orderData(100, 90, 0, 1));
 
         assertEq(settlement.lastOrderUid().length, 56);
         assertTrue(settlement.lastSigned());
@@ -178,7 +171,7 @@ contract RestakingAppAdapterTest is Test {
         uint256 expectedStake = restakingToken.previewRedeem(100);
 
         assertEq(adapter.stake(), expectedStake);
-        vm.expectRevert(IRestakingAppAdapter.InvalidAsset.selector);
+        vm.expectRevert(IRestakingAppAdapter.Unsupported.selector);
         adapter.stakeAt(uint48(block.timestamp));
         assertEq(adapter.slashable(), expectedStake);
     }
@@ -191,7 +184,7 @@ contract RestakingAppAdapterTest is Test {
         vaultFactory.add(address(newRestakingToken));
         vault.setAsset(address(newRestakingToken));
 
-        vm.expectRevert(IRestakingAppAdapter.InvalidAsset.selector);
+        vm.expectRevert(IRestakingAppAdapter.Unsupported.selector);
         adapter.stakeAt(timestamp);
     }
 
@@ -205,7 +198,7 @@ contract RestakingAppAdapterTest is Test {
         uint256 expectedStake = middleVault.previewRedeem(outerVault.previewRedeem(100));
 
         assertEq(nestedAdapter.stake(), expectedStake);
-        vm.expectRevert(IRestakingAppAdapter.InvalidAsset.selector);
+        vm.expectRevert(IRestakingAppAdapter.Unsupported.selector);
         nestedAdapter.stakeAt(uint48(block.timestamp));
         assertEq(nestedAdapter.slashable(), expectedStake);
     }
