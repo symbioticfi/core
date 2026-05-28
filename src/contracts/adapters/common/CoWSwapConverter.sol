@@ -17,7 +17,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title CoWSwapConverter
 /// @notice Converter for asynchronous CoW Protocol sell orders via pre-signing.
-contract CoWSwapConverter is ICoWSwapConverter {
+abstract contract CoWSwapConverter is ICoWSwapConverter {
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
@@ -29,13 +29,6 @@ contract CoWSwapConverter is ICoWSwapConverter {
     /// @inheritdoc ICoWSwapConverter
     uint32 public immutable MAX_VALID_TO_DURATION;
 
-    /* STATE VARIABLES */
-
-    /// @inheritdoc ICoWSwapConverter
-    mapping(address token => uint256 amount) public reservedSellBalance;
-    /// @inheritdoc ICoWSwapConverter
-    mapping(bytes32 orderUidHash => ReservedOrder order) public reservedOrder;
-
     /* CONSTRUCTOR */
 
     constructor(address cowSwapSettlement, address cowSwapVaultRelayer, uint32 maxValidToDuration) {
@@ -46,9 +39,9 @@ contract CoWSwapConverter is ICoWSwapConverter {
 
     /* PUBLIC FUNCTIONS */
 
-    /// @inheritdoc IConverter
-    function convert(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
-        public
+    /// @dev Converts one token into another.
+    function _convert(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
+        internal
     {
         OrderParams memory params = abi.decode(data, (OrderParams));
         if (amountIn == 0 || params.sellAmount + params.feeAmount != amountIn) {
@@ -65,9 +58,7 @@ contract CoWSwapConverter is ICoWSwapConverter {
         }
 
         uint256 totalSellAmount = params.sellAmount + params.feeAmount;
-        uint256 reserved = reservedSellBalance[tokenIn];
-        uint256 balance = IERC20(tokenIn).balanceOf(address(this));
-        if (balance < reserved || balance - reserved < totalSellAmount) {
+        if (IERC20(tokenIn).balanceOf(address(this)) < totalSellAmount) {
             revert InsufficientSellBalance();
         }
 
@@ -98,39 +89,18 @@ contract CoWSwapConverter is ICoWSwapConverter {
             address(this),
             params.validTo
         );
-
-        bytes32 orderUidHash = keccak256(orderUid);
-        if (reservedOrder[orderUidHash].token != address(0)) {
-            revert AlreadyReservedOrder();
-        }
-        reservedSellBalance[tokenIn] = reserved + totalSellAmount;
-        reservedOrder[orderUidHash] = ReservedOrder({token: tokenIn, amount: totalSellAmount, validTo: params.validTo});
-
         ICoWSwapSettlement(COW_SWAP_SETTLEMENT).setPreSignature(orderUid, true);
 
         emit Convert(orderUid, tokenIn, tokenOut, params);
     }
 
-    /// @inheritdoc ICoWSwapConverter
-    function releaseExpiredOrder(bytes calldata orderUid) public {
-        bytes32 orderUidHash = keccak256(orderUid);
-        ReservedOrder memory order = reservedOrder[orderUidHash];
-        if (order.token == address(0)) {
-            revert UnknownOrder();
-        }
-        if (block.timestamp <= order.validTo) {
-            revert OrderNotExpired();
-        }
-
-        delete reservedOrder[orderUidHash];
-        reservedSellBalance[order.token] -= order.amount;
-
-        emit ReleaseExpiredOrder(orderUid, order.token, order.amount);
-    }
-
     /* INTERNAL FUNCTIONS */
 
     /// @dev Return the EIP-712 signing hash for the specified order.
+    ///
+    /// @param order The order to compute the EIP-712 signing hash for.
+    /// @param domainSeparator The EIP-712 domain separator to use.
+    /// @return orderDigest The 32 byte EIP-712 struct hash.
     function _hash(Data memory order, bytes32 domainSeparator) internal pure returns (bytes32 orderDigest) {
         bytes32 structHash;
         assembly {
@@ -150,7 +120,15 @@ contract CoWSwapConverter is ICoWSwapConverter {
         }
     }
 
-    /// @dev Packs order UID parameters into the specified memory location.
+    /// @dev Packs order UID parameters into the specified memory location. The
+    /// result is equivalent to `abi.encodePacked(...)` with the difference that
+    /// it allows re-using the memory for packing the order UID.
+    ///
+    /// @param orderUid The buffer pack the order UID parameters into.
+    /// @param orderDigest The EIP-712 struct digest derived from the order
+    /// parameters.
+    /// @param owner The address of the user who owns this order.
+    /// @param validTo The epoch time at which the order will stop being valid.
     function _packOrderUidParams(bytes memory orderUid, bytes32 orderDigest, address owner, uint32 validTo)
         internal
         pure

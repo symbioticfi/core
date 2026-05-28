@@ -13,6 +13,7 @@ import {IRestakingAppAdapter, MAX_DEPTH} from "../../interfaces/adapters/IRestak
 import {IUniversalDelegator, MAX_SHARE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
+import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -49,6 +50,11 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /* VIEW FUNCTIONS */
 
+    /// @inheritdoc IAdapter
+    function totalAssets() public view override(AppAdapter, IAdapter) returns (uint256) {
+        return IERC20(IERC4626(vault).asset()).balanceOf(address(this));
+    }
+
     /// @inheritdoc IAppAdapter
     function slashable() public view override(AppAdapter, IAppAdapter) returns (uint256) {
         return _convertToAsset(super.slashable());
@@ -72,46 +78,59 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /// @inheritdoc IAppAdapter
     function reward(address token, uint256 amount) public override(AppAdapter, IAppAdapter) {
         super.reward(token, amount);
-        for (uint256 i = vaults.length; i > 0; --i) {
-            if (IERC20(token).allowance(address(this), vaults[i - 1]) < amount) {
-                IERC20(token).forceApprove(vaults[i - 1], type(uint256).max);
-            }
-            amount = IERC4626(vaults[i - 1]).deposit(amount, address(this));
-            token = vaults[i - 1];
+        for (uint256 i = vaults.length - 1; i > 0; --i) {
+            amount = IERC4626(vaults[i]).deposit(amount, address(this));
+            token = vaults[i];
         }
+    }
+
+    /// @inheritdoc IAppAdapter
+    function convert(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
+        public
+        override(AppAdapter, IAppAdapter)
+    {
+        if (tokenIn == asset || tokenIn == IERC4626(vault).asset()) {
+            revert InvalidTokenIn();
+        }
+        _convert(tokenIn, tokenOut, amountIn, minAmountOut, data);
     }
 
     /// @inheritdoc IRestakingAppAdapter
     function syncSlash() public {
+        uint256 amount;
         for (uint256 i; i < vaults.length; ++i) {
+            address withdrawalQueue = IVaultV2(vaults[i]).withdrawalQueue();
+
+            // Create a request for previously claimed vault shares.
+            if (amount > 0) {
+                withdrawalRequests[vaults[i]].tokenIds
+                    .push(uint16(IWithdrawalQueue(withdrawalQueue).requestRedeem(amount, address(this))));
+                amount = 0;
+            }
+            // Try claim existing requests greedily.
             WithdrawalRequests storage requests = withdrawalRequests[vaults[i]];
-            IWithdrawalQueue withdrawalQueue = IWithdrawalQueue(IVaultV2(vaults[i]).withdrawalQueue());
-            for (; requests.firstUnclaimed < requests.tokenIds.length; ++requests.firstUnclaimed) {
-                uint256 tokenId = requests.tokenIds[requests.firstUnclaimed];
-                (uint256 amount,) = withdrawalQueue.claim(tokenId);
-                if (amount > 0) {
-                    _sendToBurner(i + 1, amount);
-                }
-                if (!withdrawalQueue.isClaimed(tokenId)) {
+            uint256 indexToClaim = requests.firstUnclaimed;
+            for (; indexToClaim < requests.tokenIds.length; ++indexToClaim) {
+                uint256 tokenId = requests.tokenIds[indexToClaim];
+                try IWithdrawalQueue(withdrawalQueue).claim(tokenId) returns (uint256 assets, uint256) {
+                    amount += assets;
+                } catch {}
+                // Stop if the last request was not fully claimed.
+                if (!IWithdrawalQueue(withdrawalQueue).isClaimed(tokenId)) {
                     break;
                 }
             }
+            requests.firstUnclaimed = indexToClaim;
         }
+        // Send `asset` obtained from the last vault to the burner.
+        _sendToBurner(amount);
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @inheritdoc AppAdapter
     function _sendToBurner(uint256 amount) internal override {
-        _sendToBurner(0, amount);
-    }
-
-    function _sendToBurner(uint256 index, uint256 amount) internal {
-        for (uint256 i = index; i < vaults.length; ++i) {
+        for (uint256 i; i < vaults.length; ++i) {
             address withdrawalQueue = IVaultV2(vaults[i]).withdrawalQueue();
-            if (IERC20(vaults[i]).allowance(address(this), withdrawalQueue) < amount) {
-                IERC20(vaults[i]).forceApprove(withdrawalQueue, type(uint256).max);
-            }
             uint256 tokenId = IWithdrawalQueue(withdrawalQueue).requestRedeem(amount, address(this));
             try IWithdrawalQueue(withdrawalQueue).claim(tokenId) returns (uint256 curAmount, uint256 shares) {
                 if (shares < amount) {
@@ -133,13 +152,16 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         super.__initialize(initVault, abi.encode(params.initParams));
 
         asset = params.asset;
+
         vaults.push(vault);
+        IERC20(vault).forceApprove(IVaultV2(vault).withdrawalQueue(), type(uint256).max);
         address curAsset = IERC4626(vault).asset();
         for (uint256 depth; curAsset != params.asset && depth < MAX_DEPTH; ++depth) {
             if (!IRegistry(VAULT_FACTORY).isEntity(curAsset)) {
                 revert InvalidBaseAsset();
             }
             vaults.push(curAsset);
+            IERC20(curAsset).forceApprove(IVaultV2(curAsset).withdrawalQueue(), type(uint256).max);
             curAsset = IERC4626(curAsset).asset();
         }
         if (curAsset != params.asset) {

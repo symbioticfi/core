@@ -67,7 +67,7 @@ contract AppAdapter is Adapter, IAppAdapter {
     }
 
     /// @inheritdoc IAdapter
-    function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
+    function totalAssets() public view virtual override(Adapter, IAdapter) returns (uint256) {
         return IERC20(asset).balanceOf(address(this));
     }
 
@@ -97,7 +97,17 @@ contract AppAdapter is Adapter, IAppAdapter {
     /// @inheritdoc IAppAdapter
     function reward(address token, uint256 amount) public virtual override {
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        if (asset != token) {}
+    }
+
+    /// @inheritdoc IAppAdapter
+    function convert(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
+        public
+        virtual
+    {
+        if (tokenIn == asset) {
+            revert InvalidTokenIn();
+        }
+        _convert(tokenIn, tokenOut, amountIn, minAmountOut, data);
     }
 
     /* PUBLIC FUNCTIONS (NETWORK) */
