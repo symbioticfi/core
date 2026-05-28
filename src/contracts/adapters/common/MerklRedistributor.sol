@@ -24,7 +24,7 @@ abstract contract MerklRedistributor is IMerklRedistributor {
     function claim(address[] calldata tokens, uint256[] calldata amounts, bytes32[][] calldata proofs) public {
         address[] memory users = new address[](tokens.length);
         for (uint256 i; i < users.length; ++i) {
-            users[i] = msg.sender;
+            users[i] = address(this);
         }
         IMerklDistributor(MERKL_DISTRIBUTOR).claim(users, tokens, amounts, proofs);
     }
