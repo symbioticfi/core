@@ -165,6 +165,10 @@ contract UniversalDelegatorSweepAdapter {
         freeAssets = freeAssets_;
     }
 
+    function setTotalAssets(uint256 totalAssets_) external {
+        totalAssets = totalAssets_;
+    }
+
     function allocate(uint256 assets) external returns (uint256 allocated) {
         ++allocateCalls;
         lastAllocateAssets = assets;
@@ -333,6 +337,20 @@ contract UniversalDelegatorSweepPendingTest is Test {
 
         vm.expectRevert(IUniversalDelegator.AlreadyAdded.selector);
         delegator.addAdapterForTest(address(adapter));
+    }
+
+    function test_VersionReturnsUniversalDelegatorVersion() public view {
+        assertEq(delegator.VERSION(), 2);
+    }
+
+    function test_AddAdapterRevertsWhenAdapterLimitIsReached() public {
+        vm.pauseGasMetering();
+        _addAdapters(MAX_ADAPTERS, 0, 0);
+        UniversalDelegatorSweepAdapter extraAdapter = _newAdapter(0, 0);
+        vm.resumeGasMetering();
+
+        vm.expectRevert(IUniversalDelegator.TooManyAdapters.selector);
+        delegator.addAdapterForTest(address(extraAdapter));
     }
 
     function test_RemoveAdapterRevertsInvalidAdapter() public {
@@ -645,6 +663,44 @@ contract UniversalDelegatorSweepPendingTest is Test {
         delegator.removeAdapter(address(adapter));
 
         assertEq(delegator.adapters(0), address(adapter));
+    }
+
+    function test_RemoveAdapterClearsPendingIndexAndShiftsRoutes() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(100);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        delegator.setVault(address(vault));
+        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
+        queue.setPendingAfterFill(100);
+
+        UniversalDelegatorSweepAdapter adapter1 = _newAdapterForVault(address(vault), 0, 0);
+        UniversalDelegatorSweepAdapter adapter2 = _newAdapterForVault(address(vault), 100, 0);
+        UniversalDelegatorSweepAdapter adapter3 = _newAdapterForVault(address(vault), 0, 0);
+        delegator.addAdapterForTest(address(adapter1));
+        uint16 pendingIndex = delegator.addAdapterForTest(address(adapter2));
+        delegator.addAdapterForTest(address(adapter3));
+
+        address[] memory route = new address[](3);
+        route[0] = address(adapter1);
+        route[1] = address(adapter2);
+        route[2] = address(adapter3);
+        delegator.grantRoleForTest(SET_AUTO_ALLOCATE_ADAPTERS_ROLE, address(this));
+        delegator.setAutoAllocateAdapters(route);
+
+        delegator.sweepPending();
+
+        assertEq(delegator.adaptersWithPending(0), pendingIndex);
+        assertEq(adapter1.requestDeallocateCalls(), 0);
+        assertEq(adapter2.lastRequestDeallocateAssets(), 100);
+
+        adapter2.setTotalAssets(0);
+        delegator.grantRoleForTest(REMOVE_ADAPTER_ROLE, address(this));
+        delegator.removeAdapter(address(adapter2));
+
+        assertEq(delegator.adaptersWithPendingLength(), 0);
+        assertEq(delegator.adapters(0), address(adapter1));
+        assertEq(delegator.adapters(1), address(adapter3));
+        assertEq(delegator.autoAllocateAdapters(0), address(adapter1));
+        assertEq(delegator.autoAllocateAdapters(1), address(adapter3));
     }
 
     function test_LimitsAreStoredByAdapterAddress() public {

@@ -44,16 +44,46 @@ contract CoWSwapConverterTest is Test {
         converter.convert(address(tokenOut), address(tokenIn), 100, 90, _orderData(100, 90, 0, 1));
     }
 
+    function test_ConvertRevertsForInvalidOrderBounds() public {
+        vm.expectRevert(ICoWSwapConverter.InvalidSellAmount.selector);
+        converter.convert(address(tokenIn), address(tokenOut), 100, 90, _orderData(99, 90, 0, 1));
+
+        vm.expectRevert(ICoWSwapConverter.InvalidBuyAmount.selector);
+        converter.convert(address(tokenIn), address(tokenOut), 100, 91, _orderData(100, 90, 0, 2));
+
+        vm.expectRevert(ICoWSwapConverter.ExpiredOrder.selector);
+        converter.convert(
+            address(tokenIn), address(tokenOut), 100, 90, _orderData(100, 90, 0, 3, uint32(block.timestamp))
+        );
+
+        vm.expectRevert(ICoWSwapConverter.TooFarValidTo.selector);
+        converter.convert(
+            address(tokenIn),
+            address(tokenOut),
+            100,
+            90,
+            _orderData(100, 90, 0, 4, uint32(block.timestamp + 1 hours + 1))
+        );
+    }
+
     function _orderData(uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, uint256 salt)
         internal
         view
+        returns (bytes memory)
+    {
+        return _orderData(sellAmount, buyAmount, feeAmount, salt, uint32(block.timestamp + 1 hours));
+    }
+
+    function _orderData(uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, uint256 salt, uint32 validTo)
+        internal
+        pure
         returns (bytes memory)
     {
         return abi.encode(
             ICoWSwapConverter.OrderParams({
                 sellAmount: sellAmount,
                 buyAmount: buyAmount,
-                validTo: uint32(block.timestamp + 1 hours),
+                validTo: validTo,
                 appData: bytes32(salt),
                 feeAmount: feeAmount
             })

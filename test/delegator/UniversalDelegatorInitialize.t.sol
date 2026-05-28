@@ -23,6 +23,12 @@ contract UniversalDelegatorInitializeVaultMock {
     }
 }
 
+contract UniversalDelegatorInitializeOldVaultMock {
+    function version() external pure returns (uint64) {
+        return VAULT_V2_VERSION - 1;
+    }
+}
+
 contract UniversalDelegatorInitializeTest is Test {
     using Clones for address;
 
@@ -32,29 +38,55 @@ contract UniversalDelegatorInitializeTest is Test {
 
         vaultFactory.setEntity(address(vault), true);
 
-        UniversalDelegator implementation =
-            new UniversalDelegator(UNIVERSAL_DELEGATOR_TYPE, address(vaultFactory), address(0), address(this));
-        UniversalDelegator delegator = UniversalDelegator(address(implementation).clone());
+        UniversalDelegator delegator = _delegator(vaultFactory);
 
-        delegator.initialize(
-            abi.encode(
-                address(vault),
-                abi.encode(
-                    IUniversalDelegator.InitParams({
-                        allocateRoleHolder: address(this),
-                        deallocateRoleHolder: address(this),
-                        addAdapterRoleHolder: address(this),
-                        swapAdaptersRoleHolder: address(this),
-                        defaultAdminRoleHolder: address(this),
-                        removeAdapterRoleHolder: address(this),
-                        setAdapterLimitsRoleHolder: address(this),
-                        setAutoAllocateAdaptersRoleHolder: address(this)
-                    })
-                )
-            )
-        );
+        delegator.initialize(_initData(address(vault)));
 
         assertEq(delegator.vault(), address(vault));
         assertEq(delegator.totalAdapters(), 0);
+    }
+
+    function testInitializeRejectsUnregisteredVault() public {
+        UniversalDelegatorInitializeRegistryMock vaultFactory = new UniversalDelegatorInitializeRegistryMock();
+        UniversalDelegatorInitializeVaultMock vault = new UniversalDelegatorInitializeVaultMock();
+        UniversalDelegator delegator = _delegator(vaultFactory);
+
+        vm.expectRevert(IUniversalDelegator.NotVault.selector);
+        delegator.initialize(_initData(address(vault)));
+    }
+
+    function testInitializeRejectsOldVault() public {
+        UniversalDelegatorInitializeRegistryMock vaultFactory = new UniversalDelegatorInitializeRegistryMock();
+        UniversalDelegatorInitializeOldVaultMock vault = new UniversalDelegatorInitializeOldVaultMock();
+        UniversalDelegator delegator = _delegator(vaultFactory);
+
+        vaultFactory.setEntity(address(vault), true);
+
+        vm.expectRevert(IUniversalDelegator.OldVault.selector);
+        delegator.initialize(_initData(address(vault)));
+    }
+
+    function _delegator(UniversalDelegatorInitializeRegistryMock vaultFactory) internal returns (UniversalDelegator) {
+        UniversalDelegator implementation =
+            new UniversalDelegator(UNIVERSAL_DELEGATOR_TYPE, address(vaultFactory), address(0), address(this));
+        return UniversalDelegator(address(implementation).clone());
+    }
+
+    function _initData(address vault) internal view returns (bytes memory) {
+        return abi.encode(
+            vault,
+            abi.encode(
+                IUniversalDelegator.InitParams({
+                    allocateRoleHolder: address(this),
+                    deallocateRoleHolder: address(this),
+                    addAdapterRoleHolder: address(this),
+                    swapAdaptersRoleHolder: address(this),
+                    defaultAdminRoleHolder: address(this),
+                    removeAdapterRoleHolder: address(this),
+                    setAdapterLimitsRoleHolder: address(this),
+                    setAutoAllocateAdaptersRoleHolder: address(this)
+                })
+            )
+        );
     }
 }

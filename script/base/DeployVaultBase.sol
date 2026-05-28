@@ -120,15 +120,15 @@ contract DeployVaultBase is Script {
             )
             .create(
                 IVaultConfigurator.InitParams({
-                version: _getVaultVersion(),
-                owner: params.owner,
-                vaultParams: _getVaultParamsEncoded(params),
-                delegatorIndex: params.delegatorIndex,
-                delegatorParams: delegatorParamsEncoded,
-                withSlasher: params.withSlasher,
-                slasherIndex: params.slasherIndex,
-                slasherParams: slasherParamsEncoded
-            })
+                    version: _getVaultVersion(),
+                    owner: params.owner,
+                    vaultParams: _getVaultParamsEncoded(params),
+                    delegatorIndex: params.delegatorIndex,
+                    delegatorParams: delegatorParamsEncoded,
+                    withSlasher: params.withSlasher,
+                    slasherIndex: params.slasherIndex,
+                    slasherParams: slasherParamsEncoded
+                })
             );
 
         if (params.vaultParams.whitelistedDepositors.length != 0) {

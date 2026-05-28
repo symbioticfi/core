@@ -11,6 +11,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 import {IRestakingAppAdapter} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
+import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 
 import {Token} from "../mocks/Token.sol";
 
@@ -27,6 +28,7 @@ contract RestakingAppAdapterTest is Test {
     RestakingAppAdapterVaultMock internal vault;
     RestakingAppAdapterDelegatorMock internal delegator;
     RestakingAppAdapterNetworkMiddlewareServiceMock internal networkMiddlewareService;
+    RestakingCoWSwapSettlementMock internal settlement;
     Token internal baseAsset;
     RestakingTokenMock internal restakingToken;
     IRestakingAppAdapter internal adapter;
@@ -37,6 +39,7 @@ contract RestakingAppAdapterTest is Test {
     address internal operator = makeAddr("operator");
     address internal curator = makeAddr("curator");
     address internal burner = makeAddr("burner");
+    address internal relayer = makeAddr("relayer");
     uint48 internal duration = 10;
 
     function setUp() public {
@@ -46,6 +49,7 @@ contract RestakingAppAdapterTest is Test {
         factory = new AdapterFactory(address(this));
         delegator = new RestakingAppAdapterDelegatorMock();
         networkMiddlewareService = new RestakingAppAdapterNetworkMiddlewareServiceMock();
+        settlement = new RestakingCoWSwapSettlementMock();
         baseAsset = new Token("Base Asset");
         restakingToken = new RestakingTokenMock(IERC20(address(baseAsset)));
         vault = new RestakingAppAdapterVaultMock(address(restakingToken), address(delegator));
@@ -60,9 +64,9 @@ contract RestakingAppAdapterTest is Test {
             address(factory),
             address(0),
             address(networkMiddlewareService),
-            address(0),
-            address(0),
-            0
+            address(settlement),
+            relayer,
+            1 hours
         );
         factory.whitelist(address(implementation));
 
@@ -97,6 +101,47 @@ contract RestakingAppAdapterTest is Test {
             IRestakingAppAdapter(factory.create(1, curator, _initData(address(nestedVault), address(baseAsset))));
 
         assertEq(nestedAdapter.asset(), address(baseAsset));
+    }
+
+    function test_FreeAndTotalAssetsUseCurrentVaultAssetShares() public {
+        _allocateRestakingShares(100);
+
+        baseAsset.approve(address(restakingToken), 50);
+        uint256 freeShares = restakingToken.deposit(50, address(this));
+        restakingToken.transfer(address(adapter), freeShares);
+
+        assertEq(adapter.totalAssets(), 150);
+        assertEq(adapter.freeAssets(), freeShares);
+    }
+
+    function test_DirectVaultStakeAtReturnsBaseAssetStake() public {
+        RestakingAppAdapterVaultMock directVault =
+            new RestakingAppAdapterVaultMock(address(baseAsset), address(delegator));
+        vaultFactory.add(address(directVault));
+        IRestakingAppAdapter directAdapter =
+            IRestakingAppAdapter(factory.create(1, curator, _initData(address(directVault), address(baseAsset))));
+
+        uint48 timestamp = uint48(block.timestamp);
+        baseAsset.transfer(address(directAdapter), 100);
+        delegator.allocate(address(directAdapter), 100);
+
+        assertEq(directAdapter.stakeAt(timestamp), 100);
+    }
+
+    function test_ConvertRejectsBaseAssetInput() public {
+        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
+        adapter.convert(address(baseAsset), address(restakingToken), 1, 0, "");
+    }
+
+    function test_ConvertPresignsOrderForNonBaseAssetInput() public {
+        Token tokenIn = new Token("Token In");
+        tokenIn.transfer(address(adapter), 100);
+
+        adapter.convert(address(tokenIn), address(baseAsset), 100, 90, _orderData(100, 90, 0, 1));
+
+        assertEq(settlement.lastOrderUid().length, 56);
+        assertTrue(settlement.lastSigned());
+        assertEq(tokenIn.allowance(address(adapter), relayer), type(uint256).max);
     }
 
     function test_InitializeRejectsUnregisteredNestedVaultAsset() public {
@@ -257,6 +302,68 @@ contract RestakingAppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), 0);
     }
 
+    function test_SyncSlashClaimsDelayedSlashRequest() public {
+        _allocateRestakingShares(100);
+        baseAsset.transfer(address(restakingToken), 100);
+        restakingToken.withdrawalQueue().setClaimReverts(true);
+
+        vm.prank(networkMiddleware);
+        uint256 slashedShares = adapter.slash(40);
+
+        assertEq(baseAsset.balanceOf(burner), 0);
+        assertEq(restakingToken.balanceOf(address(restakingToken.withdrawalQueue())), slashedShares);
+
+        restakingToken.withdrawalQueue().setClaimReverts(false);
+        adapter.syncSlash();
+
+        assertEq(baseAsset.balanceOf(burner), 40);
+        assertEq(restakingToken.balanceOf(address(restakingToken.withdrawalQueue())), 0);
+    }
+
+    function test_SyncSlashKeepsAndCompletesPartiallyClaimedRequest() public {
+        _allocateRestakingShares(100);
+        baseAsset.transfer(address(restakingToken), 100);
+        restakingToken.withdrawalQueue().setMaxClaimShares(10);
+
+        vm.prank(networkMiddleware);
+        adapter.slash(40);
+
+        assertEq(baseAsset.balanceOf(burner), 20);
+        assertEq(restakingToken.balanceOf(address(restakingToken.withdrawalQueue())), 10);
+
+        restakingToken.withdrawalQueue().setMaxClaimShares(0);
+        adapter.syncSlash();
+
+        assertEq(baseAsset.balanceOf(burner), 20);
+        assertEq(restakingToken.balanceOf(address(restakingToken.withdrawalQueue())), 10);
+
+        restakingToken.withdrawalQueue().setMaxClaimShares(type(uint256).max);
+        adapter.syncSlash();
+
+        assertEq(baseAsset.balanceOf(burner), 40);
+        assertEq(restakingToken.balanceOf(address(restakingToken.withdrawalQueue())), 0);
+    }
+
+    function test_SyncSlashMovesDelayedNestedSharesThroughRemainingVaults() public {
+        (IRestakingAppAdapter nestedAdapter, RestakingTokenMock outerVault, RestakingTokenMock middleVault) =
+            _createNestedAdapter();
+        _allocateNestedShares(nestedAdapter, outerVault, middleVault, 100);
+        baseAsset.transfer(address(middleVault), 100);
+        outerVault.withdrawalQueue().setClaimReverts(true);
+
+        vm.prank(networkMiddleware);
+        nestedAdapter.slash(40);
+
+        assertEq(baseAsset.balanceOf(burner), 0);
+
+        outerVault.withdrawalQueue().setClaimReverts(false);
+        nestedAdapter.syncSlash();
+
+        assertEq(baseAsset.balanceOf(burner), 40);
+        assertEq(outerVault.balanceOf(address(outerVault.withdrawalQueue())), 0);
+        assertEq(middleVault.balanceOf(address(middleVault.withdrawalQueue())), 0);
+    }
+
     function _allocateRestakingShares(uint256 amount) internal {
         baseAsset.approve(address(restakingToken), amount);
         uint256 shares = restakingToken.deposit(amount, address(this));
@@ -317,6 +424,33 @@ contract RestakingAppAdapterTest is Test {
             )
         );
     }
+
+    function _orderData(uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, uint256 salt)
+        internal
+        view
+        returns (bytes memory)
+    {
+        return abi.encode(
+            ICoWSwapConverter.OrderParams({
+                sellAmount: sellAmount,
+                buyAmount: buyAmount,
+                validTo: uint32(block.timestamp + 1 hours),
+                appData: bytes32(salt),
+                feeAmount: feeAmount
+            })
+        );
+    }
+}
+
+contract RestakingCoWSwapSettlementMock {
+    bytes32 public domainSeparator = keccak256("DOMAIN");
+    bytes public lastOrderUid;
+    bool public lastSigned;
+
+    function setPreSignature(bytes calldata orderUid, bool signed) external {
+        lastOrderUid = orderUid;
+        lastSigned = signed;
+    }
 }
 
 contract RestakingTokenMock is ERC20 {
@@ -371,6 +505,7 @@ contract RestakingTokenMock is ERC20 {
 
 contract RestakingWithdrawalQueueMock {
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
     struct Request {
         uint256 shares;
@@ -380,6 +515,8 @@ contract RestakingWithdrawalQueueMock {
     address public immutable vault;
     bool internal immutable _redeems;
     uint256 internal _nextTokenId = 1;
+    bool public claimReverts;
+    uint256 public maxClaimShares = type(uint256).max;
     mapping(uint256 tokenId => Request request) internal _requests;
 
     constructor(address vault_, bool redeems_) {
@@ -395,12 +532,25 @@ contract RestakingWithdrawalQueueMock {
         }
     }
 
+    function setClaimReverts(bool claimReverts_) external {
+        claimReverts = claimReverts_;
+    }
+
+    function setMaxClaimShares(uint256 maxClaimShares_) external {
+        maxClaimShares = maxClaimShares_;
+    }
+
     function claim(uint256 tokenId) external returns (uint256 assets, uint256 shares) {
+        if (claimReverts) {
+            revert("CLAIM_REVERTS");
+        }
+
         Request storage request = _requests[tokenId];
-        shares = request.shares;
+        shares = request.shares.min(maxClaimShares);
         assets = _redeems ? RestakingTokenMock(vault).previewRedeem(shares) : shares;
-        request.claimed = true;
-        if (_redeems) {
+        request.shares -= shares;
+        request.claimed = request.shares == 0;
+        if (_redeems && shares > 0) {
             RestakingTokenMock(vault).withdraw(assets, msg.sender, address(this));
         }
     }

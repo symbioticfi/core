@@ -30,6 +30,7 @@ import {
 import {Token} from "../mocks/Token.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 contract VaultV2MigratableEntityMock is MigratableEntity {
@@ -291,6 +292,17 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.balanceOfAt(bob, withdrawTimestamp), 40 ether);
     }
 
+    function test_TransferRevertsWhenBalanceIsInsufficient() public {
+        VaultV2 vault = _createVault(false, false, 0);
+        _deposit(vault, alice, 100 ether);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, alice, 100 ether, 101 ether)
+        );
+        vm.prank(alice);
+        vault.transfer(bob, 101 ether);
+    }
+
     function test_MulticallAppliesCallsAndBubblesReverts() public {
         VaultV2 vault = _createVault(false, false, 0);
 
@@ -510,6 +522,44 @@ contract VaultV2BehaviorTest is Test {
 
         assertEq(VaultV2(vault).delegator(), delegator);
         assertEq(slasher, address(0));
+    }
+
+    function test_SetDelegatorRevertsWhenAlreadyInitialized() public {
+        VaultV2 vault = _createVault(false, false, 0);
+        address currentDelegator = vault.delegator();
+
+        vm.expectRevert(IVaultV2.DelegatorAlreadyInitialized.selector);
+        vault.setDelegator(currentDelegator);
+    }
+
+    function test_UnsupportedMigrationsRevert() public {
+        VaultV2 vault = _createVault(false, false, 0);
+
+        vaultFactory.whitelist(
+            address(
+                new VaultV2(
+                    address(0x1),
+                    address(vaultFactory),
+                    address(0x2),
+                    address(adapterRegistry),
+                    address(delegatorFactory),
+                    address(protocolFee),
+                    address(withdrawalQueueFactory)
+                )
+            )
+        );
+        withdrawalQueueFactory.whitelist(address(new WithdrawalQueue(address(withdrawalQueueFactory))));
+
+        uint64 vaultVersion = vaultFactory.lastVersion();
+        address queue = vault.withdrawalQueue();
+        uint64 queueVersion = withdrawalQueueFactory.lastVersion();
+
+        vm.expectRevert();
+        vaultFactory.migrate(address(vault), vaultVersion, "");
+
+        vm.expectRevert();
+        vm.prank(address(vault));
+        withdrawalQueueFactory.migrate(queue, queueVersion, "");
     }
 
     function _createVault(bool depositWhitelist, bool isDepositLimit, uint256 depositLimit)

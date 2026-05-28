@@ -60,6 +60,10 @@ contract AaveV3AdapterTest is Test {
         assertEq(adapter.freeAssets(), 123);
     }
 
+    function test_ATokenViewReturnsConfiguredReserveToken() public view {
+        assertEq(adapter.aToken(), address(aToken));
+    }
+
     function test_AllocateAndDeallocateThroughAave() public {
         collateral.transfer(address(adapter), 100);
 

@@ -9,7 +9,7 @@ import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
-import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
+import {IAppAdapter, BURNER_GAS_LIMIT} from "../../src/interfaces/adapters/IAppAdapter.sol";
 
 import {Token} from "../mocks/Token.sol";
 
@@ -80,6 +80,17 @@ contract AppAdapterTest is Test {
         vm.expectRevert(IAppAdapter.NoBurner.selector);
 
         factory.create(1, curator, _initData(address(0)));
+    }
+
+    function test_InitializeRejectsInvalidNetworkOperatorAndDuration() public {
+        vm.expectRevert(IAppAdapter.InvalidNetOrOp.selector);
+        factory.create(1, curator, _initData(bytes32(0), operator, duration, burner));
+
+        vm.expectRevert(IAppAdapter.InvalidNetOrOp.selector);
+        factory.create(1, curator, _initData(subnetwork, address(0), duration, burner));
+
+        vm.expectRevert(IAppAdapter.InvalidDuration.selector);
+        factory.create(1, curator, _initData(subnetwork, operator, 0, burner));
     }
 
     function test_RewardTransfersAssetsFromCallerToVault() public {
@@ -247,6 +258,27 @@ contract AppAdapterTest is Test {
         assertEq(collateral.balanceOf(address(burnerMock)), 40);
     }
 
+    function test_RepeatedSlashInSameBlockUpdatesSlashedCheckpoint() public {
+        _allocate(100);
+
+        vm.startPrank(networkMiddleware);
+        adapter.slash(10);
+        adapter.slash(15);
+        vm.stopPrank();
+
+        assertEq(adapter.stake(), 75);
+        assertEq(adapter.slashable(), 75);
+        assertEq(collateral.balanceOf(burner), 25);
+    }
+
+    function test_SlashRevertsWithInsufficientBurnerGas() public {
+        _allocate(100);
+
+        vm.expectRevert(IAppAdapter.InsufficientBurnerGas.selector);
+        vm.prank(networkMiddleware);
+        adapter.slash{gas: BURNER_GAS_LIMIT + 40_000}(40);
+    }
+
     function test_ZeroStateViewsReturnZeroAndSlashReverts() public {
         assertEq(adapter.stake(), 0);
         assertEq(adapter.slashable(), 0);
@@ -259,6 +291,24 @@ contract AppAdapterTest is Test {
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, address(adapter), 0, 1));
         vm.prank(networkMiddleware);
         adapter.slash(1);
+    }
+
+    function test_MigrateRevertsBecauseUnsupported() public {
+        AppAdapter implementation = new AppAdapter(
+            address(vaultFactory),
+            address(factory),
+            address(0),
+            address(networkMiddlewareService),
+            address(0),
+            address(0),
+            0
+        );
+        factory.whitelist(address(implementation));
+        uint64 version = factory.lastVersion();
+
+        vm.expectRevert();
+        vm.prank(curator);
+        factory.migrate(address(adapter), version, "");
     }
 
     function _allocate(uint256 amount) internal {
@@ -284,11 +334,19 @@ contract AppAdapterTest is Test {
     }
 
     function _initData(address initBurner) internal view returns (bytes memory) {
+        return _initData(subnetwork, operator, duration, initBurner);
+    }
+
+    function _initData(bytes32 initSubnetwork, address initOperator, uint48 initDuration, address initBurner)
+        internal
+        view
+        returns (bytes memory)
+    {
         return abi.encode(
             address(vault),
             abi.encode(
                 IAppAdapter.InitParams({
-                    subnetwork: subnetwork, operator: operator, duration: duration, burner: initBurner
+                    subnetwork: initSubnetwork, operator: initOperator, duration: initDuration, burner: initBurner
                 })
             )
         );
