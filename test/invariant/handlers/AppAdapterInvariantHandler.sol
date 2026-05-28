@@ -20,13 +20,20 @@ import {
     UNIVERSAL_DELEGATOR_TYPE,
     MAX_SHARE
 } from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
-import {IVaultV2, VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
+import {
+    IVaultV2,
+    VAULT_V2_VERSION,
+    MAX_MANAGEMENT_FEE,
+    MAX_PERFORMANCE_FEE
+} from "../../../src/interfaces/vault/IVaultV2.sol";
 import {Token} from "../../mocks/Token.sol";
 import {
     AppAdapterUniversalEntityMock,
     AppAdapterUniversalMigratableEntityMock,
     AppAdapterUniversalNetworkMiddlewareServiceMock
 } from "../../adapters/AppAdapterUniversalDelegator.t.sol";
+
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract AppAdapterInvariantHandler is Test {
     using Subnetwork for address;
@@ -93,6 +100,66 @@ contract AppAdapterInvariantHandler is Test {
         _afterAction(false);
     }
 
+    function mint(uint256 actorSeed, uint256 shares) external {
+        address actor = _actor(actorSeed);
+        shares = bound(shares, 1, 1000 ether);
+        uint256 assets = vault.previewMint(shares);
+
+        deal(address(collateral), actor, assets);
+        vm.startPrank(actor);
+        collateral.approve(address(vault), assets);
+        try vault.mint(shares, actor) {} catch {}
+        vm.stopPrank();
+
+        _afterAction(false);
+    }
+
+    function withdraw(uint256 actorSeed, uint256 assets) external {
+        address actor = _actor(actorSeed);
+        uint256 maxWithdraw = vault.maxWithdraw(actor);
+        if (maxWithdraw == 0) {
+            _afterAction(false);
+            return;
+        }
+
+        assets = bound(assets, 1, Math.min(maxWithdraw, 1000 ether));
+        vm.prank(actor);
+        try vault.withdraw(assets, actor, actor) {} catch {}
+
+        _afterAction(false);
+    }
+
+    function redeem(uint256 actorSeed, uint256 shares) external {
+        address actor = _actor(actorSeed);
+        uint256 maxRedeem = vault.maxRedeem(actor);
+        if (maxRedeem == 0) {
+            _afterAction(false);
+            return;
+        }
+
+        shares = bound(shares, 1, Math.min(maxRedeem, 1000 ether));
+        vm.prank(actor);
+        try vault.redeem(shares, actor, actor) {} catch {}
+
+        _afterAction(false);
+    }
+
+    function transferShares(uint256 fromSeed, uint256 toSeed, uint256 shares) external {
+        address from = _actor(fromSeed);
+        address to = _actor(toSeed + 1);
+        uint256 balance = vault.balanceOf(from);
+        if (balance == 0 || from == to) {
+            _afterAction(false);
+            return;
+        }
+
+        shares = bound(shares, 1, balance);
+        vm.prank(from);
+        try vault.transfer(to, shares) {} catch {}
+
+        _afterAction(false);
+    }
+
     function forceDeallocate(uint256 assets) external {
         uint256 totalAssets = adapter.totalAssets();
         if (totalAssets == 0) {
@@ -145,6 +212,14 @@ contract AppAdapterInvariantHandler is Test {
 
     function requestRedeem(uint256 actorSeed, uint256 shares) external {
         address actor = _actor(actorSeed);
+        _requestRedeem(actor, actor, shares);
+    }
+
+    function requestRedeemForReceiver(uint256 actorSeed, uint256 receiverSeed, uint256 shares) external {
+        _requestRedeem(_actor(actorSeed), _actor(receiverSeed), shares);
+    }
+
+    function _requestRedeem(address actor, address receiver, uint256 shares) internal {
         uint256 balance = vault.balanceOf(actor);
         if (balance == 0) {
             _afterAction(false);
@@ -154,7 +229,7 @@ contract AppAdapterInvariantHandler is Test {
         shares = bound(shares, 1, balance);
         vm.startPrank(actor);
         vault.approve(address(queue), shares);
-        try queue.requestRedeem(shares, actor) returns (uint256 tokenId) {
+        try queue.requestRedeem(shares, receiver) returns (uint256 tokenId) {
             requestTokenIds.push(tokenId);
         } catch {}
         vm.stopPrank();
@@ -174,6 +249,12 @@ contract AppAdapterInvariantHandler is Test {
         _afterAction(false);
     }
 
+    function fillQueue() external {
+        try queue.fill() {} catch {}
+
+        _afterAction(false);
+    }
+
     function sweepPending() external {
         try delegator.sweepPending() {} catch {}
 
@@ -188,6 +269,15 @@ contract AppAdapterInvariantHandler is Test {
         _afterAction(false);
     }
 
+    function adapterDecreaseLimits(uint256 assets, uint256 share) external {
+        assets = bound(assets, 0, adapter.totalAssets() + 1000 ether);
+        share = bound(share, 0, MAX_SHARE);
+        vm.prank(address(adapter));
+        try delegator.decreaseLimits(assets, share) {} catch {}
+
+        _afterAction(false);
+    }
+
     function configureAdapter(uint256 mode) external {
         mode %= 3;
         if (mode == 0) {
@@ -197,6 +287,31 @@ contract AppAdapterInvariantHandler is Test {
         } else {
             try delegator.swapAdapters(address(adapter), address(adapter)) {} catch {}
         }
+
+        _afterAction(false);
+    }
+
+    function setVaultDepositControls(uint256 mode, uint256 actorSeed, uint256 limit) external {
+        address actor = _actor(actorSeed);
+        mode %= 8;
+        try vault.setDepositWhitelist(mode & 1 != 0) {} catch {}
+        try vault.setDepositorWhitelistStatus(actor, mode & 2 != 0) {} catch {}
+        try vault.setIsDepositLimit(mode & 4 != 0) {} catch {}
+        try vault.setDepositLimit(bound(limit, 0, vault.totalAssets() + 1000 ether)) {} catch {}
+
+        _afterAction(false);
+    }
+
+    function setVaultFees(uint256 managementFeeSeed, uint256 performanceFeeSeed, uint256 receiverSeed) external {
+        address receiver = _actor(receiverSeed);
+        try vault.setManagementFee(uint96(bound(managementFeeSeed, 0, MAX_MANAGEMENT_FEE)), receiver) {} catch {}
+        try vault.setPerformanceFee(uint96(bound(performanceFeeSeed, 0, MAX_PERFORMANCE_FEE)), receiver) {} catch {}
+
+        _afterAction(false);
+    }
+
+    function accrueInterest() external {
+        try vault.accrueInterest() {} catch {}
 
         _afterAction(false);
     }
@@ -219,6 +334,13 @@ contract AppAdapterInvariantHandler is Test {
     }
 
     function observeCurrentStakeAt() external {
+        _afterAction(false);
+    }
+
+    function quoteWithdrawable() external {
+        try vault.withdrawable() {} catch {}
+        try vault.redeemable() {} catch {}
+
         _afterAction(false);
     }
 
@@ -358,6 +480,7 @@ contract AppAdapterInvariantHandler is Test {
             return;
         }
 
+        try delegator.sweepPending() {} catch {}
         try delegator.adaptersWithPending(0) returns (uint16) {
             emptyQueuePendingRouteViolated = true;
         } catch {}

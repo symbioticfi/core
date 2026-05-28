@@ -11,12 +11,23 @@ contract PendingWithdrawalQueueInvariantsTest is Test {
     function setUp() public {
         handler = new PendingWithdrawalQueueHandler();
 
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](16);
         selectors[0] = PendingWithdrawalQueueHandler.depositWhilePending.selector;
         selectors[1] = PendingWithdrawalQueueHandler.allocateWhilePending.selector;
         selectors[2] = PendingWithdrawalQueueHandler.allocateAllWhilePending.selector;
         selectors[3] = PendingWithdrawalQueueHandler.withdrawWhilePending.selector;
         selectors[4] = PendingWithdrawalQueueHandler.redeemWhilePending.selector;
+        selectors[5] = PendingWithdrawalQueueHandler.mintWhilePending.selector;
+        selectors[6] = PendingWithdrawalQueueHandler.forceDeallocateWhilePending.selector;
+        selectors[7] = PendingWithdrawalQueueHandler.deallocateWhilePending.selector;
+        selectors[8] = PendingWithdrawalQueueHandler.deallocateAllWhilePending.selector;
+        selectors[9] = PendingWithdrawalQueueHandler.deallocateExactWhilePending.selector;
+        selectors[10] = PendingWithdrawalQueueHandler.requestRedeemWhilePending.selector;
+        selectors[11] = PendingWithdrawalQueueHandler.fillQueueWhilePending.selector;
+        selectors[12] = PendingWithdrawalQueueHandler.claimQueueWhilePending.selector;
+        selectors[13] = PendingWithdrawalQueueHandler.sweepPendingWhilePending.selector;
+        selectors[14] = PendingWithdrawalQueueHandler.setLimitsWhilePending.selector;
+        selectors[15] = PendingWithdrawalQueueHandler.setAutoAllocateWhilePending.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));

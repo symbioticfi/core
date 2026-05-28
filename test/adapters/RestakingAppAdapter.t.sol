@@ -11,7 +11,6 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 import {IRestakingAppAdapter} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
-import {MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 
 import {Token} from "../mocks/Token.sol";
 
@@ -122,7 +121,7 @@ contract RestakingAppAdapterTest is Test {
             new RestakingAppAdapterVaultMock(address(curAsset), address(delegator));
         vaultFactory.add(address(nestedVault));
 
-        vm.expectRevert(IRestakingAppAdapter.InvalidBaseAsset.selector);
+        vm.expectRevert(IRestakingAppAdapter.InvalidAsset.selector);
 
         factory.create(1, curator, _initData(address(nestedVault), address(baseAsset)));
     }
@@ -134,11 +133,12 @@ contract RestakingAppAdapterTest is Test {
         uint256 expectedStake = restakingToken.previewRedeem(100);
 
         assertEq(adapter.stake(), expectedStake);
-        assertEq(adapter.stakeAt(uint48(block.timestamp)), expectedStake);
+        vm.expectRevert(IRestakingAppAdapter.InvalidAsset.selector);
+        adapter.stakeAt(uint48(block.timestamp));
         assertEq(adapter.slashable(), expectedStake);
     }
 
-    function test_StakeAtUsesCurrentVaultAssetWhenVaultAssetChanges() public {
+    function test_StakeAtRejectsWhenCurrentVaultAssetChanges() public {
         _allocateRestakingShares(100);
         uint48 timestamp = uint48(block.timestamp);
 
@@ -146,7 +146,8 @@ contract RestakingAppAdapterTest is Test {
         vaultFactory.add(address(newRestakingToken));
         vault.setAsset(address(newRestakingToken));
 
-        assertEq(adapter.stakeAt(timestamp), newRestakingToken.previewRedeem(100));
+        vm.expectRevert(IRestakingAppAdapter.InvalidAsset.selector);
+        adapter.stakeAt(timestamp);
     }
 
     function test_StakeSlashableAndStakeAtUseNestedBaseAssetValue() public {
@@ -159,7 +160,8 @@ contract RestakingAppAdapterTest is Test {
         uint256 expectedStake = middleVault.previewRedeem(outerVault.previewRedeem(100));
 
         assertEq(nestedAdapter.stake(), expectedStake);
-        assertEq(nestedAdapter.stakeAt(uint48(block.timestamp)), expectedStake);
+        vm.expectRevert(IRestakingAppAdapter.InvalidAsset.selector);
+        nestedAdapter.stakeAt(uint48(block.timestamp));
         assertEq(nestedAdapter.slashable(), expectedStake);
     }
 
@@ -169,6 +171,7 @@ contract RestakingAppAdapterTest is Test {
 
         address rewarder = makeAddr("rewarder");
         baseAsset.transfer(rewarder, 40);
+        uint256 adapterSharesBefore = restakingToken.balanceOf(address(adapter));
         uint256 expectedShares = restakingToken.previewDeposit(40);
 
         vm.startPrank(rewarder);
@@ -177,7 +180,7 @@ contract RestakingAppAdapterTest is Test {
         vm.stopPrank();
 
         assertEq(baseAsset.balanceOf(rewarder), 0);
-        assertEq(restakingToken.balanceOf(address(vault)), expectedShares);
+        assertEq(restakingToken.balanceOf(address(adapter)), adapterSharesBefore + expectedShares);
     }
 
     function test_RewardDepositsBaseAssetThroughNestedVaultsForVault() public {
@@ -196,55 +199,62 @@ contract RestakingAppAdapterTest is Test {
 
         assertEq(baseAsset.balanceOf(rewarder), 0);
         assertEq(middleVault.balanceOf(address(outerVault)), middleShares);
-        assertEq(outerVault.balanceOf(address(nestedAdapter.vault())), outerShares);
+        assertEq(outerVault.balanceOf(address(nestedAdapter)), outerShares);
     }
 
-    function test_SlashBurnsVaultAssetAndAccountsInVaultAssetShares() public {
+    function test_SlashBurnsBaseAssetAndAccountsInVaultAssetShares() public {
         _allocateRestakingShares(100);
         baseAsset.transfer(address(restakingToken), 100);
-        uint256 expectedSlashedShares = restakingToken.previewWithdraw(40);
+        uint256 adapterSharesBefore = restakingToken.balanceOf(address(adapter));
+        uint256 expectedSlashedShares = restakingToken.previewDeposit(40);
+        uint256 expectedBurnedAssets = restakingToken.previewRedeem(expectedSlashedShares);
 
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IAppAdapter.Slash(40);
+        emit IAppAdapter.Slash(expectedSlashedShares);
 
         vm.prank(networkMiddleware);
         uint256 slashedAmount = adapter.slash(40);
 
-        assertEq(slashedAmount, 40);
-        assertEq(baseAsset.balanceOf(burner), 0);
-        assertEq(restakingToken.balanceOf(burner), 40);
-        assertEq(restakingToken.balanceOf(address(adapter)), 100 - expectedSlashedShares - 40);
-        assertEq(adapter.stake(), restakingToken.previewRedeem(100 - expectedSlashedShares));
-        assertEq(adapter.slashable(), restakingToken.previewRedeem(100 - expectedSlashedShares));
+        assertEq(slashedAmount, expectedSlashedShares);
+        assertEq(baseAsset.balanceOf(burner), expectedBurnedAssets);
+        assertEq(restakingToken.balanceOf(burner), 0);
+        assertEq(restakingToken.balanceOf(address(adapter)), adapterSharesBefore - expectedSlashedShares);
+        assertEq(adapter.stake(), restakingToken.previewRedeem(adapterSharesBefore - expectedSlashedShares));
+        assertEq(adapter.slashable(), restakingToken.previewRedeem(adapterSharesBefore - expectedSlashedShares));
         assertEq(delegator.decreaseLimitsCalls(), 1);
         assertEq(delegator.lastDecreaseAssets(), expectedSlashedShares);
-        assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
+        assertEq(delegator.lastDecreaseShare(), 0);
     }
 
-    function test_SlashWithdrawsThroughNestedVaultsAndBurnsVaultAsset() public {
+    function test_SlashWithdrawsThroughNestedVaultsAndBurnsBaseAsset() public {
         (IRestakingAppAdapter nestedAdapter, RestakingTokenMock outerVault, RestakingTokenMock middleVault) =
             _createNestedAdapter();
         _allocateNestedShares(nestedAdapter, outerVault, middleVault, 100);
         baseAsset.transfer(address(middleVault), 100);
 
-        uint256 expectedMiddleShares = middleVault.previewWithdraw(40);
-        uint256 expectedOuterShares = outerVault.previewWithdraw(expectedMiddleShares);
+        uint256 adapterSharesBefore = outerVault.balanceOf(address(nestedAdapter));
+        uint256 expectedMiddleShares = middleVault.previewDeposit(40);
+        uint256 expectedOuterShares = outerVault.previewDeposit(expectedMiddleShares);
+        uint256 expectedBurnedAssets = middleVault.previewRedeem(expectedMiddleShares);
 
         vm.expectEmit(true, true, true, true, address(nestedAdapter));
-        emit IAppAdapter.Slash(40);
+        emit IAppAdapter.Slash(expectedOuterShares);
 
         vm.prank(networkMiddleware);
         uint256 slashedAmount = nestedAdapter.slash(40);
 
-        assertEq(slashedAmount, 40);
-        assertEq(baseAsset.balanceOf(burner), 0);
-        assertEq(outerVault.balanceOf(burner), 40);
+        assertEq(slashedAmount, expectedOuterShares);
+        assertEq(baseAsset.balanceOf(burner), expectedBurnedAssets);
+        assertEq(outerVault.balanceOf(burner), 0);
         assertEq(middleVault.balanceOf(burner), 0);
-        assertEq(outerVault.balanceOf(address(nestedAdapter)), 100 - expectedOuterShares - 40);
-        assertEq(nestedAdapter.stake(), middleVault.previewRedeem(outerVault.previewRedeem(100 - expectedOuterShares)));
+        assertEq(outerVault.balanceOf(address(nestedAdapter)), adapterSharesBefore - expectedOuterShares);
+        assertEq(
+            nestedAdapter.stake(),
+            middleVault.previewRedeem(outerVault.previewRedeem(adapterSharesBefore - expectedOuterShares))
+        );
         assertEq(delegator.decreaseLimitsCalls(), 1);
         assertEq(delegator.lastDecreaseAssets(), expectedOuterShares);
-        assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
+        assertEq(delegator.lastDecreaseShare(), 0);
     }
 
     function _allocateRestakingShares(uint256 amount) internal {

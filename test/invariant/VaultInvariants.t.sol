@@ -11,12 +11,15 @@ contract VaultInvariantsTest is Test {
     function setUp() public {
         handler = new VaultHandler();
 
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](8);
         selectors[0] = VaultHandler.deposit.selector;
         selectors[1] = VaultHandler.withdraw.selector;
         selectors[2] = VaultHandler.redeem.selector;
         selectors[3] = VaultHandler.claim.selector;
-        selectors[4] = VaultHandler.slash.selector;
+        selectors[4] = VaultHandler.claimBatch.selector;
+        selectors[5] = VaultHandler.slash.selector;
+        selectors[6] = VaultHandler.setDepositControls.selector;
+        selectors[7] = VaultHandler.setNetworkLimits.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));

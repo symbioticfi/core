@@ -38,10 +38,10 @@ interface IRestakingAppAdapter is IAppAdapter {
 
     /**
      * @notice Returns a vault in the restaking asset chain.
-     * @param index Vault index.
-     * @return vault Vault address.
+     * @param index Underlying vault index.
+     * @return vault Underlying vault address.
      */
-    function vaults(uint256 index) external view returns (address vault);
+    function underlyingVaults(uint256 index) external view returns (address vault);
 
     /**
      * @notice Synchronizes pending slashed withdrawal requests.

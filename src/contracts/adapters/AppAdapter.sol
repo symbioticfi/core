@@ -64,12 +64,7 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
         uint32 maxValidToDuration
     )
         CoWSwapConverter(
-            vaultFactory,
-            adapterFactory,
-            curatorRegistry,
-            cowSwapSettlement,
-            cowSwapVaultRelayer,
-            maxValidToDuration
+            vaultFactory, adapterFactory, curatorRegistry, cowSwapSettlement, cowSwapVaultRelayer, maxValidToDuration
         )
     {
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
@@ -123,7 +118,6 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
             revert NotNetworkMiddleware();
         }
 
-        amount = Math.min(amount, slashable());
         if (amount == 0) {
             revert InsufficientSlash();
         }

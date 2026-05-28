@@ -62,6 +62,10 @@ contract WithdrawalQueueInvariantVault is ERC20 {
         token.transfer(address(0xDEAD), Math.min(assets, token.balanceOf(address(this))));
     }
 
+    function setVirtualShares(uint256 virtualShares_) external {
+        virtualSharesValue = Math.max(virtualShares_, 1);
+    }
+
     function asset() external view returns (address) {
         return collateral;
     }
@@ -177,18 +181,26 @@ contract WithdrawalQueueClaimHandler is Test {
 
     function request(uint256 actorSeed, uint256 sharesSeed) external {
         address actor = _actor(actorSeed);
+        _request(actor, actor, sharesSeed);
+    }
+
+    function requestForReceiver(uint256 actorSeed, uint256 receiverSeed, uint256 sharesSeed) external {
+        _request(_actor(actorSeed), _actor(receiverSeed), sharesSeed);
+    }
+
+    function _request(address actor, address receiver, uint256 sharesSeed) internal {
         uint256 shares = bound(sharesSeed, 1, MAX_REQUEST_SHARES);
 
         vault.mintShares(actor, shares, shares);
 
         vm.startPrank(actor);
         vault.approve(address(queue), shares);
-        uint256 tokenId = queue.requestRedeem(shares, actor);
+        uint256 tokenId = queue.requestRedeem(shares, receiver);
         vm.stopPrank();
 
         _requests.push(
             RequestModel({
-                shares: shares, claimedShares: 0, prevRequestSum: modelTotalRequested, claimedAssets: 0, owner: actor
+                shares: shares, claimedShares: 0, prevRequestSum: modelTotalRequested, claimedAssets: 0, owner: receiver
             })
         );
         assertEq(tokenId, _requests.length - 1);
@@ -216,6 +228,10 @@ contract WithdrawalQueueClaimHandler is Test {
         }
 
         vault.reduceLiquidity(bound(assetsSeed, 0, balance));
+    }
+
+    function setVirtualShares(uint256 virtualSharesSeed) external {
+        vault.setVirtualShares(bound(virtualSharesSeed, 1, MAX_REQUEST_SHARES));
     }
 
     function fill() external {
@@ -254,6 +270,14 @@ contract WithdrawalQueueClaimHandler is Test {
     }
 
     function transferPosition(uint256 tokenSeed, uint256 actorSeed) external {
+        _transferPosition(tokenSeed, actorSeed, false);
+    }
+
+    function safeTransferPosition(uint256 tokenSeed, uint256 actorSeed) external {
+        _transferPosition(tokenSeed, actorSeed, true);
+    }
+
+    function _transferPosition(uint256 tokenSeed, uint256 actorSeed, bool safe) internal {
         if (_requests.length == 0) {
             return;
         }
@@ -266,7 +290,11 @@ contract WithdrawalQueueClaimHandler is Test {
         }
 
         vm.prank(from);
-        queue.transferFrom(from, to, tokenId);
+        if (safe) {
+            queue.safeTransferFrom(from, to, tokenId);
+        } else {
+            queue.transferFrom(from, to, tokenId);
+        }
         _requests[tokenId].owner = to;
     }
 

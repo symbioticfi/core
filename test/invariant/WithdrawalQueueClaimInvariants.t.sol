@@ -11,7 +11,7 @@ contract WithdrawalQueueClaimInvariantsTest is Test {
     function setUp() public {
         handler = new WithdrawalQueueClaimHandler();
 
-        bytes4[] memory selectors = new bytes4[](7);
+        bytes4[] memory selectors = new bytes4[](10);
         selectors[0] = WithdrawalQueueClaimHandler.request.selector;
         selectors[1] = WithdrawalQueueClaimHandler.increaseAssets.selector;
         selectors[2] = WithdrawalQueueClaimHandler.decreaseAssets.selector;
@@ -19,6 +19,9 @@ contract WithdrawalQueueClaimInvariantsTest is Test {
         selectors[4] = WithdrawalQueueClaimHandler.claim.selector;
         selectors[5] = WithdrawalQueueClaimHandler.transferPosition.selector;
         selectors[6] = WithdrawalQueueClaimHandler.reduceLiquidity.selector;
+        selectors[7] = WithdrawalQueueClaimHandler.requestForReceiver.selector;
+        selectors[8] = WithdrawalQueueClaimHandler.safeTransferPosition.selector;
+        selectors[9] = WithdrawalQueueClaimHandler.setVirtualShares.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));

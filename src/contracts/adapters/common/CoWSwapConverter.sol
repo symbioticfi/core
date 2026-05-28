@@ -2,6 +2,8 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
+import {Adapter} from "../Adapter.sol";
+
 import {
     COW_SWAP_BALANCE_ERC20,
     COW_SWAP_KIND_SELL,
@@ -12,7 +14,6 @@ import {
 } from "../../../interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IConverter} from "../../../interfaces/adapters/common/IConverter.sol";
 
-import {Adapter} from "../Adapter.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";

@@ -46,8 +46,8 @@ runs = 100
 max_test_rejects = 4294967295
 
 [profile.default.invariant]
-runs = 8
-depth = 32
+runs = 16
+depth = 64
 max_time_delay = 1209600
 max_block_delay = 2
 
@@ -56,9 +56,9 @@ runs = 100
 max_test_rejects = 4294967295
 
 [profile.pr.invariant]
-runs = 16
-depth = 64
-check_interval = 8
+runs = 32
+depth = 128
+check_interval = 16
 max_time_delay = 1209600
 max_block_delay = 2
 
@@ -67,9 +67,9 @@ runs = 100
 max_test_rejects = 4294967295
 
 [profile.ci.invariant]
-runs = 64
-depth = 128
-check_interval = 16
+runs = 128
+depth = 256
+check_interval = 32
 max_time_delay = 1209600
 max_block_delay = 2
 

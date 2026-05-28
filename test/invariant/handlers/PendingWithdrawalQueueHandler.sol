@@ -101,6 +101,25 @@ contract PendingWithdrawalQueueHandler is Test {
         _accountAllocationIfStillPending(adapterAssetsBefore);
     }
 
+    function mintWhilePending(uint256 sharesSeed) external {
+        uint256 pendingBefore = queue.pendingAssets();
+        if (pendingBefore == 0) {
+            return;
+        }
+
+        uint256 adapterAssetsBefore = adapter.totalAssets();
+        uint256 shares = bound(sharesSeed, 1, MAX_ACTION_AMOUNT);
+        uint256 assets = vault.previewMint(shares);
+
+        deal(address(collateral), DEPOSITOR, assets);
+        vm.startPrank(DEPOSITOR);
+        collateral.approve(address(vault), assets);
+        try vault.mint(shares, DEPOSITOR) {} catch {}
+        vm.stopPrank();
+
+        _accountAllocationIfStillPending(adapterAssetsBefore);
+    }
+
     function allocateWhilePending(uint256 amountSeed) external {
         uint256 pendingBefore = queue.pendingAssets();
         if (pendingBefore == 0) {
@@ -135,6 +154,28 @@ contract PendingWithdrawalQueueHandler is Test {
         _accountAllocationIfStillPending(adapterAssetsBefore);
     }
 
+    function forceDeallocateWhilePending(uint256 amountSeed) external {
+        uint256 pendingBefore = queue.pendingAssets();
+        if (pendingBefore == 0) {
+            return;
+        }
+
+        uint256 amount = bound(amountSeed, 0, adapter.totalAssets() + MAX_ACTION_AMOUNT);
+        try delegator.forceDeallocate(address(adapter), amount) {} catch {}
+    }
+
+    function deallocateWhilePending(uint256 amountSeed) external {
+        _deallocateWhilePending(amountSeed, 0);
+    }
+
+    function deallocateAllWhilePending(uint256 amountSeed) external {
+        _deallocateWhilePending(amountSeed, 1);
+    }
+
+    function deallocateExactWhilePending(uint256 amountSeed) external {
+        _deallocateWhilePending(amountSeed, 2);
+    }
+
     function withdrawWhilePending(uint256 amountSeed, uint256 freeAssetsSeed) external {
         uint256 pendingBefore = queue.pendingAssets();
         if (pendingBefore == 0) {
@@ -154,6 +195,72 @@ contract PendingWithdrawalQueueHandler is Test {
         try vault.withdraw(amount, BOB, BOB) {} catch {}
 
         _accountWithdrawalIfStillPending(bobBalanceBefore);
+    }
+
+    function requestRedeemWhilePending(uint256 sharesSeed) external {
+        uint256 pendingBefore = queue.pendingAssets();
+        if (pendingBefore == 0) {
+            return;
+        }
+
+        uint256 balance = vault.balanceOf(BOB);
+        if (balance == 0) {
+            return;
+        }
+
+        uint256 shares = bound(sharesSeed, 1, balance);
+        vm.startPrank(BOB);
+        vault.approve(address(queue), shares);
+        try queue.requestRedeem(shares, BOB) {} catch {}
+        vm.stopPrank();
+    }
+
+    function fillQueueWhilePending(uint256 freeAssetsSeed) external {
+        uint256 pendingBefore = queue.pendingAssets();
+        if (pendingBefore == 0) {
+            return;
+        }
+
+        _addVaultFreeAssets(_pendingBound(freeAssetsSeed, pendingBefore));
+        try queue.fill() {} catch {}
+    }
+
+    function claimQueueWhilePending() external {
+        if (queue.pendingAssets() == 0) {
+            return;
+        }
+
+        try queue.claim(0) {} catch {}
+    }
+
+    function sweepPendingWhilePending() external {
+        if (queue.pendingAssets() == 0) {
+            return;
+        }
+
+        try delegator.sweepPending() {} catch {}
+    }
+
+    function setLimitsWhilePending(uint256 assetsSeed, uint256 shareSeed) external {
+        if (queue.pendingAssets() == 0) {
+            return;
+        }
+
+        uint256 assets = bound(assetsSeed, 0, adapter.totalAssets() + MAX_ACTION_AMOUNT);
+        uint256 share = bound(shareSeed, 0, MAX_SHARE);
+        try delegator.setLimits(address(adapter), assets, share) {} catch {}
+    }
+
+    function setAutoAllocateWhilePending(uint256 enabledSeed) external {
+        if (queue.pendingAssets() == 0) {
+            return;
+        }
+
+        address[] memory adapters = new address[](enabledSeed % 2);
+        if (adapters.length != 0) {
+            adapters[0] = address(adapter);
+        }
+        try delegator.setAutoAllocateAdapters(adapters) {} catch {}
     }
 
     function redeemWhilePending(uint256 sharesSeed, uint256 freeAssetsSeed) external {
@@ -332,6 +439,21 @@ contract PendingWithdrawalQueueHandler is Test {
 
     function _addVaultFreeAssets(uint256 amount) internal {
         deal(address(collateral), address(vault), collateral.balanceOf(address(vault)) + amount);
+    }
+
+    function _deallocateWhilePending(uint256 amountSeed, uint256 mode) internal {
+        if (queue.pendingAssets() == 0) {
+            return;
+        }
+
+        uint256 amount = bound(amountSeed, 0, adapter.totalAssets() + MAX_ACTION_AMOUNT);
+        if (mode == 0) {
+            try delegator.deallocate(address(adapter), amount) {} catch {}
+        } else if (mode == 1) {
+            try delegator.deallocateAll(amount) {} catch {}
+        } else {
+            try delegator.deallocateExact(amount) {} catch {}
+        }
     }
 
     function _accountAllocationIfStillPending(uint256 adapterAssetsBefore) internal {

@@ -29,6 +29,8 @@ import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
 
 import {Token} from "../../mocks/Token.sol";
 
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
 contract VaultHandler is Test {
     using Subnetwork for address;
 
@@ -58,6 +60,7 @@ contract VaultHandler is Test {
 
     address[] public depositors;
     mapping(address account => uint256 withdrawalCount) internal withdrawalsCreated;
+    mapping(address account => bool exists) internal isDepositor;
     mapping(address account => uint256 totalClaimed) public totalClaimedOf;
     mapping(address account => uint256 totalDeposited) public totalDepositOf;
 
@@ -200,9 +203,7 @@ contract VaultHandler is Test {
     }
 
     function deposit(address depositor, uint256 amount, uint256 timeJumpSeed) external adjustTimestamp(timeJumpSeed) {
-        if (depositor == address(0) || depositor == address(vault)) {
-            depositor = address(1);
-        }
+        depositor = _validAccount(depositor);
 
         amount = _bound(amount, 1 ether, 1_000_000 ether);
 
@@ -210,10 +211,11 @@ contract VaultHandler is Test {
 
         vm.startPrank(depositor);
         collateral.approve(address(vault), amount);
-        (uint256 depositedAmount, uint256 mintedShares) = vault.deposit(depositor, amount);
-        totalDeposited += depositedAmount;
-        totalDepositOf[depositor] += depositedAmount;
-        _rememberDepositor(depositor);
+        try vault.deposit(depositor, amount) returns (uint256 depositedAmount, uint256) {
+            totalDeposited += depositedAmount;
+            totalDepositOf[depositor] += depositedAmount;
+            _rememberDepositor(depositor);
+        } catch {}
         vm.stopPrank();
     }
 
@@ -277,10 +279,39 @@ contract VaultHandler is Test {
         uint256 index = _bound(indexSeed, 0, created - 1);
 
         vm.startPrank(account);
-        uint256 amount = vault.claim(account, index);
-        totalClaimed += amount;
-        totalClaimedOf[account] += amount;
+        try vault.claim(account, index) returns (uint256 amount) {
+            totalClaimed += amount;
+            totalClaimedOf[account] += amount;
+        } catch {}
+        vm.stopPrank();
+    }
 
+    function claimBatch(uint256 claimerSeed, uint256 indexSeed, uint256 lengthSeed, uint256 timeJumpSeed)
+        external
+        adjustTimestamp(timeJumpSeed)
+    {
+        address account = _selectDepositor(claimerSeed);
+        if (account == address(0)) {
+            return;
+        }
+
+        uint256 created = withdrawalsCreated[account];
+        if (created == 0) {
+            return;
+        }
+
+        uint256 length = _bound(lengthSeed, 1, Math.min(created, 4));
+        uint256[] memory epochs = new uint256[](length);
+        uint256 start = _bound(indexSeed, 0, created - 1);
+        for (uint256 i; i < length; ++i) {
+            epochs[i] = (start + i) % created;
+        }
+
+        vm.startPrank(account);
+        try vault.claimBatch(account, epochs) returns (uint256 amount) {
+            totalClaimed += amount;
+            totalClaimedOf[account] += amount;
+        } catch {}
         vm.stopPrank();
     }
 
@@ -303,6 +334,35 @@ contract VaultHandler is Test {
 
         uint256 slashedAmount = slasher.slash(subnetwork, operator, amount, captureTimestamp, "");
         totalSlashed += slashedAmount;
+    }
+
+    function setDepositControls(
+        address accountSeed,
+        uint256 limitSeed,
+        uint256 whitelistSeed,
+        uint256 limitModeSeed,
+        uint256 timeJumpSeed
+    ) external adjustTimestamp(timeJumpSeed) {
+        address account = _validAccount(accountSeed);
+
+        try vault.setDepositWhitelist(whitelistSeed % 2 == 1) {} catch {}
+        try vault.setDepositorWhitelistStatus(account, whitelistSeed % 3 != 0) {} catch {}
+        try vault.setIsDepositLimit(limitModeSeed % 2 == 1) {} catch {}
+        try vault.setDepositLimit(_bound(limitSeed, 0, totalDeposited + 1_000_000 ether)) {} catch {}
+    }
+
+    function setNetworkLimits(uint256 maxSeed, uint256 networkSeed, uint256 operatorSeed, uint256 timeJumpSeed)
+        external
+        adjustTimestamp(timeJumpSeed)
+    {
+        uint256 maxLimit = _bound(maxSeed, 0, type(uint256).max / 4);
+        uint256 networkLimit = _bound(networkSeed, 0, maxLimit);
+        uint256 operatorLimit = _bound(operatorSeed, 0, networkLimit);
+
+        vm.prank(network);
+        try delegator.setMaxNetworkLimit(0, maxLimit) {} catch {}
+        try delegator.setNetworkLimit(subnetwork, networkLimit) {} catch {}
+        try delegator.setOperatorNetworkLimit(subnetwork, operator, operatorLimit) {} catch {}
     }
 
     function _bootstrapLimitsAndOptIns() internal {
@@ -332,10 +392,18 @@ contract VaultHandler is Test {
     }
 
     function _rememberDepositor(address account) internal {
-        if (totalDepositOf[account] > 0) {
+        if (isDepositor[account]) {
             return;
         }
+        isDepositor[account] = true;
         depositors.push(account);
+    }
+
+    function _validAccount(address account) internal view returns (address) {
+        if (account == address(0) || account == address(vault)) {
+            return address(1);
+        }
+        return account;
     }
 
     function _asSingletonArray(address value) internal pure returns (address[] memory arr) {

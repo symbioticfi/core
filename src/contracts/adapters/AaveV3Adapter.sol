@@ -40,12 +40,7 @@ contract AaveV3Adapter is CoWSwapConverter, MerklRedistributor, IAaveV3Adapter {
         address merklDistributor
     )
         CoWSwapConverter(
-            vaultFactory,
-            adapterFactory,
-            curatorRegistry,
-            cowSwapSettlement,
-            cowSwapVaultRelayer,
-            maxValidToDuration
+            vaultFactory, adapterFactory, curatorRegistry, cowSwapSettlement, cowSwapVaultRelayer, maxValidToDuration
         )
         MerklRedistributor(merklDistributor)
     {

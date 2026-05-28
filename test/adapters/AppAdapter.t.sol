@@ -13,6 +13,8 @@ import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 
 import {Token} from "../mocks/Token.sol";
 
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+
 contract AppAdapterTest is Test {
     using Subnetwork for address;
 
@@ -245,12 +247,16 @@ contract AppAdapterTest is Test {
         assertEq(collateral.balanceOf(address(burnerMock)), 40);
     }
 
-    function test_ZeroStateViewsReturnZeroAndSlashRevertsInsufficientSlash() public {
+    function test_ZeroStateViewsReturnZeroAndSlashReverts() public {
         assertEq(adapter.stake(), 0);
         assertEq(adapter.slashable(), 0);
         assertEq(adapter.freeAssets(), 0);
 
         vm.expectRevert(IAppAdapter.InsufficientSlash.selector);
+        vm.prank(networkMiddleware);
+        adapter.slash(0);
+
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, address(adapter), 0, 1));
         vm.prank(networkMiddleware);
         adapter.slash(1);
     }
