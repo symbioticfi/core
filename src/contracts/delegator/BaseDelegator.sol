@@ -169,6 +169,7 @@ abstract contract BaseDelegator is
         emit OnSlash(subnetwork, operator, amount, captureTimestamp);
     }
 
+    /// @dev Initializes the delegator with a vault and implementation-specific parameters.
     function _initialize(bytes calldata data) internal override {
         (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
@@ -190,6 +191,7 @@ abstract contract BaseDelegator is
         }
     }
 
+    /// @dev Returns slashable stake for an operator in a subnetwork at a past timestamp.
     function _stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
         internal
         view
@@ -197,9 +199,12 @@ abstract contract BaseDelegator is
         returns (uint256, bytes memory)
     {}
 
+    /// @dev Returns current slashable stake for an operator in a subnetwork.
     function _stake(bytes32 subnetwork, address operator) internal view virtual returns (uint256) {}
 
+    /// @dev Applies a maximum network limit update to delegator-specific state.
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal virtual {}
 
+    /// @dev Decodes implementation-specific initialization data.
     function __initialize(address vault_, bytes memory data) internal virtual returns (BaseParams memory) {}
 }

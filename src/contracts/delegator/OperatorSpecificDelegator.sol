@@ -77,6 +77,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         emit SetNetworkLimit(subnetwork, amount);
     }
 
+    /// @dev Returns stake at a past timestamp only for the configured operator.
     function _stakeAt(bytes32 subnetwork, address operator_, uint48 timestamp, bytes memory hints)
         internal
         view
@@ -101,6 +102,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         );
     }
 
+    /// @dev Returns current stake only for the configured operator.
     function _stake(bytes32 subnetwork, address operator_) internal view override returns (uint256) {
         if (operator != operator_) {
             return 0;
@@ -109,6 +111,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         return Math.min(IVault(vault).activeStake(), networkLimit(subnetwork));
     }
 
+    /// @dev Caps an existing network limit when the max network limit is reduced below it.
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal override {
         (bool exists,, uint256 latestValue) = _networkLimit[subnetwork].latestCheckpoint();
         if (exists && latestValue > amount) {
@@ -116,6 +119,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         }
     }
 
+    /// @dev Decodes operator-specific initialization data and grants role holders.
     function __initialize(address, bytes memory data) internal override returns (IBaseDelegator.BaseParams memory) {
         InitParams memory params = abi.decode(data, (InitParams));
 

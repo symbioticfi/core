@@ -48,6 +48,7 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
         emit Transfer(address(0), onBehalfOf, mintedShares);
     }
 
+    /// @dev Extends base withdrawal accounting with ERC20 burn event emission.
     function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
         internal
         override
@@ -89,6 +90,7 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
         emit Transfer(from, to, value);
     }
 
+    /// @dev Initializes base vault state and ERC20 metadata.
     function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
         (InitParamsTokenized memory params) = abi.decode(data, (InitParamsTokenized));
 

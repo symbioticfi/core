@@ -334,6 +334,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetSlasher(slasher_);
     }
 
+    /// @dev Accounts a withdrawal into the next epoch and mints epoch withdrawal shares.
     function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
         internal
         virtual
@@ -356,6 +357,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
     }
 
+    /// @dev Marks a caller's epoch withdrawal as claimed and returns the claimable amount.
     function _claim(uint256 epoch) internal returns (uint256 amount) {
         if (epoch >= currentEpoch()) {
             revert InvalidEpoch();
@@ -374,6 +376,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         isWithdrawalsClaimed[epoch][msg.sender] = true;
     }
 
+    /// @dev Initializes vault storage from encoded vault parameters.
     function _initialize(uint64, address, bytes memory data) internal virtual override {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
@@ -436,6 +439,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
     }
 
+    /// @dev Migration hook for vault implementation upgrades.
     function _migrate(
         uint64,
         /* oldVersion */

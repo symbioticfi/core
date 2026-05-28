@@ -62,6 +62,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, Reentra
         _migrate(oldVersion, newVersion, data);
     }
 
+    /// @dev Initialization hook for migratable entity implementations.
     function _initialize(
         uint64,
         /* initialVersion */
@@ -72,6 +73,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, Reentra
         internal
         virtual {}
 
+    /// @dev Migration hook for versioned implementation-specific state changes.
     function _migrate(
         uint64,
         /* oldVersion */

@@ -27,6 +27,7 @@ abstract contract Entity is Initializable, IEntity {
         _initialize(data);
     }
 
+    /// @dev Initialization hook for entity implementations.
     function _initialize(
         bytes calldata /* data */
     )

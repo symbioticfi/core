@@ -54,6 +54,11 @@ interface IRestakingAppAdapter is IAppAdapter {
     function underlyingVaults(uint256 index) external view returns (address vault);
 
     /**
+     * @notice Synchronizes held base asset rewards into the restaking vault asset.
+     */
+    function syncReward() external;
+
+    /**
      * @notice Synchronizes pending slashed withdrawal requests.
      */
     function syncSlash() external;

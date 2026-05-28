@@ -121,6 +121,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         emit SetOperatorNetworkShares(subnetwork, operator, shares);
     }
 
+    /// @dev Returns the operator's proportional stake under network shares at a past timestamp.
     function _stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
         internal
         view
@@ -149,6 +150,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             );
     }
 
+    /// @dev Returns the operator's current proportional stake under network shares.
     function _stake(bytes32 subnetwork, address operator) internal view override returns (uint256) {
         uint256 totalOperatorNetworkShares_ = totalOperatorNetworkShares(subnetwork);
         return totalOperatorNetworkShares_ == 0
@@ -157,6 +159,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
                 .mulDiv(Math.min(IVault(vault).activeStake(), networkLimit(subnetwork)), totalOperatorNetworkShares_);
     }
 
+    /// @dev Caps an existing network limit when the max network limit is reduced below it.
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal override {
         (bool exists,, uint256 latestValue) = _networkLimit[subnetwork].latestCheckpoint();
         if (exists && latestValue > amount) {
@@ -164,6 +167,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         }
     }
 
+    /// @dev Decodes network-restake initialization data and grants role holders.
     function __initialize(address, bytes memory data) internal override returns (IBaseDelegator.BaseParams memory) {
         InitParams memory params = abi.decode(data, (InitParams));
 

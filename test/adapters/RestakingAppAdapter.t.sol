@@ -113,6 +113,15 @@ contract RestakingAppAdapterTest is Test {
         assertEq(adapter.freeAssets(), freeShares);
     }
 
+    function test_InterfaceExposesSyncReward() public {
+        baseAsset.transfer(address(adapter), 10);
+
+        adapter.syncReward();
+
+        assertEq(baseAsset.balanceOf(address(adapter)), 0);
+        assertEq(restakingToken.balanceOf(address(adapter)), 10);
+    }
+
     function test_StakeAtRevertsBecauseUnsupported() public {
         _allocateRestakingShares(100);
 

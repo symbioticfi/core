@@ -60,6 +60,7 @@ contract Slasher is BaseSlasher, ISlasher {
         emit Slash(subnetwork, operator, slashedAmount, captureTimestamp);
     }
 
+    /// @dev Decodes instant slasher initialization data.
     function __initialize(
         address,
         /* vault_ */

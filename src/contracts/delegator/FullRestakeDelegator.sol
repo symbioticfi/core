@@ -101,6 +101,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         emit SetOperatorNetworkLimit(subnetwork, operator, amount);
     }
 
+    /// @dev Returns the minimum of active stake, network limit, and operator-network limit at a past timestamp.
     function _stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
         internal
         view
@@ -124,12 +125,14 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         );
     }
 
+    /// @dev Returns the current minimum of active stake, network limit, and operator-network limit.
     function _stake(bytes32 subnetwork, address operator) internal view override returns (uint256) {
         return Math.min(
             IVault(vault).activeStake(), Math.min(networkLimit(subnetwork), operatorNetworkLimit(subnetwork, operator))
         );
     }
 
+    /// @dev Caps an existing network limit when the max network limit is reduced below it.
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal override {
         (bool exists,, uint256 latestValue) = _networkLimit[subnetwork].latestCheckpoint();
         if (exists && latestValue > amount) {
@@ -137,6 +140,7 @@ contract FullRestakeDelegator is BaseDelegator, IFullRestakeDelegator {
         }
     }
 
+    /// @dev Decodes full-restake initialization data and grants role holders.
     function __initialize(address, bytes memory data) internal override returns (IBaseDelegator.BaseParams memory) {
         InitParams memory params = abi.decode(data, (InitParams));
 

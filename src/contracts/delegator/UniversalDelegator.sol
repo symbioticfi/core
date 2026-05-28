@@ -501,6 +501,7 @@ contract UniversalDelegator is
         emit Deallocate(adapter, deallocated, IAdapter(adapter).totalAssets());
     }
 
+    /// @dev Forwards a delayed deallocation request to an adapter and emits the request event.
     function _requestDeallocate(address adapter, uint256 assets) internal {
         IAdapter(adapter).requestDeallocate(assets);
 

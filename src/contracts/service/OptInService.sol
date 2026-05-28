@@ -100,6 +100,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         _increaseNonce(msg.sender, where);
     }
 
+    /// @dev Records an opt-in checkpoint and advances the pair nonce.
     function _optIn(address who, address where) internal {
         if (!IRegistry(WHO_REGISTRY).isEntity(who)) {
             revert NotWho();
@@ -120,6 +121,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         emit OptIn(who, where);
     }
 
+    /// @dev Records an opt-out checkpoint and advances the pair nonce.
     function _optOut(address who, address where) internal {
         (, uint48 latestTimestamp, uint208 latestValue) = _isOptedIn[who][where].latestCheckpoint();
 
@@ -138,6 +140,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         emit OptOut(who, where);
     }
 
+    /// @dev Builds the EIP-712 digest for an opt-in or opt-out signature.
     function _hash(bool ifOptIn, address who, address where, uint48 deadline) internal view returns (bytes32) {
         return _hashTypedDataV4(
             keccak256(
@@ -146,6 +149,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         );
     }
 
+    /// @dev Increments the nonce for a who/where pair.
     function _increaseNonce(address who, address where) internal {
         unchecked {
             ++nonces[who][where];

@@ -183,7 +183,7 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
         }
     }
 
-    /// @dev
+    /// @dev Returns the token expected as CoW swap output.
     function _convertTokenOut() internal view virtual returns (address) {
         return IERC4626(vault).asset();
     }

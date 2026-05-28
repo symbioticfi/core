@@ -33,12 +33,14 @@ abstract contract Registry is IRegistry {
         return _entities.at(index);
     }
 
+    /// @dev Adds an entity to the registry set and emits the registration event.
     function _addEntity(address entity_) internal {
         _entities.add(entity_);
 
         emit AddEntity(entity_);
     }
 
+    /// @dev Reverts when an account is not registered as an entity.
     function _checkEntity(address account) internal view {
         if (!isEntity(account)) {
             revert EntityNotExist();

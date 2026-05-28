@@ -196,6 +196,7 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /* INTERNAL FUNCTIONS */
 
+    /// @inheritdoc AppAdapter
     function _sendToBurner(uint256 amount) internal override {
         for (uint256 i; i < underlyingVaults.length; ++i) {
             address withdrawalQueue = IVaultV2(underlyingVaults[i]).withdrawalQueue();

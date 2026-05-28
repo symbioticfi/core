@@ -21,6 +21,7 @@ abstract contract Hints {
         _;
     }
 
+    /// @dev Performs a static self-delegate-style call through the target hint reader.
     function _selfStaticDelegateCall(address target, bytes memory dataInternal) internal view returns (bytes memory) {
         (, bytes memory returnDataInternal) =
             target.staticcall(abi.encodeCall(IStaticDelegateCallable.staticDelegateCall, (address(this), dataInternal)));

@@ -252,6 +252,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         emit SetResolver(subnetwork, resolver_);
     }
 
+    /// @dev Decodes veto slasher initialization data and validates veto timing.
     function __initialize(address vault_, bytes memory data) internal override returns (BaseParams memory) {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
