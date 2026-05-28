@@ -35,8 +35,9 @@ contract AaveV3AdapterTest is Test {
         vault = new AaveV3AdapterVaultMock(address(collateral), delegator);
         vaultFactory.add(address(vault));
 
-        AaveV3Adapter implementation =
-            new AaveV3Adapter(address(pool), address(vaultFactory), address(factory), address(0));
+        AaveV3Adapter implementation = new AaveV3Adapter(
+            address(pool), address(vaultFactory), address(factory), address(0), address(0), address(0), 0, address(0)
+        );
         factory.whitelist(address(implementation));
 
         adapter = IAaveV3Adapter(factory.create(1, curator, abi.encode(address(vault), "")));

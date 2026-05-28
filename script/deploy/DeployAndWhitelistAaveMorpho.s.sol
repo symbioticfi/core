@@ -26,6 +26,10 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     address public constant MORPHO_ADAPTER_REGISTRY = 0x3696c5eAe4a7Ffd04Ea163564571E9CD8Ed9364e;
     // CuratorRegistry used by adapters for curator-only recovery/configuration paths.
     address public constant CURATOR_REGISTRY = 0xF75D8d8F790178F0d7F2ee7656874567d382C21e;
+    // CoW Protocol dependencies used by adapter reward converters.
+    address public constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
+    address public constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
+    uint32 public constant MAX_VALID_TO_DURATION = 1 days;
     // Rewards contract address used by VaultV2 and adapters.
     address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;
     // Vault scope for the adapter factories, or zero address for the global whitelist.
@@ -40,6 +44,9 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         address morphoVaultFactory;
         address morphoAdapterRegistry;
         address curatorRegistry;
+        address cowSwapSettlement;
+        address cowSwapVaultRelayer;
+        uint32 maxValidToDuration;
         address rewards;
     }
 
@@ -66,6 +73,9 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 morphoVaultFactory: MORPHO_VAULT_FACTORY,
                 morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY,
                 curatorRegistry: CURATOR_REGISTRY,
+                cowSwapSettlement: COW_SWAP_SETTLEMENT,
+                cowSwapVaultRelayer: COW_SWAP_VAULT_RELAYER,
+                maxValidToDuration: MAX_VALID_TO_DURATION,
                 rewards: REWARDS
             })
         );
@@ -86,6 +96,9 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
             morphoVaultFactory: params.morphoVaultFactory,
             morphoAdapterRegistry: params.morphoAdapterRegistry,
             curatorRegistry: params.curatorRegistry,
+            cowSwapSettlement: params.cowSwapSettlement,
+            cowSwapVaultRelayer: params.cowSwapVaultRelayer,
+            maxValidToDuration: params.maxValidToDuration,
             rewards: params.rewards
         });
 
@@ -137,6 +150,9 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 adapterFactoryOwner: params.adapterFactoryOwner,
                 aavePool: params.aavePool,
                 curatorRegistry: params.curatorRegistry,
+                cowSwapSettlement: params.cowSwapSettlement,
+                cowSwapVaultRelayer: params.cowSwapVaultRelayer,
+                maxValidToDuration: params.maxValidToDuration,
                 rewards: params.rewards
             })
         );
@@ -154,6 +170,9 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 morphoVaultFactory: params.morphoVaultFactory,
                 morphoAdapterRegistry: params.morphoAdapterRegistry,
                 curatorRegistry: params.curatorRegistry,
+                cowSwapSettlement: params.cowSwapSettlement,
+                cowSwapVaultRelayer: params.cowSwapVaultRelayer,
+                maxValidToDuration: params.maxValidToDuration,
                 rewards: params.rewards
             })
         );

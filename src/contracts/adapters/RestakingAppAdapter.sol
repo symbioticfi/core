@@ -3,6 +3,7 @@
 pragma solidity ^0.8.28;
 
 import {AppAdapter} from "./AppAdapter.sol";
+import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
 
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
@@ -14,6 +15,7 @@ import {IUniversalDelegator, MAX_SHARE} from "../../interfaces/delegator/IUniver
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
+import {IConverter} from "../../interfaces/adapters/common/IConverter.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -44,11 +46,32 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /* CONSTRUCTOR */
 
-    constructor(address vaultFactory, address adapterFactory, address curatorRegistry, address networkMiddlewareService)
-        AppAdapter(vaultFactory, adapterFactory, curatorRegistry, networkMiddlewareService)
+    constructor(
+        address vaultFactory,
+        address adapterFactory,
+        address curatorRegistry,
+        address networkMiddlewareService,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer,
+        uint32 maxValidToDuration
+    )
+        AppAdapter(
+            vaultFactory,
+            adapterFactory,
+            curatorRegistry,
+            networkMiddlewareService,
+            cowSwapSettlement,
+            cowSwapVaultRelayer,
+            maxValidToDuration
+        )
     {}
 
     /* VIEW FUNCTIONS */
+
+    /// @inheritdoc IAdapter
+    function freeAssets() public view override(AppAdapter, IAdapter) returns (uint256) {
+        return totalAssets() - super.slashable();
+    }
 
     /// @inheritdoc IAdapter
     function totalAssets() public view override(AppAdapter, IAdapter) returns (uint256) {
@@ -84,15 +107,15 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         }
     }
 
-    /// @inheritdoc IAppAdapter
+    /// @inheritdoc IConverter
     function convert(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
         public
-        override(AppAdapter, IAppAdapter)
+        override(CoWSwapConverter, IConverter)
     {
-        if (tokenIn == asset || tokenIn == IERC4626(vault).asset()) {
+        if (tokenIn == asset) {
             revert InvalidTokenIn();
         }
-        _convert(tokenIn, tokenOut, amountIn, minAmountOut, data);
+        super.convert(tokenIn, tokenOut, amountIn, minAmountOut, data);
     }
 
     /// @inheritdoc IRestakingAppAdapter

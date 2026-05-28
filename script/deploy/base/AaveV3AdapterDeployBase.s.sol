@@ -16,6 +16,9 @@ contract AaveV3AdapterDeployBaseScript is Script {
         address adapterFactoryOwner;
         address aavePool;
         address curatorRegistry;
+        address cowSwapSettlement;
+        address cowSwapVaultRelayer;
+        uint32 maxValidToDuration;
         address rewards;
     }
 
@@ -54,8 +57,18 @@ contract AaveV3AdapterDeployBaseScript is Script {
         address broadcaster = _scriptOwner();
 
         adapterFactory = address(new AdapterFactory(broadcaster));
-        adapterImplementation =
-            address(new AaveV3Adapter(params.aavePool, vaultFactory, adapterFactory, params.curatorRegistry));
+        adapterImplementation = address(
+            new AaveV3Adapter(
+                params.aavePool,
+                vaultFactory,
+                adapterFactory,
+                params.curatorRegistry,
+                params.cowSwapSettlement,
+                params.cowSwapVaultRelayer,
+                params.maxValidToDuration,
+                params.rewards
+            )
+        );
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);
 
         if (params.adapterFactoryOwner != broadcaster) {
@@ -67,6 +80,9 @@ contract AaveV3AdapterDeployBaseScript is Script {
         require(params.adapterFactoryOwner != address(0), "invalid adapter factory owner");
         require(params.aavePool != address(0), "invalid Aave pool");
         require(params.curatorRegistry != address(0), "invalid curator registry");
+        require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
+        require(params.cowSwapVaultRelayer != address(0), "invalid CoW vault relayer");
+        require(params.maxValidToDuration != 0, "invalid max valid-to duration");
         require(params.rewards != address(0), "invalid rewards");
     }
 

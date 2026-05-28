@@ -46,8 +46,15 @@ contract AppAdapterTest is Test {
         subnetwork = network.subnetwork(1);
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
-        AppAdapter implementation =
-            new AppAdapter(address(vaultFactory), address(factory), address(0), address(networkMiddlewareService));
+        AppAdapter implementation = new AppAdapter(
+            address(vaultFactory),
+            address(factory),
+            address(0),
+            address(networkMiddlewareService),
+            address(0),
+            address(0),
+            0
+        );
         factory.whitelist(address(implementation));
 
         adapter = _createAdapter();

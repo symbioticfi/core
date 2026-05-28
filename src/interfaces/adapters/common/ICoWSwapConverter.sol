@@ -69,6 +69,11 @@ interface ICoWSwapConverter is IConverter {
     error InvalidSellAmount();
 
     /**
+     * @notice Raised when the input token is the vault asset.
+     */
+    error InvalidTokenIn();
+
+    /**
      * @notice Raised when a reserved order has not expired yet.
      */
     error OrderNotExpired();
@@ -166,26 +171,4 @@ interface ICoWSwapConverter is IConverter {
      * @return duration Maximum valid-to duration in seconds.
      */
     function MAX_VALID_TO_DURATION() external view returns (uint32 duration);
-
-    /**
-     * @notice Returns the sell amount currently reserved for active orders.
-     * @param token Sell token address.
-     * @return amount Reserved sell amount.
-     */
-    function reservedSellBalance(address token) external view returns (uint256 amount);
-
-    /**
-     * @notice Returns a reserved order by hashed order UID.
-     * @param orderUidHash Hash of the order UID.
-     * @return token Sell token reserved.
-     * @return amount Sell amount plus fee amount reserved.
-     * @return validTo Order expiry timestamp.
-     */
-    function reservedOrder(bytes32 orderUidHash) external view returns (address token, uint256 amount, uint32 validTo);
-
-    /**
-     * @notice Releases an expired order reservation.
-     * @param orderUid Encoded CoW Protocol order UID.
-     */
-    function releaseExpiredOrder(bytes calldata orderUid) external;
 }

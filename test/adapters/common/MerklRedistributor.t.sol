@@ -10,8 +10,7 @@ contract MerklRedistributorTest is Test {
         MerklDistributorMock distributor = new MerklDistributorMock();
         MerklRedistributorHarness redistributor = new MerklRedistributorHarness(address(distributor));
 
-        address[] memory users = new address[](1);
-        users[0] = makeAddr("user");
+        address user = makeAddr("user");
         address[] memory tokens = new address[](1);
         tokens[0] = makeAddr("token");
         uint256[] memory amounts = new uint256[](1);
@@ -20,10 +19,11 @@ contract MerklRedistributorTest is Test {
         proofs[0] = new bytes32[](1);
         proofs[0][0] = keccak256("proof");
 
-        redistributor.claim(users, tokens, amounts, proofs);
+        vm.prank(user);
+        redistributor.claim(tokens, amounts, proofs);
 
         assertEq(distributor.calls(), 1);
-        assertEq(distributor.lastUser(), users[0]);
+        assertEq(distributor.lastUser(), user);
         assertEq(distributor.lastToken(), tokens[0]);
         assertEq(distributor.lastAmount(), amounts[0]);
         assertEq(distributor.lastProof(), proofs[0][0]);

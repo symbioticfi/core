@@ -13,6 +13,12 @@ contract MorphoVaultV2AdapterDeployScript is MorphoVaultV2AdapterDeployBaseScrip
     address public constant MORPHO_ADAPTER_REGISTRY = 0x3696c5eAe4a7Ffd04Ea163564571E9CD8Ed9364e;
     // CuratorRegistry used by the adapter for curator-only recovery/configuration paths.
     address public constant CURATOR_REGISTRY = 0xF75D8d8F790178F0d7F2ee7656874567d382C21e;
+    // CoW Protocol settlement used by the converter.
+    address public constant COW_SWAP_SETTLEMENT = 0x0000000000000000000000000000000000000000;
+    // CoW Protocol vault relayer approved by the converter.
+    address public constant COW_SWAP_VAULT_RELAYER = 0x0000000000000000000000000000000000000000;
+    // Maximum accepted CoW order validity duration.
+    uint32 public constant MAX_VALID_TO_DURATION = 1 hours;
     // Rewards contract address used by the adapter.
     address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;
 
@@ -23,6 +29,9 @@ contract MorphoVaultV2AdapterDeployScript is MorphoVaultV2AdapterDeployBaseScrip
                 morphoVaultFactory: MORPHO_VAULT_FACTORY,
                 morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY,
                 curatorRegistry: CURATOR_REGISTRY,
+                cowSwapSettlement: COW_SWAP_SETTLEMENT,
+                cowSwapVaultRelayer: COW_SWAP_VAULT_RELAYER,
+                maxValidToDuration: MAX_VALID_TO_DURATION,
                 rewards: REWARDS
             })
         );

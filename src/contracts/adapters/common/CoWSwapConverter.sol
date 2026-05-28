@@ -12,12 +12,14 @@ import {
 } from "../../../interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IConverter} from "../../../interfaces/adapters/common/IConverter.sol";
 
+import {Adapter} from "../Adapter.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title CoWSwapConverter
 /// @notice Converter for asynchronous CoW Protocol sell orders via pre-signing.
-abstract contract CoWSwapConverter is ICoWSwapConverter {
+abstract contract CoWSwapConverter is Adapter, ICoWSwapConverter {
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
@@ -31,7 +33,14 @@ abstract contract CoWSwapConverter is ICoWSwapConverter {
 
     /* CONSTRUCTOR */
 
-    constructor(address cowSwapSettlement, address cowSwapVaultRelayer, uint32 maxValidToDuration) {
+    constructor(
+        address vaultFactory,
+        address adapterFactory,
+        address curatorRegistry,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer,
+        uint32 maxValidToDuration
+    ) Adapter(vaultFactory, adapterFactory, curatorRegistry) {
         COW_SWAP_SETTLEMENT = cowSwapSettlement;
         COW_SWAP_VAULT_RELAYER = cowSwapVaultRelayer;
         MAX_VALID_TO_DURATION = maxValidToDuration;
@@ -39,10 +48,16 @@ abstract contract CoWSwapConverter is ICoWSwapConverter {
 
     /* PUBLIC FUNCTIONS */
 
-    /// @dev Converts one token into another.
-    function _convert(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
-        internal
+    /// @inheritdoc IConverter
+    function convert(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
+        public
+        virtual
+        override
     {
+        if (tokenIn == IERC4626(vault).asset()) {
+            revert InvalidTokenIn();
+        }
+
         OrderParams memory params = abi.decode(data, (OrderParams));
         if (amountIn == 0 || params.sellAmount + params.feeAmount != amountIn) {
             revert InvalidSellAmount();

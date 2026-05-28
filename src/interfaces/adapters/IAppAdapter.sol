@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IAdapter} from "./IAdapter.sol";
+import {ICoWSwapConverter} from "./common/ICoWSwapConverter.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 
@@ -12,7 +13,7 @@ uint256 constant BURNER_RESERVE = 20_000;
  * @title IAppAdapter
  * @notice Interface for a single app/network-operator guarantee adapter.
  */
-interface IAppAdapter is IAdapter {
+interface IAppAdapter is IAdapter, ICoWSwapConverter {
     /* ERRORS */
 
     /**

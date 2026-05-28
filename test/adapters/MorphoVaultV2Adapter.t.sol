@@ -47,7 +47,11 @@ contract MorphoVaultV2AdapterTest is Test {
             address(factory),
             address(curatorRegistry),
             address(morphoVaultFactory),
-            morphoAdapterRegistry
+            morphoAdapterRegistry,
+            address(0),
+            address(0),
+            0,
+            address(0)
         );
         factory.whitelist(address(implementation));
 

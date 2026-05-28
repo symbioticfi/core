@@ -17,6 +17,9 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
         address morphoVaultFactory;
         address morphoAdapterRegistry;
         address curatorRegistry;
+        address cowSwapSettlement;
+        address cowSwapVaultRelayer;
+        uint32 maxValidToDuration;
         address rewards;
     }
 
@@ -61,7 +64,11 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
                 adapterFactory,
                 params.curatorRegistry,
                 params.morphoVaultFactory,
-                params.morphoAdapterRegistry
+                params.morphoAdapterRegistry,
+                params.cowSwapSettlement,
+                params.cowSwapVaultRelayer,
+                params.maxValidToDuration,
+                params.rewards
             )
         );
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);
@@ -76,6 +83,9 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
         require(params.morphoVaultFactory != address(0), "invalid Morpho vault factory");
         require(params.morphoAdapterRegistry != address(0), "invalid Morpho adapter registry");
         require(params.curatorRegistry != address(0), "invalid curator registry");
+        require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
+        require(params.cowSwapVaultRelayer != address(0), "invalid CoW vault relayer");
+        require(params.maxValidToDuration != 0, "invalid max valid-to duration");
         require(params.rewards != address(0), "invalid rewards");
     }
 

@@ -57,7 +57,13 @@ contract RestakingAppAdapterTest is Test {
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
         RestakingAppAdapter implementation = new RestakingAppAdapter(
-            address(vaultFactory), address(factory), address(0), address(networkMiddlewareService)
+            address(vaultFactory),
+            address(factory),
+            address(0),
+            address(networkMiddlewareService),
+            address(0),
+            address(0),
+            0
         );
         factory.whitelist(address(implementation));
 
@@ -307,9 +313,11 @@ contract RestakingTokenMock is ERC20 {
     using SafeERC20 for IERC20;
 
     IERC20 internal immutable _asset;
+    RestakingWithdrawalQueueMock public immutable withdrawalQueue;
 
     constructor(IERC20 asset_) ERC20("Restaking Token", "rstTKN") {
         _asset = asset_;
+        withdrawalQueue = new RestakingWithdrawalQueueMock(address(this), true);
     }
 
     function asset() external view returns (address) {
@@ -351,6 +359,47 @@ contract RestakingTokenMock is ERC20 {
     }
 }
 
+contract RestakingWithdrawalQueueMock {
+    using SafeERC20 for IERC20;
+
+    struct Request {
+        uint256 shares;
+        bool claimed;
+    }
+
+    address public immutable vault;
+    bool internal immutable _redeems;
+    uint256 internal _nextTokenId = 1;
+    mapping(uint256 tokenId => Request request) internal _requests;
+
+    constructor(address vault_, bool redeems_) {
+        vault = vault_;
+        _redeems = redeems_;
+    }
+
+    function requestRedeem(uint256 shares, address) external returns (uint256 tokenId) {
+        tokenId = _nextTokenId++;
+        _requests[tokenId].shares = shares;
+        if (_redeems) {
+            IERC20(vault).safeTransferFrom(msg.sender, address(this), shares);
+        }
+    }
+
+    function claim(uint256 tokenId) external returns (uint256 assets, uint256 shares) {
+        Request storage request = _requests[tokenId];
+        shares = request.shares;
+        assets = _redeems ? RestakingTokenMock(vault).previewRedeem(shares) : shares;
+        request.claimed = true;
+        if (_redeems) {
+            RestakingTokenMock(vault).withdraw(assets, msg.sender, address(this));
+        }
+    }
+
+    function isClaimed(uint256 tokenId) external view returns (bool) {
+        return _requests[tokenId].claimed;
+    }
+}
+
 contract RestakingAppAdapterRegistryMock is Registry {
     function add(address entity) external {
         _addEntity(entity);
@@ -388,10 +437,12 @@ contract RestakingAppAdapterNetworkMiddlewareServiceMock {
 contract RestakingAppAdapterVaultMock {
     address public collateral;
     address public delegator;
+    RestakingWithdrawalQueueMock public immutable withdrawalQueue;
 
     constructor(address collateral_, address delegator_) {
         collateral = collateral_;
         delegator = delegator_;
+        withdrawalQueue = new RestakingWithdrawalQueueMock(address(this), false);
     }
 
     function setAsset(address collateral_) external {
@@ -400,5 +451,9 @@ contract RestakingAppAdapterVaultMock {
 
     function asset() external view returns (address) {
         return collateral;
+    }
+
+    function approve(address, uint256) external pure returns (bool) {
+        return true;
     }
 }

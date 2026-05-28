@@ -3,6 +3,8 @@
 pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
+import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
+import {MerklRedistributor} from "./common/MerklRedistributor.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IMorphoLiquidityAdapter} from "../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoLiquidityAdapter.sol";
@@ -17,7 +19,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title MorphoVaultV2Adapter
 /// @notice VaultV2 adapter for Morpho ERC4626 vaults.
-contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
+contract MorphoVaultV2Adapter is CoWSwapConverter, MerklRedistributor, IMorphoVaultV2Adapter {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -40,8 +42,22 @@ contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
         address adapterFactory,
         address curatorRegistry,
         address morphoVaultFactory,
-        address morphoAdapterRegistry
-    ) Adapter(vaultFactory, adapterFactory, curatorRegistry) {
+        address morphoAdapterRegistry,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer,
+        uint32 maxValidToDuration,
+        address merklDistributor
+    )
+        CoWSwapConverter(
+            vaultFactory,
+            adapterFactory,
+            curatorRegistry,
+            cowSwapSettlement,
+            cowSwapVaultRelayer,
+            maxValidToDuration
+        )
+        MerklRedistributor(merklDistributor)
+    {
         MORPHO_VAULT_FACTORY = morphoVaultFactory;
         MORPHO_ADAPTER_REGISTRY = morphoAdapterRegistry;
     }

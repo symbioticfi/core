@@ -6,7 +6,7 @@ import {IMerklDistributor, IMerklRedistributor} from "../../../interfaces/adapte
 
 /// @title MerklRedistributor
 /// @notice Minimal Merkl distributor claim forwarder.
-contract MerklRedistributor is IMerklRedistributor {
+abstract contract MerklRedistributor is IMerklRedistributor {
     /* IMMUTABLES */
 
     /// @inheritdoc IMerklRedistributor
@@ -21,12 +21,11 @@ contract MerklRedistributor is IMerklRedistributor {
     /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IMerklRedistributor
-    function claim(
-        address[] calldata users,
-        address[] calldata tokens,
-        uint256[] calldata amounts,
-        bytes32[][] calldata proofs
-    ) public {
+    function claim(address[] calldata tokens, uint256[] calldata amounts, bytes32[][] calldata proofs) public {
+        address[] memory users = new address[](tokens.length);
+        for (uint256 i; i < users.length; ++i) {
+            users[i] = msg.sender;
+        }
         IMerklDistributor(MERKL_DISTRIBUTOR).claim(users, tokens, amounts, proofs);
     }
 }

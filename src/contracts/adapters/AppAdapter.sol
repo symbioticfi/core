@@ -3,6 +3,7 @@
 pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
+import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
 
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
@@ -21,7 +22,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title AppAdapter
 /// @notice Single network-operator guarantee adapter.
-contract AppAdapter is Adapter, IAppAdapter {
+contract AppAdapter is CoWSwapConverter, IAppAdapter {
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using Subnetwork for bytes32;
@@ -53,8 +54,23 @@ contract AppAdapter is Adapter, IAppAdapter {
 
     /* CONSTRUCTOR */
 
-    constructor(address vaultFactory, address adapterFactory, address curatorRegistry, address networkMiddlewareService)
-        Adapter(vaultFactory, adapterFactory, curatorRegistry)
+    constructor(
+        address vaultFactory,
+        address adapterFactory,
+        address curatorRegistry,
+        address networkMiddlewareService,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer,
+        uint32 maxValidToDuration
+    )
+        CoWSwapConverter(
+            vaultFactory,
+            adapterFactory,
+            curatorRegistry,
+            cowSwapSettlement,
+            cowSwapVaultRelayer,
+            maxValidToDuration
+        )
     {
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
@@ -97,17 +113,6 @@ contract AppAdapter is Adapter, IAppAdapter {
     /// @inheritdoc IAppAdapter
     function reward(address token, uint256 amount) public virtual override {
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-    }
-
-    /// @inheritdoc IAppAdapter
-    function convert(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes calldata data)
-        public
-        virtual
-    {
-        if (tokenIn == asset) {
-            revert InvalidTokenIn();
-        }
-        _convert(tokenIn, tokenOut, amountIn, minAmountOut, data);
     }
 
     /* PUBLIC FUNCTIONS (NETWORK) */
