@@ -209,8 +209,8 @@ contract VaultV2 is
     }
 
     /// @inheritdoc ERC4626Upgradeable
-    function maxDeposit(address receiver) public view override returns (uint256) {
-        if (depositWhitelist && !isDepositorWhitelisted[receiver]) {
+    function maxDeposit(address) public view override returns (uint256) {
+        if (depositWhitelist && !isDepositorWhitelisted[msg.sender]) {
             return 0;
         }
         return isDepositLimit ? depositLimit.saturatingSub(totalAssets()) : type(uint256).max;

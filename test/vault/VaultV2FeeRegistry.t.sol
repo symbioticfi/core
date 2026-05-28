@@ -143,15 +143,22 @@ contract VaultV2BehaviorTest is Test {
     function test_MaxDepositAndMaxMintApplyWhitelistAndLimit() public {
         VaultV2 vault = _createVault(true, true, 100);
 
-        assertEq(vault.maxDeposit(bob), 0);
-        assertEq(vault.maxMint(bob), 0);
-        assertEq(vault.maxDeposit(alice), 100);
-        assertEq(vault.maxMint(alice), vault.previewDeposit(100));
+        vm.startPrank(bob);
+        assertEq(vault.maxDeposit(alice), 0);
+        assertEq(vault.maxMint(alice), 0);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        assertEq(vault.maxDeposit(bob), 100);
+        assertEq(vault.maxMint(bob), vault.previewDeposit(100));
+        vm.stopPrank();
 
         IERC20(address(collateral)).transfer(address(vault), 40);
 
-        assertEq(vault.maxDeposit(alice), 60);
-        assertEq(vault.maxMint(alice), vault.previewDeposit(60));
+        vm.startPrank(alice);
+        assertEq(vault.maxDeposit(bob), 60);
+        assertEq(vault.maxMint(bob), vault.previewDeposit(60));
+        vm.stopPrank();
     }
 
     function test_WithdrawableIncludesFreeAssets() public {
@@ -237,6 +244,7 @@ contract VaultV2BehaviorTest is Test {
         vault.setIsDepositLimit(true);
         vault.setDepositLimit(100);
 
+        vm.prank(bob);
         assertEq(vault.maxDeposit(bob), 100);
 
         vault.setSlasher(address(0xBEEF));
