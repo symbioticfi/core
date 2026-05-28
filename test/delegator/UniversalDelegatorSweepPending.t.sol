@@ -9,6 +9,7 @@ import {
     UNIVERSAL_DELEGATOR_TYPE,
     MAX_ADAPTERS,
     MAX_SHARE,
+    ADD_ADAPTER_ROLE,
     ALLOCATE_ROLE,
     REMOVE_ADAPTER_ROLE,
     SET_ADAPTER_LIMITS_ROLE,
@@ -16,6 +17,7 @@ import {
     SWAP_ADAPTERS_ROLE
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 contract UniversalDelegatorSweepToken is ERC20 {
     constructor() ERC20("Token", "TKN") {}
@@ -35,7 +37,7 @@ contract UniversalDelegatorSweepHarness is UniversalDelegator {
     }
 
     function addAdapterForTest(address adapter) external returns (uint16) {
-        return _addAdapter(adapter);
+        return addAdapter(adapter);
     }
 
     function adaptersWithPendingLength() external view returns (uint256) {
@@ -217,6 +219,48 @@ contract UniversalDelegatorSweepRevertingAdapter {
     function requestDeallocate(uint256) external {}
 }
 
+contract UniversalDelegatorSweepReentrantAdapter {
+    address public immutable FACTORY;
+    address public immutable vault;
+    IUniversalDelegator public immutable delegator;
+    uint256 public totalAssets;
+    uint256 public lastAllocateAssets;
+    bool public reentered;
+    bytes public reentrantRevertData;
+
+    constructor(address factory, address vault_, IUniversalDelegator delegator_) {
+        FACTORY = factory;
+        vault = vault_;
+        delegator = delegator_;
+    }
+
+    function allocatable() external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function freeAssets() external pure returns (uint256) {
+        return 0;
+    }
+
+    function allocate(uint256 assets) external returns (uint256) {
+        lastAllocateAssets = assets;
+        try delegator.decreaseLimits(0, 0) {
+            reentered = true;
+        } catch (bytes memory data) {
+            reentrantRevertData = data;
+        }
+        totalAssets += assets;
+        return assets;
+    }
+
+    function deallocate(uint256 assets) external returns (uint256 deallocated) {
+        deallocated = assets > totalAssets ? totalAssets : assets;
+        totalAssets -= deallocated;
+    }
+
+    function requestDeallocate(uint256) external {}
+}
+
 contract UniversalDelegatorSweepPendingTest is Test {
     UniversalDelegatorAdapterFactoryMock internal adapterFactory;
     UniversalDelegatorAdapterRegistryMock internal adapterRegistry;
@@ -226,6 +270,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         adapterFactory = new UniversalDelegatorAdapterFactoryMock();
         adapterRegistry = new UniversalDelegatorAdapterRegistryMock();
         delegator = new UniversalDelegatorSweepHarness(address(adapterRegistry));
+        delegator.grantRoleForTest(ADD_ADAPTER_ROLE, address(this));
         adapterRegistry.setWhitelisted(delegator.vault(), address(adapterFactory), true);
     }
 
@@ -523,6 +568,29 @@ contract UniversalDelegatorSweepPendingTest is Test {
         delegator.deallocatable();
     }
 
+    function test_AllocateBlocksAdapterReentrancy() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        vault.mintFreeAssets(100);
+        delegator.setVault(address(vault));
+        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
+
+        UniversalDelegatorSweepReentrantAdapter adapter =
+            new UniversalDelegatorSweepReentrantAdapter(address(adapterFactory), address(vault), delegator);
+        adapterFactory.setEntity(address(adapter), true);
+
+        delegator.addAdapterForTest(address(adapter));
+        delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
+        delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE);
+
+        vm.prank(address(adapter));
+        delegator.allocate(address(adapter), 100);
+
+        assertEq(adapter.lastAllocateAssets(), 100);
+        assertFalse(adapter.reentered());
+        assertEq(bytes4(adapter.reentrantRevertData()), ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
+    }
+
     function test_AddAdapterRevertsIfAdapterVaultDoesNotMatchDelegatorVault() public {
         delegator.setVault(address(0xBEEF));
         UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(address(0xCAFE), 100, 0);
@@ -535,6 +603,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         address vault = address(0xBEEF);
         UniversalDelegatorSweepHarness vaultDelegator = new UniversalDelegatorSweepHarness(address(adapterRegistry));
         vaultDelegator.setVault(vault);
+        vaultDelegator.grantRoleForTest(ADD_ADAPTER_ROLE, address(this));
         adapterRegistry.setWhitelisted(vault, address(adapterFactory), true);
         UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(vault, 100, 0);
 
@@ -548,6 +617,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         address vault = address(0xBEEF);
         UniversalDelegatorSweepHarness vaultDelegator = new UniversalDelegatorSweepHarness(address(adapterRegistry));
         vaultDelegator.setVault(vault);
+        vaultDelegator.grantRoleForTest(ADD_ADAPTER_ROLE, address(this));
         adapterRegistry.setWhitelisted(address(0), address(adapterFactory), true);
         UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(vault, 100, 0);
 

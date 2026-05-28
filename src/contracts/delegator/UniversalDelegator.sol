@@ -30,7 +30,7 @@ import {VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 /// @title UniversalDelegator
 /// @notice Simple delegator that allocates vault assets across ordered adapters.
@@ -39,7 +39,7 @@ contract UniversalDelegator is
     StaticDelegateCallable,
     Multicallable,
     AccessControlUpgradeable,
-    ReentrancyGuard,
+    ReentrancyGuardTransient,
     IUniversalDelegator
 {
     using Math for uint256;
@@ -136,12 +136,7 @@ contract UniversalDelegator is
     /* PUBLIC FUNCTIONS (CURATOR) */
 
     /// @inheritdoc IUniversalDelegator
-    function addAdapter(address adapter) public onlyRole(ADD_ADAPTER_ROLE) returns (uint16) {
-        return _addAdapter(adapter);
-    }
-
-    /// @dev Add a validated adapter and assign a stable index when needed.
-    function _addAdapter(address adapter) internal returns (uint16 index) {
+    function addAdapter(address adapter) public onlyRole(ADD_ADAPTER_ROLE) nonReentrant returns (uint16 index) {
         address adapterFactory = IEntity(adapter).FACTORY();
         if (
             !IRegistry(adapterFactory).isEntity(adapter)
@@ -172,7 +167,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function removeAdapter(address adapter) public onlyRole(REMOVE_ADAPTER_ROLE) {
+    function removeAdapter(address adapter) public onlyRole(REMOVE_ADAPTER_ROLE) nonReentrant {
         if (!_isAdapterAdded[adapter]) {
             revert InvalidAdapter();
         }
@@ -202,7 +197,11 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function setLimits(address adapter, uint256 assets, uint256 share) public onlyRole(SET_ADAPTER_LIMITS_ROLE) {
+    function setLimits(address adapter, uint256 assets, uint256 share)
+        public
+        onlyRole(SET_ADAPTER_LIMITS_ROLE)
+        nonReentrant
+    {
         _setLimits(adapter, assets, share);
     }
 
@@ -222,7 +221,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function swapAdapters(address adapter1, address adapter2) public onlyRole(SWAP_ADAPTERS_ROLE) {
+    function swapAdapters(address adapter1, address adapter2) public onlyRole(SWAP_ADAPTERS_ROLE) nonReentrant {
         uint256 adapter1Pos = type(uint256).max;
         uint256 adapter2Pos = type(uint256).max;
         for (uint256 i; i < adapters.length; ++i) {
@@ -241,6 +240,7 @@ contract UniversalDelegator is
     function setAutoAllocateAdapters(address[] calldata newAutoAllocateAdapters)
         public
         onlyRole(SET_AUTO_ALLOCATE_ADAPTERS_ROLE)
+        nonReentrant
     {
         for (uint256 i; i < newAutoAllocateAdapters.length; ++i) {
             if (!_isAdapterAdded[newAutoAllocateAdapters[i]]) {
@@ -260,7 +260,12 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function allocate(address adapter, uint256 assets) public onlyRole(ALLOCATE_ROLE) returns (uint256 allocated) {
+    function allocate(address adapter, uint256 assets)
+        public
+        onlyRole(ALLOCATE_ROLE)
+        nonReentrant
+        returns (uint256 allocated)
+    {
         if (sweepPending() > 0) {
             return 0;
         }
@@ -268,7 +273,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function allocateAll(uint256 assets) public onlyRole(ALLOCATE_ROLE) returns (uint256 allocated) {
+    function allocateAll(uint256 assets) public onlyRole(ALLOCATE_ROLE) nonReentrant returns (uint256 allocated) {
         if (sweepPending() > 0) {
             return 0;
         }
@@ -279,6 +284,7 @@ contract UniversalDelegator is
     function deallocate(address adapter, uint256 assets)
         public
         onlyRole(DEALLOCATE_ROLE)
+        nonReentrant
         returns (uint256 deallocated)
     {
         deallocated = _deallocate(adapter, assets);
@@ -286,13 +292,18 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function deallocateAll(uint256 assets) public onlyRole(DEALLOCATE_ROLE) returns (uint256 deallocated) {
+    function deallocateAll(uint256 assets) public onlyRole(DEALLOCATE_ROLE) nonReentrant returns (uint256 deallocated) {
         deallocated = _deallocateAll(assets);
         sweepPending();
     }
 
     /// @inheritdoc IUniversalDelegator
-    function deallocateExact(uint256 assets) public onlyRole(DEALLOCATE_ROLE) returns (uint256 deallocated) {
+    function deallocateExact(uint256 assets)
+        public
+        onlyRole(DEALLOCATE_ROLE)
+        nonReentrant
+        returns (uint256 deallocated)
+    {
         if (sweepPending() > 0) {
             return 0;
         }
@@ -303,6 +314,7 @@ contract UniversalDelegator is
     function forceDeallocate(address adapter, uint256 assets)
         public
         onlyRole(DEALLOCATE_ROLE)
+        nonReentrant
         returns (uint256 deallocated, uint256 pending)
     {
         uint256 adapterTotalAssets = IAdapter(adapter).totalAssets();
@@ -330,7 +342,7 @@ contract UniversalDelegator is
     /* PUBLIC FUNCTIONS (ADAPTER) */
 
     /// @inheritdoc IUniversalDelegator
-    function decreaseLimits(uint256 assets, uint256 share) public {
+    function decreaseLimits(uint256 assets, uint256 share) public nonReentrant {
         if (absoluteLimitOf[msg.sender] < type(uint256).max || assets == type(uint256).max) {
             absoluteLimitOf[msg.sender] = absoluteLimitOf[msg.sender].saturatingSub(assets);
         }
@@ -345,7 +357,7 @@ contract UniversalDelegator is
 
     /// @dev Called after all pending tried to be filled.
     /// @inheritdoc IUniversalDelegator
-    function onDeposit() public {
+    function onDeposit() public nonReentrant {
         if (vault != msg.sender) {
             revert NotVault();
         }
@@ -359,7 +371,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function onWithdraw(uint256 assets) public {
+    function onWithdraw(uint256 assets) public nonReentrant {
         if (vault != msg.sender) {
             revert NotVault();
         }
