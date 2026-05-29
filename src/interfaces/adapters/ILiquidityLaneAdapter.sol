@@ -88,14 +88,14 @@ interface ILiquidityLaneAdapter is IAdapter {
     error InvalidOracle();
 
     /**
-     * @notice Raised when the redemption token is invalid.
-     */
-    error InvalidRedemptionToken();
-
-    /**
      * @notice Raised when a receiver is zero.
      */
     error InvalidReceiver();
+
+    /**
+     * @notice Raised when the redemption token is invalid.
+     */
+    error InvalidRedemptionToken();
 
     /**
      * @notice Raised when the provided RWA amount is invalid.

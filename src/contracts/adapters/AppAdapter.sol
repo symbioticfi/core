@@ -8,6 +8,7 @@ import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAppAdapter, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/adapters/IAppAdapter.sol";
+import {MAX_SHARE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
@@ -124,7 +125,7 @@ contract AppAdapter is Adapter, IAppAdapter {
     }
 
     /// @inheritdoc IAppAdapter
-    function reset(uint256 amount) public virtual {
+    function reset() public virtual {
         if (
             subnetwork.network() != msg.sender
                 && INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender
@@ -132,15 +133,11 @@ contract AppAdapter is Adapter, IAppAdapter {
             revert NotNetworkOrMiddleware();
         }
 
-        amount = Math.min(amount, _slashable());
-        if (amount == 0) {
-            revert InsufficientReset();
-        }
+        _stakePos.push(uint48(block.timestamp), uint208(_stakes.length));
+        _stakes.push();
+        IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(type(uint256).max, MAX_SHARE);
 
-        Stake storage curStake = _stakes[_stakePos.latest()];
-        curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + amount);
-
-        emit Reset(amount);
+        emit Reset();
     }
 
     /* INTERNAL FUNCTIONS */

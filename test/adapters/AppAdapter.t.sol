@@ -10,6 +10,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IAppAdapter, BURNER_GAS_LIMIT} from "../../src/interfaces/adapters/IAppAdapter.sol";
+import {MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 
 import {Token} from "../mocks/Token.sol";
 
@@ -236,59 +237,75 @@ contract AppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), 0);
     }
 
-    function test_ResetCanBeCalledByNetworkAndReducesSlashableWithoutMovingAssets() public {
+    function test_ResetCanBeCalledByNetworkAndClearsSlashableWithoutMovingAssets() public {
         _allocate(100);
 
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IAppAdapter.Reset(40);
+        emit IAppAdapter.Reset();
 
         vm.prank(network);
-        adapter.reset(40);
+        adapter.reset();
 
         assertEq(adapter.totalAssets(), 100);
-        assertEq(adapter.slashable(), 60);
-        assertEq(adapter.stake(), 60);
-        assertEq(adapter.freeAssets(), 40);
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.stake(), 0);
+        assertEq(adapter.freeAssets(), 100);
         assertEq(collateral.balanceOf(burner), 0);
-        assertEq(delegator.decreaseLimitsCalls(), 0);
+        assertEq(delegator.decreaseLimitsCalls(), 1);
+        assertEq(delegator.lastDecreaseAssets(), type(uint256).max);
+        assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
     }
 
     function test_ResetCanBeCalledByNetworkMiddleware() public {
         _allocate(100);
 
         vm.prank(networkMiddleware);
-        adapter.reset(40);
+        adapter.reset();
 
-        assertEq(adapter.slashable(), 60);
-        assertEq(adapter.freeAssets(), 40);
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.freeAssets(), 100);
     }
 
     function test_ResetRejectsCallerOutsideNetworkAndMiddleware() public {
         _allocate(100);
 
         vm.expectRevert(IAppAdapter.NotNetworkOrMiddleware.selector);
-        adapter.reset(40);
+        adapter.reset();
     }
 
-    function test_ResetSaturatesAtCurrentSlashable() public {
-        _allocate(100);
-
+    function test_ResetCanBeCalledWithoutExistingSlashable() public {
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IAppAdapter.Reset(100);
+        emit IAppAdapter.Reset();
 
         vm.prank(network);
-        adapter.reset(150);
+        adapter.reset();
+
+        assertEq(adapter.totalAssets(), 0);
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.stake(), 0);
+        assertEq(adapter.freeAssets(), 0);
+        assertEq(delegator.decreaseLimitsCalls(), 1);
+        assertEq(delegator.lastDecreaseAssets(), type(uint256).max);
+        assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
+    }
+
+    function test_ResetCanBeCalledAfterSlashableWasAlreadyCleared() public {
+        _allocate(100);
+        vm.prank(network);
+        adapter.reset();
 
         assertEq(adapter.totalAssets(), 100);
         assertEq(adapter.slashable(), 0);
         assertEq(adapter.stake(), 0);
         assertEq(adapter.freeAssets(), 100);
-    }
 
-    function test_ResetRejectsZeroAmount() public {
-        vm.expectRevert(IAppAdapter.InsufficientReset.selector);
         vm.prank(network);
-        adapter.reset(0);
+        adapter.reset();
+
+        assertEq(adapter.totalAssets(), 100);
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.stake(), 0);
+        assertEq(adapter.freeAssets(), 100);
     }
 
     function test_SlashTransfersToBurnerAndCallsHook() public {

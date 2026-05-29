@@ -24,6 +24,11 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
     /// @dev Core Aave V3 pool.
     address internal immutable AAVE_POOL;
 
+    /* STATE VARIABLES */
+
+    /// @inheritdoc IAaveV3Adapter
+    address public aToken;
+
     /* CONSTRUCTOR */
 
     constructor(address aavePool, address vaultFactory, address adapterFactory) Adapter(vaultFactory, adapterFactory) {
@@ -32,14 +37,9 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
 
     /* VIEW FUNCTIONS */
 
-    /// @inheritdoc IAaveV3Adapter
-    function aToken() public view returns (address) {
-        return IAaveV3Pool(AAVE_POOL).getReserveAToken(IERC4626(vault).asset());
-    }
-
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
-        return freeAssets() + IERC20(aToken()).balanceOf(address(this));
+        return freeAssets() + IERC20(aToken).balanceOf(address(this));
     }
 
     /* INTERNAL FUNCTIONS */
@@ -57,7 +57,7 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
         amount = Math.min(
             amount,
             Math.min(
-                IERC20(aToken()).balanceOf(address(this)),
+                IERC20(aToken).balanceOf(address(this)),
                 IAaveV3Pool(AAVE_POOL).getVirtualUnderlyingBalance(IERC4626(vault).asset())
             )
         );
@@ -75,7 +75,8 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
 
     /// @dev Approves the Aave pool to pull the adapter asset.
     function __initialize(address, bytes memory) internal override {
-        if (aToken() == address(0)) {
+        aToken = IAaveV3Pool(AAVE_POOL).getReserveAToken(IERC4626(vault).asset());
+        if (aToken == address(0)) {
             revert InvalidAToken();
         }
         IERC20(IERC4626(vault).asset()).forceApprove(AAVE_POOL, type(uint256).max);

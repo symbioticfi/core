@@ -11,6 +11,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 import {IRestakingAppAdapter} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
+import {MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 
 import {Token} from "../mocks/Token.sol";
 
@@ -262,24 +263,24 @@ contract RestakingAppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), 0);
     }
 
-    function test_ResetAccountsInVaultAssetShares() public {
+    function test_ResetClearsSlashableInVaultAssetShares() public {
         _allocateRestakingShares(100);
         baseAsset.transfer(address(restakingToken), 100);
 
-        uint256 expectedResetShares = restakingToken.previewDeposit(40);
-
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IAppAdapter.Reset(expectedResetShares);
+        emit IAppAdapter.Reset();
 
         vm.prank(network);
-        adapter.reset(40);
+        adapter.reset();
 
         assertEq(adapter.totalAssets(), 100);
-        assertEq(adapter.slashable(), restakingToken.previewRedeem(100 - expectedResetShares));
-        assertEq(adapter.stake(), restakingToken.previewRedeem(100 - expectedResetShares));
-        assertEq(adapter.freeAssets(), expectedResetShares);
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.stake(), 0);
+        assertEq(adapter.freeAssets(), 100);
         assertEq(baseAsset.balanceOf(burner), 0);
-        assertEq(delegator.decreaseLimitsCalls(), 0);
+        assertEq(delegator.decreaseLimitsCalls(), 1);
+        assertEq(delegator.lastDecreaseAssets(), type(uint256).max);
+        assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
     }
 
     function test_SlashWithdrawsThroughNestedVaultsAndBurnsBaseAsset() public {

@@ -21,11 +21,6 @@ interface IAppAdapter is IAdapter {
     error InsufficientBurnerGas();
 
     /**
-     * @notice Raised when a reset amount is zero.
-     */
-    error InsufficientReset();
-
-    /**
      * @notice Raised when a slash has no slashable stake.
      */
     error InsufficientSlash();
@@ -93,9 +88,8 @@ interface IAppAdapter is IAdapter {
 
     /**
      * @notice Emitted when slashable stake is reset by the network.
-     * @param amount Reset amount.
      */
-    event Reset(uint256 amount);
+    event Reset();
 
     /**
      * @notice Emitted when the adapter is initialized.
@@ -155,11 +149,10 @@ interface IAppAdapter is IAdapter {
     function stakeAt(uint48 timestamp) external view returns (uint256 amount);
 
     /**
-     * @notice Reduce the configured pair's needed slashable stake.
-     * @param amount Maximum amount to reset.
+     * @notice Reset the configured pair's slashable stake.
      * @dev Only the configured network or its middleware can call this function.
      */
-    function reset(uint256 amount) external;
+    function reset() external;
 
     /**
      * @notice Slash the configured pair.

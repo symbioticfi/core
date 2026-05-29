@@ -58,7 +58,15 @@ contract AaveV3AdapterTest is Test {
         assertEq(adapter.freeAssets(), 123);
     }
 
-    function test_ATokenViewReturnsConfiguredReserveToken() public view {
+    function test_ATokenViewReturnsInitializedReserveToken() public view {
+        assertEq(adapter.aToken(), address(aToken));
+    }
+
+    function test_ATokenViewDoesNotFollowReserveTokenUpdates() public {
+        MockAaveAToken newAToken = new MockAaveAToken(address(collateral));
+
+        pool.setReserveToken(address(collateral), address(newAToken));
+
         assertEq(adapter.aToken(), address(aToken));
     }
 

@@ -124,9 +124,9 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     }
 
     /// @inheritdoc IAppAdapter
-    function reset(uint256 amount) public override(AppAdapter, IAppAdapter) {
+    function reset() public override(AppAdapter, IAppAdapter) {
         syncSlash();
-        super.reset(_convertToShare(amount));
+        super.reset();
     }
 
     /* INITIALIZATION */
