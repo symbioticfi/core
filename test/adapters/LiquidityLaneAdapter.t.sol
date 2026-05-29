@@ -8,20 +8,22 @@ import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntity
 import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {
+    DISCOUNT_SWAP_TYPEHASH,
+    DISCOUNT_TYPEHASH,
     ILiquidityLaneAdapter,
-    LIQUIDITY_LANE_SIGNED_SWAP_TYPEHASH
+    SIGNED_SWAP_TYPEHASH
 } from "../../src/interfaces/adapters/ILiquidityLaneAdapter.sol";
 import {ILiquidityLaneAccount} from "../../src/interfaces/adapters/liquidity_lane_adapter/ILiquidityLaneAccount.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
 
+import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract LiquidityLaneAdapterTest is Test {
     MockERC20 internal asset;
     MockERC20 internal tokenToRedeem;
-    MockLiquidityLaneAccount internal account;
     MockLiquidityLaneDelegator internal delegator;
     MockLiquidityLaneRegistry internal vaultFactory;
     MockLiquidityLaneVault internal vault;
@@ -29,8 +31,10 @@ contract LiquidityLaneAdapterTest is Test {
 
     address internal adapterFactory = makeAddr("adapterFactory");
     address internal curator = makeAddr("curator");
+    address internal curatorReceiver = makeAddr("curatorReceiver");
     address internal filler = makeAddr("filler");
     address internal marketMaker = makeAddr("marketMaker");
+    address internal marketMakerReceiver = makeAddr("marketMakerReceiver");
     address internal recipient = makeAddr("recipient");
 
     function setUp() public {
@@ -42,8 +46,7 @@ contract LiquidityLaneAdapterTest is Test {
         vault.setDelegator(address(delegator));
         vaultFactory.add(address(vault));
 
-        LiquidityLaneAdapter implementation =
-            new LiquidityLaneAdapter(address(vaultFactory), adapterFactory, address(0));
+        LiquidityLaneAdapter implementation = new LiquidityLaneAdapter(address(vaultFactory), adapterFactory, address(0));
         adapter = LiquidityLaneAdapter(
             address(
                 new MigratableEntityProxy(
@@ -53,82 +56,108 @@ contract LiquidityLaneAdapterTest is Test {
             )
         );
 
-        account = new MockLiquidityLaneAccount(address(adapter), address(asset));
+        MockLiquidityLaneAccount accountImplementation = new MockLiquidityLaneAccount(address(adapter), address(asset));
+        UpgradeableBeacon accountBeacon = new UpgradeableBeacon(address(accountImplementation), curator);
 
         vm.startPrank(curator);
-        adapter.setAccount(address(tokenToRedeem), address(account));
+        adapter.setAccountBeacon(address(tokenToRedeem), address(accountBeacon));
         adapter.setOracle(address(asset), address(new MockLiquidityLaneOracle(1e18)));
         adapter.setOracle(address(tokenToRedeem), address(new MockLiquidityLaneOracle(1e18)));
-        adapter.setLimit(address(tokenToRedeem), type(uint256).max);
-        adapter.setMarketMaker(marketMaker, true);
+        adapter.setLimit(address(vault), address(tokenToRedeem), type(uint256).max);
+        adapter.setMakerMaker(address(vault), marketMaker, true);
         vm.stopPrank();
     }
 
     function testSwapAllocatesThroughDelegatorAndSyncsRedemption() public {
+        address account = adapter.getAccount(address(vault), address(tokenToRedeem));
+
         asset.mint(address(vault), 100 ether);
         tokenToRedeem.mint(marketMaker, 100 ether);
 
         vm.startPrank(marketMaker);
-        tokenToRedeem.approve(address(adapter), 100 ether);
+        tokenToRedeem.transfer(address(adapter), 100 ether);
         adapter.swap(
             ILiquidityLaneAdapter.Swap({
-                recipient: recipient, tokenIn: address(tokenToRedeem), amountIn: 100 ether, amountOut: 90 ether
+                recipient: recipient,
+                vault: address(vault),
+                tokenIn: address(tokenToRedeem),
+                amountIn: 100 ether,
+                amountOut: 90 ether
             })
         );
         vm.stopPrank();
 
         assertEq(asset.balanceOf(recipient), 90 ether);
-        assertEq(tokenToRedeem.balanceOf(address(account)), 100 ether);
-        assertEq(adapter.allocated(address(tokenToRedeem)), 90 ether);
-        assertEq(adapter.allocatedTotal(), 90 ether);
+        assertEq(tokenToRedeem.balanceOf(account), 100 ether);
+        assertEq(adapter.allocated(address(vault), address(tokenToRedeem)), 90 ether);
         assertEq(adapter.totalAssets(), 90 ether);
         assertEq(asset.balanceOf(address(vault)), 10 ether);
 
-        asset.mint(address(account), 95 ether);
-        (uint256 principal, uint256 rewards) = adapter.sync();
+        asset.mint(account, 95 ether);
+        uint256 deallocated = delegator.deallocate(address(adapter), 90 ether);
 
-        assertEq(principal, 90 ether);
-        assertEq(rewards, 5 ether);
-        assertEq(adapter.allocated(address(tokenToRedeem)), 0);
-        assertEq(adapter.allocatedTotal(), 0);
-        assertEq(adapter.freeAssets(), 95 ether);
-        assertEq(adapter.totalAssets(), 95 ether);
-
-        delegator.deallocate(address(adapter), 90 ether);
-
+        assertEq(deallocated, 95 ether);
+        assertEq(adapter.allocated(address(vault), address(tokenToRedeem)), 0);
         assertEq(asset.balanceOf(address(vault)), 105 ether);
         assertEq(adapter.totalAssets(), 0);
     }
 
-    function testPrefundedAcquisitionDoesNotAllocateVaultAssets() public {
+    function testPrefundedAcquisitionDoesNotAllocateVaultAssetsAndPaysReceiver() public {
+        address account = adapter.getAccount(address(vault), address(tokenToRedeem));
+
+        asset.mint(curator, 40 ether);
         asset.mint(marketMaker, 60 ether);
 
-        vm.startPrank(marketMaker);
-        asset.approve(address(adapter), 60 ether);
-        adapter.depositToAcquire(address(tokenToRedeem), 60 ether);
+        vm.startPrank(curator);
+        adapter.setReceiver(curatorReceiver);
+        asset.approve(address(adapter), 40 ether);
+        adapter.depositToAcquire(address(vault), address(tokenToRedeem), 40 ether);
+        adapter.setFiller(address(vault), filler, true);
         vm.stopPrank();
 
-        vm.prank(curator);
-        adapter.setFiller(filler, true);
+        vm.startPrank(marketMaker);
+        adapter.setReceiver(marketMakerReceiver);
+        asset.approve(address(adapter), 60 ether);
+        adapter.depositToAcquire(address(vault), address(tokenToRedeem), 60 ether);
+        vm.stopPrank();
 
         tokenToRedeem.mint(filler, 100 ether);
 
         vm.startPrank(filler);
-        tokenToRedeem.approve(address(adapter), 100 ether);
+        tokenToRedeem.transfer(address(adapter), 100 ether);
         adapter.swap(
             ILiquidityLaneAdapter.Swap({
-                recipient: recipient, tokenIn: address(tokenToRedeem), amountIn: 100 ether, amountOut: 60 ether
+                recipient: recipient,
+                vault: address(vault),
+                tokenIn: address(tokenToRedeem),
+                amountIn: 100 ether,
+                amountOut: 100 ether
             })
         );
         vm.stopPrank();
 
-        assertEq(asset.balanceOf(recipient), 60 ether);
-        assertEq(tokenToRedeem.balanceOf(marketMaker), 100 ether);
+        assertEq(asset.balanceOf(recipient), 100 ether);
+        assertEq(tokenToRedeem.balanceOf(curatorReceiver), 40 ether);
+        assertEq(tokenToRedeem.balanceOf(marketMakerReceiver), 60 ether);
         assertEq(tokenToRedeem.balanceOf(filler), 0);
-        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
-        assertEq(adapter.acquireTotal(), 0);
-        assertEq(adapter.allocatedTotal(), 0);
+        assertEq(tokenToRedeem.balanceOf(account), 0);
+        assertEq(adapter.acquireTotal(address(vault)), 0);
         assertEq(asset.balanceOf(address(vault)), 0);
+    }
+
+    function testSetReceiverRevertsForZeroReceiver() public {
+        vm.expectRevert(ILiquidityLaneAdapter.InvalidReceiver.selector);
+        adapter.setReceiver(address(0));
+    }
+
+    function testDepositToAcquireRequiresReceiver() public {
+        asset.mint(marketMaker, 60 ether);
+
+        vm.startPrank(marketMaker);
+        asset.approve(address(adapter), 60 ether);
+        vm.expectRevert(ILiquidityLaneAdapter.InvalidReceiver.selector);
+        adapter.depositToAcquire(address(vault), address(tokenToRedeem), 60 ether);
+        vm.stopPrank();
     }
 
     function testSignedSwapUsesSignerAuthorizationAndNonce() public {
@@ -136,34 +165,71 @@ contract LiquidityLaneAdapterTest is Test {
         address signer = vm.addr(signerKey);
 
         vm.prank(curator);
-        adapter.setMarketMaker(signer, false);
+        adapter.setMakerMaker(address(vault), signer, false);
 
         asset.mint(address(vault), 90 ether);
         tokenToRedeem.mint(filler, 100 ether);
 
         ILiquidityLaneAdapter.SignedSwap memory signedSwap = ILiquidityLaneAdapter.SignedSwap({
             recipient: recipient,
+            vault: address(vault),
             tokenIn: address(tokenToRedeem),
             amountIn: 100 ether,
             amountOut: 90 ether,
             caller: filler,
             signer: signer,
             nonce: 7,
-            deadline: uint48(block.timestamp + 1 days)
+            deadline: block.timestamp + 1 days
         });
-        bytes memory signature = _sign(signerKey, signedSwap);
+        bytes memory signature = _signSignedSwap(signerKey, signedSwap);
 
         vm.startPrank(filler);
-        tokenToRedeem.approve(address(adapter), 100 ether);
+        tokenToRedeem.transfer(address(adapter), 100 ether);
         adapter.swap(signedSwap, signature);
         vm.stopPrank();
 
         assertEq(asset.balanceOf(recipient), 90 ether);
-        assertTrue(adapter.isUsedNonce(address(tokenToRedeem), 7));
+        assertTrue(adapter.isUsedNonce(address(vault), address(tokenToRedeem), 7));
 
         vm.prank(filler);
         vm.expectRevert(ILiquidityLaneAdapter.AlreadyUsedNonce.selector);
         adapter.swap(signedSwap, signature);
+    }
+
+    function testDiscountSwapUsesReusableSignerDiscountAndProtocolCosign() public {
+        uint256 signerKey = 0xB0B;
+        uint256 protocolKey = 0xC0DE;
+        address signer = vm.addr(signerKey);
+        address protocol = vm.addr(protocolKey);
+
+        vm.prank(curator);
+        adapter.setMakerMaker(address(vault), signer, false);
+
+        ILiquidityLaneAdapter.Discount memory discount = ILiquidityLaneAdapter.Discount({
+            vault: address(vault),
+            tokenToRedeem: address(tokenToRedeem),
+            discount: 100_000,
+            signer: signer,
+            protocol: protocol,
+            nonce: 9,
+            deadline: uint48(block.timestamp + 1 days)
+        });
+        bytes memory signerSignature = _signDiscount(signerKey, discount);
+        ILiquidityLaneAdapter.DiscountSwap memory discountSwap = ILiquidityLaneAdapter.DiscountSwap({
+            discount: discount, signerSignature: signerSignature, protocolDeadline: uint48(block.timestamp + 5 minutes)
+        });
+        bytes memory protocolSignature = _signDiscountSwap(protocolKey, discountSwap);
+
+        asset.mint(address(vault), 90 ether);
+        tokenToRedeem.mint(filler, 100 ether);
+
+        vm.startPrank(filler);
+        tokenToRedeem.transfer(address(adapter), 100 ether);
+        adapter.swap(discountSwap, protocolSignature, recipient, 100 ether, 90 ether);
+        vm.stopPrank();
+
+        assertEq(asset.balanceOf(recipient), 90 ether);
+        assertTrue(adapter.isUsedNonce(address(vault), address(tokenToRedeem), 9));
     }
 
     function testSwapRevertsWhenRateViolatesMinDiscount() public {
@@ -171,37 +237,33 @@ contract LiquidityLaneAdapterTest is Test {
         tokenToRedeem.mint(marketMaker, 100 ether);
 
         vm.prank(curator);
-        adapter.setMinDiscount(address(tokenToRedeem), 100_000);
+        adapter.setMinDiscount(address(vault), address(tokenToRedeem), 100_000);
 
         vm.startPrank(marketMaker);
         tokenToRedeem.approve(address(adapter), 100 ether);
-        vm.expectRevert(ILiquidityLaneAdapter.InvalidRate.selector);
+        vm.expectRevert(ILiquidityLaneAdapter.InvalidSwapRate.selector);
         adapter.swap(
             ILiquidityLaneAdapter.Swap({
-                recipient: recipient, tokenIn: address(tokenToRedeem), amountIn: 100 ether, amountOut: 100 ether
+                recipient: recipient,
+                vault: address(vault),
+                tokenIn: address(tokenToRedeem),
+                amountIn: 100 ether,
+                amountOut: 100 ether
             })
         );
         vm.stopPrank();
     }
 
-    function _sign(uint256 signerKey, ILiquidityLaneAdapter.SignedSwap memory signedSwap)
+    function _signSignedSwap(uint256 signerKey, ILiquidityLaneAdapter.SignedSwap memory signedSwap)
         internal
         view
         returns (bytes memory)
     {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes("LiquidityLaneAdapter")),
-                keccak256(bytes("1")),
-                block.chainid,
-                address(adapter)
-            )
-        );
         bytes32 structHash = keccak256(
             abi.encode(
-                LIQUIDITY_LANE_SIGNED_SWAP_TYPEHASH,
+                SIGNED_SWAP_TYPEHASH,
                 signedSwap.recipient,
+                signedSwap.vault,
                 signedSwap.tokenIn,
                 signedSwap.amountIn,
                 signedSwap.amountOut,
@@ -209,6 +271,66 @@ contract LiquidityLaneAdapterTest is Test {
                 signedSwap.signer,
                 signedSwap.nonce,
                 signedSwap.deadline
+            )
+        );
+        return _signDigest(signerKey, structHash);
+    }
+
+    function _signDiscount(uint256 signerKey, ILiquidityLaneAdapter.Discount memory discount)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                DISCOUNT_TYPEHASH,
+                discount.vault,
+                discount.tokenToRedeem,
+                discount.discount,
+                discount.signer,
+                discount.protocol,
+                discount.nonce,
+                discount.deadline
+            )
+        );
+        return _signDigest(signerKey, structHash);
+    }
+
+    function _signDiscountSwap(uint256 signerKey, ILiquidityLaneAdapter.DiscountSwap memory discountSwap)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                DISCOUNT_SWAP_TYPEHASH,
+                keccak256(
+                    abi.encode(
+                        DISCOUNT_TYPEHASH,
+                        discountSwap.discount.vault,
+                        discountSwap.discount.tokenToRedeem,
+                        discountSwap.discount.discount,
+                        discountSwap.discount.signer,
+                        discountSwap.discount.protocol,
+                        discountSwap.discount.nonce,
+                        discountSwap.discount.deadline
+                    )
+                ),
+                keccak256(discountSwap.signerSignature),
+                discountSwap.protocolDeadline
+            )
+        );
+        return _signDigest(signerKey, structHash);
+    }
+
+    function _signDigest(uint256 signerKey, bytes32 structHash) internal view returns (bytes memory) {
+        bytes32 domainSeparator = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes("LiquidityLaneAdapter")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(adapter)
             )
         );
         (uint8 v, bytes32 r, bytes32 s) =
@@ -243,6 +365,10 @@ contract MockLiquidityLaneVault {
         delegator = newDelegator;
     }
 
+    function freeAssets() external view returns (uint256) {
+        return IERC20(asset).balanceOf(address(this));
+    }
+
     function pull(uint256 assets, address receiver) external {
         if (msg.sender != delegator) {
             revert();
@@ -269,6 +395,10 @@ contract MockLiquidityLaneDelegator {
         return IERC20(MockLiquidityLaneVault(vault).asset()).balanceOf(vault);
     }
 
+    function limitOf(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
     function allocate(address adapter, uint256 assets) external returns (uint256 allocated) {
         MockLiquidityLaneVault(vault).pull(assets, adapter);
         allocated = IAdapter(adapter).allocate(assets);
@@ -288,6 +418,7 @@ contract MockLiquidityLaneDelegator {
 contract MockLiquidityLaneAccount is ILiquidityLaneAccount {
     address public immutable adapter;
     address public immutable asset;
+    address public vault;
     uint256 public owed;
 
     constructor(address adapter_, address asset_) {
@@ -295,24 +426,30 @@ contract MockLiquidityLaneAccount is ILiquidityLaneAccount {
         asset = asset_;
     }
 
-    function redeem(uint256, uint256 amountSpent) external {
+    modifier onlyAdapter() {
         if (msg.sender != adapter) {
-            revert();
+            revert NotAdapter();
         }
+        _;
+    }
+
+    function initialize(address vault_) external onlyAdapter {
+        vault = vault_;
+    }
+
+    function redeem() external view {
+        if (msg.sender != adapter) {
+            revert NotAdapter();
+        }
+    }
+
+    function redeem(uint256, uint256 amountSpent) external onlyAdapter {
         owed += amountSpent;
     }
 
-    function convertRedemption(address, address, uint256, uint256, bytes calldata) external view {
-        if (msg.sender != adapter) {
-            revert();
-        }
-    }
+    function convertRedemption(address, address, uint256, uint256, bytes calldata) external view onlyAdapter {}
 
-    function deallocate() external returns (uint256 principal, uint256 rewards) {
-        if (msg.sender != adapter) {
-            revert();
-        }
-
+    function deallocate() external onlyAdapter returns (uint256 principal, uint256 rewards) {
         uint256 balance = IERC20(asset).balanceOf(address(this));
         principal = balance < owed ? balance : owed;
         rewards = balance - principal;
