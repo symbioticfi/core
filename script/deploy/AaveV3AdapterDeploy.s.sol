@@ -16,10 +16,6 @@ contract AaveV3AdapterDeployScript is AaveV3AdapterDeployBaseScript {
     address public constant COW_SWAP_SETTLEMENT = 0x0000000000000000000000000000000000000000;
     // CoW Protocol vault relayer approved by the converter.
     address public constant COW_SWAP_VAULT_RELAYER = 0x0000000000000000000000000000000000000000;
-    // Protocol address allowed to convert immediately.
-    address public constant PROTOCOL = 0x0000000000000000000000000000000000000000;
-    // Maximum accepted CoW order validity duration.
-    uint32 public constant MAX_VALID_TO_DURATION = 1 hours;
     // Rewards contract address used by the adapter.
     address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;
 
@@ -31,8 +27,6 @@ contract AaveV3AdapterDeployScript is AaveV3AdapterDeployBaseScript {
                 curatorRegistry: CURATOR_REGISTRY,
                 cowSwapSettlement: COW_SWAP_SETTLEMENT,
                 cowSwapVaultRelayer: COW_SWAP_VAULT_RELAYER,
-                protocol: PROTOCOL,
-                maxValidToDuration: MAX_VALID_TO_DURATION,
                 rewards: REWARDS
             })
         );

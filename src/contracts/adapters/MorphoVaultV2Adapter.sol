@@ -38,26 +38,16 @@ contract MorphoVaultV2Adapter is CoWSwapConverter, MerklRedistributor, IMorphoVa
     /* CONSTRUCTOR */
 
     constructor(
-        address protocol,
         address vaultFactory,
         address adapterFactory,
         address curatorRegistry,
         address merklDistributor,
         address cowSwapSettlement,
-        uint32 maxValidToDuration,
         address morphoVaultFactory,
         address cowSwapVaultRelayer,
         address morphoAdapterRegistry
     )
-        CoWSwapConverter(
-            protocol,
-            vaultFactory,
-            adapterFactory,
-            curatorRegistry,
-            cowSwapSettlement,
-            maxValidToDuration,
-            cowSwapVaultRelayer
-        )
+        CoWSwapConverter(vaultFactory, adapterFactory, curatorRegistry, cowSwapSettlement, cowSwapVaultRelayer)
         MerklRedistributor(merklDistributor)
     {
         MORPHO_VAULT_FACTORY = morphoVaultFactory;
@@ -71,6 +61,16 @@ contract MorphoVaultV2Adapter is CoWSwapConverter, MerklRedistributor, IMorphoVa
         return
             freeAssets()
                 + IMorphoVaultV2(morphoVault).previewRedeem(IMorphoVaultV2(morphoVault).balanceOf(address(this)));
+    }
+
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+
+    /// @inheritdoc CoWSwapConverter
+    function convert(address tokenIn, uint256 amountIn, bytes calldata data) public virtual override {
+        if (tokenIn == morphoVault) {
+            revert InvalidTokenIn();
+        }
+        super.convert(tokenIn, amountIn, data);
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL) */

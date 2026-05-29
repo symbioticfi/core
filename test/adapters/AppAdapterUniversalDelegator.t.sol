@@ -111,12 +111,10 @@ contract AppAdapterUniversalDelegatorTest is Test {
         adapterFactory.whitelist(
             address(
                 new AppAdapter(
-                    address(0),
                     address(vaultFactory),
                     address(adapterFactory),
                     address(0),
                     address(0),
-                    0,
                     address(0),
                     address(networkMiddlewareService)
                 )

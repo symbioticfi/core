@@ -43,13 +43,11 @@ contract MorphoVaultV2AdapterTest is Test {
         morphoVaultFactory.setVault(address(morphoVault), true);
 
         MorphoVaultV2Adapter implementation = new MorphoVaultV2Adapter(
-            address(0),
             address(vaultFactory),
             address(factory),
             address(curatorRegistry),
             address(0),
             address(0),
-            0,
             address(morphoVaultFactory),
             address(0),
             morphoAdapterRegistry

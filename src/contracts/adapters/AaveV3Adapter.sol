@@ -30,25 +30,15 @@ contract AaveV3Adapter is CoWSwapConverter, MerklRedistributor, IAaveV3Adapter {
     /* CONSTRUCTOR */
 
     constructor(
-        address protocol,
         address aavePool,
         address vaultFactory,
         address adapterFactory,
         address curatorRegistry,
         address merklDistributor,
         address cowSwapSettlement,
-        uint32 maxValidToDuration,
         address cowSwapVaultRelayer
     )
-        CoWSwapConverter(
-            protocol,
-            vaultFactory,
-            adapterFactory,
-            curatorRegistry,
-            cowSwapSettlement,
-            maxValidToDuration,
-            cowSwapVaultRelayer
-        )
+        CoWSwapConverter(vaultFactory, adapterFactory, curatorRegistry, cowSwapSettlement, cowSwapVaultRelayer)
         MerklRedistributor(merklDistributor)
     {
         AAVE_POOL = aavePool;
@@ -64,6 +54,16 @@ contract AaveV3Adapter is CoWSwapConverter, MerklRedistributor, IAaveV3Adapter {
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
         return freeAssets() + IERC20(aToken()).balanceOf(address(this));
+    }
+
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+
+    /// @inheritdoc CoWSwapConverter
+    function convert(address tokenIn, uint256 amountIn, bytes calldata data) public virtual override {
+        if (tokenIn == aToken()) {
+            revert InvalidTokenIn();
+        }
+        super.convert(tokenIn, amountIn, data);
     }
 
     /* INTERNAL FUNCTIONS */

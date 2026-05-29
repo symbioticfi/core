@@ -18,6 +18,9 @@ uint256 constant COW_SWAP_ORDER_UID_LENGTH = 56;
 /// @dev Delay before a prepared conversion can be executed permissionlessly.
 uint256 constant EXECUTION_DELAY = 1 days;
 
+/// @dev Maximum distance allowed between `block.timestamp` and CoW order `validTo`.
+uint32 constant MAX_VALID_TO_DURATION = 5 minutes;
+
 /**
  * @title ICoWSwapSettlement
  * @notice Interface for the CoW Protocol settlement contract.
@@ -181,18 +184,6 @@ interface ICoWSwapConverter is IConverter {
      * @return relayer The CoW Protocol vault relayer.
      */
     function COW_SWAP_VAULT_RELAYER() external view returns (address relayer);
-
-    /**
-     * @notice Returns the protocol address that can convert without a delay.
-     * @return protocol Protocol address.
-     */
-    function PROTOCOL() external view returns (address protocol);
-
-    /**
-     * @notice Returns the maximum distance allowed between `block.timestamp` and `validTo`.
-     * @return duration Maximum valid-to duration in seconds.
-     */
-    function MAX_VALID_TO_DURATION() external view returns (uint32 duration);
 
     /**
      * @notice Returns when a prepared conversion request can be executed.

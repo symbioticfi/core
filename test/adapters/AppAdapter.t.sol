@@ -49,12 +49,10 @@ contract AppAdapterTest is Test {
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
         AppAdapter implementation = new AppAdapter(
-            address(0),
             address(vaultFactory),
             address(factory),
             address(0),
             address(0),
-            0,
             address(0),
             address(networkMiddlewareService)
         );
@@ -296,12 +294,10 @@ contract AppAdapterTest is Test {
 
     function test_MigrateRevertsBecauseUnsupported() public {
         AppAdapter implementation = new AppAdapter(
-            address(0),
             address(vaultFactory),
             address(factory),
             address(0),
             address(0),
-            0,
             address(0),
             address(networkMiddlewareService)
         );

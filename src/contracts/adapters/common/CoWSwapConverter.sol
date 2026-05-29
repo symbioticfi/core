@@ -11,7 +11,8 @@ import {
     COW_SWAP_ORDER_UID_LENGTH,
     EXECUTION_DELAY,
     ICoWSwapConverter,
-    ICoWSwapSettlement
+    ICoWSwapSettlement,
+    MAX_VALID_TO_DURATION
 } from "../../../interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IConverter} from "../../../interfaces/adapters/common/IConverter.sol";
 
@@ -28,13 +29,9 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
     /* IMMUTABLES */
 
     /// @inheritdoc ICoWSwapConverter
-    address public immutable PROTOCOL;
-    /// @inheritdoc ICoWSwapConverter
     address public immutable COW_SWAP_SETTLEMENT;
     /// @inheritdoc ICoWSwapConverter
     address public immutable COW_SWAP_VAULT_RELAYER;
-    /// @inheritdoc ICoWSwapConverter
-    uint32 public immutable MAX_VALID_TO_DURATION;
 
     /* STATE VARIABLES */
 
@@ -44,17 +41,13 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
     /* CONSTRUCTOR */
 
     constructor(
-        address protocol,
         address vaultFactory,
         address adapterFactory,
         address curatorRegistry,
         address cowSwapSettlement,
-        uint32 maxValidToDuration,
         address cowSwapVaultRelayer
     ) Adapter(vaultFactory, adapterFactory, curatorRegistry) {
-        PROTOCOL = protocol;
         COW_SWAP_SETTLEMENT = cowSwapSettlement;
-        MAX_VALID_TO_DURATION = maxValidToDuration;
         COW_SWAP_VAULT_RELAYER = cowSwapVaultRelayer;
     }
 
@@ -66,7 +59,7 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
             revert InvalidTokenIn();
         }
 
-        if (msg.sender != owner() && msg.sender != PROTOCOL) {
+        if (msg.sender != owner()) {
             uint48 timestamp = executableAt[nonces(tokenIn)][keccak256(abi.encode(tokenIn, amountIn, data))];
             if (timestamp == 0) {
                 revert InvalidNonce();

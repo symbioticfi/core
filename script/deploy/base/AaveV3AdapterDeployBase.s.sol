@@ -18,8 +18,6 @@ contract AaveV3AdapterDeployBaseScript is Script {
         address curatorRegistry;
         address cowSwapSettlement;
         address cowSwapVaultRelayer;
-        address protocol;
-        uint32 maxValidToDuration;
         address rewards;
     }
 
@@ -60,14 +58,12 @@ contract AaveV3AdapterDeployBaseScript is Script {
         adapterFactory = address(new AdapterFactory(broadcaster));
         adapterImplementation = address(
             new AaveV3Adapter(
-                params.protocol,
                 params.aavePool,
                 vaultFactory,
                 adapterFactory,
                 params.curatorRegistry,
                 params.rewards,
                 params.cowSwapSettlement,
-                params.maxValidToDuration,
                 params.cowSwapVaultRelayer
             )
         );
@@ -84,8 +80,6 @@ contract AaveV3AdapterDeployBaseScript is Script {
         require(params.curatorRegistry != address(0), "invalid curator registry");
         require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
         require(params.cowSwapVaultRelayer != address(0), "invalid CoW vault relayer");
-        require(params.protocol != address(0), "invalid protocol");
-        require(params.maxValidToDuration != 0, "invalid max valid-to duration");
         require(params.rewards != address(0), "invalid rewards");
     }
 

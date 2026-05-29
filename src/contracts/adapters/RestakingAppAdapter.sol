@@ -47,22 +47,18 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /* CONSTRUCTOR */
 
     constructor(
-        address protocol,
         address vaultFactory,
         address adapterFactory,
         address curatorRegistry,
         address cowSwapSettlement,
-        uint32 maxValidToDuration,
         address cowSwapVaultRelayer,
         address networkMiddlewareService
     )
         AppAdapter(
-            protocol,
             vaultFactory,
             adapterFactory,
             curatorRegistry,
             cowSwapSettlement,
-            maxValidToDuration,
             cowSwapVaultRelayer,
             networkMiddlewareService
         )
@@ -102,8 +98,10 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         public
         override(CoWSwapConverter, IConverter)
     {
-        if (tokenIn == asset) {
-            revert InvalidTokenIn();
+        for (uint256 i; i < underlyingVaults.length; ++i) {
+            if (tokenIn == IERC4626(underlyingVaults[i]).asset()) {
+                revert InvalidTokenIn();
+            }
         }
         super.convert(tokenIn, amountIn, data);
     }
@@ -111,16 +109,19 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /// @inheritdoc IAppAdapter
     function reward(address token, uint256 amount) public override(AppAdapter, IAppAdapter) {
         super.reward(token, amount);
-        if (token == asset) {
-            syncReward();
-        }
+        syncReward();
     }
 
     /// @dev Deposits held base assets through the underlying vault chain.
     function syncReward() public {
-        uint256 amount = IERC20(asset).balanceOf(address(this));
         for (uint256 i = underlyingVaults.length; i > 0; --i) {
-            amount = IERC4626(underlyingVaults[i - 1]).deposit(amount, address(this));
+            address vault = underlyingVaults[i - 1];
+            uint256 amount = Math.min(
+                IERC20(IERC4626(vault).asset()).balanceOf(address(this)), IERC4626(vault).maxDeposit(address(this))
+            );
+            if (amount > 0) {
+                IERC4626(vault).deposit(amount, address(this));
+            }
         }
     }
 
@@ -161,6 +162,7 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /// @inheritdoc IAppAdapter
     function slash(uint256 amount) public override(AppAdapter, IAppAdapter) returns (uint256) {
+        syncSlash();
         return super.slash(_convertToShare(amount));
     }
 

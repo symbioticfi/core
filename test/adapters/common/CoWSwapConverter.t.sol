@@ -4,7 +4,11 @@ pragma solidity ^0.8.0;
 import {Test} from "forge-std/Test.sol";
 
 import {CoWSwapConverter} from "../../../src/contracts/adapters/common/CoWSwapConverter.sol";
-import {EXECUTION_DELAY, ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {
+    EXECUTION_DELAY,
+    ICoWSwapConverter,
+    MAX_VALID_TO_DURATION
+} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 
 import {Token} from "../../mocks/Token.sol";
 
@@ -13,7 +17,7 @@ contract CoWSwapConverterTest is Test {
     CoWSwapConverter internal converter;
     Token internal tokenIn;
     Token internal tokenOut;
-    address internal protocol = makeAddr("protocol");
+    address internal owner = makeAddr("owner");
     address internal relayer = makeAddr("relayer");
 
     function setUp() public {
@@ -22,13 +26,13 @@ contract CoWSwapConverterTest is Test {
         settlement = new CoWSwapSettlementMock();
         tokenIn = new Token("Token In");
         tokenOut = new Token("Token Out");
-        converter = new CoWSwapConverterHarness(protocol, address(settlement), 1 hours, relayer, address(tokenOut));
+        converter = new CoWSwapConverterHarness(owner, address(settlement), relayer, address(tokenOut));
 
         tokenIn.transfer(address(converter), 100);
     }
 
     function test_ConvertPresignsOrderAndApprovesRelayer() public {
-        vm.prank(protocol);
+        vm.prank(owner);
         converter.convert(address(tokenIn), 100, _orderData(100, 90, 0, 1));
 
         assertEq(settlement.lastOrderUid().length, 56);
@@ -38,7 +42,7 @@ contract CoWSwapConverterTest is Test {
 
     function test_ConvertRevertsWhenBalanceIsInsufficient() public {
         vm.expectRevert(ICoWSwapConverter.InsufficientSellBalance.selector);
-        vm.prank(protocol);
+        vm.prank(owner);
         converter.convert(address(tokenIn), 101, _orderData(101, 90, 0, 1));
     }
 
@@ -49,21 +53,23 @@ contract CoWSwapConverterTest is Test {
 
     function test_ConvertRevertsForInvalidOrderBounds() public {
         vm.expectRevert(ICoWSwapConverter.InvalidSellAmount.selector);
-        vm.prank(protocol);
+        vm.prank(owner);
         converter.convert(address(tokenIn), 100, _orderData(99, 90, 0, 1));
 
         vm.expectRevert(ICoWSwapConverter.ExpiredOrder.selector);
-        vm.prank(protocol);
+        vm.prank(owner);
         converter.convert(address(tokenIn), 100, _orderData(100, 90, 0, 3, uint32(block.timestamp)));
 
         vm.expectRevert(ICoWSwapConverter.TooFarValidTo.selector);
-        vm.prank(protocol);
-        converter.convert(address(tokenIn), 100, _orderData(100, 90, 0, 4, uint32(block.timestamp + 1 hours + 1)));
+        vm.prank(owner);
+        converter.convert(
+            address(tokenIn), 100, _orderData(100, 90, 0, 4, uint32(block.timestamp + MAX_VALID_TO_DURATION + 1))
+        );
     }
 
     function test_PrepareConvertAllowsPublicExecutionAfterDelayIfNonceUnchanged() public {
         address caller = makeAddr("caller");
-        bytes memory data = _orderData(100, 90, 0, 1, uint32(block.timestamp + EXECUTION_DELAY + 1 hours));
+        bytes memory data = _orderData(100, 90, 0, 1, uint32(block.timestamp + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
 
         bytes32 requestHash = converter.prepareConvert(address(tokenIn), 100, data);
         uint48 timestamp = converter.executableAt(0, requestHash);
@@ -85,10 +91,10 @@ contract CoWSwapConverterTest is Test {
 
     function test_PreparedConvertRevertsWhenNonceChanged() public {
         address caller = makeAddr("caller");
-        bytes memory data = _orderData(100, 90, 0, 1, uint32(block.timestamp + EXECUTION_DELAY + 1 hours));
+        bytes memory data = _orderData(100, 90, 0, 1, uint32(block.timestamp + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
         converter.prepareConvert(address(tokenIn), 100, data);
 
-        vm.prank(protocol);
+        vm.prank(owner);
         converter.convert(address(tokenIn), 100, _orderData(100, 80, 0, 2));
 
         vm.warp(block.timestamp + EXECUTION_DELAY);
@@ -102,7 +108,7 @@ contract CoWSwapConverterTest is Test {
         view
         returns (bytes memory)
     {
-        return _orderData(sellAmount, buyAmount, feeAmount, salt, uint32(block.timestamp + 1 hours));
+        return _orderData(sellAmount, buyAmount, feeAmount, salt, uint32(block.timestamp + MAX_VALID_TO_DURATION));
     }
 
     function _orderData(uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, uint256 salt, uint32 validTo)
@@ -123,10 +129,17 @@ contract CoWSwapConverterTest is Test {
 }
 
 contract CoWSwapConverterHarness is CoWSwapConverter {
-    constructor(address protocol, address settlement, uint32 maxValidToDuration, address relayer, address asset)
-        CoWSwapConverter(protocol, address(0), address(0), address(0), settlement, maxValidToDuration, relayer)
+    address internal immutable OWNER;
+
+    constructor(address owner_, address settlement, address relayer, address asset)
+        CoWSwapConverter(address(0), address(0), address(0), settlement, relayer)
     {
+        OWNER = owner_;
         vault = address(new CoWSwapVaultMock(asset));
+    }
+
+    function owner() public view override returns (address) {
+        return OWNER;
     }
 
     function totalAssets() public pure override returns (uint256) {

@@ -11,7 +11,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 import {IRestakingAppAdapter} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
-import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {ICoWSwapConverter, MAX_VALID_TO_DURATION} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 
 import {Token} from "../mocks/Token.sol";
 
@@ -60,12 +60,10 @@ contract RestakingAppAdapterTest is Test {
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
         RestakingAppAdapter implementation = new RestakingAppAdapter(
-            address(0),
             address(vaultFactory),
             address(factory),
             address(0),
             address(settlement),
-            1 hours,
             relayer,
             address(networkMiddlewareService)
         );
@@ -436,7 +434,7 @@ contract RestakingAppAdapterTest is Test {
             ICoWSwapConverter.OrderParams({
                 sellAmount: sellAmount,
                 buyAmount: buyAmount,
-                validTo: uint32(block.timestamp + 1 hours),
+                validTo: uint32(block.timestamp + MAX_VALID_TO_DURATION),
                 appData: bytes32(salt),
                 feeAmount: feeAmount
             })
