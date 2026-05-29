@@ -19,7 +19,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract MorphoVaultV2AdapterTest is Test {
     MorphoAdapterRegistryMock internal vaultFactory;
     AdapterFactory internal factory;
-    MorphoCuratorRegistryMock internal curatorRegistry;
     MorphoVaultFactoryMock internal morphoVaultFactory;
     Token internal collateral;
     MorphoAdapterVaultMock internal vault;
@@ -33,24 +32,15 @@ contract MorphoVaultV2AdapterTest is Test {
     function setUp() public {
         vaultFactory = new MorphoAdapterRegistryMock();
         factory = new AdapterFactory(address(this));
-        curatorRegistry = new MorphoCuratorRegistryMock();
         morphoVaultFactory = new MorphoVaultFactoryMock();
         collateral = new Token("Collateral");
         vault = new MorphoAdapterVaultMock(address(collateral), delegator);
         morphoVault = new MorphoVaultMock(address(collateral), morphoAdapterRegistry);
         vaultFactory.add(address(vault));
-        curatorRegistry.setCurator(address(vault), curator);
         morphoVaultFactory.setVault(address(morphoVault), true);
 
         MorphoVaultV2Adapter implementation = new MorphoVaultV2Adapter(
-            address(vaultFactory),
-            address(factory),
-            address(curatorRegistry),
-            address(0),
-            address(0),
-            address(morphoVaultFactory),
-            address(0),
-            morphoAdapterRegistry
+            address(vaultFactory), address(factory), address(morphoVaultFactory), morphoAdapterRegistry
         );
         factory.whitelist(address(implementation));
 
@@ -181,18 +171,6 @@ contract MorphoVaultV2AdapterTest is Test {
 contract MorphoAdapterRegistryMock is Registry {
     function add(address entity) external {
         _addEntity(entity);
-    }
-}
-
-contract MorphoCuratorRegistryMock {
-    mapping(address vault => address curator) public curatorOf;
-
-    function setCurator(address vault, address curator) external {
-        curatorOf[vault] = curator;
-    }
-
-    function getCurator(address vault) external view returns (address) {
-        return curatorOf[vault];
     }
 }
 

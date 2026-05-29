@@ -3,7 +3,6 @@
 pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
-import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
 
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
@@ -22,7 +21,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title AppAdapter
 /// @notice Single network-operator guarantee adapter.
-contract AppAdapter is CoWSwapConverter, IAppAdapter {
+contract AppAdapter is Adapter, IAppAdapter {
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using Subnetwork for bytes32;
@@ -54,14 +53,9 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
 
     /* CONSTRUCTOR */
 
-    constructor(
-        address vaultFactory,
-        address adapterFactory,
-        address curatorRegistry,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer,
-        address networkMiddlewareService
-    ) CoWSwapConverter(vaultFactory, adapterFactory, curatorRegistry, cowSwapSettlement, cowSwapVaultRelayer) {
+    constructor(address vaultFactory, address adapterFactory, address networkMiddlewareService)
+        Adapter(vaultFactory, adapterFactory)
+    {
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
@@ -101,13 +95,6 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
         Stake storage curStake = _stakes[_stakePos.upperLookupRecent(timestamp)];
         return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
             .saturatingSub(curStake.debt.upperLookupRecent(uint48(timestamp) + duration - 1));
-    }
-
-    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
-
-    /// @inheritdoc IAppAdapter
-    function reward(address token, uint256 amount) public virtual override {
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /* PUBLIC FUNCTIONS (NETWORK) */

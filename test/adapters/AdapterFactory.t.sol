@@ -110,7 +110,7 @@ contract MockRegistry is Registry {
 }
 
 contract MockAdapter is Adapter {
-    constructor(address vaultFactory, address adapterFactory) Adapter(vaultFactory, adapterFactory, address(0)) {}
+    constructor(address vaultFactory, address adapterFactory) Adapter(vaultFactory, adapterFactory) {}
 
     function totalAssets() public view override returns (uint256) {
         return 0;

@@ -43,10 +43,9 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
     constructor(
         address vaultFactory,
         address adapterFactory,
-        address curatorRegistry,
         address cowSwapSettlement,
         address cowSwapVaultRelayer
-    ) Adapter(vaultFactory, adapterFactory, curatorRegistry) {
+    ) Adapter(vaultFactory, adapterFactory) {
         COW_SWAP_SETTLEMENT = cowSwapSettlement;
         COW_SWAP_VAULT_RELAYER = cowSwapVaultRelayer;
     }

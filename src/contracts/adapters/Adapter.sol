@@ -6,9 +6,7 @@ import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {Multicallable} from "../common/Multicallable.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
-import {ICuratorRegistry} from "../../interfaces/adapters/ICuratorRegistry.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -24,21 +22,13 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
 
     /// @dev Vault factory used to validate adapter initialization vaults.
     address internal immutable VAULT_FACTORY;
-    /// @dev Curator registry used to authorize loss recovery.
-    address internal immutable CURATOR_REGISTRY;
 
     /* STATE VARIABLES */
 
     /// @inheritdoc IAdapter
     address public vault;
-    /* MODIFIERS */
 
-    modifier onlyCurator() {
-        if (ICuratorRegistry(CURATOR_REGISTRY).getCurator(vault) != msg.sender) {
-            revert NotCurator();
-        }
-        _;
-    }
+    /* MODIFIERS */
 
     modifier onlyDelegator() {
         if (IVaultV2(vault).delegator() != msg.sender) {
@@ -49,11 +39,8 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
 
     /* CONSTRUCTOR */
 
-    constructor(address vaultFactory, address adapterFactory, address curatorRegistry)
-        MigratableEntity(adapterFactory)
-    {
+    constructor(address vaultFactory, address adapterFactory) MigratableEntity(adapterFactory) {
         VAULT_FACTORY = vaultFactory;
-        CURATOR_REGISTRY = curatorRegistry;
     }
 
     /* VIEW FUNCTIONS */

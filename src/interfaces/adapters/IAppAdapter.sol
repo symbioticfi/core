@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {IAdapter} from "./IAdapter.sol";
-import {ICoWSwapConverter} from "./common/ICoWSwapConverter.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 
@@ -13,7 +12,7 @@ uint256 constant BURNER_RESERVE = 20_000;
  * @title IAppAdapter
  * @notice Interface for a single app/network-operator guarantee adapter.
  */
-interface IAppAdapter is IAdapter, ICoWSwapConverter {
+interface IAppAdapter is IAdapter {
     /* ERRORS */
 
     /**
@@ -154,13 +153,6 @@ interface IAppAdapter is IAdapter, ICoWSwapConverter {
      * @return amount Guaranteed stake.
      */
     function stakeAt(uint48 timestamp) external view returns (uint256 amount);
-
-    /**
-     * @notice Transfer reward assets from the caller to the vault.
-     * @param token Reward token to transfer.
-     * @param amount Amount of assets to transfer.
-     */
-    function reward(address token, uint256 amount) external;
 
     /**
      * @notice Reduce the configured pair's needed slashable stake.

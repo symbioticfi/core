@@ -553,14 +553,7 @@ contract AppAdapterInvariantHandler is Test {
 
         adapterFactory.whitelist(
             address(
-                new AppAdapter(
-                    address(vaultFactory),
-                    address(adapterFactory),
-                    address(0),
-                    address(0),
-                    address(0),
-                    address(networkMiddlewareService)
-                )
+                new AppAdapter(address(vaultFactory), address(adapterFactory), address(networkMiddlewareService))
             )
         );
 

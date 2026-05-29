@@ -46,7 +46,7 @@ contract LiquidityLaneAdapterTest is Test {
         vault.setDelegator(address(delegator));
         vaultFactory.add(address(vault));
 
-        LiquidityLaneAdapter implementation = new LiquidityLaneAdapter(address(vaultFactory), adapterFactory, address(0));
+        LiquidityLaneAdapter implementation = new LiquidityLaneAdapter(address(vaultFactory), adapterFactory);
         adapter = LiquidityLaneAdapter(
             address(
                 new MigratableEntityProxy(

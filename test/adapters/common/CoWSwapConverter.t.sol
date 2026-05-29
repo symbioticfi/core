@@ -132,7 +132,7 @@ contract CoWSwapConverterHarness is CoWSwapConverter {
     address internal immutable OWNER;
 
     constructor(address owner_, address settlement, address relayer, address asset)
-        CoWSwapConverter(address(0), address(0), address(0), settlement, relayer)
+        CoWSwapConverter(address(0), address(0), settlement, relayer)
     {
         OWNER = owner_;
         vault = address(new CoWSwapVaultMock(asset));

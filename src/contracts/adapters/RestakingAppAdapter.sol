@@ -3,21 +3,14 @@
 pragma solidity ^0.8.28;
 
 import {AppAdapter} from "./AppAdapter.sol";
-import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
-
-import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../interfaces/adapters/IAppAdapter.sol";
-import {IConverter} from "../../interfaces/adapters/common/IConverter.sol";
-import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IRestakingAppAdapter, MAX_DEPTH} from "../../interfaces/adapters/IRestakingAppAdapter.sol";
-import {IUniversalDelegator, MAX_SHARE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
 
-import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -26,9 +19,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 /// @title RestakingAppAdapter
 /// @notice App adapter for ERC4626 restaking-token vault assets with base-asset rewards and slashing.
 contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
-    using Checkpoints for Checkpoints.Trace256;
-    using Checkpoints for Checkpoints.Trace208;
-    using Subnetwork for bytes32;
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -46,22 +36,8 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /* CONSTRUCTOR */
 
-    constructor(
-        address vaultFactory,
-        address adapterFactory,
-        address curatorRegistry,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer,
-        address networkMiddlewareService
-    )
-        AppAdapter(
-            vaultFactory,
-            adapterFactory,
-            curatorRegistry,
-            cowSwapSettlement,
-            cowSwapVaultRelayer,
-            networkMiddlewareService
-        )
+    constructor(address vaultFactory, address adapterFactory, address networkMiddlewareService)
+        AppAdapter(vaultFactory, adapterFactory, networkMiddlewareService)
     {}
 
     /* VIEW FUNCTIONS */
@@ -92,25 +68,6 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     }
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
-
-    /// @inheritdoc IConverter
-    function convert(address tokenIn, uint256 amountIn, bytes calldata data)
-        public
-        override(CoWSwapConverter, IConverter)
-    {
-        for (uint256 i; i < underlyingVaults.length; ++i) {
-            if (tokenIn == IERC4626(underlyingVaults[i]).asset()) {
-                revert InvalidTokenIn();
-            }
-        }
-        super.convert(tokenIn, amountIn, data);
-    }
-
-    /// @inheritdoc IAppAdapter
-    function reward(address token, uint256 amount) public override(AppAdapter, IAppAdapter) {
-        super.reward(token, amount);
-        syncReward();
-    }
 
     /// @dev Deposits held base assets through the underlying vault chain.
     function syncReward() public {
@@ -241,8 +198,4 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         return amount;
     }
 
-    /// @inheritdoc CoWSwapConverter
-    function _convertTokenOut() internal view override returns (address) {
-        return asset;
-    }
 }

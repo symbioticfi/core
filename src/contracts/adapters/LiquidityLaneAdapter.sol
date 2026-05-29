@@ -95,9 +95,9 @@ contract LiquidityLaneAdapter is EIP712, Adapter, ILiquidityLaneAdapter {
 
     /* CONSTRUCTOR */
 
-    constructor(address vaultFactory, address adapterFactory, address curatorRegistry)
+    constructor(address vaultFactory, address adapterFactory)
         EIP712("LiquidityLaneAdapter", "1")
-        Adapter(vaultFactory, adapterFactory, curatorRegistry)
+        Adapter(vaultFactory, adapterFactory)
     {}
 
     /* VIEW FUNCTIONS */

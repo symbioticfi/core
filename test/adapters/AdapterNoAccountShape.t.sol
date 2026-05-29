@@ -10,26 +10,11 @@ contract AdapterNoAccountShapeTest is Test {
     function test_ConstructorsDoNotRequireAccountBeacon() public {
         address adapterFactory = makeAddr("adapterFactory");
         address aavePool = makeAddr("aavePool");
-        address curatorRegistry = makeAddr("curatorRegistry");
-        address rewards = makeAddr("rewards");
         address vaultFactory = makeAddr("vaultFactory");
         address morphoVaultFactory = makeAddr("morphoVaultFactory");
         address morphoAdapterRegistry = makeAddr("morphoAdapterRegistry");
-        address cowSwapSettlement = makeAddr("cowSwapSettlement");
-        address cowSwapVaultRelayer = makeAddr("cowSwapVaultRelayer");
 
-        new AaveV3Adapter(
-            aavePool, vaultFactory, adapterFactory, curatorRegistry, rewards, cowSwapSettlement, cowSwapVaultRelayer
-        );
-        new MorphoVaultV2Adapter(
-            vaultFactory,
-            adapterFactory,
-            curatorRegistry,
-            rewards,
-            cowSwapSettlement,
-            morphoVaultFactory,
-            cowSwapVaultRelayer,
-            morphoAdapterRegistry
-        );
+        new AaveV3Adapter(aavePool, vaultFactory, adapterFactory);
+        new MorphoVaultV2Adapter(vaultFactory, adapterFactory, morphoVaultFactory, morphoAdapterRegistry);
     }
 }
