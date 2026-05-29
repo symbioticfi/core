@@ -79,6 +79,11 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
 
     /// @inheritdoc IAppAdapter
     function slashable() public view virtual returns (uint256) {
+        return _slashable();
+    }
+
+    /// @dev Computes the slashable stake for the current stake.
+    function _slashable() internal view returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.latest()];
         return curStake.initialStake.saturatingSub(curStake.slashed.latest())
             .saturatingSub(curStake.debt.upperLookupRecent(block.timestamp));
@@ -113,6 +118,7 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
             revert NotNetworkMiddleware();
         }
 
+        amount = Math.min(amount, _slashable());
         if (amount == 0) {
             revert InsufficientSlash();
         }
@@ -139,6 +145,7 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
             revert NotNetworkOrMiddleware();
         }
 
+        amount = Math.min(amount, _slashable());
         if (amount == 0) {
             revert InsufficientReset();
         }
@@ -170,7 +177,7 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
 
     /// @dev Requests delayed deallocation debt accounting.
     function _requestDeallocate(uint256 amount) internal virtual override {
-        uint256 curSlashable = slashable();
+        uint256 curSlashable = _slashable();
 
         // Reset stake, debt, and slashed when the debt was reduced enough.
         if (

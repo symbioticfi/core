@@ -271,6 +271,26 @@ contract RestakingAppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), 0);
     }
 
+    function test_SlashSaturatesUsingVaultAssetShares() public {
+        _allocateRestakingShares(100);
+        baseAsset.transfer(address(restakingToken), 100);
+
+        vm.expectEmit(true, true, true, true, address(adapter));
+        emit IAppAdapter.Slash(100);
+
+        vm.prank(networkMiddleware);
+        uint256 slashedAmount = adapter.slash(250);
+
+        assertEq(slashedAmount, 100);
+        assertEq(baseAsset.balanceOf(burner), 200);
+        assertEq(restakingToken.balanceOf(address(adapter)), 0);
+        assertEq(adapter.stake(), 0);
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.freeAssets(), 0);
+        assertEq(delegator.lastDecreaseAssets(), 100);
+        assertEq(delegator.lastDecreaseShare(), 0);
+    }
+
     function test_ResetAccountsInVaultAssetShares() public {
         _allocateRestakingShares(100);
         baseAsset.transfer(address(restakingToken), 100);
@@ -505,6 +525,10 @@ contract RestakingTokenMock is ERC20 {
     function previewWithdraw(uint256 assets) public view returns (uint256) {
         uint256 supply = totalSupply();
         return supply == 0 ? assets : Math.mulDiv(assets, supply, totalAssets(), Math.Rounding.Ceil);
+    }
+
+    function maxDeposit(address) public pure returns (uint256) {
+        return type(uint256).max;
     }
 
     function deposit(uint256 assets, address receiver) public returns (uint256 shares) {

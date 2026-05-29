@@ -13,8 +13,6 @@ import {IAppAdapter, BURNER_GAS_LIMIT} from "../../src/interfaces/adapters/IAppA
 
 import {Token} from "../mocks/Token.sol";
 
-import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
-
 contract AppAdapterTest is Test {
     using Subnetwork for address;
 
@@ -241,6 +239,24 @@ contract AppAdapterTest is Test {
         assertEq(collateral.balanceOf(burner), 40);
     }
 
+    function test_SlashSaturatesAtCurrentSlashable() public {
+        _allocate(100);
+
+        vm.expectEmit(true, true, true, true, address(adapter));
+        emit IAppAdapter.Slash(100);
+
+        vm.prank(networkMiddleware);
+        uint256 slashedAmount = adapter.slash(150);
+
+        assertEq(slashedAmount, 100);
+        assertEq(adapter.totalAssets(), 0);
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.stake(), 0);
+        assertEq(collateral.balanceOf(burner), 100);
+        assertEq(delegator.lastDecreaseAssets(), 100);
+        assertEq(delegator.lastDecreaseShare(), 0);
+    }
+
     function test_ResetCanBeCalledByNetworkAndReducesSlashableWithoutMovingAssets() public {
         _allocate(100);
 
@@ -279,7 +295,7 @@ contract AppAdapterTest is Test {
         _allocate(100);
 
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IAppAdapter.Reset(150);
+        emit IAppAdapter.Reset(100);
 
         vm.prank(network);
         adapter.reset(150);
@@ -342,7 +358,7 @@ contract AppAdapterTest is Test {
         vm.prank(networkMiddleware);
         adapter.slash(0);
 
-        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, address(adapter), 0, 1));
+        vm.expectRevert(IAppAdapter.InsufficientSlash.selector);
         vm.prank(networkMiddleware);
         adapter.slash(1);
     }
