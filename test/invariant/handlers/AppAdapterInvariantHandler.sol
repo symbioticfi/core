@@ -333,9 +333,9 @@ contract AppAdapterInvariantHandler is Test {
         }
     }
 
-    function reset(uint256, uint256 callerSeed) external {
+    function release(uint256, uint256 callerSeed) external {
         vm.prank(callerSeed % 2 == 0 ? network : networkMiddleware);
-        try adapter.reset() {
+        try adapter.release() {
             _clearObservations();
             _afterAction(true);
         } catch {

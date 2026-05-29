@@ -263,15 +263,15 @@ contract RestakingAppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), 0);
     }
 
-    function test_ResetClearsSlashableInVaultAssetShares() public {
+    function test_ReleaseClearsSlashableInVaultAssetShares() public {
         _allocateRestakingShares(100);
         baseAsset.transfer(address(restakingToken), 100);
 
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IAppAdapter.Reset();
+        emit IAppAdapter.Release();
 
         vm.prank(network);
-        adapter.reset();
+        adapter.release();
 
         assertEq(adapter.totalAssets(), 100);
         assertEq(adapter.slashable(), 0);

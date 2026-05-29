@@ -33,7 +33,7 @@ contract AppAdapterInvariantsTest is Test {
         selectors[18] = AppAdapterInvariantHandler.setVaultFees.selector;
         selectors[19] = AppAdapterInvariantHandler.accrueInterest.selector;
         selectors[20] = AppAdapterInvariantHandler.slash.selector;
-        selectors[21] = AppAdapterInvariantHandler.reset.selector;
+        selectors[21] = AppAdapterInvariantHandler.release.selector;
         selectors[22] = AppAdapterInvariantHandler.observeCurrentStakeAt.selector;
         selectors[23] = AppAdapterInvariantHandler.quoteWithdrawable.selector;
         selectors[24] = AppAdapterInvariantHandler.warp.selector;

@@ -125,7 +125,7 @@ contract AppAdapter is Adapter, IAppAdapter {
     }
 
     /// @inheritdoc IAppAdapter
-    function reset() public virtual {
+    function release() public virtual {
         if (
             subnetwork.network() != msg.sender
                 && INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender
@@ -137,7 +137,7 @@ contract AppAdapter is Adapter, IAppAdapter {
         _stakes.push();
         IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(type(uint256).max, MAX_SHARE);
 
-        emit Reset();
+        emit Release();
     }
 
     /* INTERNAL FUNCTIONS */

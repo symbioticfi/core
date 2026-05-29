@@ -237,14 +237,14 @@ contract AppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), 0);
     }
 
-    function test_ResetCanBeCalledByNetworkAndClearsSlashableWithoutMovingAssets() public {
+    function test_ReleaseCanBeCalledByNetworkAndClearsSlashableWithoutMovingAssets() public {
         _allocate(100);
 
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IAppAdapter.Reset();
+        emit IAppAdapter.Release();
 
         vm.prank(network);
-        adapter.reset();
+        adapter.release();
 
         assertEq(adapter.totalAssets(), 100);
         assertEq(adapter.slashable(), 0);
@@ -256,29 +256,29 @@ contract AppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
     }
 
-    function test_ResetCanBeCalledByNetworkMiddleware() public {
+    function test_ReleaseCanBeCalledByNetworkMiddleware() public {
         _allocate(100);
 
         vm.prank(networkMiddleware);
-        adapter.reset();
+        adapter.release();
 
         assertEq(adapter.slashable(), 0);
         assertEq(adapter.freeAssets(), 100);
     }
 
-    function test_ResetRejectsCallerOutsideNetworkAndMiddleware() public {
+    function test_ReleaseRejectsCallerOutsideNetworkAndMiddleware() public {
         _allocate(100);
 
         vm.expectRevert(IAppAdapter.NotNetworkOrMiddleware.selector);
-        adapter.reset();
+        adapter.release();
     }
 
-    function test_ResetCanBeCalledWithoutExistingSlashable() public {
+    function test_ReleaseCanBeCalledWithoutExistingSlashable() public {
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IAppAdapter.Reset();
+        emit IAppAdapter.Release();
 
         vm.prank(network);
-        adapter.reset();
+        adapter.release();
 
         assertEq(adapter.totalAssets(), 0);
         assertEq(adapter.slashable(), 0);
@@ -289,10 +289,10 @@ contract AppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
     }
 
-    function test_ResetCanBeCalledAfterSlashableWasAlreadyCleared() public {
+    function test_ReleaseCanBeCalledAfterSlashableWasAlreadyCleared() public {
         _allocate(100);
         vm.prank(network);
-        adapter.reset();
+        adapter.release();
 
         assertEq(adapter.totalAssets(), 100);
         assertEq(adapter.slashable(), 0);
@@ -300,7 +300,7 @@ contract AppAdapterTest is Test {
         assertEq(adapter.freeAssets(), 100);
 
         vm.prank(network);
-        adapter.reset();
+        adapter.release();
 
         assertEq(adapter.totalAssets(), 100);
         assertEq(adapter.slashable(), 0);

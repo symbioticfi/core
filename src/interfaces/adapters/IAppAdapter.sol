@@ -87,9 +87,9 @@ interface IAppAdapter is IAdapter {
     event Slash(uint256 amount);
 
     /**
-     * @notice Emitted when slashable stake is reset by the network.
+     * @notice Emitted when slashable stake is released by the network.
      */
-    event Reset();
+    event Release();
 
     /**
      * @notice Emitted when the adapter is initialized.
@@ -149,10 +149,10 @@ interface IAppAdapter is IAdapter {
     function stakeAt(uint48 timestamp) external view returns (uint256 amount);
 
     /**
-     * @notice Reset the configured pair's slashable stake.
+     * @notice Release the configured pair's slashable stake.
      * @dev Only the configured network or its middleware can call this function.
      */
-    function reset() external;
+    function release() external;
 
     /**
      * @notice Slash the configured pair.
