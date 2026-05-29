@@ -271,6 +271,26 @@ contract RestakingAppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), 0);
     }
 
+    function test_ResetAccountsInVaultAssetShares() public {
+        _allocateRestakingShares(100);
+        baseAsset.transfer(address(restakingToken), 100);
+
+        uint256 expectedResetShares = restakingToken.previewDeposit(40);
+
+        vm.expectEmit(true, true, true, true, address(adapter));
+        emit IAppAdapter.Reset(expectedResetShares);
+
+        vm.prank(network);
+        adapter.reset(40);
+
+        assertEq(adapter.totalAssets(), 100);
+        assertEq(adapter.slashable(), restakingToken.previewRedeem(100 - expectedResetShares));
+        assertEq(adapter.stake(), restakingToken.previewRedeem(100 - expectedResetShares));
+        assertEq(adapter.freeAssets(), expectedResetShares);
+        assertEq(baseAsset.balanceOf(burner), 0);
+        assertEq(delegator.decreaseLimitsCalls(), 0);
+    }
+
     function test_SlashWithdrawsThroughNestedVaultsAndBurnsBaseAsset() public {
         (IRestakingAppAdapter nestedAdapter, RestakingTokenMock outerVault, RestakingTokenMock middleVault) =
             _createNestedAdapter();

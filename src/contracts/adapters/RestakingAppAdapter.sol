@@ -166,6 +166,12 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         return super.slash(_convertToShare(amount));
     }
 
+    /// @inheritdoc IAppAdapter
+    function reset(uint256 amount) public override(AppAdapter, IAppAdapter) {
+        syncSlash();
+        super.reset(_convertToShare(amount));
+    }
+
     /* INITIALIZATION */
 
     /// @dev Initializes the configured base asset and network-operator pair.

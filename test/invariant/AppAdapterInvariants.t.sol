@@ -11,7 +11,7 @@ contract AppAdapterInvariantsTest is Test {
     function setUp() public {
         handler = new AppAdapterInvariantHandler();
 
-        bytes4[] memory selectors = new bytes4[](25);
+        bytes4[] memory selectors = new bytes4[](26);
         selectors[0] = AppAdapterInvariantHandler.deposit.selector;
         selectors[1] = AppAdapterInvariantHandler.mint.selector;
         selectors[2] = AppAdapterInvariantHandler.withdraw.selector;
@@ -33,10 +33,11 @@ contract AppAdapterInvariantsTest is Test {
         selectors[18] = AppAdapterInvariantHandler.setVaultFees.selector;
         selectors[19] = AppAdapterInvariantHandler.accrueInterest.selector;
         selectors[20] = AppAdapterInvariantHandler.slash.selector;
-        selectors[21] = AppAdapterInvariantHandler.observeCurrentStakeAt.selector;
-        selectors[22] = AppAdapterInvariantHandler.quoteWithdrawable.selector;
-        selectors[23] = AppAdapterInvariantHandler.warp.selector;
-        selectors[24] = AppAdapterInvariantHandler.warpToBoundary.selector;
+        selectors[21] = AppAdapterInvariantHandler.reset.selector;
+        selectors[22] = AppAdapterInvariantHandler.observeCurrentStakeAt.selector;
+        selectors[23] = AppAdapterInvariantHandler.quoteWithdrawable.selector;
+        selectors[24] = AppAdapterInvariantHandler.warp.selector;
+        selectors[25] = AppAdapterInvariantHandler.warpToBoundary.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));

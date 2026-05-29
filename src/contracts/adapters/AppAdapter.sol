@@ -130,6 +130,25 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
         return amount;
     }
 
+    /// @inheritdoc IAppAdapter
+    function reset(uint256 amount) public virtual {
+        if (
+            subnetwork.network() != msg.sender
+                && INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender
+        ) {
+            revert NotNetworkOrMiddleware();
+        }
+
+        if (amount == 0) {
+            revert InsufficientReset();
+        }
+
+        Stake storage curStake = _stakes[_stakePos.latest()];
+        curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + amount);
+
+        emit Reset(amount);
+    }
+
     /* INTERNAL FUNCTIONS */
 
     /// @dev Allocates an amount into a fresh stake checkpoint.

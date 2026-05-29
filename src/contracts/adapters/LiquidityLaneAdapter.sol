@@ -4,21 +4,21 @@ pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
 
+import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
+import {ILiquidityLaneAccount} from "../../interfaces/adapters/liquidity_lane_adapter/ILiquidityLaneAccount.sol";
 import {
     ILiquidityLaneAdapter,
     LIQUIDITY_LANE_DISCOUNT_PRECISION,
     LIQUIDITY_LANE_MAX_TOKENS,
     LIQUIDITY_LANE_SIGNED_SWAP_TYPEHASH
 } from "../../interfaces/adapters/ILiquidityLaneAdapter.sol";
-import {ILiquidityLaneAccount} from "../../interfaces/adapters/liquidity_lane_adapter/ILiquidityLaneAccount.sol";
 import {ILiquidityLaneOracle} from "../../interfaces/adapters/liquidity_lane_adapter/ILiquidityLaneOracle.sol";
-import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -192,7 +192,7 @@ contract LiquidityLaneAdapter is EIP712, Adapter, ILiquidityLaneAdapter {
     /// @notice Prefunds acquisition balances with vault assets.
     function depositToAcquire(address tokenToRedeem, uint256 amount) public nonReentrant {
         bool isCurator = msg.sender == owner();
-        if (!isCurator && (!marketMakerCanAcquire || msg.sender != marketMaker)) {
+        if (!isCurator && (!marketMakerCanAcquire || marketMaker != msg.sender)) {
             revert DepositNotAllowed();
         }
 
@@ -226,7 +226,7 @@ contract LiquidityLaneAdapter is EIP712, Adapter, ILiquidityLaneAdapter {
 
     /// @notice Sets filler authorization for the configured market maker.
     function setFiller(address filler, bool isAuthorized) public {
-        if (msg.sender != owner() && msg.sender != marketMaker) {
+        if (owner() != msg.sender && marketMaker != msg.sender) {
             revert InvalidCaller();
         }
 

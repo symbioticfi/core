@@ -22,6 +22,11 @@ interface IAppAdapter is IAdapter, ICoWSwapConverter {
     error InsufficientBurnerGas();
 
     /**
+     * @notice Raised when a reset amount is zero.
+     */
+    error InsufficientReset();
+
+    /**
      * @notice Raised when a slash has no slashable stake.
      */
     error InsufficientSlash();
@@ -45,6 +50,11 @@ interface IAppAdapter is IAdapter, ICoWSwapConverter {
      * @notice Raised when the caller is not the subnetwork middleware.
      */
     error NotNetworkMiddleware();
+
+    /**
+     * @notice Raised when the caller is neither the network nor its middleware.
+     */
+    error NotNetworkOrMiddleware();
 
     /* STRUCTS */
 
@@ -81,6 +91,12 @@ interface IAppAdapter is IAdapter, ICoWSwapConverter {
      * @param amount Slashed amount.
      */
     event Slash(uint256 amount);
+
+    /**
+     * @notice Emitted when slashable stake is reset by the network.
+     * @param amount Reset amount.
+     */
+    event Reset(uint256 amount);
 
     /**
      * @notice Emitted when the adapter is initialized.
@@ -145,6 +161,13 @@ interface IAppAdapter is IAdapter, ICoWSwapConverter {
      * @param amount Amount of assets to transfer.
      */
     function reward(address token, uint256 amount) external;
+
+    /**
+     * @notice Reduce the configured pair's needed slashable stake.
+     * @param amount Maximum amount to reset.
+     * @dev Only the configured network or its middleware can call this function.
+     */
+    function reset(uint256 amount) external;
 
     /**
      * @notice Slash the configured pair.

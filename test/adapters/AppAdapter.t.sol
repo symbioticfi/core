@@ -241,6 +241,61 @@ contract AppAdapterTest is Test {
         assertEq(collateral.balanceOf(burner), 40);
     }
 
+    function test_ResetCanBeCalledByNetworkAndReducesSlashableWithoutMovingAssets() public {
+        _allocate(100);
+
+        vm.expectEmit(true, true, true, true, address(adapter));
+        emit IAppAdapter.Reset(40);
+
+        vm.prank(network);
+        adapter.reset(40);
+
+        assertEq(adapter.totalAssets(), 100);
+        assertEq(adapter.slashable(), 60);
+        assertEq(adapter.stake(), 60);
+        assertEq(adapter.freeAssets(), 40);
+        assertEq(collateral.balanceOf(burner), 0);
+        assertEq(delegator.decreaseLimitsCalls(), 0);
+    }
+
+    function test_ResetCanBeCalledByNetworkMiddleware() public {
+        _allocate(100);
+
+        vm.prank(networkMiddleware);
+        adapter.reset(40);
+
+        assertEq(adapter.slashable(), 60);
+        assertEq(adapter.freeAssets(), 40);
+    }
+
+    function test_ResetRejectsCallerOutsideNetworkAndMiddleware() public {
+        _allocate(100);
+
+        vm.expectRevert(IAppAdapter.NotNetworkOrMiddleware.selector);
+        adapter.reset(40);
+    }
+
+    function test_ResetSaturatesAtCurrentSlashable() public {
+        _allocate(100);
+
+        vm.expectEmit(true, true, true, true, address(adapter));
+        emit IAppAdapter.Reset(150);
+
+        vm.prank(network);
+        adapter.reset(150);
+
+        assertEq(adapter.totalAssets(), 100);
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.stake(), 0);
+        assertEq(adapter.freeAssets(), 100);
+    }
+
+    function test_ResetRejectsZeroAmount() public {
+        vm.expectRevert(IAppAdapter.InsufficientReset.selector);
+        vm.prank(network);
+        adapter.reset(0);
+    }
+
     function test_SlashTransfersToBurnerAndCallsHook() public {
         AppAdapterBurnerMock burnerMock = new AppAdapterBurnerMock();
         IAppAdapter localAdapter = _createAdapter(address(burnerMock));

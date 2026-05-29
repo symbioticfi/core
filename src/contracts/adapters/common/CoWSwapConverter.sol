@@ -59,7 +59,7 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
             revert InvalidTokenIn();
         }
 
-        if (msg.sender != owner()) {
+        if (owner() != msg.sender) {
             uint48 timestamp = executableAt[nonces(tokenIn)][keccak256(abi.encode(tokenIn, amountIn, data))];
             if (timestamp == 0) {
                 revert InvalidNonce();

@@ -333,6 +333,23 @@ contract AppAdapterInvariantHandler is Test {
         }
     }
 
+    function reset(uint256 amount, uint256 callerSeed) external {
+        uint256 slashable = adapter.slashable();
+        if (slashable == 0) {
+            _afterAction(false);
+            return;
+        }
+
+        amount = bound(amount, 1, slashable);
+        vm.prank(callerSeed % 2 == 0 ? network : networkMiddleware);
+        try adapter.reset(amount) {
+            _clearObservations();
+            _afterAction(true);
+        } catch {
+            _afterAction(false);
+        }
+    }
+
     function observeCurrentStakeAt() external {
         _afterAction(false);
     }
