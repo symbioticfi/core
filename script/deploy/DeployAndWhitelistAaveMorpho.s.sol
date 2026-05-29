@@ -129,8 +129,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         AaveV3AdapterDeployBaseScript script = new AaveV3AdapterDeployBaseScript();
         data = script.runBase(
             AaveV3AdapterDeployBaseScript.DeployParams({
-                adapterFactoryOwner: params.adapterFactoryOwner,
-                aavePool: params.aavePool
+                adapterFactoryOwner: params.adapterFactoryOwner, aavePool: params.aavePool
             })
         );
     }

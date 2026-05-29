@@ -326,9 +326,7 @@ contract PendingWithdrawalQueueHandler is Test {
         );
 
         adapterFactory.whitelist(
-            address(
-                new AppAdapter(address(vaultFactory), address(adapterFactory), address(networkMiddlewareService))
-            )
+            address(new AppAdapter(address(vaultFactory), address(adapterFactory), address(networkMiddlewareService)))
         );
 
         vault = _createVault();

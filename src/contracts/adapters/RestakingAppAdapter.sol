@@ -197,5 +197,4 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         }
         return amount;
     }
-
 }

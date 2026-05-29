@@ -223,13 +223,9 @@ contract LiquidityLaneAdapter is EIP712, Adapter, ILiquidityLaneAdapter {
         if (isUsedNonce[signedSwap.vault][signedSwap.tokenIn][signedSwap.nonce]) {
             revert AlreadyUsedNonce();
         }
-        if (
-            !SignatureChecker.isValidSignatureNow(
-                signedSwap.signer,
-                _hashTypedDataV4(keccak256(abi.encode(SIGNED_SWAP_TYPEHASH, signedSwap))),
-                signature
-            )
-        ) {
+        if (!SignatureChecker.isValidSignatureNow(
+                signedSwap.signer, _hashTypedDataV4(keccak256(abi.encode(SIGNED_SWAP_TYPEHASH, signedSwap))), signature
+            )) {
             revert InvalidSignature();
         }
 
@@ -268,18 +264,14 @@ contract LiquidityLaneAdapter is EIP712, Adapter, ILiquidityLaneAdapter {
         ) {
             revert InvalidDiscount();
         }
-        if (
-            !SignatureChecker.isValidSignatureNow(
+        if (!SignatureChecker.isValidSignatureNow(
                 discount.signer, _hashTypedDataV4(_hashDiscount(discount)), discountSwap.signerSignature
-            )
-        ) {
+            )) {
             revert InvalidSignature();
         }
-        if (
-            !SignatureChecker.isValidSignatureNow(
+        if (!SignatureChecker.isValidSignatureNow(
                 discount.protocol, _hashTypedDataV4(_hashDiscountSwap(discountSwap)), protocolSignature
-            )
-        ) {
+            )) {
             revert InvalidSignature();
         }
 
@@ -377,11 +369,7 @@ contract LiquidityLaneAdapter is EIP712, Adapter, ILiquidityLaneAdapter {
     }
 
     /// @inheritdoc ILiquidityLaneAdapter
-    function setLimit(address vault, address tokenToRedeem, uint256 newLimit)
-        public
-        onlyVault(vault)
-        onlyOwner
-    {
+    function setLimit(address vault, address tokenToRedeem, uint256 newLimit) public onlyVault(vault) onlyOwner {
         unchecked {
             if (allocated[vault][tokenToRedeem] > newLimit) {
                 revert InvalidLimit();
@@ -660,8 +648,8 @@ contract LiquidityLaneAdapter is EIP712, Adapter, ILiquidityLaneAdapter {
             uint256 tokenOutToPull = tokenOutToAllocate.saturatingSub(freeAssets());
             if (tokenOutToPull > 0) {
                 _inSwap = true;
-                uint256 pulled =
-                    IUniversalDelegator(IVaultV2(swapPayload.vault).delegator()).allocate(address(this), tokenOutToPull);
+                uint256 pulled = IUniversalDelegator(IVaultV2(swapPayload.vault).delegator())
+                    .allocate(address(this), tokenOutToPull);
                 _inSwap = false;
                 if (pulled < tokenOutToPull) {
                     revert InsufficientAllocation();
@@ -737,5 +725,4 @@ contract LiquidityLaneAdapter is EIP712, Adapter, ILiquidityLaneAdapter {
         account = _deployBeaconProxy(accountBeacons[tokenToRedeem], _accountSalt(vault, tokenToRedeem));
         IAccount(account).initialize(vault);
     }
-
 }

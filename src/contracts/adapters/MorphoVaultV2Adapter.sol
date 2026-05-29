@@ -35,12 +35,9 @@ contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
 
     /* CONSTRUCTOR */
 
-    constructor(
-        address vaultFactory,
-        address adapterFactory,
-        address morphoVaultFactory,
-        address morphoAdapterRegistry
-    ) Adapter(vaultFactory, adapterFactory) {
+    constructor(address vaultFactory, address adapterFactory, address morphoVaultFactory, address morphoAdapterRegistry)
+        Adapter(vaultFactory, adapterFactory)
+    {
         MORPHO_VAULT_FACTORY = morphoVaultFactory;
         MORPHO_ADAPTER_REGISTRY = morphoAdapterRegistry;
     }

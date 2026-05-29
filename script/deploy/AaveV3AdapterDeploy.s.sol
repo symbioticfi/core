@@ -12,11 +12,6 @@ contract AaveV3AdapterDeployScript is AaveV3AdapterDeployBaseScript {
     address public constant AAVE_POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
 
     function run() public {
-        runBase(
-            DeployParams({
-                adapterFactoryOwner: ADAPTER_FACTORY_OWNER,
-                aavePool: AAVE_POOL
-            })
-        );
+        runBase(DeployParams({adapterFactoryOwner: ADAPTER_FACTORY_OWNER, aavePool: AAVE_POOL}));
     }
 }

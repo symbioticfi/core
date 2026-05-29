@@ -55,10 +55,7 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
         adapterFactory = address(new AdapterFactory(broadcaster));
         adapterImplementation = address(
             new MorphoVaultV2Adapter(
-                vaultFactory,
-                adapterFactory,
-                params.morphoVaultFactory,
-                params.morphoAdapterRegistry
+                vaultFactory, adapterFactory, params.morphoVaultFactory, params.morphoAdapterRegistry
             )
         );
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);

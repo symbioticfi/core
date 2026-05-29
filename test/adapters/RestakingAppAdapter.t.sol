@@ -435,7 +435,6 @@ contract RestakingAppAdapterTest is Test {
             )
         );
     }
-
 }
 
 contract RestakingTokenMock is ERC20 {
