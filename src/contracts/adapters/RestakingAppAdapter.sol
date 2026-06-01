@@ -3,9 +3,11 @@
 pragma solidity ^0.8.28;
 
 import {AppAdapter} from "./AppAdapter.sol";
+import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../interfaces/adapters/IAppAdapter.sol";
+import {IConverter} from "../../interfaces/adapters/common/IConverter.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IRestakingAppAdapter, MAX_DEPTH} from "../../interfaces/adapters/IRestakingAppAdapter.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
@@ -36,9 +38,13 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /* CONSTRUCTOR */
 
-    constructor(address vaultFactory, address adapterFactory, address networkMiddlewareService)
-        AppAdapter(vaultFactory, adapterFactory, networkMiddlewareService)
-    {}
+    constructor(
+        address vaultFactory,
+        address adapterFactory,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer,
+        address networkMiddlewareService
+    ) AppAdapter(vaultFactory, adapterFactory, cowSwapSettlement, cowSwapVaultRelayer, networkMiddlewareService) {}
 
     /* VIEW FUNCTIONS */
 
@@ -68,6 +74,31 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     }
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+
+    /// @inheritdoc IConverter
+    function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data)
+        public
+        override(AppAdapter, IConverter)
+    {
+        if (tokenIn == IERC4626(vault).asset()) {
+            revert InvalidTokenIn();
+        }
+        for (uint256 i; i < underlyingVaults.length; ++i) {
+            if (tokenIn == IERC4626(underlyingVaults[i]).asset()) {
+                revert InvalidTokenIn();
+            }
+        }
+        if (tokenOut != asset) {
+            revert InvalidTokenOut();
+        }
+        CoWSwapConverter.convert(tokenIn, amountIn, tokenOut, data);
+    }
+
+    /// @inheritdoc IAppAdapter
+    function reward(address token, uint256 amount) public override(AppAdapter, IAppAdapter) {
+        super.reward(token, amount);
+        syncReward();
+    }
 
     /// @dev Deposits held base assets through the underlying vault chain.
     function syncReward() public {

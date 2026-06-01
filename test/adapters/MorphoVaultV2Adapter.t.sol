@@ -10,6 +10,8 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IMorphoVaultV2} from "../../src/interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
+import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {IMerklRedistributor} from "../../src/interfaces/adapters/common/IMerklRedistributor.sol";
 
 import {Token} from "../mocks/Token.sol";
 
@@ -28,6 +30,9 @@ contract MorphoVaultV2AdapterTest is Test {
     address internal curator = makeAddr("curator");
     address internal delegator = makeAddr("delegator");
     address internal morphoAdapterRegistry = makeAddr("morphoAdapterRegistry");
+    address internal rewards = makeAddr("rewards");
+    address internal settlement = makeAddr("settlement");
+    address internal relayer = makeAddr("relayer");
 
     function setUp() public {
         vaultFactory = new MorphoAdapterRegistryMock();
@@ -40,7 +45,13 @@ contract MorphoVaultV2AdapterTest is Test {
         morphoVaultFactory.setVault(address(morphoVault), true);
 
         MorphoVaultV2Adapter implementation = new MorphoVaultV2Adapter(
-            address(vaultFactory), address(factory), address(morphoVaultFactory), morphoAdapterRegistry
+            address(vaultFactory),
+            address(factory),
+            rewards,
+            settlement,
+            address(morphoVaultFactory),
+            relayer,
+            morphoAdapterRegistry
         );
         factory.whitelist(address(implementation));
 
@@ -51,6 +62,17 @@ contract MorphoVaultV2AdapterTest is Test {
         assertEq(adapter.morphoVault(), address(morphoVault));
         assertEq(adapter.allocatable(), type(uint256).max);
         assertEq(adapter.totalAssets(), 0);
+    }
+
+    function test_ModulesExposeConverterAndMerklConfiguration() public view {
+        assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_SETTLEMENT(), settlement);
+        assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_VAULT_RELAYER(), relayer);
+        assertEq(IMerklRedistributor(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
+    }
+
+    function test_ConvertRejectsMorphoVaultInput() public {
+        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
+        ICoWSwapConverter(address(adapter)).convert(address(morphoVault), 1, address(collateral), "");
     }
 
     function test_InitializeValidatesMorphoVaultShape() public {

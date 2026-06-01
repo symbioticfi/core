@@ -19,7 +19,7 @@ uint256 constant COW_SWAP_ORDER_UID_LENGTH = 56;
 uint256 constant EXECUTION_DELAY = 1 days;
 
 /// @dev Maximum distance allowed between `block.timestamp` and CoW order `validTo`.
-uint32 constant MAX_VALID_TO_DURATION = 5 minutes;
+uint32 constant MAX_VALID_TO_DURATION = 30 minutes;
 
 /**
  * @title ICoWSwapSettlement
@@ -150,18 +150,22 @@ interface ICoWSwapConverter is IConverter {
      * @notice Emitted when a conversion request is prepared.
      * @param tokenIn The sell token.
      * @param amountIn Input token amount.
+     * @param tokenOut The buy token.
      * @param data Converter-specific route data.
      */
-    event PrepareConvert(address indexed tokenIn, uint256 amountIn, bytes data);
+    event PrepareConvert(address indexed tokenIn, uint256 amountIn, address indexed tokenOut, bytes data);
 
     /**
      * @notice Emitted when a pre-signed CoW Protocol order is created.
      * @param orderUid The pre-signed order UID.
      * @param tokenIn The sell token.
      * @param amountIn Input token amount.
+     * @param tokenOut The buy token.
      * @param params The CoW Protocol order parameters.
      */
-    event Convert(bytes orderUid, address indexed tokenIn, uint256 amountIn, OrderParams params);
+    event Convert(
+        bytes orderUid, address indexed tokenIn, uint256 amountIn, address indexed tokenOut, OrderParams params
+    );
 
     /**
      * @notice Emitted when an expired order reservation is released.
@@ -197,10 +201,11 @@ interface ICoWSwapConverter is IConverter {
      * @notice Prepares a conversion request for delayed permissionless execution.
      * @param tokenIn Input token address.
      * @param amountIn Input token amount.
+     * @param tokenOut Output token address.
      * @param data Converter-specific route data.
      * @return requestHash Hash of the prepared conversion request.
      */
-    function prepareConvert(address tokenIn, uint256 amountIn, bytes calldata data)
+    function prepareConvert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data)
         external
         returns (bytes32 requestHash);
 }

@@ -11,10 +11,15 @@ contract AdapterNoAccountShapeTest is Test {
         address adapterFactory = makeAddr("adapterFactory");
         address aavePool = makeAddr("aavePool");
         address vaultFactory = makeAddr("vaultFactory");
+        address rewards = makeAddr("rewards");
+        address settlement = makeAddr("settlement");
+        address relayer = makeAddr("relayer");
         address morphoVaultFactory = makeAddr("morphoVaultFactory");
         address morphoAdapterRegistry = makeAddr("morphoAdapterRegistry");
 
-        new AaveV3Adapter(aavePool, vaultFactory, adapterFactory);
-        new MorphoVaultV2Adapter(vaultFactory, adapterFactory, morphoVaultFactory, morphoAdapterRegistry);
+        new AaveV3Adapter(aavePool, vaultFactory, adapterFactory, rewards, settlement, relayer);
+        new MorphoVaultV2Adapter(
+            vaultFactory, adapterFactory, rewards, settlement, morphoVaultFactory, relayer, morphoAdapterRegistry
+        );
     }
 }

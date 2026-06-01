@@ -3,6 +3,8 @@
 pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
+import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
+import {MerklRedistributor} from "./common/MerklRedistributor.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IMorphoLiquidityAdapter} from "../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoLiquidityAdapter.sol";
@@ -17,7 +19,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title MorphoVaultV2Adapter
 /// @notice VaultV2 adapter for Morpho ERC4626 vaults.
-contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
+contract MorphoVaultV2Adapter is CoWSwapConverter, MerklRedistributor, IMorphoVaultV2Adapter {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -35,8 +37,17 @@ contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
 
     /* CONSTRUCTOR */
 
-    constructor(address vaultFactory, address adapterFactory, address morphoVaultFactory, address morphoAdapterRegistry)
-        Adapter(vaultFactory, adapterFactory)
+    constructor(
+        address vaultFactory,
+        address adapterFactory,
+        address merklDistributor,
+        address cowSwapSettlement,
+        address morphoVaultFactory,
+        address cowSwapVaultRelayer,
+        address morphoAdapterRegistry
+    )
+        CoWSwapConverter(vaultFactory, adapterFactory, cowSwapSettlement, cowSwapVaultRelayer)
+        MerklRedistributor(merklDistributor)
     {
         MORPHO_VAULT_FACTORY = morphoVaultFactory;
         MORPHO_ADAPTER_REGISTRY = morphoAdapterRegistry;
@@ -49,6 +60,19 @@ contract MorphoVaultV2Adapter is Adapter, IMorphoVaultV2Adapter {
         return
             freeAssets()
                 + IMorphoVaultV2(morphoVault).previewRedeem(IMorphoVaultV2(morphoVault).balanceOf(address(this)));
+    }
+
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+
+    /// @inheritdoc CoWSwapConverter
+    function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data) public virtual override {
+        if (tokenIn == morphoVault || tokenIn == IERC4626(vault).asset()) {
+            revert InvalidTokenIn();
+        }
+        if (tokenOut != IERC4626(vault).asset()) {
+            revert InvalidTokenOut();
+        }
+        super.convert(tokenIn, amountIn, tokenOut, data);
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL) */

@@ -9,6 +9,8 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {IAaveV3Adapter} from "../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
+import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {IMerklRedistributor} from "../../src/interfaces/adapters/common/IMerklRedistributor.sol";
 
 import {Token} from "../mocks/Token.sol";
 import {MockAaveAToken, MockAavePool} from "../mocks/HoodiScenarioProtocolMocks.sol";
@@ -24,6 +26,9 @@ contract AaveV3AdapterTest is Test {
 
     address internal curator = makeAddr("curator");
     address internal delegator = makeAddr("delegator");
+    address internal rewards = makeAddr("rewards");
+    address internal settlement = makeAddr("settlement");
+    address internal relayer = makeAddr("relayer");
 
     function setUp() public {
         vaultFactory = new AaveV3AdapterRegistryMock();
@@ -35,7 +40,8 @@ contract AaveV3AdapterTest is Test {
         vault = new AaveV3AdapterVaultMock(address(collateral), delegator);
         vaultFactory.add(address(vault));
 
-        AaveV3Adapter implementation = new AaveV3Adapter(address(pool), address(vaultFactory), address(factory));
+        AaveV3Adapter implementation =
+            new AaveV3Adapter(address(pool), address(vaultFactory), address(factory), rewards, settlement, relayer);
         factory.whitelist(address(implementation));
 
         adapter = IAaveV3Adapter(factory.create(1, curator, abi.encode(address(vault), "")));
@@ -68,6 +74,17 @@ contract AaveV3AdapterTest is Test {
         pool.setReserveToken(address(collateral), address(newAToken));
 
         assertEq(adapter.aToken(), address(aToken));
+    }
+
+    function test_ModulesExposeConverterAndMerklConfiguration() public view {
+        assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_SETTLEMENT(), settlement);
+        assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_VAULT_RELAYER(), relayer);
+        assertEq(IMerklRedistributor(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
+    }
+
+    function test_ConvertRejectsATokenInput() public {
+        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
+        ICoWSwapConverter(address(adapter)).convert(address(aToken), 1, address(collateral), "");
     }
 
     function test_AllocateAndDeallocateThroughAave() public {

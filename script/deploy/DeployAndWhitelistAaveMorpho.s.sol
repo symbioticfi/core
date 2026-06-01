@@ -24,6 +24,11 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     // MorphoVaultV2 dependencies used by the Morpho adapter.
     address public constant MORPHO_VAULT_FACTORY = 0xA1D94F746dEfa1928926b84fB2596c06926C0405;
     address public constant MORPHO_ADAPTER_REGISTRY = 0x3696c5eAe4a7Ffd04Ea163564571E9CD8Ed9364e;
+    // CoW Protocol dependencies used by adapter reward converters.
+    address public constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
+    address public constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
+    // Rewards contract address used by adapters.
+    address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;
     // Vault scope for the adapter factories, or zero address for the global whitelist.
     address public constant VAULT = 0x0000000000000000000000000000000000000000;
 
@@ -35,6 +40,9 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         address aavePool;
         address morphoVaultFactory;
         address morphoAdapterRegistry;
+        address cowSwapSettlement;
+        address cowSwapVaultRelayer;
+        address rewards;
     }
 
     struct DeploymentData {
@@ -58,7 +66,10 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 protocolFee: PROTOCOL_FEE,
                 aavePool: AAVE_POOL,
                 morphoVaultFactory: MORPHO_VAULT_FACTORY,
-                morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY
+                morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY,
+                cowSwapSettlement: COW_SWAP_SETTLEMENT,
+                cowSwapVaultRelayer: COW_SWAP_VAULT_RELAYER,
+                rewards: REWARDS
             })
         );
     }
@@ -76,7 +87,10 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
             protocolFee: params.protocolFee,
             aavePool: params.aavePool,
             morphoVaultFactory: params.morphoVaultFactory,
-            morphoAdapterRegistry: params.morphoAdapterRegistry
+            morphoAdapterRegistry: params.morphoAdapterRegistry,
+            cowSwapSettlement: params.cowSwapSettlement,
+            cowSwapVaultRelayer: params.cowSwapVaultRelayer,
+            rewards: params.rewards
         });
 
         data.v2 = _deployV2(deployParams);
@@ -124,7 +138,11 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         AaveV3AdapterDeployBaseScript script = new AaveV3AdapterDeployBaseScript();
         data = script.runBase(
             AaveV3AdapterDeployBaseScript.DeployParams({
-                adapterFactoryOwner: params.adapterFactoryOwner, aavePool: params.aavePool
+                adapterFactoryOwner: params.adapterFactoryOwner,
+                aavePool: params.aavePool,
+                cowSwapSettlement: params.cowSwapSettlement,
+                cowSwapVaultRelayer: params.cowSwapVaultRelayer,
+                rewards: params.rewards
             })
         );
     }
@@ -139,7 +157,10 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
             MorphoVaultV2AdapterDeployBaseScript.DeployParams({
                 adapterFactoryOwner: params.adapterFactoryOwner,
                 morphoVaultFactory: params.morphoVaultFactory,
-                morphoAdapterRegistry: params.morphoAdapterRegistry
+                morphoAdapterRegistry: params.morphoAdapterRegistry,
+                cowSwapSettlement: params.cowSwapSettlement,
+                cowSwapVaultRelayer: params.cowSwapVaultRelayer,
+                rewards: params.rewards
             })
         );
     }

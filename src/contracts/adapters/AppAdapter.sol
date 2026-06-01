@@ -3,11 +3,13 @@
 pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
+import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
 
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAppAdapter, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/adapters/IAppAdapter.sol";
+import {IConverter} from "../../interfaces/adapters/common/IConverter.sol";
 import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
@@ -21,7 +23,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title AppAdapter
 /// @notice Single network-operator guarantee adapter.
-contract AppAdapter is Adapter, IAppAdapter {
+contract AppAdapter is CoWSwapConverter, IAppAdapter {
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using Subnetwork for bytes32;
@@ -53,9 +55,13 @@ contract AppAdapter is Adapter, IAppAdapter {
 
     /* CONSTRUCTOR */
 
-    constructor(address vaultFactory, address adapterFactory, address networkMiddlewareService)
-        Adapter(vaultFactory, adapterFactory)
-    {
+    constructor(
+        address vaultFactory,
+        address adapterFactory,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer,
+        address networkMiddlewareService
+    ) CoWSwapConverter(vaultFactory, adapterFactory, cowSwapSettlement, cowSwapVaultRelayer) {
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
@@ -95,6 +101,25 @@ contract AppAdapter is Adapter, IAppAdapter {
         Stake storage curStake = _stakes[_stakePos.upperLookupRecent(timestamp)];
         return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
             .saturatingSub(curStake.debt.upperLookupRecent(uint48(timestamp) + duration - 1));
+    }
+
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+
+    /// @inheritdoc IConverter
+    function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data)
+        public
+        virtual
+        override(CoWSwapConverter, IConverter)
+    {
+        if (tokenOut != IERC4626(vault).asset() || tokenIn == IERC4626(vault).asset()) {
+            revert InvalidTokenOut();
+        }
+        super.convert(tokenIn, amountIn, tokenOut, data);
+    }
+
+    /// @inheritdoc IAppAdapter
+    function reward(address token, uint256 amount) public virtual override {
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /* PUBLIC FUNCTIONS (NETWORK) */

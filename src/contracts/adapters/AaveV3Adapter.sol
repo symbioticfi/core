@@ -3,6 +3,8 @@
 pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
+import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
+import {MerklRedistributor} from "./common/MerklRedistributor.sol";
 
 import {IAaveV3Adapter, REFERRAL_CODE} from "../../interfaces/adapters/IAaveV3Adapter.sol";
 import {IAaveV3Pool} from "../../interfaces/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
@@ -15,7 +17,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title AaveV3Adapter
 /// @notice VaultV2 adapter for Aave V3 supply positions.
-contract AaveV3Adapter is Adapter, IAaveV3Adapter {
+contract AaveV3Adapter is CoWSwapConverter, MerklRedistributor, IAaveV3Adapter {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -31,7 +33,17 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
 
     /* CONSTRUCTOR */
 
-    constructor(address aavePool, address vaultFactory, address adapterFactory) Adapter(vaultFactory, adapterFactory) {
+    constructor(
+        address aavePool,
+        address vaultFactory,
+        address adapterFactory,
+        address merklDistributor,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer
+    )
+        CoWSwapConverter(vaultFactory, adapterFactory, cowSwapSettlement, cowSwapVaultRelayer)
+        MerklRedistributor(merklDistributor)
+    {
         AAVE_POOL = aavePool;
     }
 
@@ -40,6 +52,19 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
         return freeAssets() + IERC20(aToken).balanceOf(address(this));
+    }
+
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+
+    /// @inheritdoc CoWSwapConverter
+    function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data) public virtual override {
+        if (tokenIn == aToken || tokenIn == IERC4626(vault).asset()) {
+            revert InvalidTokenIn();
+        }
+        if (tokenOut != IERC4626(vault).asset()) {
+            revert InvalidTokenOut();
+        }
+        super.convert(tokenIn, amountIn, tokenOut, data);
     }
 
     /* INTERNAL FUNCTIONS */

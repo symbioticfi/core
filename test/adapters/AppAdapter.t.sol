@@ -31,6 +31,7 @@ contract AppAdapterTest is Test {
     address internal operator = makeAddr("operator");
     address internal curator = makeAddr("curator");
     address internal burner = makeAddr("burner");
+    address internal relayer = makeAddr("relayer");
     uint48 internal duration = 10;
 
     function setUp() public {
@@ -47,8 +48,9 @@ contract AppAdapterTest is Test {
         subnetwork = network.subnetwork(1);
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
-        AppAdapter implementation =
-            new AppAdapter(address(vaultFactory), address(factory), address(networkMiddlewareService));
+        AppAdapter implementation = new AppAdapter(
+            address(vaultFactory), address(factory), address(0), relayer, address(networkMiddlewareService)
+        );
         factory.whitelist(address(implementation));
 
         adapter = _createAdapter();
@@ -83,6 +85,21 @@ contract AppAdapterTest is Test {
 
         vm.expectRevert(IAppAdapter.InvalidDuration.selector);
         factory.create(1, curator, _initData(subnetwork, operator, 0, burner));
+    }
+
+    function test_RewardTransfersAssetsFromCallerToAdapter() public {
+        address rewarder = makeAddr("rewarder");
+        uint256 amount = 123;
+
+        collateral.transfer(rewarder, amount);
+
+        vm.startPrank(rewarder);
+        collateral.approve(address(adapter), amount);
+        adapter.reward(address(collateral), amount);
+        vm.stopPrank();
+
+        assertEq(collateral.balanceOf(rewarder), 0);
+        assertEq(collateral.balanceOf(address(adapter)), amount);
     }
 
     function test_DeallocationPreservesStakeUntilDurationAndSettlesAfterDuration() public {
@@ -379,8 +396,9 @@ contract AppAdapterTest is Test {
     }
 
     function test_MigrateRevertsBecauseUnsupported() public {
-        AppAdapter implementation =
-            new AppAdapter(address(vaultFactory), address(factory), address(networkMiddlewareService));
+        AppAdapter implementation = new AppAdapter(
+            address(vaultFactory), address(factory), address(0), relayer, address(networkMiddlewareService)
+        );
         factory.whitelist(address(implementation));
         uint64 version = factory.lastVersion();
 

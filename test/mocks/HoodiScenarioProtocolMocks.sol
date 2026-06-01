@@ -21,18 +21,6 @@ interface IVaultCollateralHoodiScenario {
     function collateral() external view returns (address);
 }
 
-contract MockCuratorRegistry {
-    mapping(address vault => address curator) public curators;
-
-    function setCurator(address vault, address curator) external {
-        curators[vault] = curator;
-    }
-
-    function getCurator(address vault) external view returns (address) {
-        return curators[vault];
-    }
-}
-
 contract MockMorphoVaultFactory {
     mapping(address vault => bool status) public isVaultV2;
 

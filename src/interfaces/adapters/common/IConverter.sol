@@ -6,13 +6,21 @@ pragma solidity ^0.8.0;
  * @notice Interface for token conversion logic.
  */
 interface IConverter {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when the output token is invalid.
+     */
+    error InvalidTokenOut();
+
     /* FUNCTIONS */
 
     /**
      * @notice Converts one token into another.
      * @param tokenIn Input token address.
      * @param amountIn Input token amount.
+     * @param tokenOut Output token address.
      * @param data Converter-specific route data.
      */
-    function convert(address tokenIn, uint256 amountIn, bytes calldata data) external;
+    function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data) external;
 }

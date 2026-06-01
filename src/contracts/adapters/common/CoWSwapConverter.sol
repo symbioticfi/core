@@ -23,7 +23,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title CoWSwapConverter
 /// @notice Converter for asynchronous CoW Protocol sell orders via pre-signing.
-abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
+abstract contract CoWSwapConverter is Nonces, ICoWSwapConverter {
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
@@ -40,9 +40,7 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
 
     /* CONSTRUCTOR */
 
-    constructor(address vaultFactory, address adapterFactory, address cowSwapSettlement, address cowSwapVaultRelayer)
-        Adapter(vaultFactory, adapterFactory)
-    {
+    constructor(address cowSwapSettlement, address cowSwapVaultRelayer) {
         COW_SWAP_SETTLEMENT = cowSwapSettlement;
         COW_SWAP_VAULT_RELAYER = cowSwapVaultRelayer;
     }
@@ -50,22 +48,7 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
     /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IConverter
-    function convert(address tokenIn, uint256 amountIn, bytes calldata data) public virtual override {
-        if (tokenIn == IERC4626(vault).asset()) {
-            revert InvalidTokenIn();
-        }
-
-        if (owner() != msg.sender) {
-            uint48 timestamp = executableAt[nonces(tokenIn)][keccak256(abi.encode(tokenIn, amountIn, data))];
-            if (timestamp == 0) {
-                revert InvalidNonce();
-            }
-            if (block.timestamp < timestamp) {
-                revert ExecutionDelayNotElapsed();
-            }
-        }
-        _useNonce(tokenIn);
-
+    function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data) public virtual override {
         OrderParams memory params = abi.decode(data, (OrderParams));
         if (amountIn == 0 || params.sellAmount + params.feeAmount != amountIn) {
             revert InvalidSellAmount();
@@ -77,12 +60,18 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
             revert TooFarValidTo();
         }
 
-        uint256 totalSellAmount = params.sellAmount + params.feeAmount;
-        if (IERC20(tokenIn).balanceOf(address(this)) < totalSellAmount) {
-            revert InsufficientSellBalance();
+        if (owner() != msg.sender) {
+            uint48 timestamp = executableAt[nonces(tokenIn)][keccak256(abi.encode(tokenIn, amountIn, tokenOut, data))];
+            if (timestamp == 0) {
+                revert InvalidNonce();
+            }
+            if (block.timestamp < timestamp) {
+                revert ExecutionDelayNotElapsed();
+            }
         }
+        _useNonce(tokenIn);
 
-        if (IERC20(tokenIn).allowance(address(this), COW_SWAP_VAULT_RELAYER) < totalSellAmount) {
+        if (IERC20(tokenIn).allowance(address(this), COW_SWAP_VAULT_RELAYER) < amountIn) {
             IERC20(tokenIn).forceApprove(COW_SWAP_VAULT_RELAYER, type(uint256).max);
         }
 
@@ -92,7 +81,7 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
             _hash(
                 Data({
                     sellToken: tokenIn,
-                    buyToken: _convertTokenOut(),
+                    buyToken: tokenOut,
                     receiver: address(this),
                     sellAmount: params.sellAmount,
                     buyAmount: params.buyAmount,
@@ -111,19 +100,19 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
         );
         ICoWSwapSettlement(COW_SWAP_SETTLEMENT).setPreSignature(orderUid, true);
 
-        emit Convert(orderUid, tokenIn, amountIn, params);
+        emit Convert(orderUid, tokenIn, amountIn, tokenOut, params);
     }
 
     /// @inheritdoc ICoWSwapConverter
-    function prepareConvert(address tokenIn, uint256 amountIn, bytes calldata data)
+    function prepareConvert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data)
         public
         virtual
         returns (bytes32 requestHash)
     {
-        requestHash = keccak256(abi.encode(tokenIn, amountIn, data));
+        requestHash = keccak256(abi.encode(tokenIn, amountIn, tokenOut, data));
         executableAt[nonces(tokenIn)][requestHash] = uint48(block.timestamp + EXECUTION_DELAY);
 
-        emit PrepareConvert(tokenIn, amountIn, data);
+        emit PrepareConvert(tokenIn, amountIn, tokenOut, data);
     }
 
     /* INTERNAL FUNCTIONS */
@@ -170,10 +159,5 @@ abstract contract CoWSwapConverter is Adapter, Nonces, ICoWSwapConverter {
             mstore(add(orderUid, 52), owner)
             mstore(add(orderUid, 32), orderDigest)
         }
-    }
-
-    /// @dev Returns the token expected as CoW swap output.
-    function _convertTokenOut() internal view virtual returns (address) {
-        return IERC4626(vault).asset();
     }
 }

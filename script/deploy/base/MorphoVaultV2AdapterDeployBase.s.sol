@@ -16,6 +16,9 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
         address adapterFactoryOwner;
         address morphoVaultFactory;
         address morphoAdapterRegistry;
+        address cowSwapSettlement;
+        address cowSwapVaultRelayer;
+        address rewards;
     }
 
     struct DeploymentData {
@@ -55,7 +58,13 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
         adapterFactory = address(new AdapterFactory(broadcaster));
         adapterImplementation = address(
             new MorphoVaultV2Adapter(
-                vaultFactory, adapterFactory, params.morphoVaultFactory, params.morphoAdapterRegistry
+                vaultFactory,
+                adapterFactory,
+                params.rewards,
+                params.cowSwapSettlement,
+                params.morphoVaultFactory,
+                params.cowSwapVaultRelayer,
+                params.morphoAdapterRegistry
             )
         );
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);
@@ -69,6 +78,9 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
         require(params.adapterFactoryOwner != address(0), "invalid adapter factory owner");
         require(params.morphoVaultFactory != address(0), "invalid Morpho vault factory");
         require(params.morphoAdapterRegistry != address(0), "invalid Morpho adapter registry");
+        require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
+        require(params.cowSwapVaultRelayer != address(0), "invalid CoW vault relayer");
+        require(params.rewards != address(0), "invalid rewards");
     }
 
     function _scriptOwner() internal view returns (address owner_) {
