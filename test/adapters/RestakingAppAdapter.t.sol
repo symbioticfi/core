@@ -263,15 +263,37 @@ contract RestakingAppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), 0);
     }
 
+    function test_ReleaseUsesBaseAssetAmountAndAccountsInVaultAssetShares() public {
+        _allocateRestakingShares(100);
+        baseAsset.transfer(address(restakingToken), 100);
+
+        uint256 expectedReleasedShares = restakingToken.previewDeposit(40);
+
+        vm.expectEmit(true, true, true, true, address(adapter));
+        emit IAppAdapter.Release(expectedReleasedShares);
+
+        vm.prank(network);
+        adapter.release(40);
+
+        assertEq(adapter.totalAssets(), 100);
+        assertEq(adapter.slashable(), restakingToken.previewRedeem(100 - expectedReleasedShares));
+        assertEq(adapter.stake(), restakingToken.previewRedeem(100 - expectedReleasedShares));
+        assertEq(adapter.freeAssets(), expectedReleasedShares);
+        assertEq(baseAsset.balanceOf(burner), 0);
+        assertEq(delegator.decreaseLimitsCalls(), 1);
+        assertEq(delegator.lastDecreaseAssets(), expectedReleasedShares);
+        assertEq(delegator.lastDecreaseShare(), 0);
+    }
+
     function test_ReleaseClearsSlashableInVaultAssetShares() public {
         _allocateRestakingShares(100);
         baseAsset.transfer(address(restakingToken), 100);
 
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IAppAdapter.Release();
+        emit IAppAdapter.Release(100);
 
         vm.prank(network);
-        adapter.release();
+        adapter.release(200);
 
         assertEq(adapter.totalAssets(), 100);
         assertEq(adapter.slashable(), 0);
@@ -279,8 +301,8 @@ contract RestakingAppAdapterTest is Test {
         assertEq(adapter.freeAssets(), 100);
         assertEq(baseAsset.balanceOf(burner), 0);
         assertEq(delegator.decreaseLimitsCalls(), 1);
-        assertEq(delegator.lastDecreaseAssets(), type(uint256).max);
-        assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
+        assertEq(delegator.lastDecreaseAssets(), 100);
+        assertEq(delegator.lastDecreaseShare(), 0);
     }
 
     function test_SlashWithdrawsThroughNestedVaultsAndBurnsBaseAsset() public {
@@ -565,6 +587,10 @@ contract RestakingAppAdapterDelegatorMock {
     }
 
     function limitOf(address adapter) external view returns (uint256) {
+        return IAdapter(adapter).totalAssets();
+    }
+
+    function absoluteLimitOf(address adapter) external view returns (uint256) {
         return IAdapter(adapter).totalAssets();
     }
 

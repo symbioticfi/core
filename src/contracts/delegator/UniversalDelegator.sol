@@ -343,12 +343,8 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function decreaseLimits(uint256 assets, uint256 share) public nonReentrant {
-        if (absoluteLimitOf[msg.sender] < type(uint256).max || assets == type(uint256).max) {
-            absoluteLimitOf[msg.sender] = absoluteLimitOf[msg.sender].saturatingSub(assets);
-        }
-        if (shareLimitOf[msg.sender] < MAX_SHARE || share == MAX_SHARE) {
-            shareLimitOf[msg.sender] = shareLimitOf[msg.sender].saturatingSub(share);
-        }
+        absoluteLimitOf[msg.sender] = absoluteLimitOf[msg.sender].saturatingSub(assets);
+        shareLimitOf[msg.sender] = shareLimitOf[msg.sender].saturatingSub(share);
 
         emit DecreaseLimits(assets, share);
     }

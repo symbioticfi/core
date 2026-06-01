@@ -303,10 +303,7 @@ contract PendingWithdrawalQueueHandler is Test {
         vaultFactory.whitelist(
             address(
                 new VaultV2(
-                    address(0x1),
                     address(vaultFactory),
-                    address(0x2),
-                    address(adapterRegistry),
                     address(delegatorFactory),
                     address(protocolFee),
                     address(withdrawalQueueFactory)

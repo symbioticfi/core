@@ -56,12 +56,6 @@ contract VaultV2 is
 
     /* IMMUTABLES */
 
-    /// @dev Address of the rewards contract.
-    address internal immutable REWARDS;
-    /// @dev Address of the slasher factory.
-    address internal immutable SLASHER_FACTORY;
-    /// @dev Address of the adapter registry.
-    address internal immutable ADAPTER_REGISTRY;
     /// @dev Address of the delegator factory.
     address internal immutable DELEGATOR_FACTORY;
     /// @dev Address of the protocol fee registry.
@@ -118,17 +112,11 @@ contract VaultV2 is
     /* CONSTRUCTOR */
 
     constructor(
-        address rewards,
         address vaultFactory,
-        address slasherFactory,
-        address adapterRegistry,
         address delegatorFactory,
         address protocolFeeRegistry,
         address withdrawalQueueFactory
     ) MigratableEntity(vaultFactory) {
-        REWARDS = rewards;
-        SLASHER_FACTORY = slasherFactory;
-        ADAPTER_REGISTRY = adapterRegistry;
         DELEGATOR_FACTORY = delegatorFactory;
         PROTOCOL_FEE_REGISTRY = protocolFeeRegistry;
         WITHDRAWAL_QUEUE_FACTORY = withdrawalQueueFactory;

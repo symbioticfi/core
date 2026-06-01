@@ -237,14 +237,33 @@ contract AppAdapterTest is Test {
         assertEq(delegator.lastDecreaseShare(), 0);
     }
 
-    function test_ReleaseCanBeCalledByNetworkAndClearsSlashableWithoutMovingAssets() public {
+    function test_ReleaseCanBeCalledByNetworkAndReleasesRequestedSlashableWithoutMovingAssets() public {
         _allocate(100);
 
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IAppAdapter.Release();
+        emit IAppAdapter.Release(40);
 
         vm.prank(network);
-        adapter.release();
+        adapter.release(40);
+
+        assertEq(adapter.totalAssets(), 100);
+        assertEq(adapter.slashable(), 60);
+        assertEq(adapter.stake(), 60);
+        assertEq(adapter.freeAssets(), 40);
+        assertEq(collateral.balanceOf(burner), 0);
+        assertEq(delegator.decreaseLimitsCalls(), 1);
+        assertEq(delegator.lastDecreaseAssets(), 40);
+        assertEq(delegator.lastDecreaseShare(), 0);
+    }
+
+    function test_ReleaseSaturatesAtSlashableAndClearsWithoutMovingAssets() public {
+        _allocate(100);
+
+        vm.expectEmit(true, true, true, true, address(adapter));
+        emit IAppAdapter.Release(100);
+
+        vm.prank(network);
+        adapter.release(150);
 
         assertEq(adapter.totalAssets(), 100);
         assertEq(adapter.slashable(), 0);
@@ -252,47 +271,47 @@ contract AppAdapterTest is Test {
         assertEq(adapter.freeAssets(), 100);
         assertEq(collateral.balanceOf(burner), 0);
         assertEq(delegator.decreaseLimitsCalls(), 1);
-        assertEq(delegator.lastDecreaseAssets(), type(uint256).max);
-        assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
+        assertEq(delegator.lastDecreaseAssets(), 100);
+        assertEq(delegator.lastDecreaseShare(), 0);
     }
 
     function test_ReleaseCanBeCalledByNetworkMiddleware() public {
         _allocate(100);
 
         vm.prank(networkMiddleware);
-        adapter.release();
+        adapter.release(40);
 
-        assertEq(adapter.slashable(), 0);
-        assertEq(adapter.freeAssets(), 100);
+        assertEq(adapter.slashable(), 60);
+        assertEq(adapter.freeAssets(), 40);
     }
 
     function test_ReleaseRejectsCallerOutsideNetworkAndMiddleware() public {
         _allocate(100);
 
         vm.expectRevert(IAppAdapter.NotNetworkOrMiddleware.selector);
-        adapter.release();
+        adapter.release(40);
     }
 
     function test_ReleaseCanBeCalledWithoutExistingSlashable() public {
         vm.expectEmit(true, true, true, true, address(adapter));
-        emit IAppAdapter.Release();
+        emit IAppAdapter.Release(0);
 
         vm.prank(network);
-        adapter.release();
+        adapter.release(type(uint256).max);
 
         assertEq(adapter.totalAssets(), 0);
         assertEq(adapter.slashable(), 0);
         assertEq(adapter.stake(), 0);
         assertEq(adapter.freeAssets(), 0);
         assertEq(delegator.decreaseLimitsCalls(), 1);
-        assertEq(delegator.lastDecreaseAssets(), type(uint256).max);
-        assertEq(delegator.lastDecreaseShare(), MAX_SHARE);
+        assertEq(delegator.lastDecreaseAssets(), 0);
+        assertEq(delegator.lastDecreaseShare(), 0);
     }
 
     function test_ReleaseCanBeCalledAfterSlashableWasAlreadyCleared() public {
         _allocate(100);
         vm.prank(network);
-        adapter.release();
+        adapter.release(type(uint256).max);
 
         assertEq(adapter.totalAssets(), 100);
         assertEq(adapter.slashable(), 0);
@@ -300,7 +319,7 @@ contract AppAdapterTest is Test {
         assertEq(adapter.freeAssets(), 100);
 
         vm.prank(network);
-        adapter.release();
+        adapter.release(type(uint256).max);
 
         assertEq(adapter.totalAssets(), 100);
         assertEq(adapter.slashable(), 0);
@@ -453,6 +472,10 @@ contract AppAdapterDelegatorMock {
         if (isLimitOverride) {
             return limitOverride;
         }
+        return IAdapter(adapter).totalAssets();
+    }
+
+    function absoluteLimitOf(address adapter) external view returns (uint256) {
         return IAdapter(adapter).totalAssets();
     }
 

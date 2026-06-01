@@ -333,9 +333,11 @@ contract AppAdapterInvariantHandler is Test {
         }
     }
 
-    function release(uint256, uint256 callerSeed) external {
+    function release(uint256 amount, uint256 callerSeed) external {
+        amount = bound(amount, 0, adapter.slashable() + 1000 ether);
+
         vm.prank(callerSeed % 2 == 0 ? network : networkMiddleware);
-        try adapter.release() {
+        try adapter.release(amount) {
             _clearObservations();
             _afterAction(true);
         } catch {
@@ -522,10 +524,7 @@ contract AppAdapterInvariantHandler is Test {
         vaultFactory.whitelist(
             address(
                 new VaultV2(
-                    address(0x1),
                     address(vaultFactory),
-                    address(0x2),
-                    address(adapterRegistry),
                     address(delegatorFactory),
                     address(protocolFee),
                     address(withdrawalQueueFactory)

@@ -731,7 +731,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(delegator.shareLimitOf(address(adapter)), MAX_SHARE / 4);
     }
 
-    function test_DecreaseLimitsCanDisableShareLimitWhenAbsoluteLimitIsUnlimited() public {
+    function test_DecreaseLimitsSubtractsRequestedAmountsFromUnlimitedLimits() public {
         UniversalDelegatorSweepAdapter adapter = _newAdapter(100, 0);
 
         delegator.addAdapterForTest(address(adapter));
@@ -741,7 +741,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         vm.prank(address(adapter));
         delegator.decreaseLimits(23, MAX_SHARE);
 
-        assertEq(delegator.absoluteLimitOf(address(adapter)), type(uint256).max);
+        assertEq(delegator.absoluteLimitOf(address(adapter)), type(uint256).max - 23);
         assertEq(delegator.shareLimitOf(address(adapter)), 0);
     }
 

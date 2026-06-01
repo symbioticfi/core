@@ -12,7 +12,6 @@ import {IBurner} from "../../interfaces/slasher/IBurner.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
-import {MAX_SHARE} from "../../interfaces/delegator/IUniversalDelegator.sol";
 
 import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -125,7 +124,7 @@ contract AppAdapter is Adapter, IAppAdapter {
     }
 
     /// @inheritdoc IAppAdapter
-    function release() public virtual {
+    function release(uint256 amount) public virtual {
         if (
             subnetwork.network() != msg.sender
                 && INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender
@@ -133,11 +132,19 @@ contract AppAdapter is Adapter, IAppAdapter {
             revert NotNetworkOrMiddleware();
         }
 
-        _stakePos.push(uint48(block.timestamp), uint208(_stakes.length));
-        _stakes.push();
-        IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(type(uint256).max, MAX_SHARE);
+        amount = Math.min(amount, _slashable());
 
-        emit Release();
+        Stake storage curStake = _stakes[_stakePos.latest()];
+        curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + amount);
+
+        address delegator = IVaultV2(vault).delegator();
+        // Stop new allocations by setting absolute limit to adjusted slashable amount.
+        IUniversalDelegator(delegator)
+            .decreaseLimits(
+                IUniversalDelegator(delegator).absoluteLimitOf(address(this)).saturatingSub(_slashable()), 0
+            );
+
+        emit Release(amount);
     }
 
     /* INTERNAL FUNCTIONS */

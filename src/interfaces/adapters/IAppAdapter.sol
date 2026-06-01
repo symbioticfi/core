@@ -88,8 +88,9 @@ interface IAppAdapter is IAdapter {
 
     /**
      * @notice Emitted when slashable stake is released by the network.
+     * @param amount Released amount.
      */
-    event Release();
+    event Release(uint256 amount);
 
     /**
      * @notice Emitted when the adapter is initialized.
@@ -150,9 +151,10 @@ interface IAppAdapter is IAdapter {
 
     /**
      * @notice Release the configured pair's slashable stake.
+     * @param amount Maximum amount to release.
      * @dev Only the configured network or its middleware can call this function.
      */
-    function release() external;
+    function release(uint256 amount) external;
 
     /**
      * @notice Slash the configured pair.

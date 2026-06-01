@@ -24,8 +24,6 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     // MorphoVaultV2 dependencies used by the Morpho adapter.
     address public constant MORPHO_VAULT_FACTORY = 0xA1D94F746dEfa1928926b84fB2596c06926C0405;
     address public constant MORPHO_ADAPTER_REGISTRY = 0x3696c5eAe4a7Ffd04Ea163564571E9CD8Ed9364e;
-    // Rewards contract address used by VaultV2.
-    address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;
     // Vault scope for the adapter factories, or zero address for the global whitelist.
     address public constant VAULT = 0x0000000000000000000000000000000000000000;
 
@@ -37,7 +35,6 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         address aavePool;
         address morphoVaultFactory;
         address morphoAdapterRegistry;
-        address rewards;
     }
 
     struct DeploymentData {
@@ -61,8 +58,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 protocolFee: PROTOCOL_FEE,
                 aavePool: AAVE_POOL,
                 morphoVaultFactory: MORPHO_VAULT_FACTORY,
-                morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY,
-                rewards: REWARDS
+                morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY
             })
         );
     }
@@ -80,8 +76,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
             protocolFee: params.protocolFee,
             aavePool: params.aavePool,
             morphoVaultFactory: params.morphoVaultFactory,
-            morphoAdapterRegistry: params.morphoAdapterRegistry,
-            rewards: params.rewards
+            morphoAdapterRegistry: params.morphoAdapterRegistry
         });
 
         data.v2 = _deployV2(deployParams);
@@ -118,7 +113,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         virtual
         returns (V2DeployBaseScript.DeploymentData memory data)
     {
-        data = new V2DeployBaseScript().runBase(params.adapterRegistryOwner, params.protocolFee, params.rewards);
+        data = new V2DeployBaseScript().runBase(params.adapterRegistryOwner, params.protocolFee);
     }
 
     function _deployAave(DeployParams memory params)
