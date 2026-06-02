@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Symbiotic
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.35;
 
 import {Adapter} from "./Adapter.sol";
 import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
-import {MerklRedistributor} from "./common/MerklRedistributor.sol";
+import {MerklClaimer} from "./common/MerklClaimer.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IMorphoLiquidityAdapter} from "../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoLiquidityAdapter.sol";
@@ -19,7 +19,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title MorphoVaultV2Adapter
 /// @notice VaultV2 adapter for Morpho ERC4626 vaults.
-contract MorphoVaultV2Adapter is CoWSwapConverter, MerklRedistributor, IMorphoVaultV2Adapter {
+contract MorphoVaultV2Adapter is Adapter, CoWSwapConverter, MerklClaimer, IMorphoVaultV2Adapter {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -46,8 +46,9 @@ contract MorphoVaultV2Adapter is CoWSwapConverter, MerklRedistributor, IMorphoVa
         address cowSwapVaultRelayer,
         address morphoAdapterRegistry
     )
-        CoWSwapConverter(vaultFactory, adapterFactory, cowSwapSettlement, cowSwapVaultRelayer)
-        MerklRedistributor(merklDistributor)
+        Adapter(vaultFactory, adapterFactory)
+        CoWSwapConverter(cowSwapSettlement, cowSwapVaultRelayer)
+        MerklClaimer(merklDistributor)
     {
         MORPHO_VAULT_FACTORY = morphoVaultFactory;
         MORPHO_ADAPTER_REGISTRY = morphoAdapterRegistry;
@@ -122,7 +123,11 @@ contract MorphoVaultV2Adapter is CoWSwapConverter, MerklRedistributor, IMorphoVa
 
     /// @dev Initializes and permanently binds the Morpho vault.
     function __initialize(address, bytes memory data) internal override {
-        address curMorphoVault = abi.decode(data, (address));
+        InitParams memory params = abi.decode(data, (InitParams));
+
+        __CoWSwapConverter_init(params.converters);
+
+        address curMorphoVault = params.morphoVault;
 
         if (
             curMorphoVault == address(0) || !IMorphoVaultV2Factory(MORPHO_VAULT_FACTORY).isVaultV2(curMorphoVault)

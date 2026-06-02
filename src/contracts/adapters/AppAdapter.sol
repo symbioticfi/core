@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Symbiotic
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.35;
 
 import {Adapter} from "./Adapter.sol";
 import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
@@ -23,7 +23,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title AppAdapter
 /// @notice Single network-operator guarantee adapter.
-contract AppAdapter is CoWSwapConverter, IAppAdapter {
+contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
     using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
     using Subnetwork for bytes32;
@@ -61,7 +61,7 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
         address cowSwapSettlement,
         address cowSwapVaultRelayer,
         address networkMiddlewareService
-    ) CoWSwapConverter(vaultFactory, adapterFactory, cowSwapSettlement, cowSwapVaultRelayer) {
+    ) Adapter(vaultFactory, adapterFactory) CoWSwapConverter(cowSwapSettlement, cowSwapVaultRelayer) {
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
@@ -111,7 +111,10 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
         virtual
         override(CoWSwapConverter, IConverter)
     {
-        if (tokenOut != IERC4626(vault).asset() || tokenIn == IERC4626(vault).asset()) {
+        if (tokenIn == IERC4626(vault).asset()) {
+            revert InvalidTokenIn();
+        }
+        if (tokenOut != IERC4626(vault).asset()) {
             revert InvalidTokenOut();
         }
         super.convert(tokenIn, amountIn, tokenOut, data);
@@ -228,6 +231,8 @@ contract AppAdapter is CoWSwapConverter, IAppAdapter {
     /// @dev Initializes the configured network-operator pair.
     function __initialize(address, bytes memory data) internal virtual override {
         InitParams memory params = abi.decode(data, (InitParams));
+
+        __CoWSwapConverter_init(params.converters);
 
         asset = IERC4626(vault).asset();
 

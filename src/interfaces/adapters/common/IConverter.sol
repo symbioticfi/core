@@ -16,6 +16,12 @@ interface IConverter {
     /* FUNCTIONS */
 
     /**
+     * @notice Returns the converters allowed to create conversion orders without the prepared-request delay.
+     * @return converters The authorized converter addresses.
+     */
+    function converters() external view returns (address[] memory converters);
+
+    /**
      * @notice Converts one token into another.
      * @param tokenIn Input token address.
      * @param amountIn Input token amount.

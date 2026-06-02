@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.35;
 
 import {Test} from "forge-std/Test.sol";
 
@@ -11,7 +11,7 @@ import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IMorphoVaultV2} from "../../src/interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
 import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
-import {IMerklRedistributor} from "../../src/interfaces/adapters/common/IMerklRedistributor.sol";
+import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 
 import {Token} from "../mocks/Token.sol";
 
@@ -67,7 +67,9 @@ contract MorphoVaultV2AdapterTest is Test {
     function test_ModulesExposeConverterAndMerklConfiguration() public view {
         assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_SETTLEMENT(), settlement);
         assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_VAULT_RELAYER(), relayer);
-        assertEq(IMerklRedistributor(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
+        assertEq(IMerklClaimer(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
+        assertEq(MorphoVaultV2Adapter(address(adapter)).owner(), curator);
+        assertEq(MorphoVaultV2Adapter(address(adapter)).converters()[0], curator);
     }
 
     function test_ConvertRejectsMorphoVaultInput() public {
@@ -185,8 +187,20 @@ contract MorphoVaultV2AdapterTest is Test {
     }
 
     function _createAdapter(address targetMorphoVault) internal returns (IMorphoVaultV2Adapter) {
-        return
-            IMorphoVaultV2Adapter(factory.create(1, curator, abi.encode(address(vault), abi.encode(targetMorphoVault))));
+        address[] memory converters = new address[](1);
+        converters[0] = curator;
+        return IMorphoVaultV2Adapter(
+            factory.create(
+                1,
+                curator,
+                abi.encode(
+                    address(vault),
+                    abi.encode(
+                        IMorphoVaultV2Adapter.InitParams({morphoVault: targetMorphoVault, converters: converters})
+                    )
+                )
+            )
+        );
     }
 }
 

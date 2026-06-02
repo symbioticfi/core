@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.35;
 
 import "./base/V2WhitelistAdaptersBase.s.sol";
 import {Logs} from "../utils/Logs.sol";

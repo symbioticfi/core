@@ -59,12 +59,14 @@ interface IAppAdapter is IAdapter, ICoWSwapConverter {
      * @param duration Stake checkpoint lookahead duration.
      * @param operator Operator address.
      * @param subnetwork Full identifier of the subnetwork.
+     * @param converters Initial converters exempt from the prepared-request delay.
      */
     struct InitParams {
         address burner;
         uint48 duration;
         address operator;
         bytes32 subnetwork;
+        address[] converters;
     }
 
     /**

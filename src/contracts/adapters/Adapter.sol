@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Symbiotic
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.35;
 
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {Multicallable} from "../common/Multicallable.sol";

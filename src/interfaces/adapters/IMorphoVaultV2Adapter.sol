@@ -23,6 +23,18 @@ interface IMorphoVaultV2Adapter is IAdapter {
      */
     error InvalidMorphoVault();
 
+    /* STRUCTS */
+
+    /**
+     * @notice Initialization parameters for the Morpho Vault V2 adapter.
+     * @param morphoVault Morpho vault address.
+     * @param converters Initial converters exempt from the prepared-request delay.
+     */
+    struct InitParams {
+        address morphoVault;
+        address[] converters;
+    }
+
     /**
      * @notice Raised when the deposit helper is called directly instead of through the adapter self-call.
      */

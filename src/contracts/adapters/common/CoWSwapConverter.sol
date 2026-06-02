@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Symbiotic
-pragma solidity ^0.8.28;
-
-import {Adapter} from "../Adapter.sol";
+pragma solidity ^0.8.35;
 
 import {
     COW_SWAP_BALANCE_ERC20,
@@ -17,13 +15,13 @@ import {
 import {IConverter} from "../../../interfaces/adapters/common/IConverter.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Nonces} from "@openzeppelin/contracts/utils/Nonces.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title CoWSwapConverter
 /// @notice Converter for asynchronous CoW Protocol sell orders via pre-signing.
-abstract contract CoWSwapConverter is Nonces, ICoWSwapConverter {
+contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
@@ -33,16 +31,31 @@ abstract contract CoWSwapConverter is Nonces, ICoWSwapConverter {
     /// @inheritdoc ICoWSwapConverter
     address public immutable COW_SWAP_VAULT_RELAYER;
 
-    /* STATE VARIABLES */
+    /* STORAGE */
 
-    /// @inheritdoc ICoWSwapConverter
-    mapping(uint256 nonce => mapping(bytes32 requestHash => uint48 timestamp)) public executableAt;
+    /// @custom:storage-location erc7201:symbiotic.storage.CoWSwapConverter
+    struct CoWSwapConverterStorage {
+        mapping(uint256 nonce => mapping(bytes32 requestHash => uint48 timestamp)) executableAt;
+        address[] converters;
+    }
 
     /* CONSTRUCTOR */
 
     constructor(address cowSwapSettlement, address cowSwapVaultRelayer) {
         COW_SWAP_SETTLEMENT = cowSwapSettlement;
         COW_SWAP_VAULT_RELAYER = cowSwapVaultRelayer;
+    }
+
+    /* VIEW FUNCTIONS */
+
+    /// @inheritdoc ICoWSwapConverter
+    function executableAt(uint256 nonce, bytes32 requestHash) public view returns (uint48 timestamp) {
+        return _getCoWSwapConverterStorage().executableAt[nonce][requestHash];
+    }
+
+    /// @inheritdoc IConverter
+    function converters() public view returns (address[] memory) {
+        return _getCoWSwapConverterStorage().converters;
     }
 
     /* PUBLIC FUNCTIONS */
@@ -60,8 +73,9 @@ abstract contract CoWSwapConverter is Nonces, ICoWSwapConverter {
             revert TooFarValidTo();
         }
 
-        if (owner() != msg.sender) {
-            uint48 timestamp = executableAt[nonces(tokenIn)][keccak256(abi.encode(tokenIn, amountIn, tokenOut, data))];
+        if (!_isConverter(msg.sender)) {
+            CoWSwapConverterStorage storage $ = _getCoWSwapConverterStorage();
+            uint48 timestamp = $.executableAt[nonces(tokenIn)][keccak256(abi.encode(tokenIn, amountIn, tokenOut, data))];
             if (timestamp == 0) {
                 revert InvalidNonce();
             }
@@ -110,12 +124,46 @@ abstract contract CoWSwapConverter is Nonces, ICoWSwapConverter {
         returns (bytes32 requestHash)
     {
         requestHash = keccak256(abi.encode(tokenIn, amountIn, tokenOut, data));
-        executableAt[nonces(tokenIn)][requestHash] = uint48(block.timestamp + EXECUTION_DELAY);
+        CoWSwapConverterStorage storage $ = _getCoWSwapConverterStorage();
+        $.executableAt[nonces(tokenIn)][requestHash] = uint48(block.timestamp + EXECUTION_DELAY);
 
         emit PrepareConvert(tokenIn, amountIn, tokenOut, data);
     }
 
+    /// @inheritdoc ICoWSwapConverter
+    function setConverters(address[] calldata newConverters) public onlyOwner {
+        _getCoWSwapConverterStorage().converters = newConverters;
+
+        emit SetConverters(newConverters);
+    }
+
+    /* INITIALIZATION */
+
+    /// @dev Registers the initial converters allowed to create orders without the prepared-request delay.
+    function __CoWSwapConverter_init(address[] memory initConverters) internal virtual {
+        _getCoWSwapConverterStorage().converters = initConverters;
+    }
+
     /* INTERNAL FUNCTIONS */
+
+    /// @dev Returns CoW converter storage at the ERC-7201 namespace.
+    function _getCoWSwapConverterStorage() internal pure returns (CoWSwapConverterStorage storage $) {
+        uint256 slot = erc7201("symbiotic.storage.CoWSwapConverter");
+        assembly {
+            $.slot := slot
+        }
+    }
+
+    /// @dev Returns whether `account` may create conversion orders without the prepared-request delay.
+    function _isConverter(address account) internal view returns (bool) {
+        address[] storage curConverters = _getCoWSwapConverterStorage().converters;
+        for (uint256 i; i < curConverters.length; ++i) {
+            if (curConverters[i] == account) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// @dev Return the EIP-712 signing hash for the specified order.
     ///

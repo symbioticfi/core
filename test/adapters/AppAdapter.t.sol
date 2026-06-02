@@ -68,6 +68,8 @@ contract AppAdapterTest is Test {
 
     function test_InitializeStoresConfiguredBurner() public view {
         assertEq(adapter.burner(), burner);
+        assertEq(AppAdapter(address(adapter)).owner(), curator);
+        assertEq(AppAdapter(address(adapter)).converters()[0], curator);
     }
 
     function test_InitializeRejectsZeroBurner() public {
@@ -438,11 +440,17 @@ contract AppAdapterTest is Test {
         view
         returns (bytes memory)
     {
+        address[] memory converters = new address[](1);
+        converters[0] = curator;
         return abi.encode(
             address(vault),
             abi.encode(
                 IAppAdapter.InitParams({
-                    subnetwork: initSubnetwork, operator: initOperator, duration: initDuration, burner: initBurner
+                    subnetwork: initSubnetwork,
+                    operator: initOperator,
+                    duration: initDuration,
+                    burner: initBurner,
+                    converters: converters
                 })
             )
         );

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.35;
 
 import {Test} from "forge-std/Test.sol";
 
@@ -10,7 +10,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAaveV3Adapter} from "../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
-import {IMerklRedistributor} from "../../src/interfaces/adapters/common/IMerklRedistributor.sol";
+import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 
 import {Token} from "../mocks/Token.sol";
 import {MockAaveAToken, MockAavePool} from "../mocks/HoodiScenarioProtocolMocks.sol";
@@ -44,7 +44,7 @@ contract AaveV3AdapterTest is Test {
             new AaveV3Adapter(address(pool), address(vaultFactory), address(factory), rewards, settlement, relayer);
         factory.whitelist(address(implementation));
 
-        adapter = IAaveV3Adapter(factory.create(1, curator, abi.encode(address(vault), "")));
+        adapter = IAaveV3Adapter(factory.create(1, curator, abi.encode(address(vault), _initData())));
     }
 
     function test_InitializeRejectsMissingReserve() public {
@@ -53,7 +53,7 @@ contract AaveV3AdapterTest is Test {
         vaultFactory.add(address(localVault));
 
         vm.expectRevert(IAaveV3Adapter.InvalidAToken.selector);
-        factory.create(1, curator, abi.encode(address(localVault), ""));
+        factory.create(1, curator, abi.encode(address(localVault), _initData()));
     }
 
     function test_FreeAssetsUseVaultAsset() public {
@@ -79,7 +79,9 @@ contract AaveV3AdapterTest is Test {
     function test_ModulesExposeConverterAndMerklConfiguration() public view {
         assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_SETTLEMENT(), settlement);
         assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_VAULT_RELAYER(), relayer);
-        assertEq(IMerklRedistributor(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
+        assertEq(IMerklClaimer(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
+        assertEq(AaveV3Adapter(address(adapter)).owner(), curator);
+        assertEq(AaveV3Adapter(address(adapter)).converters()[0], curator);
     }
 
     function test_ConvertRejectsATokenInput() public {
@@ -160,6 +162,12 @@ contract AaveV3AdapterTest is Test {
 
         vm.expectRevert(IAdapter.NotVault.selector);
         adapter.requestDeallocate(1);
+    }
+
+    function _initData() internal view returns (bytes memory) {
+        address[] memory converters = new address[](1);
+        converters[0] = curator;
+        return abi.encode(IAaveV3Adapter.InitParams({converters: converters}));
     }
 }
 

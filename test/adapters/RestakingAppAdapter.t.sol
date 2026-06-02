@@ -470,13 +470,19 @@ contract RestakingAppAdapterTest is Test {
     }
 
     function _initData(address initVault, address initBaseAsset) internal view returns (bytes memory) {
+        address[] memory converters = new address[](1);
+        converters[0] = curator;
         return abi.encode(
             initVault,
             abi.encode(
                 IRestakingAppAdapter.RestakingInitParams({
                     asset: initBaseAsset,
                     initParams: IAppAdapter.InitParams({
-                        subnetwork: subnetwork, operator: operator, duration: duration, burner: burner
+                        subnetwork: subnetwork,
+                        operator: operator,
+                        duration: duration,
+                        burner: burner,
+                        converters: converters
                     })
                 })
             )

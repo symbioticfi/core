@@ -3,7 +3,10 @@ pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
 
+import {Adapter} from "../../../src/contracts/adapters/Adapter.sol";
 import {CoWSwapConverter} from "../../../src/contracts/adapters/common/CoWSwapConverter.sol";
+import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
+import {Registry} from "../../../src/contracts/common/Registry.sol";
 import {
     EXECUTION_DELAY,
     ICoWSwapConverter,
@@ -12,12 +15,18 @@ import {
 
 import {Token} from "../../mocks/Token.sol";
 
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
 contract CoWSwapConverterTest is Test {
     CoWSwapSettlementMock internal settlement;
-    CoWSwapConverter internal converter;
+    CoWSwapConverterHarness internal converter;
     Token internal tokenIn;
     Token internal tokenOut;
+    CoWSwapVaultRegistryMock internal vaultFactory;
+    MigratablesFactory internal adapterFactory;
+    CoWSwapVaultMock internal vault;
     address internal owner = makeAddr("owner");
+    address internal converterRoleHolder = makeAddr("converterRoleHolder");
     address internal relayer = makeAddr("relayer");
 
     function setUp() public {
@@ -26,13 +35,30 @@ contract CoWSwapConverterTest is Test {
         settlement = new CoWSwapSettlementMock();
         tokenIn = new Token("Token In");
         tokenOut = new Token("Token Out");
-        converter = new CoWSwapConverterHarness(owner, address(settlement), relayer, address(tokenOut));
+        vaultFactory = new CoWSwapVaultRegistryMock();
+        adapterFactory = new MigratablesFactory(owner);
+        vault = new CoWSwapVaultMock(address(tokenOut));
+        vaultFactory.add(address(vault));
+
+        CoWSwapConverterHarness implementation =
+            new CoWSwapConverterHarness(address(vaultFactory), address(adapterFactory), address(settlement), relayer);
+
+        vm.startPrank(owner);
+        adapterFactory.whitelist(address(implementation));
+        converter = CoWSwapConverterHarness(adapterFactory.create(1, owner, _initData()));
+        vm.stopPrank();
 
         tokenIn.transfer(address(converter), 100);
     }
 
+    function test_InitializeRegistersConverterFromInitData() public view {
+        assertEq(converter.owner(), owner);
+        assertEq(converter.converters().length, 1);
+        assertEq(converter.converters()[0], converterRoleHolder);
+    }
+
     function test_ConvertPresignsOrderAndApprovesRelayer() public {
-        vm.prank(owner);
+        vm.prank(converterRoleHolder);
         converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(100, 90, 0, 1));
 
         assertEq(settlement.lastOrderUid().length, 56);
@@ -40,8 +66,32 @@ contract CoWSwapConverterTest is Test {
         assertEq(tokenIn.allowance(address(converter), relayer), type(uint256).max);
     }
 
-    function test_ConvertPresignsOrderWhenBalanceIsInsufficient() public {
+    function test_ConverterCanConvertWithoutPreparedNonce() public {
+        address newConverter = makeAddr("newConverter");
+        address[] memory converters = new address[](1);
+        converters[0] = newConverter;
+
         vm.prank(owner);
+        converter.setConverters(converters);
+
+        vm.prank(newConverter);
+        converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(100, 90, 0, 1));
+
+        assertEq(converter.nonces(address(tokenIn)), 1);
+        assertEq(settlement.lastOrderUid().length, 56);
+        assertTrue(settlement.lastSigned());
+    }
+
+    function test_SetConvertersRevertsForNonOwner() public {
+        address[] memory converters = new address[](1);
+        converters[0] = makeAddr("newConverter");
+
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, address(this)));
+        converter.setConverters(converters);
+    }
+
+    function test_ConvertPresignsOrderWhenBalanceIsInsufficient() public {
+        vm.prank(converterRoleHolder);
         converter.convert(address(tokenIn), 101, address(tokenOut), _orderData(101, 90, 0, 1));
 
         assertEq(settlement.lastOrderUid().length, 56);
@@ -49,22 +99,25 @@ contract CoWSwapConverterTest is Test {
         assertEq(tokenIn.allowance(address(converter), relayer), type(uint256).max);
     }
 
-    function test_ConvertRevertsWhenTokenInIsVaultAsset() public {
-        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
+    function test_ConvertAllowsVaultAssetInputAtBaseConverterLevel() public {
+        vm.prank(converterRoleHolder);
         converter.convert(address(tokenOut), 100, address(tokenOut), _orderData(100, 90, 0, 1));
+
+        assertEq(settlement.lastOrderUid().length, 56);
+        assertTrue(settlement.lastSigned());
     }
 
     function test_ConvertRevertsForInvalidOrderBounds() public {
         vm.expectRevert(ICoWSwapConverter.InvalidSellAmount.selector);
-        vm.prank(owner);
+        vm.prank(converterRoleHolder);
         converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(99, 90, 0, 1));
 
         vm.expectRevert(ICoWSwapConverter.ExpiredOrder.selector);
-        vm.prank(owner);
+        vm.prank(converterRoleHolder);
         converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(100, 90, 0, 3, uint32(block.timestamp)));
 
         vm.expectRevert(ICoWSwapConverter.TooFarValidTo.selector);
-        vm.prank(owner);
+        vm.prank(converterRoleHolder);
         converter.convert(
             address(tokenIn),
             100,
@@ -133,7 +186,7 @@ contract CoWSwapConverterTest is Test {
         bytes memory data = _orderData(100, 90, 0, 1, uint32(block.timestamp + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
         converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
 
-        vm.prank(owner);
+        vm.prank(converterRoleHolder);
         converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(100, 80, 0, 2));
 
         vm.warp(block.timestamp + EXECUTION_DELAY);
@@ -165,24 +218,26 @@ contract CoWSwapConverterTest is Test {
             })
         );
     }
+
+    function _initData() internal view returns (bytes memory) {
+        address[] memory converters = new address[](1);
+        converters[0] = converterRoleHolder;
+        return abi.encode(address(vault), abi.encode(converters));
+    }
 }
 
-contract CoWSwapConverterHarness is CoWSwapConverter {
-    address internal immutable OWNER;
-
-    constructor(address owner_, address settlement, address relayer, address asset)
-        CoWSwapConverter(address(0), address(0), settlement, relayer)
-    {
-        OWNER = owner_;
-        vault = address(new CoWSwapVaultMock(asset));
-    }
-
-    function owner() public view override returns (address) {
-        return OWNER;
-    }
+contract CoWSwapConverterHarness is Adapter, CoWSwapConverter {
+    constructor(address vaultFactory, address adapterFactory, address settlement, address relayer)
+        Adapter(vaultFactory, adapterFactory)
+        CoWSwapConverter(settlement, relayer)
+    {}
 
     function totalAssets() public pure override returns (uint256) {
         return 0;
+    }
+
+    function __initialize(address, bytes memory data) internal override {
+        __CoWSwapConverter_init(abi.decode(data, (address[])));
     }
 
     function _allocate(uint256) internal pure override returns (uint256) {
@@ -191,6 +246,12 @@ contract CoWSwapConverterHarness is CoWSwapConverter {
 
     function _deallocate(uint256) internal pure override returns (uint256) {
         return 0;
+    }
+}
+
+contract CoWSwapVaultRegistryMock is Registry {
+    function add(address entity) external {
+        _addEntity(entity);
     }
 }
 

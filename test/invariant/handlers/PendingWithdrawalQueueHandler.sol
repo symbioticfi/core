@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.35;
 
 import {Test} from "forge-std/Test.sol";
 
@@ -344,6 +344,8 @@ contract PendingWithdrawalQueueHandler is Test {
         delegator = _createDelegator(vault);
         vault.setDelegator(address(delegator));
 
+        address[] memory converters = new address[](1);
+        converters[0] = CURATOR;
         adapter = IAppAdapter(
             adapterFactory.create(
                 1,
@@ -352,7 +354,11 @@ contract PendingWithdrawalQueueHandler is Test {
                     address(vault),
                     abi.encode(
                         IAppAdapter.InitParams({
-                            subnetwork: network.subnetwork(1), operator: operator, duration: DURATION, burner: BURNER
+                            subnetwork: network.subnetwork(1),
+                            operator: operator,
+                            duration: DURATION,
+                            burner: BURNER,
+                            converters: converters
                         })
                     )
                 )

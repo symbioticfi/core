@@ -175,6 +175,12 @@ interface ICoWSwapConverter is IConverter {
      */
     event ReleaseExpiredOrder(bytes orderUid, address indexed token, uint256 amount);
 
+    /**
+     * @notice Emitted when the authorized converter set is replaced.
+     * @param converters The new authorized converter addresses.
+     */
+    event SetConverters(address[] converters);
+
     /* FUNCTIONS */
 
     /**
@@ -188,6 +194,12 @@ interface ICoWSwapConverter is IConverter {
      * @return relayer The CoW Protocol vault relayer.
      */
     function COW_SWAP_VAULT_RELAYER() external view returns (address relayer);
+
+    /**
+     * @notice Replaces the set of converters allowed to create orders without the prepared-request delay.
+     * @param newConverters The new authorized converter addresses.
+     */
+    function setConverters(address[] calldata newConverters) external;
 
     /**
      * @notice Returns when a prepared conversion request can be executed.
