@@ -554,7 +554,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         if (tokenInToRedeem > 0) {
             address account = _getAccount(swap.tokenIn);
             IERC20(swap.tokenIn).safeTransfer(account, tokenInToRedeem);
-            IAccount(account).requestRedeem();
+            IAccount(account).sync();
         }
 
         IERC20(IERC4626(vault).asset()).safeTransfer(swap.recipient, swap.amountOut);
@@ -574,13 +574,13 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /* INITIALIZATION */
 
-    /// @dev Initializes the pauser and unpauser to the owner.
-    function __initialize(address, bytes memory) internal override {
-        address curOwner = owner();
-        pauser = curOwner;
-        unpauser = curOwner;
+    /// @dev Initializes the pause roles.
+    function __initialize(address, bytes memory data) internal override {
+        InitParams memory params = abi.decode(data, (InitParams));
 
-        emit SetPauser(curOwner);
-        emit SetUnpauser(curOwner);
+        pauser = params.pauser;
+        unpauser = params.unpauser;
+
+        emit Initialize(params);
     }
 }

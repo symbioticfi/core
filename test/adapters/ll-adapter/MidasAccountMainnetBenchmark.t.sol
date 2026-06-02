@@ -67,7 +67,7 @@ contract MidasAccountMainnetBenchmarkTest is Test {
     function testBenchmarkFinalizeRedeemForHistoricalMainnetMidasRequests() public {
         _skipWithoutMainnetRpc();
 
-        emit log("MidasAccount.requestRedeem() gas for historical finalized mainnet mTBILL Standard Redemption requests");
+        emit log("MidasAccount.sync() gas for historical finalized mainnet mTBILL Standard Redemption requests");
         for (uint256 i; i < requestCounts.length; ++i) {
             _benchmarkFinalizeRedeem(requestCounts[i]);
         }
@@ -101,7 +101,7 @@ contract MidasAccountMainnetBenchmarkTest is Test {
     function _createPendingRedeemRequests(MidasNonCompAccountBenchHarness account, uint256 count) internal {
         for (uint256 i; i < count; ++i) {
             deal(MAINNET_MTBILL, address(account), REQUEST_AMOUNT);
-            account.requestRedeem();
+            account.sync();
         }
 
         assertEq(account.requestIdsLength(), count);
@@ -111,7 +111,7 @@ contract MidasAccountMainnetBenchmarkTest is Test {
     function _createPendingRedeemRequests(MidasCompAccountBenchHarness account, uint256 count) internal {
         for (uint256 i; i < count; ++i) {
             deal(MAINNET_MTBILL, address(account), REQUEST_AMOUNT);
-            account.requestRedeem();
+            account.sync();
         }
 
         assertEq(account.requestIdsLength(), count);
@@ -192,11 +192,11 @@ contract MidasAccountMainnetBenchmarkTest is Test {
         }
 
         uint256 gasBefore = gasleft();
-        account.requestRedeem();
+        account.sync();
         uint256 gasUsed = gasBefore - gasleft();
 
         assertEq(account.requestIdsLength(), 0);
-        _logGas("requestRedeem", "finalized", count, gasUsed);
+        _logGas("sync", "finalized", count, gasUsed);
     }
 
     function _logGas(string memory fn, string memory mode, uint256 count, uint256 gasUsed) internal {

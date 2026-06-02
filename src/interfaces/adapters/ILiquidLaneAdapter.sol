@@ -110,6 +110,16 @@ interface ILiquidLaneAdapter is IAdapter {
     /* STRUCTS */
 
     /**
+     * @notice Initialization parameters for the liquidity lane adapter.
+     * @param pauser Address allowed to pause swaps.
+     * @param unpauser Address allowed to unpause swaps.
+     */
+    struct InitParams {
+        address pauser;
+        address unpauser;
+    }
+
+    /**
      * @notice Direct authorized swap payload.
      * @param recipient Recipient of the collateral output.
      * @param tokenIn Token-to-redeem consumed by the swap.
@@ -176,6 +186,12 @@ interface ILiquidLaneAdapter is IAdapter {
     }
 
     /* EVENTS */
+
+    /**
+     * @notice Emitted when the adapter is initialized.
+     * @param params Initialization parameters.
+     */
+    event Initialize(InitParams params);
 
     /**
      * @notice Emitted when a token minimum discount is updated.

@@ -39,7 +39,7 @@ contract MidasAccountOraclesTest is Test {
         assertEq(account.ORACLE(), oracle);
         assertEq(account.vault(), vault);
         assertEq(account.totalAssets(), 100 ether);
-        account.requestRedeem();
+        account.sync();
 
         mTokenDataFeed.setAnswer(2e18);
 
@@ -47,7 +47,7 @@ contract MidasAccountOraclesTest is Test {
 
         redemptionVault.approveRequest(0, 2e18);
 
-        account.requestRedeem();
+        account.sync();
         assertEq(asset.balanceOf(address(account)), 200 ether);
         assertEq(account.totalAssets(), 200 ether);
     }
@@ -64,7 +64,7 @@ contract MidasAccountOraclesTest is Test {
 
         tokenToRedeem.mint(address(account), 100 ether);
 
-        account.requestRedeem();
+        account.sync();
 
         mTokenDataFeed.setAnswer(2e18);
 
@@ -72,7 +72,7 @@ contract MidasAccountOraclesTest is Test {
 
         redemptionVault.approveRequest(0, 2e18);
 
-        account.requestRedeem();
+        account.sync();
         assertEq(asset.balanceOf(address(account)), 200 ether);
         assertEq(account.totalAssets(), 200 ether);
     }
@@ -87,11 +87,11 @@ contract MidasAccountOraclesTest is Test {
         MidasCompAccount account = _deployCompAccount(tokenToRedeem, asset, makeAddr("fallbackToken"), redemptionVault);
 
         tokenToRedeem.mint(address(account), 100 ether);
-        account.requestRedeem();
+        account.sync();
 
         redemptionVault.approveRequest(0, 2e18);
 
-        account.requestRedeem();
+        account.sync();
 
         assertEq(asset.balanceOf(address(account)), 200 ether);
         assertEq(asset.allowance(address(account), adapter), type(uint256).max);
@@ -107,7 +107,7 @@ contract MidasAccountOraclesTest is Test {
             _deployCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
 
         tokenToRedeem.mint(address(account), 100 ether);
-        account.requestRedeem();
+        account.sync();
 
         assertEq(account.totalAssets(), 100 ether);
 
@@ -115,8 +115,8 @@ contract MidasAccountOraclesTest is Test {
         redemptionVault.cancelRequest(0);
         assertEq(tokenToRedeem.balanceOf(address(account)), 100 ether);
 
-        // requestRedeem() prunes the canceled request and re-batches the returned token-to-redeem into a new request.
-        account.requestRedeem();
+        // sync() prunes the canceled request and re-batches the returned token-to-redeem into a new request.
+        account.sync();
         assertEq(asset.balanceOf(address(account)), 0);
         assertEq(tokenToRedeem.balanceOf(address(account)), 0);
 
@@ -135,7 +135,7 @@ contract MidasAccountOraclesTest is Test {
             _deployNonCompAccount(tokenToRedeem, asset, address(fallbackToken), redemptionVault);
         tokenToRedeem.mint(address(account), 100 ether);
 
-        account.requestRedeem();
+        account.sync();
 
         assertEq(redemptionVault.lastTokenOut(), address(asset));
         assertEq(redemptionVault.lastAmountMTokenIn(), 100 ether);
@@ -154,7 +154,7 @@ contract MidasAccountOraclesTest is Test {
             _deployNonCompAccount(tokenToRedeem, asset, address(fallbackToken), redemptionVault);
         tokenToRedeem.mint(address(account), 100 ether);
 
-        account.requestRedeem();
+        account.sync();
 
         assertEq(redemptionVault.lastTokenOut(), address(fallbackToken));
         assertEq(redemptionVault.lastAmountMTokenIn(), 100 ether);
@@ -168,7 +168,7 @@ contract MidasAccountOraclesTest is Test {
         MidasNonCompAccount account =
             _deployNonCompAccount(tokenToRedeem, asset, makeAddr("fallbackToken"), redemptionVault);
 
-        account.requestRedeem();
+        account.sync();
         assertEq(redemptionVault.lastTokenOut(), address(0));
     }
 

@@ -1,0 +1,413 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.35;
+
+import {Test} from "forge-std/Test.sol";
+
+import {ACRED_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRED_Account.sol";
+import {weETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
+import {wstETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
+import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
+
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract AccountsTest is Test {
+    address internal adapter = makeAddr("adapter");
+    address internal redemptionWallet = makeAddr("redemptionWallet");
+
+    function testCentrifugeAccountForwardsHeldInventoryToRedemptionWallet() public {
+        MockERC20 tokenToRedeem = new MockERC20("ACRED", "ACRED", 6);
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockOracle oracle = new MockOracle(2e18);
+        ACRED_Account account = _deployACRED(tokenToRedeem, asset, oracle);
+
+        tokenToRedeem.mint(address(account), 10e6);
+
+        assertEq(account.ORACLE(), address(oracle));
+        assertEq(MockVault(account.vault()).asset(), address(asset));
+        assertEq(account.REDEMPTION_WALLET(), redemptionWallet);
+        assertEq(account.totalAssets(), 20e6);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(tokenToRedeem.balanceOf(redemptionWallet), 10e6);
+        assertEq(account.totalAssets(), 0);
+    }
+
+    function testWstETHAccountUnwrapsIntoStETHWhenVaultAssetIsStETH() public {
+        MockERC20 stETH = new MockERC20("Liquid staked Ether", "stETH", 18);
+        MockWstETH wstETH = new MockWstETH(address(stETH));
+        MockOracle oracle = new MockOracle(1e18);
+        wstETH_Account account = _deployWstETH(wstETH, stETH, stETH, oracle);
+
+        wstETH.mint(address(account), 25 ether);
+
+        assertEq(account.totalAssets(), 25 ether);
+
+        account.sync();
+
+        assertEq(wstETH.balanceOf(address(account)), 0);
+        assertEq(stETH.balanceOf(address(account)), 25 ether);
+        assertEq(account.totalAssets(), 25 ether);
+    }
+
+    function testWstETHAccountLeavesInventoryWhenVaultAssetIsWstETH() public {
+        MockERC20 stETH = new MockERC20("Liquid staked Ether", "stETH", 18);
+        MockWstETH wstETH = new MockWstETH(address(stETH));
+        MockOracle oracle = new MockOracle(1e18);
+        wstETH_Account account = _deployWstETH(wstETH, stETH, wstETH, oracle);
+
+        wstETH.mint(address(account), 10 ether);
+
+        account.sync();
+
+        assertEq(wstETH.balanceOf(address(account)), 10 ether);
+        assertEq(stETH.balanceOf(address(account)), 0);
+        assertEq(account.totalAssets(), 10 ether);
+    }
+
+    function testWeETHAccountInstantRedeemsIntoStETHWhenAvailable() public {
+        LstMocks memory mocks = _lstMocks();
+        MockOracle oracle = new MockOracle(1e18);
+        weETH_Account account = _deployWeETH(mocks, mocks.stETH, oracle);
+
+        mocks.weETH.mint(address(account), 12 ether);
+        mocks.redemptionManager.setExitFee(address(mocks.stETH), 0);
+        mocks.redemptionManager.setRedeemable(address(mocks.stETH), true);
+
+        account.sync();
+
+        assertEq(mocks.weETH.balanceOf(address(account)), 0);
+        assertEq(mocks.stETH.balanceOf(address(account)), 12 ether);
+        assertEq(mocks.redemptionManager.lastOutputToken(), address(mocks.stETH));
+        assertEq(mocks.liquidityPool.lastAmount(), 0);
+        assertEq(account.totalAssets(), 12 ether);
+    }
+
+    function testWeETHAccountWrapsInstantStETHToWstETHWhenVaultAssetIsWstETH() public {
+        LstMocks memory mocks = _lstMocks();
+        MockOracle oracle = new MockOracle(1e18);
+        weETH_Account account = _deployWeETH(mocks, mocks.wstETH, oracle);
+
+        mocks.weETH.mint(address(account), 7 ether);
+        mocks.redemptionManager.setExitFee(address(mocks.stETH), 0);
+        mocks.redemptionManager.setRedeemable(address(mocks.stETH), true);
+
+        account.sync();
+
+        assertEq(mocks.weETH.balanceOf(address(account)), 0);
+        assertEq(mocks.stETH.balanceOf(address(account)), 0);
+        assertEq(mocks.wstETH.balanceOf(address(account)), 7 ether);
+        assertEq(mocks.redemptionManager.lastOutputToken(), address(mocks.stETH));
+        assertEq(mocks.liquidityPool.lastAmount(), 0);
+        assertEq(account.totalAssets(), 7 ether);
+    }
+
+    function testWeETHAccountQueuesWithdrawalAndClaimWrapsIntoWETH() public {
+        LstMocks memory mocks = _lstMocks();
+        MockOracle oracle = new MockOracle(1e18);
+        weETH_Account account = _deployWeETH(mocks, mocks.weth, oracle);
+
+        mocks.weETH.mint(address(account), 15 ether);
+        mocks.redemptionManager.setExitFee(address(mocks.stETH), 25);
+        mocks.redemptionManager.setRedeemable(address(mocks.stETH), true);
+
+        account.sync();
+
+        assertEq(mocks.eETH.balanceOf(address(mocks.liquidityPool)), 15 ether);
+        assertEq(mocks.liquidityPool.lastRecipient(), address(account));
+        assertEq(mocks.liquidityPool.lastAmount(), 15 ether);
+        assertEq(account.totalAssets(), 15 ether);
+        assertEq(account.pendingAssets(), 15 ether);
+
+        mocks.withdrawRequestNft.setClaimAmount{value: 15 ether}(15 ether);
+        account.claimWithdraw(1);
+
+        assertEq(mocks.weth.balanceOf(address(account)), 15 ether);
+        assertEq(address(account).balance, 0);
+        assertEq(account.pendingAssets(), 0);
+        assertEq(account.totalAssets(), 15 ether);
+    }
+
+    function testWeETHAccountQueuesWithdrawalWhenInstantStETHIsUnavailable() public {
+        LstMocks memory mocks = _lstMocks();
+        MockOracle oracle = new MockOracle(1e18);
+        weETH_Account account = _deployWeETH(mocks, mocks.weth, oracle);
+
+        mocks.weETH.mint(address(account), 4 ether);
+        mocks.redemptionManager.setExitFee(address(mocks.stETH), 0);
+        mocks.redemptionManager.setRedeemable(address(mocks.stETH), false);
+
+        account.sync();
+
+        assertEq(mocks.eETH.balanceOf(address(mocks.liquidityPool)), 4 ether);
+        assertEq(mocks.liquidityPool.lastRecipient(), address(account));
+        assertEq(mocks.liquidityPool.lastAmount(), 4 ether);
+        assertEq(mocks.redemptionManager.lastWeETHAmount(), 0);
+        assertEq(account.pendingAssets(), 4 ether);
+        assertEq(account.totalAssets(), 4 ether);
+    }
+
+    function _deployACRED(MockERC20 tokenToRedeem, MockERC20 asset, MockOracle oracle)
+        internal
+        returns (ACRED_Account account)
+    {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        ACRED_Account implementation =
+            new ACRED_Account(address(factory), address(oracle), address(tokenToRedeem), redemptionWallet);
+        factory.whitelist(address(implementation));
+        account = ACRED_Account(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
+    }
+
+    function _deployWstETH(MockWstETH wstETH, MockERC20 stETH, MockERC20 asset, MockOracle oracle)
+        internal
+        returns (wstETH_Account account)
+    {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        wstETH_Account implementation =
+            new wstETH_Account(address(factory), address(oracle), address(wstETH), address(stETH));
+        factory.whitelist(address(implementation));
+        account = wstETH_Account(factory.create(1, address(this), _initData(address(asset), address(wstETH))));
+    }
+
+    function _deployWeETH(LstMocks memory mocks, MockERC20 asset, MockOracle oracle)
+        internal
+        returns (weETH_Account account)
+    {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        weETH_Account implementation = new weETH_Account(
+            address(factory),
+            address(oracle),
+            address(mocks.weETH),
+            address(mocks.eETH),
+            address(mocks.liquidityPool),
+            address(mocks.redemptionManager),
+            address(mocks.withdrawRequestNft),
+            address(mocks.stETH),
+            address(mocks.wstETH),
+            address(mocks.weth)
+        );
+        factory.whitelist(address(implementation));
+        account =
+            weETH_Account(payable(factory.create(1, address(this), _initData(address(asset), address(mocks.weETH)))));
+    }
+
+    function _lstMocks() internal returns (LstMocks memory mocks) {
+        mocks.stETH = new MockERC20("Liquid staked Ether", "stETH", 18);
+        mocks.eETH = new MockERC20("ether.fi ETH", "eETH", 18);
+        mocks.weth = new MockWETH();
+        mocks.wstETH = new MockWstETH(address(mocks.stETH));
+        mocks.weETH = new MockWeETH(address(mocks.eETH));
+        mocks.redemptionManager =
+            new MockEtherFiRedemptionManager(address(mocks.weETH), address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
+        mocks.liquidityPool = new MockEtherFiLiquidityPool(address(mocks.eETH));
+        mocks.withdrawRequestNft = new MockEtherFiWithdrawRequestNFT();
+    }
+
+    function _initData(address asset, address tokenToRedeem) internal returns (bytes memory) {
+        return abi.encode(adapter, address(_vault(MockERC20(asset))), tokenToRedeem);
+    }
+
+    function _vault(MockERC20 asset) internal returns (MockVault vault) {
+        vault = new MockVault(address(asset));
+    }
+}
+
+struct LstMocks {
+    MockERC20 stETH;
+    MockERC20 eETH;
+    MockWETH weth;
+    MockWstETH wstETH;
+    MockWeETH weETH;
+    MockEtherFiRedemptionManager redemptionManager;
+    MockEtherFiLiquidityPool liquidityPool;
+    MockEtherFiWithdrawRequestNFT withdrawRequestNft;
+}
+
+contract MockOracle {
+    uint256 internal _price;
+
+    constructor(uint256 price_) {
+        _price = price_;
+    }
+
+    function setPrice(uint256 price_) external {
+        _price = price_;
+    }
+
+    function getPrice() external view returns (uint256) {
+        return _price;
+    }
+}
+
+contract MockVault {
+    address public immutable asset;
+
+    constructor(address asset_) {
+        asset = asset_;
+    }
+}
+
+contract MockERC20 is ERC20 {
+    uint8 internal immutable _decimals;
+
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) {
+        _decimals = decimals_;
+    }
+
+    function decimals() public view override returns (uint8) {
+        return _decimals;
+    }
+
+    function mint(address account, uint256 amount) external {
+        _mint(account, amount);
+    }
+}
+
+contract MockWETH is MockERC20 {
+    constructor() MockERC20("Wrapped Ether", "WETH", 18) {}
+
+    function deposit() external payable {
+        _mint(msg.sender, msg.value);
+    }
+}
+
+contract MockWstETH is MockERC20 {
+    MockERC20 internal immutable _stETH;
+
+    constructor(address stETH_) MockERC20("Wrapped stETH", "wstETH", 18) {
+        _stETH = MockERC20(stETH_);
+    }
+
+    function wrap(uint256 stETHAmount) external returns (uint256 wstETHAmount) {
+        IERC20(address(_stETH)).transferFrom(msg.sender, address(this), stETHAmount);
+        _mint(msg.sender, stETHAmount);
+        return stETHAmount;
+    }
+
+    function unwrap(uint256 wstETHAmount) external returns (uint256 stETHAmount) {
+        _burn(msg.sender, wstETHAmount);
+        _stETH.mint(msg.sender, wstETHAmount);
+        return wstETHAmount;
+    }
+
+    function getWstETHByStETH(uint256 stETHAmount) external pure returns (uint256 wstETHAmount) {
+        return stETHAmount;
+    }
+
+    function getStETHByWstETH(uint256 wstETHAmount) external pure returns (uint256 stETHAmount) {
+        return wstETHAmount;
+    }
+}
+
+contract MockWeETH is MockERC20 {
+    MockERC20 internal immutable _eETH;
+
+    constructor(address eETH_) MockERC20("Wrapped eETH", "weETH", 18) {
+        _eETH = MockERC20(eETH_);
+    }
+
+    function unwrap(uint256 weETHAmount) external returns (uint256 eETHAmount) {
+        _burn(msg.sender, weETHAmount);
+        _eETH.mint(msg.sender, weETHAmount);
+        return weETHAmount;
+    }
+
+    function getEETHByWeETH(uint256 weETHAmount) external pure returns (uint256 eETHAmount) {
+        return weETHAmount;
+    }
+}
+
+contract MockEtherFiRedemptionManager {
+    address public immutable weETH;
+    address public immutable ETH_ADDRESS;
+
+    mapping(address token => uint16 fee) public exitFeeInBps;
+    mapping(address token => bool status) public redeemable;
+
+    address public lastOutputToken;
+    address public lastReceiver;
+    uint256 public lastWeETHAmount;
+
+    constructor(address weETH_, address ethAddress_) {
+        weETH = weETH_;
+        ETH_ADDRESS = ethAddress_;
+    }
+
+    function setExitFee(address token, uint16 fee) external {
+        exitFeeInBps[token] = fee;
+    }
+
+    function setRedeemable(address token, bool status) external {
+        redeemable[token] = status;
+    }
+
+    function tokenToRedemptionInfo(address token)
+        external
+        view
+        returns (BucketLimit memory limit, uint16, uint16 exitFeeInBps_, uint16)
+    {
+        return (limit, 0, exitFeeInBps[token], 0);
+    }
+
+    function canRedeem(uint256, address token) external view returns (bool) {
+        return redeemable[token];
+    }
+
+    function redeemWeEth(uint256 weETHAmount, address receiver, address outputToken) external {
+        IERC20(weETH).transferFrom(msg.sender, address(this), weETHAmount);
+
+        lastWeETHAmount = weETHAmount;
+        lastReceiver = receiver;
+        lastOutputToken = outputToken;
+
+        if (outputToken == ETH_ADDRESS) {
+            (bool success,) = receiver.call{value: weETHAmount}("");
+            require(success);
+        } else {
+            MockERC20(outputToken).mint(receiver, weETHAmount);
+        }
+    }
+
+    struct BucketLimit {
+        uint64 capacity;
+        uint64 remaining;
+        uint64 lastRefill;
+        uint64 refillRate;
+    }
+}
+
+contract MockEtherFiLiquidityPool {
+    IERC20 internal immutable _eETH;
+
+    address public lastRecipient;
+    uint256 public lastAmount;
+    uint256 public nextRequestId = 1;
+
+    constructor(address eETH_) {
+        _eETH = IERC20(eETH_);
+    }
+
+    function requestWithdraw(address recipient, uint256 amount) external returns (uint256 requestId) {
+        _eETH.transferFrom(msg.sender, address(this), amount);
+        lastRecipient = recipient;
+        lastAmount = amount;
+        requestId = nextRequestId++;
+    }
+}
+
+contract MockEtherFiWithdrawRequestNFT {
+    uint256 public claimAmount;
+
+    function setClaimAmount(uint256 claimAmount_) external payable {
+        claimAmount = claimAmount_;
+    }
+
+    function claimWithdraw(uint256) external {
+        uint256 amount = claimAmount;
+        claimAmount = 0;
+        (bool success,) = msg.sender.call{value: amount}("");
+        require(success);
+    }
+}

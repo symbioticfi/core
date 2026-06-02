@@ -38,7 +38,9 @@ contract LiquidLaneAdapterTest is Test {
     address internal filler = makeAddr("filler");
     address internal marketMaker = makeAddr("marketMaker");
     address internal marketMakerReceiver = makeAddr("marketMakerReceiver");
+    address internal pauser = makeAddr("pauser");
     address internal recipient = makeAddr("recipient");
+    address internal unpauser = makeAddr("unpauser");
 
     function setUp() public {
         asset = new MockERC20("Asset", "ASSET");
@@ -59,7 +61,12 @@ contract LiquidLaneAdapterTest is Test {
         liquidLaneRegistry.whitelist(address(implementation));
         accountFactory.whitelist(address(accountImplementation));
         liquidLaneRegistry.setAccountFactory(address(tokenToRedeem), address(accountFactory));
-        adapter = LiquidLaneAdapter(liquidLaneRegistry.create(1, curator, abi.encode(address(vault), "")));
+        ILiquidLaneAdapter.InitParams memory params =
+            ILiquidLaneAdapter.InitParams({pauser: pauser, unpauser: unpauser});
+        vm.expectEmit(false, false, false, true);
+        emit ILiquidLaneAdapter.Initialize(params);
+        adapter =
+            LiquidLaneAdapter(liquidLaneRegistry.create(1, curator, abi.encode(address(vault), abi.encode(params))));
         adapter.addTokenToRedeem(address(tokenToRedeem));
         adapter.setLimit(address(tokenToRedeem), type(uint256).max);
         adapter.setMarketMaker(marketMaker, true);
@@ -98,10 +105,10 @@ contract LiquidLaneAdapterTest is Test {
         assertEq(adapter.accounts(address(tokenToRedeem)), address(0));
     }
 
-    function testInitializeSetsPauserAndUnpauserToOwner() public view {
+    function testInitializeSetsPauserAndUnpauserFromParams() public view {
         assertEq(adapter.owner(), curator);
-        assertEq(adapter.pauser(), curator);
-        assertEq(adapter.unpauser(), curator);
+        assertEq(adapter.pauser(), pauser);
+        assertEq(adapter.unpauser(), unpauser);
     }
 
     function testSetPairMaxDiscountSelectorIsUnavailable() public {
@@ -117,7 +124,7 @@ contract LiquidLaneAdapterTest is Test {
     }
 
     function testPauseAndUnpauseUsePauserUnpauserAndPauseSwaps() public {
-        address newPauser = makeAddr("pauser");
+        address newPauser = makeAddr("newPauser");
 
         vm.expectRevert(ILiquidLaneAdapter.InvalidCaller.selector);
         vm.prank(newPauser);
@@ -508,7 +515,7 @@ contract MockLiquidLaneAccount is MigratableEntity, IAccount {
         vault = vault_;
     }
 
-    function requestRedeem() external {}
+    function sync() external {}
 
     function totalAssets() external view returns (uint256 assets) {
         assets = IERC20(asset).balanceOf(address(this));

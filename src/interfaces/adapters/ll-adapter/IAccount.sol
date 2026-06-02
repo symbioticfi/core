@@ -34,9 +34,8 @@ interface IAccount {
     function totalAssets() external view returns (uint256 assets);
 
     /**
-     * @notice Prunes terminal (processed or canceled) requests and, once per cooldown, batches held token-to-redeem
-     *         inventory into a new Midas redemption request. Permissionless housekeeping.
+     * @notice Synchronizes held token-to-redeem inventory and pending issuer state. Permissionless housekeeping.
      * @dev Realized proceeds stay as the account's vault-asset balance, approved to the adapter for `transferFrom`.
      */
-    function requestRedeem() external;
+    function sync() external;
 }

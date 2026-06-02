@@ -112,7 +112,7 @@ abstract contract MidasAccount is MigratableEntity, CoWSwapConverter, IMidasAcco
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IAccount
-    function requestRedeem() public nonReentrant {
+    function sync() public nonReentrant {
         // Prune terminal (processed or canceled) requests so totalAssets() and the request set stay tight.
         for (uint256 i = _requestIds.length; i > 0; --i) {
             (,, uint8 status,,,) = IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(_requestIds[i - 1]);
@@ -146,7 +146,7 @@ abstract contract MidasAccount is MigratableEntity, CoWSwapConverter, IMidasAcco
 
     /// @inheritdoc CoWSwapConverter
     function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data) public override {
-        requestRedeem();
+        sync();
 
         address asset = IERC4626(vault).asset();
         // The token-to-redeem must go through the Midas redemption flow, not be sold via CoW.
@@ -160,7 +160,6 @@ abstract contract MidasAccount is MigratableEntity, CoWSwapConverter, IMidasAcco
     }
 
     /* INTERNAL FUNCTIONS */
-
 
     /// @dev Prices a token-to-redeem amount in vault assets at the given token-to-redeem rate (base 1e18).
     function _toAssets(uint256 amount, uint256 rate) internal view returns (uint256) {
