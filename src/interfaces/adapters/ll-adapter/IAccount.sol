@@ -28,6 +28,12 @@ interface IAccount {
     function vault() external view returns (address vault);
 
     /**
+     * @notice Returns the account's realized vault-asset balance.
+     * @return assets The current free vault-asset amount.
+     */
+    function freeAssets() external view returns (uint256 assets);
+
+    /**
      * @notice Returns the account's current vault-asset value.
      * @return assets The current vault-asset value.
      */

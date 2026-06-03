@@ -6,6 +6,13 @@ pragma solidity ^0.8.0;
  * @notice Interface for the liquidity lane adapter registry.
  */
 interface ILiquidLaneRegistry {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when a registry configuration is invalid.
+     */
+    error InvalidConfiguration();
+
     /* EVENTS */
 
     /**

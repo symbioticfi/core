@@ -392,7 +392,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     }
 
     /// @inheritdoc IAdapter
-    function deallocate(uint256 amount) public override returns (uint256 deallocated) {
+    function deallocate(uint256) public override(Adapter, IAdapter) returns (uint256 deallocated) {
         address asset = IERC4626(vault).asset();
         for (uint256 i; i < tokensToRedeem.length; ++i) {
             address account = accounts[tokensToRedeem[i]];
@@ -501,7 +501,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
             acquireBalance[swap.tokenIn][owner()] = curatorAcquireBalance - curatorAcquireBalanceSpent;
             if (owner() != marketMaker) {
-                acquireBalances[swap.tokenIn][marketMaker] = marketMakerAcquireBalance - marketMakerAcquireBalanceSpent;
+                acquireBalance[swap.tokenIn][marketMaker] = marketMakerAcquireBalance - marketMakerAcquireBalanceSpent;
             }
 
             uint256 marketMakerAcquired = marketMakerAcquireBalanceSpent.mulDiv(tokenInAcquired, tokenOutToAcquire);

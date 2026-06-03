@@ -48,9 +48,9 @@ interface ILiquidLaneAdapter is IAdapter {
     error ExpiredSwap();
 
     /**
-     * @notice Raised when VaultV2 cannot allocate enough collateral to the adapter.
+     * @notice Raised when an account with assets is being removed.
      */
-    error InsufficientAllocation();
+    error AccountHasAssets();
 
     /**
      * @notice Raised when the account is not authorized to initiate the swap.
@@ -63,9 +63,14 @@ interface ILiquidLaneAdapter is IAdapter {
     error InvalidCaller();
 
     /**
-     * @notice Raised when a vault-funded collateral draw exceeds the configured limit.
+     * @notice Raised when VaultV2 cannot allocate enough collateral to the adapter.
      */
-    error InvalidCollateralOut();
+    error InsufficientAllocate();
+
+    /**
+     * @notice Raised when VaultV2 cannot deallocate enough collateral for a swap.
+     */
+    error InsufficientDeallocate();
 
     /**
      * @notice Raised when a discount configuration is invalid.
@@ -73,19 +78,9 @@ interface ILiquidLaneAdapter is IAdapter {
     error InvalidDiscount();
 
     /**
-     * @notice Raised when a token limit is invalid.
-     */
-    error InvalidLimit();
-
-    /**
      * @notice Raised when an oracle configuration is invalid.
      */
     error InvalidOracle();
-
-    /**
-     * @notice Raised when a token-to-redeem account factory is invalid.
-     */
-    error InvalidAccountFactory();
 
     /**
      * @notice Raised when a receiver is zero.
@@ -106,6 +101,16 @@ interface ILiquidLaneAdapter is IAdapter {
      * @notice Raised when the token-to-redeem is invalid.
      */
     error InvalidTokenToRedeem();
+
+    /**
+     * @notice Raised when an account would exceed the configured token limit.
+     */
+    error LimitExceeded();
+
+    /**
+     * @notice Raised when adding a token would exceed the configured maximum.
+     */
+    error TooManyTokensToRedeem();
 
     /* STRUCTS */
 
@@ -236,10 +241,11 @@ interface ILiquidLaneAdapter is IAdapter {
 
     /**
      * @notice Emitted when acquisition collateral is deposited.
+     * @param who The depositor address.
      * @param tokenToRedeem The token-to-redeem address.
      * @param amount The collateral amount deposited.
      */
-    event DepositToAcquire(address indexed tokenToRedeem, uint256 amount);
+    event DepositToAcquire(address indexed who, address indexed tokenToRedeem, uint256 amount);
 
     /**
      * @notice Emitted when a swap is executed.
@@ -249,10 +255,11 @@ interface ILiquidLaneAdapter is IAdapter {
 
     /**
      * @notice Emitted when acquisition collateral is withdrawn.
+     * @param who The withdrawing address.
      * @param tokenToRedeem The token-to-redeem address.
      * @param amount The collateral amount withdrawn.
      */
-    event WithdrawToAcquire(address indexed tokenToRedeem, uint256 amount);
+    event WithdrawToAcquire(address indexed who, address indexed tokenToRedeem, uint256 amount);
 
     /**
      * @notice Emitted when a signed-swap nonce is invalidated.
@@ -278,9 +285,8 @@ interface ILiquidLaneAdapter is IAdapter {
     /**
      * @notice Emitted when a token-to-redeem is removed.
      * @param tokenToRedeem The token-to-redeem address.
-     * @param account The removed account address.
      */
-    event RemoveTokenToRedeem(address indexed tokenToRedeem, address indexed account);
+    event RemoveTokenToRedeem(address indexed tokenToRedeem);
 
     /* FUNCTIONS */
 
@@ -297,18 +303,19 @@ interface ILiquidLaneAdapter is IAdapter {
     function marketMakerCanAcquire() external view returns (bool canAcquire);
 
     /**
-     * @notice Returns the curator-prefunded acquisition balance for a token.
+     * @notice Returns the prefunded acquisition balance for an account and token.
      * @param tokenToRedeem The token-to-redeem address.
-     * @return amount The curator acquisition balance.
+     * @param account The account whose acquisition balance is queried.
+     * @return amount The acquisition balance.
      */
-    function curatorAcquireBalance(address tokenToRedeem) external view returns (uint256 amount);
+    function acquireBalance(address tokenToRedeem, address account) external view returns (uint256 amount);
 
     /**
      * @notice Returns the maximum collateral output currently available for a token swap.
      * @param tokenToRedeem The token-to-redeem address.
      * @return amount The maximum collateral output.
      */
-    function getMaxAssets(address tokenToRedeem) external view returns (uint256 amount);
+    function getMaxAssets(address tokenToRedeem) external returns (uint256 amount);
 
     /**
      * @notice Returns the maximum oracle-backed swap rate after the configured minimum discount.
@@ -367,17 +374,6 @@ interface ILiquidLaneAdapter is IAdapter {
      * @return account The account address.
      */
     function accounts(address tokenToRedeem) external view returns (address account);
-
-    /**
-     * @notice Returns the prefunded acquisition balance for a market maker and token.
-     * @param tokenToRedeem The token-to-redeem address.
-     * @param marketMaker The market maker address.
-     * @return amount The market-maker acquisition balance.
-     */
-    function marketMakerAcquireBalances(address tokenToRedeem, address marketMaker)
-        external
-        view
-        returns (uint256 amount);
 
     /**
      * @notice Returns the token-in receiver configured by an account.
@@ -512,13 +508,12 @@ interface ILiquidLaneAdapter is IAdapter {
      * @param protocolSignature The protocol EIP-712 signature over `discountSwap`.
      * @param recipient Recipient of the collateral output.
      * @param amountIn Token-to-redeem amount consumed by the swap.
-     * @param amountOut Collateral amount requested from the vault.
+     * @return amountOut Collateral amount paid by the vault.
      */
     function swap(
         DiscountSwap calldata discountSwap,
         bytes calldata protocolSignature,
         address recipient,
-        uint256 amountIn,
-        uint256 amountOut
-    ) external;
+        uint256 amountIn
+    ) external returns (uint256 amountOut);
 }

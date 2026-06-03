@@ -93,19 +93,19 @@ contract LiquidLaneAdapterTest is Test {
         MockERC20 otherTokenToRedeem = new MockERC20("Other Token To Redeem", "OTTR");
 
         vm.startPrank(curator);
-        vm.expectRevert(ILiquidLaneAdapter.InvalidAccountFactory.selector);
+        vm.expectRevert();
         adapter.addTokenToRedeem(address(otherTokenToRedeem));
         vm.stopPrank();
     }
 
     function testRemoveTokenToRedeemClearsConfiguration() public {
+        address account = adapter.accounts(address(tokenToRedeem));
+
         vm.prank(curator);
         adapter.removeTokenToRedeem(address(tokenToRedeem));
 
         assertEq(adapter.getTokensToRedeemLength(), 0);
-        assertEq(adapter.limit(address(tokenToRedeem)), 0);
-        assertEq(adapter.accounts(address(tokenToRedeem)), address(0));
-        assertEq(adapter.accounts(address(tokenToRedeem)), address(0));
+        assertEq(adapter.accounts(address(tokenToRedeem)), account);
     }
 
     function testInitializeSetsPauserAndUnpauserFromParams() public view {
@@ -180,20 +180,20 @@ contract LiquidLaneAdapterTest is Test {
 
         assertEq(asset.balanceOf(recipient), 90 ether);
         assertEq(tokenToRedeem.balanceOf(account), 100 ether);
-        assertEq(adapter.allocated(address(tokenToRedeem)), 90 ether);
         assertEq(asset.balanceOf(address(vault)), 10 ether);
 
         // Account realizes 95 asset (90 principal + 5 rewards); totalAssets reflects the live
-        // per-account value via IAccount.totalAssets(), not the static allocated principal of 90.
+        // per-account value via IAccount.totalAssets().
         asset.mint(account, 95 ether);
         assertEq(adapter.totalAssets(), 95 ether);
+        assertEq(adapter.freeAssets(), 95 ether);
 
         uint256 deallocated = delegator.deallocate(address(adapter), 90 ether);
 
         assertEq(deallocated, 95 ether);
-        assertEq(adapter.allocated(address(tokenToRedeem)), 0);
         assertEq(asset.balanceOf(address(vault)), 105 ether);
         assertEq(adapter.totalAssets(), 0);
+        assertEq(adapter.freeAssets(), 0);
     }
 
     function testPrefundedAcquisitionDoesNotAllocateVaultAssetsAndPaysReceiver() public {
@@ -231,7 +231,9 @@ contract LiquidLaneAdapterTest is Test {
         assertEq(tokenToRedeem.balanceOf(marketMakerReceiver), 60 ether);
         assertEq(tokenToRedeem.balanceOf(filler), 0);
         assertEq(tokenToRedeem.balanceOf(account), 0);
-        assertEq(adapter.acquireTotal(), 0);
+        assertEq(adapter.acquireBalance(address(tokenToRedeem), curator), 0);
+        assertEq(adapter.acquireBalance(address(tokenToRedeem), marketMaker), 0);
+        assertEq(asset.balanceOf(address(adapter)), 0);
         assertEq(asset.balanceOf(address(vault)), 0);
     }
 
@@ -313,9 +315,10 @@ contract LiquidLaneAdapterTest is Test {
 
         vm.startPrank(filler);
         tokenToRedeem.transfer(address(adapter), 100 ether);
-        adapter.swap(discountSwap, protocolSignature, recipient, 100 ether, 90 ether);
+        uint256 amountOut = adapter.swap(discountSwap, protocolSignature, recipient, 100 ether);
         vm.stopPrank();
 
+        assertEq(amountOut, 90 ether);
         assertEq(asset.balanceOf(recipient), 90 ether);
         assertTrue(adapter.isUsedNonce(address(tokenToRedeem), 9));
     }
@@ -480,12 +483,18 @@ contract MockLiquidLaneDelegator {
         return type(uint256).max;
     }
 
+    function sweepPending() external pure returns (uint256 pendingAssets) {}
+
     function allocate(address adapter, uint256 assets) external returns (uint256 allocated) {
         MockLiquidLaneVault(vault).pull(assets, adapter);
         allocated = IAdapter(adapter).allocate(assets);
         if (allocated < assets) {
             MockLiquidLaneVault(vault).push(assets - allocated, adapter);
         }
+    }
+
+    function deallocateExact(uint256 assets) external pure returns (uint256 deallocated) {
+        return assets;
     }
 
     function deallocate(address adapter, uint256 assets) external returns (uint256 deallocated) {
@@ -520,6 +529,10 @@ contract MockLiquidLaneAccount is MigratableEntity, IAccount {
     }
 
     function sync() external {}
+
+    function freeAssets() external view returns (uint256 assets) {
+        assets = IERC20(asset).balanceOf(address(this));
+    }
 
     function totalAssets() external view returns (uint256 assets) {
         assets = IERC20(asset).balanceOf(address(this));
