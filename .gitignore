@@ -4,6 +4,7 @@ out/**/
 
 # Ignore node_modules and dependencies
 node_modules
+ui/
 *.log
 yarn-error.log
 

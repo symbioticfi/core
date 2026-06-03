@@ -49,6 +49,11 @@ abstract contract Account is MigratableEntity, IAccount {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IAccount
+    function freeAssets() public view returns (uint256) {
+        return IERC20(IERC4626(vault).asset()).balanceOf(address(this));
+    }
+
+    /// @inheritdoc IAccount
     function totalAssets() public view virtual returns (uint256 assets) {
         address asset = IERC4626(vault).asset();
         assets = IERC20(asset).balanceOf(address(this));

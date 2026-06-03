@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
 
+import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../src/contracts/adapters/LiquidLaneAdapter.sol";
 import {LiquidLaneRegistry} from "../../src/contracts/adapters/LiquidLaneRegistry.sol";
 import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
@@ -28,6 +29,7 @@ contract LiquidLaneAdapterTest is Test {
     MockERC20 internal tokenToRedeem;
     MockLiquidLaneDelegator internal delegator;
     MockLiquidLaneRegistry internal vaultFactory;
+    AdapterFactory internal adapterFactory;
     LiquidLaneRegistry internal liquidLaneRegistry;
     MigratablesFactory internal accountFactory;
     MockLiquidLaneVault internal vault;
@@ -50,23 +52,24 @@ contract LiquidLaneAdapterTest is Test {
         delegator = new MockLiquidLaneDelegator(address(vault));
         vault.setDelegator(address(delegator));
         vaultFactory.add(address(vault));
+        adapterFactory = new AdapterFactory(curator);
         liquidLaneRegistry = new LiquidLaneRegistry(curator);
         accountFactory = new MigratablesFactory(curator);
 
-        LiquidLaneAdapter implementation = new LiquidLaneAdapter(address(vaultFactory), address(liquidLaneRegistry));
+        LiquidLaneAdapter implementation =
+            new LiquidLaneAdapter(address(vaultFactory), address(adapterFactory), address(liquidLaneRegistry));
         MockLiquidLaneAccount accountImplementation =
             new MockLiquidLaneAccount(address(accountFactory), address(asset), address(new MockLiquidLaneOracle(1e18)));
 
         vm.startPrank(curator);
-        liquidLaneRegistry.whitelist(address(implementation));
+        adapterFactory.whitelist(address(implementation));
         accountFactory.whitelist(address(accountImplementation));
         liquidLaneRegistry.setAccountFactory(address(tokenToRedeem), address(accountFactory));
         ILiquidLaneAdapter.InitParams memory params =
             ILiquidLaneAdapter.InitParams({pauser: pauser, unpauser: unpauser});
         vm.expectEmit(false, false, false, true);
         emit ILiquidLaneAdapter.Initialize(params);
-        adapter =
-            LiquidLaneAdapter(liquidLaneRegistry.create(1, curator, abi.encode(address(vault), abi.encode(params))));
+        adapter = LiquidLaneAdapter(adapterFactory.create(1, curator, abi.encode(address(vault), abi.encode(params))));
         adapter.addTokenToRedeem(address(tokenToRedeem));
         adapter.setLimit(address(tokenToRedeem), type(uint256).max);
         adapter.setMarketMaker(marketMaker, true);
@@ -107,6 +110,7 @@ contract LiquidLaneAdapterTest is Test {
 
     function testInitializeSetsPauserAndUnpauserFromParams() public view {
         assertEq(adapter.owner(), curator);
+        assertEq(adapter.FACTORY(), address(adapterFactory));
         assertEq(adapter.pauser(), pauser);
         assertEq(adapter.unpauser(), unpauser);
     }

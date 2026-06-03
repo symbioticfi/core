@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IMigratablesFactory} from "../common/IMigratablesFactory.sol";
-
 /**
  * @title ILiquidLaneRegistry
  * @notice Interface for the liquidity lane adapter registry.
  */
-interface ILiquidLaneRegistry is IMigratablesFactory {
+interface ILiquidLaneRegistry {
     /* EVENTS */
 
     /**

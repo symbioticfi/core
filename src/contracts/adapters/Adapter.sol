@@ -66,7 +66,7 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
     }
 
     /// @inheritdoc IAdapter
-    function deallocate(uint256 amount) public onlyDelegator returns (uint256) {
+    function deallocate(uint256 amount) public virtual onlyDelegator returns (uint256) {
         uint256 curFreeAssets = freeAssets();
         return curFreeAssets + (curFreeAssets < amount ? _deallocate(amount - curFreeAssets) : 0);
     }
@@ -79,10 +79,10 @@ abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
     /* INTERNAL FUNCTIONS */
 
     /// @dev Allocates asset from the vault into the adapter position.
-    function _allocate(uint256 amount) internal virtual returns (uint256);
+    function _allocate(uint256 amount) internal virtual returns (uint256) {}
 
     /// @dev Deallocates asset from the vault's adapter position.
-    function _deallocate(uint256 amount) internal virtual returns (uint256);
+    function _deallocate(uint256 amount) internal virtual returns (uint256) {}
 
     /// @dev Synchronizes adapter pending deallocation accounting.
     function _requestDeallocate(uint256 amount) internal virtual {}

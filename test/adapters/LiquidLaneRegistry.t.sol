@@ -27,4 +27,10 @@ contract LiquidLaneRegistryTest is Test {
 
         assertEq(registry.accountFactories(tokenToRedeem), accountFactory);
     }
+
+    function test_MigratablesFactoryApiIsUnavailable() public {
+        (bool lastVersionSuccess,) = address(registry).call(abi.encodeWithSignature("lastVersion()"));
+
+        assertFalse(lastVersionSuccess);
+    }
 }

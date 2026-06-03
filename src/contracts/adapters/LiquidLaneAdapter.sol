@@ -35,6 +35,11 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     using Math for uint256;
     using SafeERC20 for IERC20;
 
+    /* IMMUTABLES */
+
+    /// @dev Registry used to resolve token-specific redemption account factories.
+    address internal immutable LIQUID_LANE_REGISTRY;
+
     /* STATE VARIABLES */
 
     /// @inheritdoc ILiquidLaneAdapter
@@ -43,25 +48,19 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     address public pauser;
     /// @inheritdoc ILiquidLaneAdapter
     address public unpauser;
-    /// @notice Tokens-to-redeem configured for the vault.
-    address[] public tokensToRedeem;
     /// @inheritdoc ILiquidLaneAdapter
     bool public marketMakerCanAcquire;
+    /// @notice Tokens-to-redeem configured for the vault.
+    address[] public tokensToRedeem;
     /// @inheritdoc ILiquidLaneAdapter
     mapping(address tokenToRedeem => uint256 amount) public limit;
     /// @inheritdoc ILiquidLaneAdapter
     mapping(address tokenToRedeem => uint256 ppm) public minDiscount;
-    /// @notice Vault-funded collateral currently outstanding per token-to-redeem.
-    mapping(address tokenToRedeem => uint256 amount) public allocated;
 
     /// @inheritdoc ILiquidLaneAdapter
-    mapping(address tokenToRedeem => uint256 amount) public curatorAcquireBalance;
-    /// @inheritdoc ILiquidLaneAdapter
-    mapping(address tokenToRedeem => mapping(address marketMaker => uint256 amount)) public marketMakerAcquireBalances;
-    /// @notice Total acquisition collateral deposited.
-    uint256 public acquireTotal;
-    /// @inheritdoc ILiquidLaneAdapter
     mapping(address who => address) public receiver;
+    /// @inheritdoc ILiquidLaneAdapter
+    mapping(address tokenToRedeem => mapping(address marketMaker => uint256 amount)) public acquireBalance;
 
     /// @inheritdoc ILiquidLaneAdapter
     mapping(address marketMaker => mapping(address filler => bool)) public isFiller;
@@ -77,10 +76,12 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /* CONSTRUCTOR */
 
-    constructor(address vaultFactory, address adapterFactory)
+    constructor(address vaultFactory, address adapterFactory, address liquidLaneRegistry)
         EIP712("LiquidLaneAdapter", "1")
         Adapter(vaultFactory, adapterFactory)
-    {}
+    {
+        LIQUID_LANE_REGISTRY = liquidLaneRegistry;
+    }
 
     /* VIEW FUNCTIONS */
 
@@ -95,31 +96,38 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     }
 
     /// @inheritdoc IAdapter
-    function freeAssets() public view override(Adapter, IAdapter) returns (uint256) {
-        return IERC20(IERC4626(vault).asset()).balanceOf(address(this)).saturatingSub(acquireTotal);
+    function freeAssets() public view override(Adapter, IAdapter) returns (uint256 assets) {
+        address asset = IERC4626(vault).asset();
+        for (uint256 i; i < tokensToRedeem.length; ++i) {
+            assets += IERC20(asset).balanceOf(accounts[tokensToRedeem[i]]);
+        }
     }
 
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256 assets) {
-        assets = freeAssets();
         for (uint256 i; i < tokensToRedeem.length; ++i) {
             assets += IAccount(accounts[tokensToRedeem[i]]).totalAssets();
         }
     }
 
     /// @inheritdoc ILiquidLaneAdapter
-    function getMaxAssets(address tokenToRedeem) public view returns (uint256) {
-        uint256 available = freeAssets();
-        address delegator = IVaultV2(vault).delegator();
-        if (delegator != address(0)) {
-            available += Math.min(
-                IUniversalDelegator(delegator).limitOf(address(this)).saturatingSub(totalAssets()),
-                IVaultV2(vault).freeAssets()
-            );
+    function getMaxAssets(address tokenToRedeem) public returns (uint256 assets) {
+        assets = Math.min(
+            IUniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this))
+                .saturatingSub(totalAssets() - freeAssets()),
+            IVaultV2(vault).withdrawable()
+        );
+        assets = Math.min(
+            assets,
+            limit[tokenToRedeem].saturatingSub(
+                IAccount(accounts[tokenToRedeem]).totalAssets()
+                    - IERC20(IERC4626(vault).asset()).balanceOf(accounts[tokenToRedeem])
+            )
+        );
+        assets += acquireBalance[tokenToRedeem][owner()];
+        if (marketMaker != owner()) {
+            assets += acquireBalance[tokenToRedeem][marketMaker];
         }
-
-        return Math.min(limit[tokenToRedeem] - allocated[tokenToRedeem], available)
-            + curatorAcquireBalance[tokenToRedeem] + marketMakerAcquireBalances[tokenToRedeem][marketMaker];
     }
 
     /// @inheritdoc ILiquidLaneAdapter
@@ -197,9 +205,8 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         DiscountSwap calldata discountSwap,
         bytes calldata protocolSignature,
         address recipient,
-        uint256 amountIn,
-        uint256 amountOut
-    ) public {
+        uint256 amountIn
+    ) public returns (uint256 amountOut) {
         Discount calldata discount = discountSwap.discount;
         _validateSwapAccount(discount.signer);
         if (discount.deadline < block.timestamp || discountSwap.protocolDeadline < block.timestamp) {
@@ -233,28 +240,22 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
             revert InvalidSignature();
         }
 
-        if (
-            amountOut
-                > getAmountOut(discount.tokenToRedeem, amountIn)
-                    .mulDiv(DISCOUNT_PRECISION - discount.discount, DISCOUNT_PRECISION)
-        ) {
-            revert InvalidSwapRate();
-        }
-
         isUsedNonce[discount.tokenToRedeem][discount.nonce] = true;
 
+        amountOut = getAmountOut(discount.tokenToRedeem, amountIn)
+            .mulDiv(DISCOUNT_PRECISION - discount.discount, DISCOUNT_PRECISION);
         _swap(Swap({recipient: recipient, tokenIn: discount.tokenToRedeem, amountIn: amountIn, amountOut: amountOut}));
     }
 
     /// @inheritdoc ILiquidLaneAdapter
-    function setFiller(address filler, bool isAuthorized) public {
+    function setFiller(address filler, bool status) public {
         if (owner() != msg.sender && marketMaker != msg.sender) {
             revert InvalidCaller();
         }
 
-        isFiller[marketMaker][filler] = isAuthorized;
+        isFiller[marketMaker][filler] = status;
 
-        emit SetFiller(marketMaker, filler, isAuthorized);
+        emit SetFiller(marketMaker, filler, status);
     }
 
     /// @inheritdoc ILiquidLaneAdapter
@@ -272,8 +273,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /// @inheritdoc ILiquidLaneAdapter
     function depositToAcquire(address tokenToRedeem, uint256 amount) public {
-        bool isOwner = owner() == msg.sender;
-        if (!isOwner && (!marketMakerCanAcquire || marketMaker != msg.sender)) {
+        if (owner() != msg.sender && (!marketMakerCanAcquire || marketMaker != msg.sender)) {
             revert DepositNotAllowed();
         }
         if (receiver[msg.sender] == address(0)) {
@@ -281,28 +281,19 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         }
 
         IERC20(IERC4626(vault).asset()).safeTransferFrom(msg.sender, address(this), amount);
-        acquireTotal += amount;
 
-        if (isOwner) {
-            curatorAcquireBalance[tokenToRedeem] += amount;
-        } else {
-            marketMakerAcquireBalances[tokenToRedeem][marketMaker] += amount;
-        }
+        acquireBalance[tokenToRedeem][msg.sender] += amount;
 
-        emit DepositToAcquire(tokenToRedeem, amount);
+        emit DepositToAcquire(msg.sender, tokenToRedeem, amount);
     }
 
     /// @inheritdoc ILiquidLaneAdapter
     function withdrawToAcquire(address tokenToRedeem, uint256 amount) public {
-        if (owner() == msg.sender) {
-            curatorAcquireBalance[tokenToRedeem] -= amount;
-        } else {
-            marketMakerAcquireBalances[tokenToRedeem][msg.sender] -= amount;
-        }
-        acquireTotal -= amount;
+        acquireBalance[tokenToRedeem][msg.sender] -= amount;
+
         IERC20(IERC4626(vault).asset()).safeTransfer(msg.sender, amount);
 
-        emit WithdrawToAcquire(tokenToRedeem, amount);
+        emit WithdrawToAcquire(msg.sender, tokenToRedeem, amount);
     }
 
     /// @inheritdoc ILiquidLaneAdapter
@@ -345,34 +336,28 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /// @inheritdoc ILiquidLaneAdapter
     function addTokenToRedeem(address tokenToRedeem) public onlyOwner {
-        if (tokenToRedeem == address(0) || accounts[tokenToRedeem] != address(0)) {
-            revert InvalidTokenToRedeem();
-        }
         if (tokensToRedeem.length >= MAX_TOKENS_TO_REDEEM) {
-            revert InvalidLimit();
+            revert TooManyTokensToRedeem();
         }
 
-        address accountFactory = ILiquidLaneRegistry(FACTORY).accountFactories(tokenToRedeem);
-        if (accountFactory == address(0)) {
-            revert InvalidAccountFactory();
+        address accountFactory = ILiquidLaneRegistry(LIQUID_LANE_REGISTRY).accountFactories(tokenToRedeem);
+        if (accounts[tokenToRedeem] == address(0)) {
+            accounts[tokenToRedeem] = IMigratablesFactory(accountFactory)
+                .create(
+                    IMigratablesFactory(accountFactory).lastVersion(),
+                    owner(),
+                    abi.encode(address(this), vault, tokenToRedeem)
+                );
         }
-
-        address account = IMigratablesFactory(accountFactory)
-            .create(
-                IMigratablesFactory(accountFactory).lastVersion(),
-                owner(),
-                abi.encode(address(this), vault, tokenToRedeem)
-            );
-        accounts[tokenToRedeem] = account;
         tokensToRedeem.push(tokenToRedeem);
 
-        emit AddTokenToRedeem(tokenToRedeem, account);
+        emit AddTokenToRedeem(tokenToRedeem, accounts[tokenToRedeem]);
     }
 
     /// @inheritdoc ILiquidLaneAdapter
     function removeTokenToRedeem(address tokenToRedeem) public onlyOwner {
-        if (allocated[tokenToRedeem] > 0) {
-            revert InvalidLimit();
+        if (IAccount(accounts[tokenToRedeem]).totalAssets() > 0) {
+            revert AccountHasAssets();
         }
 
         for (uint256 i; i < tokensToRedeem.length; ++i) {
@@ -380,10 +365,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
                 tokensToRedeem[i] = tokensToRedeem[tokensToRedeem.length - 1];
                 tokensToRedeem.pop();
 
-                emit RemoveTokenToRedeem(tokenToRedeem, accounts[tokenToRedeem]);
-                delete accounts[tokenToRedeem];
-                delete limit[tokenToRedeem];
-                delete minDiscount[tokenToRedeem];
+                emit RemoveTokenToRedeem(tokenToRedeem);
                 return;
             }
         }
@@ -393,10 +375,6 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /// @inheritdoc ILiquidLaneAdapter
     function setLimit(address tokenToRedeem, uint256 newLimit) public onlyOwner {
-        if (allocated[tokenToRedeem] > newLimit) {
-            revert InvalidLimit();
-        }
-
         limit[tokenToRedeem] = newLimit;
 
         emit SetLimit(tokenToRedeem, newLimit);
@@ -413,13 +391,30 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         emit SetMinDiscount(tokenToRedeem, newMinDiscount);
     }
 
+    /// @inheritdoc IAdapter
+    function deallocate(uint256 amount) public override returns (uint256 deallocated) {
+        address asset = IERC4626(vault).asset();
+        for (uint256 i; i < tokensToRedeem.length; ++i) {
+            address account = accounts[tokensToRedeem[i]];
+            // Sweep the account's full realized asset balance to the vault.
+            uint256 amount = IERC20(asset).balanceOf(account);
+            if (amount == 0) {
+                continue;
+            }
+            // Reduce the outstanding vault-funded allocation by the realized proceeds (saturating: proceeds
+            // include the instant-redemption discount and yield on top of the cash principal originally deployed).
+            IERC20(asset).safeTransferFrom(account, address(this), amount);
+            deallocated += amount;
+        }
+    }
+
     /* INTERNAL FUNCTIONS */
 
     /// @dev Returns the account's oracle price for a token-to-redeem, denominated in the vault asset (1e18).
     /// @param tokenToRedeem The token being priced.
     /// @return price The token price in 1e18 precision.
     function _getOraclePrice(address tokenToRedeem) internal view returns (uint256 price) {
-        price = IOracle(IAccount(_getAccount(tokenToRedeem)).ORACLE()).getPrice();
+        price = IOracle(IAccount(accounts[tokenToRedeem]).ORACLE()).getPrice();
         if (price == 0) {
             revert InvalidOracle();
         }
@@ -456,103 +451,72 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         return amount;
     }
 
-    /// @dev Pulls all available collateral from redemption accounts for the vault.
-    /// @return deallocated The collateral returned from redemption accounts.
-    function _deallocate(uint256) internal override returns (uint256 deallocated) {
-        address asset = IERC4626(vault).asset();
-        for (uint256 i; i < tokensToRedeem.length; ++i) {
-            address tokenToRedeem = tokensToRedeem[i];
-            address account = accounts[tokenToRedeem];
-            if (account.code.length == 0) {
-                continue;
-            }
-            // Sweep the account's full realized asset balance to the vault.
-            uint256 amount = IERC20(asset).balanceOf(account);
-            if (amount == 0) {
-                continue;
-            }
-            // Reduce the outstanding vault-funded allocation by the realized proceeds (saturating: proceeds
-            // include the instant-redemption discount and yield on top of the cash principal originally deployed).
-            allocated[tokenToRedeem] = allocated[tokenToRedeem].saturatingSub(amount);
-            IERC20(asset).safeTransferFrom(account, address(this), amount);
-            deallocated += amount;
-        }
-    }
-
     /// @dev Executes a direct or delegated swap after caller authentication has already succeeded.
     /// @param swap The swap payload to execute.
     function _swap(Swap memory swap) internal whenNotPaused {
-        if (
-            swap.amountOut
-                > getAmountOut(swap.tokenIn, swap.amountIn)
-                    .mulDiv(DISCOUNT_PRECISION - minDiscount[swap.tokenIn], DISCOUNT_PRECISION)
-        ) {
+        uint256 assetsIn = getAmountOut(swap.tokenIn, swap.amountIn);
+        if (swap.amountOut > assetsIn.mulDiv(DISCOUNT_PRECISION - minDiscount[swap.tokenIn], DISCOUNT_PRECISION)) {
             revert InvalidSwapRate();
         }
 
-        uint256 curCuratorAcquireBalance = curatorAcquireBalance[swap.tokenIn];
-        uint256 curMarketMakerAcquireBalance = marketMakerAcquireBalances[swap.tokenIn][marketMaker];
-        uint256 tokenOutToAcquire = Math.min(swap.amountOut, curCuratorAcquireBalance + curMarketMakerAcquireBalance);
+        uint256 curatorAcquireBalance = acquireBalance[swap.tokenIn][owner()];
+        uint256 marketMakerAcquireBalance = owner() == marketMaker ? 0 : acquireBalance[swap.tokenIn][marketMaker];
+        uint256 tokenOutToAcquire = Math.min(swap.amountOut, curatorAcquireBalance + marketMakerAcquireBalance);
 
         uint256 tokenOutToAllocate = swap.amountOut - tokenOutToAcquire;
-        if (allocated[swap.tokenIn] + tokenOutToAllocate > limit[swap.tokenIn]) {
-            revert InvalidCollateralOut();
+        if (IAccount(accounts[swap.tokenIn]).totalAssets() + assetsIn > limit[swap.tokenIn]) {
+            revert LimitExceeded();
         }
-        allocated[swap.tokenIn] += tokenOutToAllocate;
 
         if (tokenOutToAllocate > 0) {
-            uint256 tokenOutToPull = tokenOutToAllocate.saturatingSub(freeAssets());
-            if (tokenOutToPull > 0) {
-                _inSwap = true;
-                if (
-                    IUniversalDelegator(IVaultV2(vault).delegator()).allocate(address(this), tokenOutToPull)
-                        < tokenOutToPull
-                ) {
-                    revert InsufficientAllocation();
-                }
-                _inSwap = false;
+            address delegator = IVaultV2(vault).delegator();
+            IUniversalDelegator(delegator).sweepPending();
+            uint256 tokenOutToDeallocate = tokenOutToAllocate.saturatingSub(IVaultV2(vault).freeAssets());
+            if (
+                tokenOutToDeallocate > 0
+                    && IUniversalDelegator(delegator).deallocateExact(tokenOutToDeallocate) < tokenOutToDeallocate
+            ) {
+                revert InsufficientDeallocate();
             }
+
+            _inSwap = true;
+            if (IUniversalDelegator(delegator).allocate(address(this), tokenOutToAllocate) < tokenOutToAllocate) {
+                revert InsufficientAllocate();
+            }
+            _inSwap = false;
         }
 
         uint256 tokenInAcquired;
         if (tokenOutToAcquire > 0) {
             tokenInAcquired = tokenOutToAcquire.mulDiv(swap.amountIn, swap.amountOut);
             uint256 curatorAcquireBalanceSpent = (tokenOutToAcquire + 1) >> 1;
-            if (curatorAcquireBalanceSpent > curCuratorAcquireBalance) {
-                curatorAcquireBalanceSpent = curCuratorAcquireBalance;
+            if (curatorAcquireBalanceSpent > curatorAcquireBalance) {
+                curatorAcquireBalanceSpent = curatorAcquireBalance;
             }
             uint256 marketMakerAcquireBalanceSpent = tokenOutToAcquire - curatorAcquireBalanceSpent;
-            if (marketMakerAcquireBalanceSpent > curMarketMakerAcquireBalance) {
-                marketMakerAcquireBalanceSpent = curMarketMakerAcquireBalance;
+            if (marketMakerAcquireBalanceSpent > marketMakerAcquireBalance) {
+                marketMakerAcquireBalanceSpent = marketMakerAcquireBalance;
                 curatorAcquireBalanceSpent = tokenOutToAcquire - marketMakerAcquireBalanceSpent;
             }
 
-            curatorAcquireBalance[swap.tokenIn] = curCuratorAcquireBalance - curatorAcquireBalanceSpent;
-            marketMakerAcquireBalances[swap.tokenIn][marketMaker] =
-                curMarketMakerAcquireBalance - marketMakerAcquireBalanceSpent;
-            acquireTotal -= tokenOutToAcquire;
+            acquireBalance[swap.tokenIn][owner()] = curatorAcquireBalance - curatorAcquireBalanceSpent;
+            if (owner() != marketMaker) {
+                acquireBalances[swap.tokenIn][marketMaker] = marketMakerAcquireBalance - marketMakerAcquireBalanceSpent;
+            }
 
             uint256 marketMakerAcquired = marketMakerAcquireBalanceSpent.mulDiv(tokenInAcquired, tokenOutToAcquire);
             uint256 curatorAcquired = tokenInAcquired - marketMakerAcquired;
             if (curatorAcquired > 0) {
-                address curatorReceiver = receiver[owner()];
-                if (curatorReceiver == address(0)) {
-                    revert InvalidReceiver();
-                }
-                IERC20(swap.tokenIn).safeTransfer(curatorReceiver, curatorAcquired);
+                IERC20(swap.tokenIn).safeTransfer(receiver[owner()], curatorAcquired);
             }
             if (marketMakerAcquired > 0) {
-                address marketMakerReceiver = receiver[marketMaker];
-                if (marketMakerReceiver == address(0)) {
-                    revert InvalidReceiver();
-                }
-                IERC20(swap.tokenIn).safeTransfer(marketMakerReceiver, marketMakerAcquired);
+                IERC20(swap.tokenIn).safeTransfer(receiver[marketMaker], marketMakerAcquired);
             }
         }
 
         uint256 tokenInToRedeem = swap.amountIn - tokenInAcquired;
         if (tokenInToRedeem > 0) {
-            address account = _getAccount(swap.tokenIn);
+            address account = accounts[swap.tokenIn];
             IERC20(swap.tokenIn).safeTransfer(account, tokenInToRedeem);
             IAccount(account).sync();
         }
@@ -560,16 +524,6 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         IERC20(IERC4626(vault).asset()).safeTransfer(swap.recipient, swap.amountOut);
 
         emit DoSwap(swap);
-    }
-
-    /// @dev Returns the created account for a `tokenToRedeem`.
-    /// @param tokenToRedeem The token-to-redeem address.
-    /// @return account The created account address.
-    function _getAccount(address tokenToRedeem) internal view returns (address account) {
-        account = accounts[tokenToRedeem];
-        if (account == address(0)) {
-            revert InvalidTokenToRedeem();
-        }
     }
 
     /* INITIALIZATION */
