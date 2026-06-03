@@ -120,7 +120,7 @@ contract RestakingAppAdapterTest is Test {
         _allocateRestakingShares(100);
 
         vm.expectRevert(IRestakingAppAdapter.Unsupported.selector);
-        adapter.stakeAt(uint48(block.timestamp));
+        adapter.stakeAt(uint48(vm.getBlockTimestamp()));
     }
 
     function test_ConvertRejectsVaultAssetInput() public {
@@ -175,13 +175,13 @@ contract RestakingAppAdapterTest is Test {
 
         assertEq(adapter.stake(), expectedStake);
         vm.expectRevert(IRestakingAppAdapter.Unsupported.selector);
-        adapter.stakeAt(uint48(block.timestamp));
+        adapter.stakeAt(uint48(vm.getBlockTimestamp()));
         assertEq(adapter.slashable(), expectedStake);
     }
 
     function test_StakeAtRejectsWhenCurrentVaultAssetChanges() public {
         _allocateRestakingShares(100);
-        uint48 timestamp = uint48(block.timestamp);
+        uint48 timestamp = uint48(vm.getBlockTimestamp());
 
         RestakingTokenMock newRestakingToken = new RestakingTokenMock(IERC20(address(baseAsset)));
         vaultFactory.add(address(newRestakingToken));
@@ -202,7 +202,7 @@ contract RestakingAppAdapterTest is Test {
 
         assertEq(nestedAdapter.stake(), expectedStake);
         vm.expectRevert(IRestakingAppAdapter.Unsupported.selector);
-        nestedAdapter.stakeAt(uint48(block.timestamp));
+        nestedAdapter.stakeAt(uint48(vm.getBlockTimestamp()));
         assertEq(nestedAdapter.slashable(), expectedStake);
     }
 
@@ -498,7 +498,7 @@ contract RestakingAppAdapterTest is Test {
             ICoWSwapConverter.OrderParams({
                 sellAmount: sellAmount,
                 buyAmount: buyAmount,
-                validTo: uint32(block.timestamp + MAX_VALID_TO_DURATION),
+                validTo: uint48(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION),
                 appData: bytes32(salt),
                 feeAmount: feeAmount
             })
@@ -667,22 +667,22 @@ contract RestakingAppAdapterNetworkMiddlewareServiceMock {
 }
 
 contract RestakingAppAdapterVaultMock {
-    address public collateral;
+    address public assetToken;
     address public delegator;
     RestakingWithdrawalQueueMock public immutable withdrawalQueue;
 
-    constructor(address collateral_, address delegator_) {
-        collateral = collateral_;
+    constructor(address assetToken_, address delegator_) {
+        assetToken = assetToken_;
         delegator = delegator_;
         withdrawalQueue = new RestakingWithdrawalQueueMock(address(this), false);
     }
 
-    function setAsset(address collateral_) external {
-        collateral = collateral_;
+    function setAsset(address assetToken_) external {
+        assetToken = assetToken_;
     }
 
     function asset() external view returns (address) {
-        return collateral;
+        return assetToken;
     }
 
     function approve(address, uint256) external pure returns (bool) {

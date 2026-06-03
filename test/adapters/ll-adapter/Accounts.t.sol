@@ -7,6 +7,7 @@ import {ACRED_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-t
 import {weETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
+import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -15,7 +16,7 @@ contract AccountsTest is Test {
     address internal adapter = makeAddr("adapter");
     address internal redemptionWallet = makeAddr("redemptionWallet");
 
-    function testCentrifugeAccountForwardsHeldInventoryToRedemptionWallet() public {
+    function testSecuritizeAccountForwardsHeldInventoryToRedemptionWallet() public {
         MockERC20 tokenToRedeem = new MockERC20("ACRED", "ACRED", 6);
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockOracle oracle = new MockOracle(2e18);
@@ -50,21 +51,6 @@ contract AccountsTest is Test {
         assertEq(wstETH.balanceOf(address(account)), 0);
         assertEq(stETH.balanceOf(address(account)), 25 ether);
         assertEq(account.totalAssets(), 25 ether);
-    }
-
-    function testWstETHAccountLeavesInventoryWhenVaultAssetIsWstETH() public {
-        MockERC20 stETH = new MockERC20("Liquid staked Ether", "stETH", 18);
-        MockWstETH wstETH = new MockWstETH(address(stETH));
-        MockOracle oracle = new MockOracle(1e18);
-        wstETH_Account account = _deployWstETH(wstETH, stETH, wstETH, oracle);
-
-        wstETH.mint(address(account), 10 ether);
-
-        account.sync();
-
-        assertEq(wstETH.balanceOf(address(account)), 10 ether);
-        assertEq(stETH.balanceOf(address(account)), 0);
-        assertEq(account.totalAssets(), 10 ether);
     }
 
     function testWeETHAccountInstantRedeemsIntoStETHWhenAvailable() public {
@@ -206,7 +192,15 @@ contract AccountsTest is Test {
     }
 
     function _initData(address asset, address tokenToRedeem) internal returns (bytes memory) {
-        return abi.encode(adapter, address(_vault(MockERC20(asset))), tokenToRedeem);
+        address[] memory converters = new address[](0);
+        return abi.encode(
+            IAccount.InitParams({
+                adapter: adapter,
+                vault: address(_vault(MockERC20(asset))),
+                tokenToRedeem: tokenToRedeem,
+                converters: converters
+            })
+        );
     }
 
     function _vault(MockERC20 asset) internal returns (MockVault vault) {

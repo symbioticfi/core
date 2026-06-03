@@ -19,7 +19,7 @@ contract AdapterFactoryTest is Test {
     MockRegistry internal vaultFactory;
     AdapterFactory internal factory;
     MockAdapter internal implementation;
-    Token internal collateral;
+    Token internal assetToken;
 
     address internal owner = makeAddr("owner");
     address internal curator = makeAddr("curator");
@@ -28,8 +28,8 @@ contract AdapterFactoryTest is Test {
     function setUp() public {
         vaultFactory = new MockRegistry();
         factory = new AdapterFactory(owner);
-        collateral = new Token("Collateral");
-        vault = address(new MockVault(address(collateral)));
+        assetToken = new Token("Asset");
+        vault = address(new MockVault(address(assetToken)));
         implementation = new MockAdapter(address(vaultFactory), address(factory));
 
         vm.prank(owner);

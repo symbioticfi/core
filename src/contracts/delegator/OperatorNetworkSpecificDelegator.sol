@@ -19,8 +19,8 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 /// @notice Contract for operator allocations scoped to a single network.
 contract OperatorNetworkSpecificDelegator is BaseDelegator, IOperatorNetworkSpecificDelegator {
     using Checkpoints for Checkpoints.Trace256;
-    using Math for uint256;
     using Subnetwork for bytes32;
+    using Math for uint256;
 
     /// @inheritdoc IOperatorNetworkSpecificDelegator
     address public immutable OPERATOR_REGISTRY;

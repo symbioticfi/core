@@ -3,14 +3,11 @@ pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
 
-import {
-    MidasCompAccount,
-    MidasNonCompAccount
-} from "../../../src/contracts/adapters/ll-adapter/accounts/MidasAccount.sol";
+import {MidasCompAccount, MidasNonCompAccount} from "../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
-import {IMidasRedemptionVault} from "../../../src/interfaces/adapters/ll-adapter/accounts/IMidasRedemptionVault.sol";
+import {IMidasRedemptionVault} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -160,9 +157,7 @@ contract MidasAccountMainnetBenchmarkTest is Test {
             COW_SWAP_VAULT_RELAYER
         );
         factory.whitelist(address(implementation));
-        account = MidasNonCompAccountBenchHarness(
-            factory.create(1, address(this), abi.encode(makeAddr("adapter"), address(vault), MAINNET_MTBILL))
-        );
+        account = MidasNonCompAccountBenchHarness(factory.create(1, address(this), _initData(MAINNET_MTBILL)));
     }
 
     function _deployCompAccount() internal returns (MidasCompAccountBenchHarness account) {
@@ -180,8 +175,19 @@ contract MidasAccountMainnetBenchmarkTest is Test {
             COW_SWAP_VAULT_RELAYER
         );
         factory.whitelist(address(implementation));
-        account = MidasCompAccountBenchHarness(
-            factory.create(1, address(this), abi.encode(makeAddr("adapter"), address(vault), MAINNET_MTBILL))
+        account = MidasCompAccountBenchHarness(factory.create(1, address(this), _initData(MAINNET_MTBILL)));
+    }
+
+    function _initData(address tokenToRedeem) internal returns (bytes memory) {
+        address[] memory converters = new address[](1);
+        converters[0] = address(this);
+        return abi.encode(
+            IAccount.InitParams({
+                adapter: makeAddr("adapter"),
+                vault: address(vault),
+                tokenToRedeem: tokenToRedeem,
+                converters: converters
+            })
         );
     }
 
@@ -217,7 +223,7 @@ contract MidasNonCompAccountBenchHarness is MidasNonCompAccount {
     constructor(
         address oracle,
         address factory,
-        uint256 cooldown,
+        uint48 cooldown,
         address tokenToRedeem,
         address redemptionToken,
         address redemptionVault,
@@ -257,7 +263,7 @@ contract MidasCompAccountBenchHarness is MidasCompAccount {
     constructor(
         address oracle,
         address factory,
-        uint256 cooldown,
+        uint48 cooldown,
         address tokenToRedeem,
         address redemptionToken,
         address redemptionVault,

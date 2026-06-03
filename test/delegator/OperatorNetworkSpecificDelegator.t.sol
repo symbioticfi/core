@@ -41,9 +41,9 @@ import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 contract OperatorNetworkSpecificDelegatorTest is Test {
-    using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
+    using Math for uint256;
 
     address owner;
     address alice;

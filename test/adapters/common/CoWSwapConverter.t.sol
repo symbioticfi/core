@@ -53,8 +53,7 @@ contract CoWSwapConverterTest is Test {
 
     function test_InitializeRegistersConverterFromInitData() public view {
         assertEq(converter.owner(), owner);
-        assertEq(converter.converters().length, 1);
-        assertEq(converter.converters()[0], converterRoleHolder);
+        assertTrue(converter.isConverter(converterRoleHolder));
     }
 
     function test_ConvertPresignsOrderAndApprovesRelayer() public {
@@ -68,11 +67,9 @@ contract CoWSwapConverterTest is Test {
 
     function test_ConverterCanConvertWithoutPreparedNonce() public {
         address newConverter = makeAddr("newConverter");
-        address[] memory converters = new address[](1);
-        converters[0] = newConverter;
 
         vm.prank(owner);
-        converter.setConverters(converters);
+        converter.setConverterStatus(newConverter, true);
 
         vm.prank(newConverter);
         converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(100, 90, 0, 1));
@@ -82,12 +79,18 @@ contract CoWSwapConverterTest is Test {
         assertTrue(settlement.lastSigned());
     }
 
-    function test_SetConvertersRevertsForNonOwner() public {
-        address[] memory converters = new address[](1);
-        converters[0] = makeAddr("newConverter");
+    function test_SetConverterStatusRevertsForNonOwner() public {
+        address newConverter = makeAddr("newConverter");
 
         vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, address(this)));
-        converter.setConverters(converters);
+        converter.setConverterStatus(newConverter, true);
+    }
+
+    function test_SetConverterStatusCanDisableConverter() public {
+        vm.prank(owner);
+        converter.setConverterStatus(converterRoleHolder, false);
+
+        assertFalse(converter.isConverter(converterRoleHolder));
     }
 
     function test_ConvertPresignsOrderWhenBalanceIsInsufficient() public {
@@ -114,7 +117,9 @@ contract CoWSwapConverterTest is Test {
 
         vm.expectRevert(ICoWSwapConverter.ExpiredOrder.selector);
         vm.prank(converterRoleHolder);
-        converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(100, 90, 0, 3, uint32(block.timestamp)));
+        converter.convert(
+            address(tokenIn), 100, address(tokenOut), _orderData(100, 90, 0, 3, uint48(vm.getBlockTimestamp()))
+        );
 
         vm.expectRevert(ICoWSwapConverter.TooFarValidTo.selector);
         vm.prank(converterRoleHolder);
@@ -122,7 +127,7 @@ contract CoWSwapConverterTest is Test {
             address(tokenIn),
             100,
             address(tokenOut),
-            _orderData(100, 90, 0, 4, uint32(block.timestamp + MAX_VALID_TO_DURATION + 1))
+            _orderData(100, 90, 0, 4, uint48(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION + 1))
         );
     }
 
@@ -135,7 +140,9 @@ contract CoWSwapConverterTest is Test {
 
         vm.expectRevert(ICoWSwapConverter.ExpiredOrder.selector);
         vm.prank(caller);
-        converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(100, 90, 0, 3, uint32(block.timestamp)));
+        converter.convert(
+            address(tokenIn), 100, address(tokenOut), _orderData(100, 90, 0, 3, uint48(vm.getBlockTimestamp()))
+        );
 
         vm.expectRevert(ICoWSwapConverter.TooFarValidTo.selector);
         vm.prank(caller);
@@ -143,24 +150,25 @@ contract CoWSwapConverterTest is Test {
             address(tokenIn),
             100,
             address(tokenOut),
-            _orderData(100, 90, 0, 4, uint32(block.timestamp + MAX_VALID_TO_DURATION + 1))
+            _orderData(100, 90, 0, 4, uint48(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION + 1))
         );
     }
 
     function test_PrepareConvertAllowsPublicExecutionAfterDelayIfNonceUnchanged() public {
         address caller = makeAddr("caller");
-        bytes memory data = _orderData(100, 90, 0, 1, uint32(block.timestamp + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
+        bytes memory data =
+            _orderData(100, 90, 0, 1, uint48(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
 
         bytes32 requestHash = converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
         uint48 timestamp = converter.executableAt(0, requestHash);
 
-        assertEq(timestamp, block.timestamp + EXECUTION_DELAY);
+        assertEq(timestamp, vm.getBlockTimestamp() + EXECUTION_DELAY);
 
         vm.expectRevert(ICoWSwapConverter.TooFarValidTo.selector);
         vm.prank(caller);
         converter.convert(address(tokenIn), 100, address(tokenOut), data);
 
-        vm.warp(block.timestamp + EXECUTION_DELAY);
+        vm.warp(vm.getBlockTimestamp() + EXECUTION_DELAY);
         vm.prank(caller);
         converter.convert(address(tokenIn), 100, address(tokenOut), data);
 
@@ -172,10 +180,11 @@ contract CoWSwapConverterTest is Test {
     function test_PreparedConvertRevertsWhenTokenOutChanges() public {
         address caller = makeAddr("caller");
         Token otherTokenOut = new Token("Other Token Out");
-        bytes memory data = _orderData(100, 90, 0, 1, uint32(block.timestamp + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
+        bytes memory data =
+            _orderData(100, 90, 0, 1, uint48(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
         converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
 
-        vm.warp(block.timestamp + EXECUTION_DELAY);
+        vm.warp(vm.getBlockTimestamp() + EXECUTION_DELAY);
         vm.expectRevert(ICoWSwapConverter.InvalidNonce.selector);
         vm.prank(caller);
         converter.convert(address(tokenIn), 100, address(otherTokenOut), data);
@@ -183,13 +192,14 @@ contract CoWSwapConverterTest is Test {
 
     function test_PreparedConvertRevertsWhenNonceChanged() public {
         address caller = makeAddr("caller");
-        bytes memory data = _orderData(100, 90, 0, 1, uint32(block.timestamp + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
+        bytes memory data =
+            _orderData(100, 90, 0, 1, uint48(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
         converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
 
         vm.prank(converterRoleHolder);
         converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(100, 80, 0, 2));
 
-        vm.warp(block.timestamp + EXECUTION_DELAY);
+        vm.warp(vm.getBlockTimestamp() + EXECUTION_DELAY);
         vm.expectRevert(ICoWSwapConverter.InvalidNonce.selector);
         vm.prank(caller);
         converter.convert(address(tokenIn), 100, address(tokenOut), data);
@@ -200,10 +210,11 @@ contract CoWSwapConverterTest is Test {
         view
         returns (bytes memory)
     {
-        return _orderData(sellAmount, buyAmount, feeAmount, salt, uint32(block.timestamp + MAX_VALID_TO_DURATION));
+        return
+            _orderData(sellAmount, buyAmount, feeAmount, salt, uint48(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION));
     }
 
-    function _orderData(uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, uint256 salt, uint32 validTo)
+    function _orderData(uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, uint256 salt, uint48 validTo)
         internal
         pure
         returns (bytes memory)

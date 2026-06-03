@@ -3,15 +3,13 @@ pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
 
-import {
-    MidasCompAccount,
-    MidasNonCompAccount
-} from "../../../src/contracts/adapters/ll-adapter/accounts/MidasAccount.sol";
+import {MidasCompAccount, MidasNonCompAccount} from "../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {ChainlinkOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ChainlinkOracle.sol";
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {IConverter} from "../../../src/interfaces/adapters/common/IConverter.sol";
 import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IChainlinkOracle} from "../../../src/interfaces/adapters/ll-adapter/oracles/IChainlinkOracle.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -38,6 +36,7 @@ contract MidasAccountOraclesTest is Test {
 
         assertEq(account.ORACLE(), oracle);
         assertEq(account.vault(), vault);
+        assertTrue(account.isConverter(address(this)));
         assertEq(account.totalAssets(), 100 ether);
         account.sync();
 
@@ -84,7 +83,8 @@ contract MidasAccountOraclesTest is Test {
         MockMidasRedemptionVault redemptionVault =
             new MockMidasRedemptionVault(address(tokenToRedeem), address(mTokenDataFeed));
         redemptionVault.setDataFeed(address(asset), address(new MockMidasDataFeed(1e18)));
-        MidasCompAccount account = _deployCompAccount(tokenToRedeem, asset, makeAddr("fallbackToken"), redemptionVault);
+        MidasCompAccount account =
+            _deployCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
 
         tokenToRedeem.mint(address(account), 100 ether);
         account.sync();
@@ -160,13 +160,27 @@ contract MidasAccountOraclesTest is Test {
         assertEq(redemptionVault.lastAmountMTokenIn(), 100 ether);
     }
 
+    function testMidasAccountNormalizesHeldFallbackTokenToAssetDecimals() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockERC20Decimals fallbackToken = new MockERC20Decimals("Fallback", "FALLBACK", 6);
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
+        MidasNonCompAccount account =
+            _deployNonCompAccount(tokenToRedeem, asset, address(fallbackToken), redemptionVault);
+
+        fallbackToken.mint(address(account), 100e6);
+
+        assertEq(account.totalAssets(), 100 ether);
+    }
+
     function testMidasAccountRedeemDoesNothingWithNoBalance() public {
         MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
         MockERC20 asset = new MockERC20("Asset", "ASSET");
         MockMidasRedemptionVault redemptionVault =
             new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
         MidasNonCompAccount account =
-            _deployNonCompAccount(tokenToRedeem, asset, makeAddr("fallbackToken"), redemptionVault);
+            _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
 
         account.sync();
         assertEq(redemptionVault.lastTokenOut(), address(0));
@@ -178,7 +192,7 @@ contract MidasAccountOraclesTest is Test {
         MockMidasRedemptionVault redemptionVault =
             new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
         MidasNonCompAccount account =
-            _deployNonCompAccount(tokenToRedeem, asset, makeAddr("fallbackToken"), redemptionVault);
+            _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
 
         vm.expectRevert(IConverter.InvalidTokenOut.selector);
         account.convert(makeAddr("redemptionToken"), 1 ether, makeAddr("notAsset"), "");
@@ -190,7 +204,7 @@ contract MidasAccountOraclesTest is Test {
         MockMidasRedemptionVault redemptionVault =
             new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
         MidasNonCompAccount account =
-            _deployNonCompAccount(tokenToRedeem, asset, makeAddr("fallbackToken"), redemptionVault);
+            _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
 
         vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
         account.convert(address(asset), 1 ether, address(asset), "");
@@ -202,7 +216,7 @@ contract MidasAccountOraclesTest is Test {
         MockMidasRedemptionVault redemptionVault =
             new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
         MidasNonCompAccount account =
-            _deployNonCompAccount(tokenToRedeem, asset, makeAddr("fallbackToken"), redemptionVault);
+            _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
 
         vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
         account.convert(address(tokenToRedeem), 1 ether, address(asset), "");
@@ -210,7 +224,7 @@ contract MidasAccountOraclesTest is Test {
 
     function testChainlinkOracleReturnsLatestPriceInBase18() public {
         MockChainlinkAggregator aggregator = new MockChainlinkAggregator(8);
-        aggregator.setLatestRoundData(1, 123e8, block.timestamp, 1);
+        aggregator.setLatestRoundData(1, 123e8, uint48(vm.getBlockTimestamp()), 1);
         ChainlinkOracle oracle = new ChainlinkOracle([address(aggregator), address(0)], [uint48(1 days), uint48(0)]);
 
         assertEq(oracle.getPrice(), 123e18);
@@ -219,8 +233,8 @@ contract MidasAccountOraclesTest is Test {
     function testChainlinkOracleMultipliesSecondAggregatorHop() public {
         MockChainlinkAggregator aggregator0 = new MockChainlinkAggregator(8);
         MockChainlinkAggregator aggregator1 = new MockChainlinkAggregator(18);
-        aggregator0.setLatestRoundData(1, 2e8, block.timestamp, 1);
-        aggregator1.setLatestRoundData(1, 3e18, block.timestamp, 1);
+        aggregator0.setLatestRoundData(1, 2e8, uint48(vm.getBlockTimestamp()), 1);
+        aggregator1.setLatestRoundData(1, 3e18, uint48(vm.getBlockTimestamp()), 1);
         ChainlinkOracle oracle =
             new ChainlinkOracle([address(aggregator0), address(aggregator1)], [uint48(1 days), uint48(1 days)]);
 
@@ -230,7 +244,7 @@ contract MidasAccountOraclesTest is Test {
     function testChainlinkOracleReturnsZeroForStalePrice() public {
         vm.warp(10 days);
         MockChainlinkAggregator aggregator = new MockChainlinkAggregator(8);
-        aggregator.setLatestRoundData(1, 123e8, block.timestamp - 2 days, 1);
+        aggregator.setLatestRoundData(1, 123e8, uint48(vm.getBlockTimestamp() - 2 days), 1);
         ChainlinkOracle oracle = new ChainlinkOracle([address(aggregator), address(0)], [uint48(1 days), uint48(0)]);
 
         assertEq(oracle.getPrice(), 0);
@@ -268,7 +282,7 @@ contract MidasAccountOraclesTest is Test {
             cowRelayer
         );
         factory.whitelist(address(implementation));
-        account = MidasCompAccount(factory.create(1, address(this), abi.encode(adapter, vault, address(tokenToRedeem))));
+        account = MidasCompAccount(factory.create(1, address(this), _initData(address(tokenToRedeem))));
     }
 
     function _deployNonCompAccount(
@@ -291,8 +305,15 @@ contract MidasAccountOraclesTest is Test {
             cowRelayer
         );
         factory.whitelist(address(implementation));
-        account =
-            MidasNonCompAccount(factory.create(1, address(this), abi.encode(adapter, vault, address(tokenToRedeem))));
+        account = MidasNonCompAccount(factory.create(1, address(this), _initData(address(tokenToRedeem))));
+    }
+
+    function _initData(address tokenToRedeem) internal view returns (bytes memory) {
+        address[] memory converters = new address[](1);
+        converters[0] = address(this);
+        return abi.encode(
+            IAccount.InitParams({adapter: adapter, vault: vault, tokenToRedeem: tokenToRedeem, converters: converters})
+        );
     }
 }
 
@@ -309,6 +330,18 @@ contract MockERC20 is ERC20 {
 
     function mint(address account, uint256 value) public {
         _mint(account, value);
+    }
+}
+
+contract MockERC20Decimals is MockERC20 {
+    uint8 internal immutable _decimals;
+
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) MockERC20(name_, symbol_) {
+        _decimals = decimals_;
+    }
+
+    function decimals() public view override returns (uint8) {
+        return _decimals;
     }
 }
 
@@ -420,14 +453,14 @@ contract MockChainlinkAggregator {
 
     uint80 internal _roundId;
     int256 internal _answer;
-    uint256 internal _updatedAt;
+    uint48 internal _updatedAt;
     uint80 internal _answeredInRound;
 
     constructor(uint8 decimals_) {
         decimals = decimals_;
     }
 
-    function setLatestRoundData(uint80 roundId, int256 answer, uint256 updatedAt, uint80 answeredInRound) public {
+    function setLatestRoundData(uint80 roundId, int256 answer, uint48 updatedAt, uint80 answeredInRound) public {
         _roundId = roundId;
         _answer = answer;
         _updatedAt = updatedAt;
@@ -437,7 +470,7 @@ contract MockChainlinkAggregator {
     function getRoundData(uint80 roundId)
         public
         view
-        returns (uint80, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
+        returns (uint80, int256 answer, uint48 startedAt, uint48 updatedAt, uint80 answeredInRound)
     {
         if (roundId != _roundId) {
             revert("missing round");
@@ -448,7 +481,7 @@ contract MockChainlinkAggregator {
     function latestRoundData()
         public
         view
-        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
+        returns (uint80 roundId, int256 answer, uint48 startedAt, uint48 updatedAt, uint80 answeredInRound)
     {
         return (_roundId, _answer, _updatedAt, _updatedAt, _answeredInRound);
     }

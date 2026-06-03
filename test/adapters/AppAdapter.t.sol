@@ -22,7 +22,7 @@ contract AppAdapterTest is Test {
     AppAdapterVaultMock internal vault;
     AppAdapterDelegatorMock internal delegator;
     AppAdapterNetworkMiddlewareServiceMock internal networkMiddlewareService;
-    Token internal collateral;
+    Token internal assetToken;
     IAppAdapter internal adapter;
 
     bytes32 internal subnetwork;
@@ -41,8 +41,8 @@ contract AppAdapterTest is Test {
         factory = new AdapterFactory(address(this));
         delegator = new AppAdapterDelegatorMock();
         networkMiddlewareService = new AppAdapterNetworkMiddlewareServiceMock();
-        collateral = new Token("Collateral");
-        vault = new AppAdapterVaultMock(address(collateral), address(delegator));
+        assetToken = new Token("Asset");
+        vault = new AppAdapterVaultMock(address(assetToken), address(delegator));
         vaultFactory.add(address(vault));
 
         subnetwork = network.subnetwork(1);
@@ -57,7 +57,7 @@ contract AppAdapterTest is Test {
     }
 
     function test_StakeUsesDurationShiftedCheckpoint() public {
-        uint48 timestamp = uint48(block.timestamp);
+        uint48 timestamp = uint48(vm.getBlockTimestamp());
 
         _allocate(100);
 
@@ -69,7 +69,7 @@ contract AppAdapterTest is Test {
     function test_InitializeStoresConfiguredBurner() public view {
         assertEq(adapter.burner(), burner);
         assertEq(AppAdapter(address(adapter)).owner(), curator);
-        assertEq(AppAdapter(address(adapter)).converters()[0], curator);
+        assertTrue(AppAdapter(address(adapter)).isConverter(curator));
     }
 
     function test_InitializeRejectsZeroBurner() public {
@@ -93,15 +93,15 @@ contract AppAdapterTest is Test {
         address rewarder = makeAddr("rewarder");
         uint256 amount = 123;
 
-        collateral.transfer(rewarder, amount);
+        assetToken.transfer(rewarder, amount);
 
         vm.startPrank(rewarder);
-        collateral.approve(address(adapter), amount);
-        adapter.reward(address(collateral), amount);
+        assetToken.approve(address(adapter), amount);
+        adapter.reward(address(assetToken), amount);
         vm.stopPrank();
 
-        assertEq(collateral.balanceOf(rewarder), 0);
-        assertEq(collateral.balanceOf(address(adapter)), amount);
+        assertEq(assetToken.balanceOf(rewarder), 0);
+        assertEq(assetToken.balanceOf(address(adapter)), amount);
     }
 
     function test_DeallocationPreservesStakeUntilDurationAndSettlesAfterDuration() public {
@@ -111,7 +111,7 @@ contract AppAdapterTest is Test {
 
         assertEq(adapter.stake(), 100);
 
-        vm.warp(block.timestamp + duration);
+        vm.warp(vm.getBlockTimestamp() + duration);
 
         assertEq(adapter.stake(), 60);
 
@@ -134,10 +134,10 @@ contract AppAdapterTest is Test {
     function test_StakeAtPreservesEndOfBlockStakeAfterLaterRequestDeallocate() public {
         _allocate(100);
 
-        uint48 timestamp = uint48(block.timestamp);
+        uint48 timestamp = uint48(vm.getBlockTimestamp());
         uint256 endOfBlockStake = adapter.stake();
 
-        vm.warp(block.timestamp + 1);
+        vm.warp(vm.getBlockTimestamp() + 1);
         delegator.requestDeallocate(address(adapter), 40);
 
         assertEq(adapter.stakeAt(timestamp), endOfBlockStake);
@@ -146,7 +146,7 @@ contract AppAdapterTest is Test {
     function test_GuaranteeRemainsSlashableUntilHalfOpenExpiry() public {
         _allocate(100);
 
-        uint48 timestamp = uint48(block.timestamp);
+        uint48 timestamp = uint48(vm.getBlockTimestamp());
         uint256 guaranteed = adapter.stake();
 
         delegator.requestDeallocate(address(adapter), 40);
@@ -170,7 +170,7 @@ contract AppAdapterTest is Test {
         assertEq(adapter.stake(), 100);
         assertEq(adapter.freeAssets(), 0);
 
-        vm.warp(block.timestamp + duration);
+        vm.warp(vm.getBlockTimestamp() + duration);
 
         assertEq(adapter.stake(), 60);
         assertEq(adapter.freeAssets(), 40);
@@ -185,16 +185,16 @@ contract AppAdapterTest is Test {
         _allocate(100);
 
         delegator.requestDeallocate(address(adapter), 80);
-        vm.warp(block.timestamp + duration);
+        vm.warp(vm.getBlockTimestamp() + duration);
 
-        uint256 vaultBalanceBefore = collateral.balanceOf(address(vault));
+        uint256 vaultBalanceBefore = assetToken.balanceOf(address(vault));
         uint256 adapterAssetsBefore = adapter.totalAssets();
 
         uint256 deallocated = delegator.deallocate(address(adapter), 1);
 
         assertEq(deallocated, 80);
         assertEq(adapter.totalAssets(), adapterAssetsBefore - 80);
-        assertEq(collateral.balanceOf(address(vault)), vaultBalanceBefore + 80);
+        assertEq(assetToken.balanceOf(address(vault)), vaultBalanceBefore + 80);
     }
 
     function test_SyncClosesPendingByRestoringStake() public {
@@ -235,7 +235,7 @@ contract AppAdapterTest is Test {
         assertEq(delegator.decreaseLimitsCalls(), 1);
         assertEq(delegator.lastDecreaseAssets(), 40);
         assertEq(delegator.lastDecreaseShare(), 0);
-        assertEq(collateral.balanceOf(burner), 40);
+        assertEq(assetToken.balanceOf(burner), 40);
     }
 
     function test_SlashSaturatesAtCurrentSlashable() public {
@@ -251,7 +251,7 @@ contract AppAdapterTest is Test {
         assertEq(adapter.totalAssets(), 0);
         assertEq(adapter.slashable(), 0);
         assertEq(adapter.stake(), 0);
-        assertEq(collateral.balanceOf(burner), 100);
+        assertEq(assetToken.balanceOf(burner), 100);
         assertEq(delegator.lastDecreaseAssets(), 100);
         assertEq(delegator.lastDecreaseShare(), 0);
     }
@@ -269,7 +269,7 @@ contract AppAdapterTest is Test {
         assertEq(adapter.slashable(), 60);
         assertEq(adapter.stake(), 60);
         assertEq(adapter.freeAssets(), 40);
-        assertEq(collateral.balanceOf(burner), 0);
+        assertEq(assetToken.balanceOf(burner), 0);
         assertEq(delegator.decreaseLimitsCalls(), 1);
         assertEq(delegator.lastDecreaseAssets(), 40);
         assertEq(delegator.lastDecreaseShare(), 0);
@@ -288,7 +288,7 @@ contract AppAdapterTest is Test {
         assertEq(adapter.slashable(), 0);
         assertEq(adapter.stake(), 0);
         assertEq(adapter.freeAssets(), 100);
-        assertEq(collateral.balanceOf(burner), 0);
+        assertEq(assetToken.balanceOf(burner), 0);
         assertEq(delegator.decreaseLimitsCalls(), 1);
         assertEq(delegator.lastDecreaseAssets(), 100);
         assertEq(delegator.lastDecreaseShare(), 0);
@@ -359,7 +359,7 @@ contract AppAdapterTest is Test {
         assertEq(burnerMock.lastOperator(), operator);
         assertEq(burnerMock.lastAmount(), 40);
         assertEq(burnerMock.lastCaptureTimestamp(), 0);
-        assertEq(collateral.balanceOf(address(burnerMock)), 40);
+        assertEq(assetToken.balanceOf(address(burnerMock)), 40);
     }
 
     function test_RepeatedSlashInSameBlockUpdatesSlashedCheckpoint() public {
@@ -372,7 +372,7 @@ contract AppAdapterTest is Test {
 
         assertEq(adapter.stake(), 75);
         assertEq(adapter.slashable(), 75);
-        assertEq(collateral.balanceOf(burner), 25);
+        assertEq(assetToken.balanceOf(burner), 25);
     }
 
     function test_SlashRevertsWithInsufficientBurnerGas() public {
@@ -414,7 +414,7 @@ contract AppAdapterTest is Test {
     }
 
     function _allocate(IAppAdapter targetAdapter, uint256 amount) internal {
-        collateral.transfer(address(targetAdapter), amount);
+        assetToken.transfer(address(targetAdapter), amount);
 
         delegator.allocate(address(targetAdapter), amount);
     }
@@ -521,11 +521,11 @@ contract AppAdapterNetworkMiddlewareServiceMock {
 }
 
 contract AppAdapterVaultMock {
-    address public immutable collateral;
+    address public immutable assetToken;
     address public delegator;
 
-    constructor(address collateral_, address delegator_) {
-        collateral = collateral_;
+    constructor(address assetToken_, address delegator_) {
+        assetToken = assetToken_;
         delegator = delegator_;
     }
 
@@ -534,11 +534,11 @@ contract AppAdapterVaultMock {
     }
 
     function asset() external view returns (address) {
-        return collateral;
+        return assetToken;
     }
 
     function push(uint256 amount, address from) external {
-        Token(collateral).transferFrom(from, address(this), amount);
+        Token(assetToken).transferFrom(from, address(this), amount);
     }
 }
 

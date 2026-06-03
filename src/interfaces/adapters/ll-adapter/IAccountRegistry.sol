@@ -2,10 +2,10 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title ILiquidLaneRegistry
- * @notice Interface for the liquidity lane adapter registry.
+ * @title IAccountRegistry
+ * @notice Interface for the liquidity lane account registry.
  */
-interface ILiquidLaneRegistry {
+interface IAccountRegistry {
     /* ERRORS */
 
     /**

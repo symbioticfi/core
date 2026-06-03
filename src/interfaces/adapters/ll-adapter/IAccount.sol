@@ -13,7 +13,35 @@ interface IAccount {
      */
     error NotAdapter();
 
+    /* STRUCTS */
+
+    /**
+     * @notice Initialization parameters for token-specific liquidity lane accounts.
+     * @param adapter Adapter allowed to sweep realized vault assets.
+     * @param vault Vault bound to the account.
+     * @param tokenToRedeem Token submitted through this account.
+     * @param converters Initial converters exempt from the prepared-request delay when supported by the account.
+     */
+    struct InitParams {
+        address adapter;
+        address vault;
+        address tokenToRedeem;
+        address[] converters;
+    }
+
     /* FUNCTIONS */
+
+    /**
+     * @notice Returns the adapter bound to the account.
+     * @return adapter The adapter address.
+     */
+    function adapter() external view returns (address adapter);
+
+    /**
+     * @notice Returns the token submitted through this account.
+     * @return tokenToRedeem The token-to-redeem address.
+     */
+    function TOKEN_TO_REDEEM() external view returns (address tokenToRedeem);
 
     /**
      * @notice Returns the oracle used to price the token-to-redeem.
@@ -26,12 +54,6 @@ interface IAccount {
      * @return vault The vault address.
      */
     function vault() external view returns (address vault);
-
-    /**
-     * @notice Returns the account's realized vault-asset balance.
-     * @return assets The current free vault-asset amount.
-     */
-    function freeAssets() external view returns (uint256 assets);
 
     /**
      * @notice Returns the account's current vault-asset value.

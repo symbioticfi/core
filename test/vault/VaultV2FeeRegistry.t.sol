@@ -252,12 +252,12 @@ contract VaultV2BehaviorTest is Test {
         VaultV2 vault = _createVault(false, false, 0);
 
         assertEq(vault.totalSupply(), 0);
-        assertEq(vault.totalSupplyAt(uint48(block.timestamp)), 0);
+        assertEq(vault.totalSupplyAt(uint48(vm.getBlockTimestamp())), 0);
         assertEq(vault.balanceOf(alice), 0);
-        assertEq(vault.balanceOfAt(alice, uint48(block.timestamp)), 0);
+        assertEq(vault.balanceOfAt(alice, uint48(vm.getBlockTimestamp())), 0);
 
-        vm.warp(block.timestamp + 1);
-        uint48 depositTimestamp = uint48(block.timestamp);
+        vm.warp(vm.getBlockTimestamp() + 1);
+        uint48 depositTimestamp = uint48(vm.getBlockTimestamp());
         _deposit(vault, alice, 100 ether);
 
         assertEq(vault.totalSupply(), 100 ether);
@@ -266,8 +266,8 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.balanceOfAt(alice, depositTimestamp), 100 ether);
         assertEq(vault.balanceOfAt(bob, depositTimestamp), 0);
 
-        vm.warp(block.timestamp + 1);
-        uint48 transferTimestamp = uint48(block.timestamp);
+        vm.warp(vm.getBlockTimestamp() + 1);
+        uint48 transferTimestamp = uint48(vm.getBlockTimestamp());
         vm.prank(alice);
         vault.transfer(bob, 40 ether);
 
@@ -277,8 +277,8 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.balanceOfAt(alice, transferTimestamp), 60 ether);
         assertEq(vault.balanceOfAt(bob, transferTimestamp), 40 ether);
 
-        vm.warp(block.timestamp + 1);
-        uint48 withdrawTimestamp = uint48(block.timestamp);
+        vm.warp(vm.getBlockTimestamp() + 1);
+        uint48 withdrawTimestamp = uint48(vm.getBlockTimestamp());
         vm.prank(alice);
         vault.withdraw(20 ether, alice, alice);
 
@@ -357,7 +357,7 @@ contract VaultV2BehaviorTest is Test {
         _setCuratorFees(vault);
         _deposit(vault, alice, 100 ether);
 
-        vm.warp(block.timestamp + 30 days);
+        vm.warp(vm.getBlockTimestamp() + 30 days);
         collateral.transfer(address(vault), 100 ether);
 
         assertGt(vault.previewMint(1 ether), 0);
@@ -417,7 +417,7 @@ contract VaultV2BehaviorTest is Test {
         _deposit(vault, alice, 100 ether);
         uint256 rawSupply = vault.totalSupply();
 
-        vm.warp(block.timestamp + 30 days);
+        vm.warp(vm.getBlockTimestamp() + 30 days);
         collateral.transfer(address(vault), 100_000 ether);
 
         (, uint256 managementFeeShares, uint256 performanceFeeShares, uint256 protocolFeeShares) =
@@ -434,7 +434,7 @@ contract VaultV2BehaviorTest is Test {
         protocolFee.setGlobalFee(17, 13);
         _deposit(vault, alice, 100 ether);
 
-        vm.warp(block.timestamp + 30 days);
+        vm.warp(vm.getBlockTimestamp() + 30 days);
         collateral.transfer(address(vault), 100_000 ether);
 
         uint256 previewSupply = vault.totalSupply();
@@ -450,7 +450,7 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.balanceOf(managementFeeReceiver), managementFeeShares);
         assertEq(vault.balanceOf(performanceFeeReceiver), performanceFeeShares);
         assertEq(vault.totalSupply(), previewSupply);
-        assertEq(vault.lastUpdate(), block.timestamp);
+        assertEq(vault.lastUpdate(), vm.getBlockTimestamp());
     }
 
     function test_ProtocolManagementFeeAccruesWithoutInterest() public {
@@ -460,7 +460,7 @@ contract VaultV2BehaviorTest is Test {
 
         _deposit(vault, alice, 100 ether);
 
-        vm.warp(block.timestamp + 30 days);
+        vm.warp(vm.getBlockTimestamp() + 30 days);
 
         (,, uint256 protocolFeeShares) = vault.accrueInterest();
 
@@ -481,7 +481,7 @@ contract VaultV2BehaviorTest is Test {
         protocolFee.setGlobalFee(0, 0);
         protocolFee.setGlobalReceiver(nextProtocolFeeReceiver);
 
-        vm.warp(block.timestamp + 30 days);
+        vm.warp(vm.getBlockTimestamp() + 30 days);
         collateral.transfer(address(vault), 100_000 ether);
 
         (,,, uint256 previewProtocolFeeShares) = vault.getAccrueInterest();
@@ -621,9 +621,9 @@ contract VaultV2BehaviorTest is Test {
 
     function _assertEmptyShareCheckpoints(VaultV2 vault) internal view {
         assertEq(vault.totalSupply(), 0);
-        assertEq(vault.totalSupplyAt(uint48(block.timestamp)), 0);
+        assertEq(vault.totalSupplyAt(uint48(vm.getBlockTimestamp())), 0);
         assertEq(vault.balanceOf(alice), 0);
-        assertEq(vault.balanceOfAt(alice, uint48(block.timestamp)), 0);
+        assertEq(vault.balanceOfAt(alice, uint48(vm.getBlockTimestamp())), 0);
     }
 
     function _setCuratorFees(VaultV2 vault) internal {

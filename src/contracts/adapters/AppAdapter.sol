@@ -24,8 +24,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 /// @title AppAdapter
 /// @notice Single network-operator guarantee adapter.
 contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
-    using Checkpoints for Checkpoints.Trace256;
     using Checkpoints for Checkpoints.Trace208;
+    using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -86,7 +86,7 @@ contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
     function _slashable() internal view returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.latest()];
         return curStake.initialStake.saturatingSub(curStake.slashed.latest())
-            .saturatingSub(curStake.debt.upperLookupRecent(block.timestamp));
+            .saturatingSub(curStake.debt.upperLookupRecent(uint48(block.timestamp)));
     }
 
     /// @inheritdoc IAppAdapter
@@ -227,6 +227,8 @@ contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
             pop(call(BURNER_GAS_LIMIT, curBurner, 0, add(burnerCalldata, 0x20), mload(burnerCalldata), 0, 0))
         }
     }
+
+    /* INITIALIZATION */
 
     /// @dev Initializes the configured network-operator pair.
     function __initialize(address, bytes memory data) internal virtual override {

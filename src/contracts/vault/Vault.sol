@@ -22,8 +22,8 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 /// @notice Contract for epoch-based collateral deposits, withdrawals, and slashing callbacks.
 contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
-    using Math for uint256;
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
     constructor(address delegatorFactory, address slasherFactory, address vaultFactory)
         VaultStorage(delegatorFactory, slasherFactory)

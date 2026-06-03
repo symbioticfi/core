@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
+import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 import {AggregatorV3Interface} from "../../../../interfaces/adapters/ll-adapter/oracles/AggregatorV3Interface.sol";
 import {IChainlinkOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/IChainlinkOracle.sol";
-import {ILiquidLaneOracle} from "../../../../interfaces/adapters/ll-adapter/ILiquidLaneOracle.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -26,6 +26,7 @@ contract ChainlinkOracle is IChainlinkOracle {
 
     /* CONSTRUCTOR */
 
+    /// @notice Creates the Chainlink-backed oracle.
     constructor(address[2] memory aggregators, uint48[2] memory stalenessDurations) {
         if (aggregators[0] == address(0)) {
             revert InvalidAggregator();
@@ -39,7 +40,7 @@ contract ChainlinkOracle is IChainlinkOracle {
 
     /* VIEW FUNCTIONS */
 
-    /// @inheritdoc ILiquidLaneOracle
+    /// @inheritdoc IOracle
     function getPrice() public view returns (uint256 price) {
         price = _getPrice(AGGREGATOR_0, STALENESS_DURATION_0);
         if (price == 0 || AGGREGATOR_1 == address(0)) {

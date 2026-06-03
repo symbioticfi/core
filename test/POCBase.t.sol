@@ -36,9 +36,9 @@ import {Subnetwork} from "../src/contracts/libraries/Subnetwork.sol";
 import "./integration/SymbioticCoreBytecode.sol";
 
 contract POCBaseTest is Test {
-    using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
+    using Math for uint256;
 
     address public owner;
     address public alice;

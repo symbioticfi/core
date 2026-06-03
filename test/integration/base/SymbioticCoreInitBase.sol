@@ -18,10 +18,10 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindingsBase {
-    using SafeERC20 for IERC20;
-    using Math for uint256;
     using SymbioticSubnetwork for bytes32;
     using SymbioticSubnetwork for address;
+    using SafeERC20 for IERC20;
+    using Math for uint256;
 
     struct InitCoreLocalVars {
         VmSafe.CallerMode callerMode;

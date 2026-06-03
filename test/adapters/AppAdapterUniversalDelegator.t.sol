@@ -53,7 +53,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
     address internal constant BURNER = address(0xB);
     address internal constant CURATOR = address(0xC);
 
-    Token internal collateral;
+    Token internal assetToken;
     VaultFactory internal vaultFactory;
     DelegatorFactory internal delegatorFactory;
     WithdrawalQueueFactory internal withdrawalQueueFactory;
@@ -74,7 +74,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
     function setUp() public {
         vm.warp(100);
 
-        collateral = new Token("Collateral");
+        assetToken = new Token("Asset");
         vaultFactory = new VaultFactory(address(this));
         withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
         delegatorFactory = new DelegatorFactory(address(this));
@@ -151,7 +151,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
         delegator.addAdapter(address(adapter));
         delegator.setLimits(address(adapter), 100, MAX_SHARE);
 
-        collateral.approve(address(vault), 100);
+        assetToken.approve(address(vault), 100);
         vault.deposit(100, address(this));
         delegator.allocate(address(adapter), 100);
     }
@@ -163,7 +163,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
 
         assertEq(adapter.stake(), observedStake);
 
-        vm.warp(block.timestamp + duration);
+        vm.warp(vm.getBlockTimestamp() + duration);
 
         assertEq(adapter.stake(), observedStake - 40);
     }
@@ -172,13 +172,13 @@ contract AppAdapterUniversalDelegatorTest is Test {
         uint256 observedStake = adapter.stake();
 
         delegator.forceDeallocate(address(adapter), 40);
-        vm.warp(block.timestamp + 1);
+        vm.warp(vm.getBlockTimestamp() + 1);
 
         assertEq(adapter.stake(), observedStake - 40);
     }
 
     function test_ObservedStakeAtSurvivesRealDelegatorForceDeallocateUntilDurationExpires() public {
-        uint48 observedAt = uint48(block.timestamp);
+        uint48 observedAt = uint48(vm.getBlockTimestamp());
         uint256 observedStake = adapter.stakeAt(observedAt);
 
         delegator.forceDeallocate(address(adapter), 40);
@@ -192,7 +192,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
 
     function test_QueuedWithdrawalDoesNotFillBeforeAppAdapterDebtMatures() public {
         (WithdrawalQueue queue, uint256 tokenId, uint256 shares) = _requestAllocatedWithdrawal(1000);
-        uint48 requestedAt = uint48(block.timestamp);
+        uint48 requestedAt = uint48(vm.getBlockTimestamp());
         uint256 observedStake = adapter.stakeAt(requestedAt);
         uint256 adapterAssets = adapter.totalAssets();
         uint16 adapterIndex = delegator.adapterToIndex(address(adapter));
@@ -223,7 +223,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
 
     function test_SlashCanConsumeFullStakeInSameBlockAfterForceDeallocate() public {
         uint256 observedStake = adapter.stake();
-        uint256 burnerBalanceBefore = collateral.balanceOf(BURNER);
+        uint256 burnerBalanceBefore = assetToken.balanceOf(BURNER);
 
         delegator.forceDeallocate(address(adapter), 40);
 
@@ -231,12 +231,12 @@ contract AppAdapterUniversalDelegatorTest is Test {
         uint256 slashed = adapter.slash(observedStake);
 
         assertEq(slashed, observedStake);
-        assertEq(collateral.balanceOf(BURNER), burnerBalanceBefore + observedStake);
+        assertEq(assetToken.balanceOf(BURNER), burnerBalanceBefore + observedStake);
         assertEq(adapter.totalAssets(), 0);
         assertEq(adapter.slashable(), 0);
         assertEq(adapter.stake(), 0);
 
-        vm.warp(block.timestamp + duration);
+        vm.warp(vm.getBlockTimestamp() + duration);
 
         assertEq(adapter.totalAssets(), 0);
         assertEq(adapter.slashable(), 0);
@@ -246,7 +246,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
     function test_SlashDoesNotReduceMaxShareLimit() public {
         delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE);
 
-        collateral.approve(address(vault), 50);
+        assetToken.approve(address(vault), 50);
         vault.deposit(50, address(this));
         assertEq(vault.freeAssets(), 50);
 
@@ -259,7 +259,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
 
     function test_DeallocateReturnsAllCurrentlyFreeAssetsAfterDebtMatures() public {
         delegator.forceDeallocate(address(adapter), 80);
-        vm.warp(block.timestamp + duration);
+        vm.warp(vm.getBlockTimestamp() + duration);
 
         uint256 freeAssetsBefore = vault.freeAssets();
         uint256 adapterAssetsBefore = adapter.totalAssets();
@@ -281,7 +281,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
 
         uint256 adapterAssetsBefore = adapter.totalAssets();
 
-        vm.warp(block.timestamp + duration);
+        vm.warp(vm.getBlockTimestamp() + duration);
         delegator.sweepPending();
 
         assertEq(queue.pendingShares(), 0);
@@ -289,39 +289,39 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertLt(adapter.totalAssets(), adapterAssetsBefore);
 
         (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(tokenId);
-        uint256 aliceBalanceBefore = collateral.balanceOf(alice);
+        uint256 aliceBalanceBefore = assetToken.balanceOf(alice);
 
         assertGt(claimableAssets, 0);
         assertEq(claimableShares, shares);
 
         queue.claim(tokenId);
 
-        assertEq(collateral.balanceOf(alice), aliceBalanceBefore + claimableAssets);
+        assertEq(assetToken.balanceOf(alice), aliceBalanceBefore + claimableAssets);
     }
 
     function test_DirectFillUsesVaultWithdrawableDeallocatableAndReturnsExactTuple() public {
         (WithdrawalQueue queue, uint256 tokenId, uint256 shares) = _requestAllocatedWithdrawal(1000);
-        uint256 queueBalanceBefore = collateral.balanceOf(address(queue));
+        uint256 queueBalanceBefore = assetToken.balanceOf(address(queue));
         uint256 adapterAssetsBefore = adapter.totalAssets();
 
-        vm.warp(block.timestamp + duration);
+        vm.warp(vm.getBlockTimestamp() + duration);
         (uint256 assetsFilled, uint256 sharesFilled) = queue.fill();
 
         assertEq(sharesFilled, shares);
-        assertEq(assetsFilled, collateral.balanceOf(address(queue)) - queueBalanceBefore);
+        assertEq(assetsFilled, assetToken.balanceOf(address(queue)) - queueBalanceBefore);
         assertEq(queue.totalFilled(), shares);
         assertEq(queue.pendingShares(), 0);
         assertLt(adapter.totalAssets(), adapterAssetsBefore);
 
         (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(tokenId);
-        uint256 aliceBalanceBefore = collateral.balanceOf(address(0xA11CE));
+        uint256 aliceBalanceBefore = assetToken.balanceOf(address(0xA11CE));
 
         assertEq(claimableAssets, assetsFilled);
         assertEq(claimableShares, shares);
 
         queue.claim(tokenId);
 
-        assertEq(collateral.balanceOf(address(0xA11CE)), aliceBalanceBefore + assetsFilled);
+        assertEq(assetToken.balanceOf(address(0xA11CE)), aliceBalanceBefore + assetsFilled);
     }
 
     function _requestAllocatedWithdrawal(uint256 assets)
@@ -330,9 +330,9 @@ contract AppAdapterUniversalDelegatorTest is Test {
     {
         address alice = address(0xA11CE);
 
-        deal(address(collateral), alice, assets);
+        deal(address(assetToken), alice, assets);
         vm.startPrank(alice);
-        collateral.approve(address(vault), assets);
+        assetToken.approve(address(vault), assets);
         shares = vault.deposit(assets, alice);
         vm.stopPrank();
 
@@ -354,7 +354,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
             IVaultV2.InitParams({
                 name: "Vault",
                 symbol: "vTKN",
-                asset: address(collateral),
+                asset: address(assetToken),
                 depositWhitelist: false,
                 depositorToWhitelist: address(this),
                 isDepositLimit: false,

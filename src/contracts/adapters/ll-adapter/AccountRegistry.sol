@@ -2,16 +2,16 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {ILiquidLaneRegistry} from "../../interfaces/adapters/ILiquidLaneRegistry.sol";
+import {IAccountRegistry} from "../../../interfaces/adapters/ll-adapter/IAccountRegistry.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @title LiquidLaneRegistry
+/// @title AccountRegistry
 /// @notice Owned registry for token-specific liquidity lane account factories.
-contract LiquidLaneRegistry is Ownable, ILiquidLaneRegistry {
+contract AccountRegistry is Ownable, IAccountRegistry {
     /* STATE VARIABLES */
 
-    /// @inheritdoc ILiquidLaneRegistry
+    /// @inheritdoc IAccountRegistry
     mapping(address tokenToRedeem => address factory) public accountFactories;
 
     /* CONSTRUCTOR */
@@ -20,7 +20,7 @@ contract LiquidLaneRegistry is Ownable, ILiquidLaneRegistry {
 
     /* PUBLIC FUNCTIONS (OWNER) */
 
-    /// @inheritdoc ILiquidLaneRegistry
+    /// @inheritdoc IAccountRegistry
     function setAccountFactory(address tokenToRedeem, address factory) public onlyOwner {
         if (tokenToRedeem == address(0) || factory == address(0)) {
             revert InvalidConfiguration();

@@ -47,9 +47,9 @@ contract VaultMigrateHarness is Vault {
 }
 
 contract VaultTest is Test {
-    using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
+    using Math for uint256;
 
     address owner;
     address alice;

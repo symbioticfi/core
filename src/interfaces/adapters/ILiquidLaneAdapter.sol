@@ -11,7 +11,7 @@ uint256 constant MAX_TOKENS_TO_REDEEM = 15;
 
 /// @dev EIP-712 typehash for signed adapter swap legs.
 bytes32 constant SIGNED_SWAP_TYPEHASH = keccak256(
-    "SignedSwap(address recipient,address tokenIn,uint256 amountIn,uint256 amountOut,address caller,address signer,uint256 nonce,uint256 deadline)"
+    "SignedSwap(address recipient,address tokenIn,uint256 amountIn,uint256 amountOut,address caller,address signer,uint256 nonce,uint48 deadline)"
 );
 
 /// @dev EIP-712 typehash for reusable signed discount policies.
@@ -63,12 +63,12 @@ interface ILiquidLaneAdapter is IAdapter {
     error InvalidCaller();
 
     /**
-     * @notice Raised when VaultV2 cannot allocate enough collateral to the adapter.
+     * @notice Raised when VaultV2 cannot allocate enough vault assets to the adapter.
      */
     error InsufficientAllocate();
 
     /**
-     * @notice Raised when VaultV2 cannot deallocate enough collateral for a swap.
+     * @notice Raised when VaultV2 cannot deallocate enough vault assets for a swap.
      */
     error InsufficientDeallocate();
 
@@ -118,18 +118,20 @@ interface ILiquidLaneAdapter is IAdapter {
      * @notice Initialization parameters for the liquidity lane adapter.
      * @param pauser Address allowed to pause swaps.
      * @param unpauser Address allowed to unpause swaps.
+     * @param converters Initial account converters exempt from the prepared-request delay.
      */
     struct InitParams {
         address pauser;
         address unpauser;
+        address[] converters;
     }
 
     /**
      * @notice Direct authorized swap payload.
-     * @param recipient Recipient of the collateral output.
+     * @param recipient Recipient of the vault-asset output.
      * @param tokenIn Token-to-redeem consumed by the swap.
      * @param amountIn Token-to-redeem amount consumed by the swap.
-     * @param amountOut Collateral amount requested from the vault.
+     * @param amountOut Vault-asset amount requested from the vault.
      */
     struct Swap {
         address recipient;
@@ -140,10 +142,10 @@ interface ILiquidLaneAdapter is IAdapter {
 
     /**
      * @notice Delegated swap payload signed by an authorized signer.
-     * @param recipient Recipient of the collateral output.
+     * @param recipient Recipient of the vault-asset output.
      * @param tokenIn Token-to-redeem consumed by the swap.
      * @param amountIn Token-to-redeem amount consumed by the swap.
-     * @param amountOut Collateral amount requested from the vault.
+     * @param amountOut Vault-asset amount requested from the vault.
      * @param caller Caller authorized to submit the signed swap onchain.
      * @param signer Authorized market maker, filler, or curator that signed the swap.
      * @param nonce Nonce consumed for replay protection.
@@ -157,7 +159,7 @@ interface ILiquidLaneAdapter is IAdapter {
         address caller;
         address signer;
         uint256 nonce;
-        uint256 deadline;
+        uint48 deadline;
     }
 
     /**
@@ -206,9 +208,9 @@ interface ILiquidLaneAdapter is IAdapter {
     event SetMinDiscount(address indexed tokenToRedeem, uint256 newMinDiscount);
 
     /**
-     * @notice Emitted when a token collateral limit is updated.
+     * @notice Emitted when a token vault-asset limit is updated.
      * @param tokenToRedeem The token-to-redeem address.
-     * @param newLimit The new collateral limit.
+     * @param newLimit The new vault-asset limit.
      */
     event SetLimit(address indexed tokenToRedeem, uint256 newLimit);
 
@@ -240,10 +242,10 @@ interface ILiquidLaneAdapter is IAdapter {
     event SetFiller(address indexed marketMaker, address indexed filler, bool isAuthorized);
 
     /**
-     * @notice Emitted when acquisition collateral is deposited.
+     * @notice Emitted when acquisition assets are deposited.
      * @param who The depositor address.
      * @param tokenToRedeem The token-to-redeem address.
-     * @param amount The collateral amount deposited.
+     * @param amount The asset amount deposited.
      */
     event DepositToAcquire(address indexed who, address indexed tokenToRedeem, uint256 amount);
 
@@ -254,10 +256,10 @@ interface ILiquidLaneAdapter is IAdapter {
     event DoSwap(Swap swap);
 
     /**
-     * @notice Emitted when acquisition collateral is withdrawn.
+     * @notice Emitted when acquisition assets are withdrawn.
      * @param who The withdrawing address.
      * @param tokenToRedeem The token-to-redeem address.
-     * @param amount The collateral amount withdrawn.
+     * @param amount The asset amount withdrawn.
      */
     event WithdrawToAcquire(address indexed who, address indexed tokenToRedeem, uint256 amount);
 
@@ -311,9 +313,9 @@ interface ILiquidLaneAdapter is IAdapter {
     function acquireBalance(address tokenToRedeem, address account) external view returns (uint256 amount);
 
     /**
-     * @notice Returns the maximum collateral output currently available for a token swap.
+     * @notice Returns the maximum vault-asset output currently available for a token swap.
      * @param tokenToRedeem The token-to-redeem address.
-     * @return amount The maximum collateral output.
+     * @return amount The maximum vault-asset output.
      */
     function getMaxAssets(address tokenToRedeem) external returns (uint256 amount);
 
@@ -325,10 +327,10 @@ interface ILiquidLaneAdapter is IAdapter {
     function getMaxRate(address tokenToRedeem) external view returns (uint256 rate);
 
     /**
-     * @notice Returns the oracle-derived collateral output for a token-to-redeem amount.
+     * @notice Returns the oracle-derived vault-asset output for a token-to-redeem amount.
      * @param tokenToRedeem The priced token-to-redeem.
      * @param amountIn The input amount.
-     * @return amountOut The oracle-derived collateral output amount.
+     * @return amountOut The oracle-derived vault-asset output amount.
      */
     function getAmountOut(address tokenToRedeem, uint256 amountIn) external view returns (uint256 amountOut);
 
@@ -337,6 +339,13 @@ interface ILiquidLaneAdapter is IAdapter {
      * @return length The number of configured tokens-to-redeem.
      */
     function getTokensToRedeemLength() external view returns (uint256 length);
+
+    /**
+     * @notice Returns a configured token-to-redeem by index.
+     * @param index The token index.
+     * @return tokenToRedeem The configured token-to-redeem.
+     */
+    function tokensToRedeem(uint256 index) external view returns (address tokenToRedeem);
 
     /**
      * @notice Returns whether an address is an authorized filler for a market maker.
@@ -354,9 +363,9 @@ interface ILiquidLaneAdapter is IAdapter {
     function minDiscount(address tokenToRedeem) external view returns (uint256 ppm);
 
     /**
-     * @notice Returns the configured vault-funded collateral limit for a token.
+     * @notice Returns the configured vault-funded asset limit for a token.
      * @param tokenToRedeem The token-to-redeem address.
-     * @return amount The collateral limit.
+     * @return amount The vault-funded asset limit.
      */
     function limit(address tokenToRedeem) external view returns (uint256 amount);
 
@@ -401,9 +410,9 @@ interface ILiquidLaneAdapter is IAdapter {
     function paused() external view returns (bool status);
 
     /**
-     * @notice Prefunds acquisition balances with vault collateral.
+     * @notice Prefunds acquisition balances with vault assets.
      * @param tokenToRedeem The token-to-redeem address.
-     * @param amount The collateral amount to deposit.
+     * @param amount The asset amount to deposit.
      */
     function depositToAcquire(address tokenToRedeem, uint256 amount) external;
 
@@ -430,7 +439,7 @@ interface ILiquidLaneAdapter is IAdapter {
     /**
      * @notice Withdraws prefunded acquisition balance.
      * @param tokenToRedeem The token-to-redeem address.
-     * @param amount The collateral amount to withdraw.
+     * @param amount The asset amount to withdraw.
      */
     function withdrawToAcquire(address tokenToRedeem, uint256 amount) external;
 
@@ -454,9 +463,9 @@ interface ILiquidLaneAdapter is IAdapter {
     function removeTokenToRedeem(address tokenToRedeem) external;
 
     /**
-     * @notice Sets the vault-funded collateral limit for a token.
+     * @notice Sets the vault-funded asset limit for a token.
      * @param tokenToRedeem The token-to-redeem address.
-     * @param newLimit The new collateral limit.
+     * @param newLimit The new vault-funded asset limit.
      */
     function setLimit(address tokenToRedeem, uint256 newLimit) external;
 
@@ -506,9 +515,9 @@ interface ILiquidLaneAdapter is IAdapter {
      * @notice Executes a reusable discount-backed swap.
      * @param discountSwap The short-lived protocol-authorized discount swap payload.
      * @param protocolSignature The protocol EIP-712 signature over `discountSwap`.
-     * @param recipient Recipient of the collateral output.
+     * @param recipient Recipient of the vault-asset output.
      * @param amountIn Token-to-redeem amount consumed by the swap.
-     * @return amountOut Collateral amount paid by the vault.
+     * @return amountOut Vault-asset amount paid by the vault.
      */
     function swap(
         DiscountSwap calldata discountSwap,

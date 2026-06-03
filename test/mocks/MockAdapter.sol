@@ -6,14 +6,14 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IAdapterBase} from "../../src/interfaces/vault/IAdapterBase.sol";
 
 contract MockAdapter is IAdapterBase {
-    IERC20 public immutable collateral;
+    IERC20 public immutable assetToken;
     address public immutable vault;
     uint256 public allocated;
     bool public shouldFail;
 
-    constructor(address vault_, address collateral_) {
+    constructor(address vault_, address assetToken_) {
         vault = vault_;
-        collateral = IERC20(collateral_);
+        assetToken = IERC20(assetToken_);
     }
 
     function setShouldFail(bool value) external {
@@ -31,7 +31,7 @@ contract MockAdapter is IAdapterBase {
         if (vault_ != vault || shouldFail) {
             return 0;
         }
-        return collateral.balanceOf(address(this));
+        return assetToken.balanceOf(address(this));
     }
 
     function allocate(uint256 amount) external {
@@ -43,11 +43,11 @@ contract MockAdapter is IAdapterBase {
             return 0;
         }
 
-        uint256 balance = collateral.balanceOf(address(this));
+        uint256 balance = assetToken.balanceOf(address(this));
         uint256 deallocated = amount <= balance ? amount : balance;
         if (deallocated > 0) {
             allocated = allocated > deallocated ? allocated - deallocated : 0;
-            collateral.approve(vault, deallocated);
+            assetToken.approve(vault, deallocated);
         }
         return deallocated;
     }
@@ -57,11 +57,11 @@ contract MockAdapter is IAdapterBase {
             return false;
         }
 
-        if (collateral.balanceOf(address(this)) < amount) {
+        if (assetToken.balanceOf(address(this)) < amount) {
             return false;
         }
 
-        collateral.transfer(vault, amount);
+        assetToken.transfer(vault, amount);
         return true;
     }
 
@@ -70,11 +70,11 @@ contract MockAdapter is IAdapterBase {
             return 0;
         }
 
-        if (collateral.balanceOf(address(this)) < amount) {
+        if (assetToken.balanceOf(address(this)) < amount) {
             return 0;
         }
 
-        collateral.transfer(vault, amount);
+        assetToken.transfer(vault, amount);
         return amount;
     }
 }

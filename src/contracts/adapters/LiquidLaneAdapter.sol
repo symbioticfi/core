@@ -14,8 +14,8 @@ import {
 } from "../../interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAccount} from "../../interfaces/adapters/ll-adapter/IAccount.sol";
-import {ILiquidLaneRegistry} from "../../interfaces/adapters/ILiquidLaneRegistry.sol";
-import {ILiquidLaneOracle as IOracle} from "../../interfaces/adapters/ll-adapter/ILiquidLaneOracle.sol";
+import {IAccountRegistry} from "../../interfaces/adapters/ll-adapter/IAccountRegistry.sol";
+import {IOracle} from "../../interfaces/adapters/ll-adapter/IOracle.sol";
 import {IMigratablesFactory} from "../../interfaces/common/IMigratablesFactory.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
@@ -32,13 +32,13 @@ import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/Signa
 /// @title LiquidLaneAdapter
 /// @notice Single-vault adapter for issuer-facing instant redemptions backed by factory-created redemption accounts.
 contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneAdapter {
-    using Math for uint256;
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
     /* IMMUTABLES */
 
     /// @dev Registry used to resolve token-specific redemption account factories.
-    address internal immutable LIQUID_LANE_REGISTRY;
+    address internal immutable ACCOUNT_REGISTRY;
 
     /* STATE VARIABLES */
 
@@ -50,7 +50,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     address public unpauser;
     /// @inheritdoc ILiquidLaneAdapter
     bool public marketMakerCanAcquire;
-    /// @notice Tokens-to-redeem configured for the vault.
+    /// @inheritdoc ILiquidLaneAdapter
     address[] public tokensToRedeem;
     /// @inheritdoc ILiquidLaneAdapter
     mapping(address tokenToRedeem => uint256 amount) public limit;
@@ -70,17 +70,20 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     /// @inheritdoc ILiquidLaneAdapter
     mapping(address tokenToRedeem => address account) public accounts;
 
+    /// @dev Initial converter permissions passed to accounts that support conversion.
+    address[] internal _accountConverters;
+
     /// @dev Set while the adapter is funding a swap through VaultV2. Transient: only meaningful within the
     ///      single swap transaction that reads it back through the delegator's `allocatable()` callback.
     bool internal transient _inSwap;
 
     /* CONSTRUCTOR */
 
-    constructor(address vaultFactory, address adapterFactory, address liquidLaneRegistry)
+    constructor(address vaultFactory, address adapterFactory, address accountRegistry)
         EIP712("LiquidLaneAdapter", "1")
         Adapter(vaultFactory, adapterFactory)
     {
-        LIQUID_LANE_REGISTRY = liquidLaneRegistry;
+        ACCOUNT_REGISTRY = accountRegistry;
     }
 
     /* VIEW FUNCTIONS */
@@ -340,14 +343,14 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
             revert TooManyTokensToRedeem();
         }
 
-        address accountFactory = ILiquidLaneRegistry(LIQUID_LANE_REGISTRY).accountFactories(tokenToRedeem);
+        address accountFactory = IAccountRegistry(ACCOUNT_REGISTRY).accountFactories(tokenToRedeem);
         if (accounts[tokenToRedeem] == address(0)) {
+            address[] memory accountConverters = _accountConverters;
+            IAccount.InitParams memory params = IAccount.InitParams({
+                adapter: address(this), vault: vault, tokenToRedeem: tokenToRedeem, converters: accountConverters
+            });
             accounts[tokenToRedeem] = IMigratablesFactory(accountFactory)
-                .create(
-                    IMigratablesFactory(accountFactory).lastVersion(),
-                    owner(),
-                    abi.encode(address(this), vault, tokenToRedeem)
-                );
+                .create(IMigratablesFactory(accountFactory).lastVersion(), owner(), abi.encode(params));
         }
         tokensToRedeem.push(tokenToRedeem);
 
@@ -446,7 +449,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     }
 
     /// @dev Triggers adapter allocation through the current delegator.
-    /// @param amount The collateral amount requested by the vault.
+    /// @param amount The vault-asset amount requested by the vault.
     function _allocate(uint256 amount) internal pure override returns (uint256) {
         return amount;
     }
@@ -534,6 +537,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
         pauser = params.pauser;
         unpauser = params.unpauser;
+        _accountConverters = params.converters;
 
         emit Initialize(params);
     }

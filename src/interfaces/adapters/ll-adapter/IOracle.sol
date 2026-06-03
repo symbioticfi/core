@@ -2,10 +2,10 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title ILiquidLaneOracle
+ * @title IOracle
  * @notice Interface for liquidity lane token oracles.
  */
-interface ILiquidLaneOracle {
+interface IOracle {
     /* FUNCTIONS */
 
     /**

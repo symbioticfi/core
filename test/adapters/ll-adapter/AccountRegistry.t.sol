@@ -3,24 +3,24 @@ pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
 
-import {LiquidLaneRegistry} from "../../src/contracts/adapters/LiquidLaneRegistry.sol";
+import {AccountRegistry} from "../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
 
-import {ILiquidLaneRegistry} from "../../src/interfaces/adapters/ILiquidLaneRegistry.sol";
+import {IAccountRegistry} from "../../../src/interfaces/adapters/ll-adapter/IAccountRegistry.sol";
 
-contract LiquidLaneRegistryTest is Test {
-    LiquidLaneRegistry internal registry;
+contract AccountRegistryTest is Test {
+    AccountRegistry internal registry;
 
     address internal owner = makeAddr("owner");
     address internal tokenToRedeem = makeAddr("tokenToRedeem");
     address internal accountFactory = makeAddr("accountFactory");
 
     function setUp() public {
-        registry = new LiquidLaneRegistry(owner);
+        registry = new AccountRegistry(owner);
     }
 
     function test_SetAccountFactoryStoresFactory() public {
         vm.expectEmit(true, true, true, true, address(registry));
-        emit ILiquidLaneRegistry.SetAccountFactory(tokenToRedeem, accountFactory);
+        emit IAccountRegistry.SetAccountFactory(tokenToRedeem, accountFactory);
 
         vm.prank(owner);
         registry.setAccountFactory(tokenToRedeem, accountFactory);

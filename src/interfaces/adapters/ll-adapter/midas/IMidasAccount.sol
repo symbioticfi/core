@@ -11,19 +11,20 @@ uint8 constant REQUEST_STATUS_PENDING = 0;
  * @notice Interface for Midas liquidity lane accounts.
  */
 interface IMidasAccount is IAccount {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when there is no token-to-redeem inventory to request.
+     */
+    error NoRedeemableAssets();
+
     /* FUNCTIONS */
 
     /**
-     * @notice Returns the adapter bound to the account.
-     * @return adapter The adapter address.
+     * @notice Returns the minimum delay between redemption requests.
+     * @return cooldown The cooldown duration.
      */
-    function adapter() external view returns (address adapter);
-
-    /**
-     * @notice Returns the token submitted to Midas for redemption.
-     * @return tokenToRedeem The token-to-redeem address.
-     */
-    function TOKEN_TO_REDEEM() external view returns (address tokenToRedeem);
+    function COOLDOWN() external view returns (uint48 cooldown);
 
     /**
      * @notice Returns the fallback redemption token when the vault asset is not configured in Midas.
@@ -36,4 +37,10 @@ interface IMidasAccount is IAccount {
      * @return redemptionVault The Midas redemption vault.
      */
     function REDEMPTION_VAULT() external view returns (address redemptionVault);
+
+    /**
+     * @notice Returns the timestamp of the latest redemption request.
+     * @return time The latest redemption request timestamp.
+     */
+    function lastRequestTimestamp() external view returns (uint48 time);
 }

@@ -18,10 +18,10 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 /// @title VetoSlasher
 /// @notice Contract for resolver-vetoed slash request execution.
 contract VetoSlasher is BaseSlasher, IVetoSlasher {
-    using Math for uint256;
-    using SafeCast for uint256;
     using Checkpoints for Checkpoints.Trace208;
     using Subnetwork for address;
+    using SafeCast for uint256;
+    using Math for uint256;
 
     /// @inheritdoc IVetoSlasher
     address public immutable NETWORK_REGISTRY;

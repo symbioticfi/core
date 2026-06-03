@@ -2,19 +2,34 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {MidasCompTokenRedeemAccount} from "./MidasTokenRedeemAccount.sol";
+import {MidasCompAccount} from "../MidasAccount.sol";
+import {MidasOracle} from "../oracles/MidasOracle.sol";
+import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 
-/// @title mSL_Account
-/// @notice Token-specific compounding Midas account for mSL redemptions.
-contract mSL_Account is MidasCompTokenRedeemAccount {
+import {IMidasRedemptionVault} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
+import {IMidasTokenAccount} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasTokenAccount.sol";
+
+contract mSL_Account is MidasCompAccount, IMidasTokenAccount {
+    uint48 internal constant TOKEN_COOLDOWN = 1 days;
+    uint48 public constant MAX_WITHDRAWAL_DELAY = 3 days;
+    address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant TOKEN_ADDRESS = 0x76CC16608aA7Cd32631bb151801bb095313F7bbd;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x8Bee3870Ad8293dcE79E6f4cb049F7531Bd57c22;
-    uint256 public constant MAX_WITHDRAWAL_DELAY = 3 days;
-    uint256 internal constant TOKEN_COOLDOWN = 1 days;
 
     constructor(address factory, address cowSwapSettlement, address cowSwapVaultRelayer)
-        MidasCompTokenRedeemAccount(
-            factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, REDEMPTION_VAULT_ADDRESS, cowSwapSettlement, cowSwapVaultRelayer
+        MidasCompAccount(
+            address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
+            factory,
+            TOKEN_COOLDOWN,
+            TOKEN_ADDRESS,
+            MAINNET_USDC,
+            REDEMPTION_VAULT_ADDRESS,
+            cowSwapSettlement,
+            cowSwapVaultRelayer
         )
     {}
+}
+
+contract mSL_AccountFactory is MigratablesFactory {
+    constructor(address newOwner) MigratablesFactory(newOwner) {}
 }

@@ -2,35 +2,41 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {Account} from "../accounts/Account.sol";
+import {Account} from "../Account.sol";
+import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 
-import {IEtherFiLiquidityPool} from "../../../../interfaces/adapters/ll-adapter/accounts/IEtherFiLiquidityPool.sol";
+import {IWeETHAccount} from "../../../../interfaces/adapters/ll-adapter/etherfi/IWeETHAccount.sol";
 import {
-    IEtherFiRedemptionManager
-} from "../../../../interfaces/adapters/ll-adapter/accounts/IEtherFiRedemptionManager.sol";
+    IEtherFiLiquidityPool as ILiquidityPool
+} from "../../../../interfaces/adapters/ll-adapter/etherfi/IEtherFiLiquidityPool.sol";
 import {
-    IEtherFiWithdrawRequestNFT
-} from "../../../../interfaces/adapters/ll-adapter/accounts/IEtherFiWithdrawRequestNFT.sol";
-import {IWETH} from "../../../../interfaces/adapters/ll-adapter/accounts/IWETH.sol";
-import {IWeETH} from "../../../../interfaces/adapters/ll-adapter/accounts/IWeETH.sol";
-import {IWstETH} from "../../../../interfaces/adapters/ll-adapter/accounts/IWstETH.sol";
+    IEtherFiRedemptionManager as IRedemptionManager
+} from "../../../../interfaces/adapters/ll-adapter/etherfi/IEtherFiRedemptionManager.sol";
+import {
+    IEtherFiWithdrawRequestNFT as IWithdrawRequestNFT
+} from "../../../../interfaces/adapters/ll-adapter/etherfi/IEtherFiWithdrawRequestNFT.sol";
+import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
+import {IWETH} from "../../../../interfaces/adapters/ll-adapter/etherfi/IWETH.sol";
+import {IWeETH} from "../../../../interfaces/adapters/ll-adapter/etherfi/IWeETH.sol";
+import {IWstETH} from "../../../../interfaces/adapters/ll-adapter/lido/IWstETH.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-/// @title weETH_Account
-/// @notice ether.fi account for weETH redemptions.
-contract weETH_Account is Account {
+contract weETH_Account is Account, IWeETHAccount {
     using SafeERC20 for IERC20;
+    using Math for uint256;
+
+    error InstantRedemptionUnavailable();
 
     address public immutable EETH;
+    address public immutable WETH;
+    address public immutable STETH;
+    address public immutable WSTETH;
     address public immutable LIQUIDITY_POOL;
     address public immutable REDEMPTION_MANAGER;
     address public immutable WITHDRAW_REQUEST_NFT;
-    address public immutable STETH;
-    address public immutable WSTETH;
-    address public immutable WETH;
 
     uint256 public pendingAssets;
 
@@ -47,45 +53,50 @@ contract weETH_Account is Account {
         address weth
     ) Account(factory, oracle, weETH) {
         EETH = eETH;
+        WETH = weth;
+        STETH = stETH;
+        WSTETH = wstETH;
         LIQUIDITY_POOL = liquidityPool;
         REDEMPTION_MANAGER = redemptionManager;
         WITHDRAW_REQUEST_NFT = withdrawRequestNft;
-        STETH = stETH;
-        WSTETH = wstETH;
-        WETH = weth;
     }
 
     function claimWithdraw(uint256 requestId) public {
         uint256 ethBalanceBefore = address(this).balance;
-        IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(requestId);
+        IWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(requestId);
         _wrapClaimedEth(ethBalanceBefore);
     }
 
-    function _additionalAssets(address asset, uint256) internal view override returns (uint256 assets) {
+    function _totalAssets() internal view override returns (uint256 assets) {
         assets = pendingAssets;
 
-        if (asset == WETH) {
+        if (_asset == WETH) {
             assets += _fromBase18Asset(IERC20(STETH).balanceOf(address(this)));
-        } else if (asset == STETH) {
+        } else if (_asset == STETH) {
             assets += _fromBase18Asset(IERC20(WETH).balanceOf(address(this)));
         }
     }
 
-    function _requestRedeem(uint256 amountToRedeem, uint256 price) internal override {
+    function _sync() internal override {
+        uint256 amountToRedeem = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        if (amountToRedeem == 0) {
+            return;
+        }
+
         if (_tryInstantRedeem(amountToRedeem, STETH)) {
-            if (IERC4626(vault).asset() == WSTETH) {
+            if (_asset == WSTETH) {
                 _wrapAllStethToWsteth();
             }
             return;
         }
 
-        _requestWithdrawal(amountToRedeem, price);
+        _requestWithdrawal(amountToRedeem, IOracle(ORACLE).getPrice());
     }
 
     function _tryInstantRedeem(uint256 amountToRedeem, address outputToken) internal returns (bool) {
-        IEtherFiRedemptionManager manager = IEtherFiRedemptionManager(REDEMPTION_MANAGER);
+        IRedemptionManager manager = IRedemptionManager(REDEMPTION_MANAGER);
         (,, uint16 exitFeeInBps,) = manager.tokenToRedemptionInfo(outputToken);
-        if (exitFeeInBps != 0) {
+        if (exitFeeInBps > 0) {
             return false;
         }
 
@@ -100,11 +111,11 @@ contract weETH_Account is Account {
     }
 
     function _requestWithdrawal(uint256 amountToRedeem, uint256 price) internal {
-        pendingAssets += _toAssets(amountToRedeem, price);
+        pendingAssets += _tokenToRedeemToAssets(amountToRedeem, price);
 
         uint256 eETHAmount = IWeETH(TOKEN_TO_REDEEM).unwrap(amountToRedeem);
         IERC20(EETH).forceApprove(LIQUIDITY_POOL, eETHAmount);
-        IEtherFiLiquidityPool(LIQUIDITY_POOL).requestWithdraw(address(this), eETHAmount);
+        ILiquidityPool(LIQUIDITY_POOL).requestWithdraw(address(this), eETHAmount);
     }
 
     function _wrapAllStethToWsteth() internal {
@@ -129,7 +140,13 @@ contract weETH_Account is Account {
         pendingAssets = pendingAssets > claimedAssets ? pendingAssets - claimedAssets : 0;
     }
 
-    error InstantRedemptionUnavailable();
+    function _fromBase18Asset(uint256 amount) internal view returns (uint256) {
+        return amount.mulDiv(_unit, 1e18);
+    }
 
     receive() external payable {}
+}
+
+contract weETH_AccountFactory is MigratablesFactory {
+    constructor(address newOwner) MigratablesFactory(newOwner) {}
 }

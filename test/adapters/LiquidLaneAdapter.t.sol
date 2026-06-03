@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../src/contracts/adapters/LiquidLaneAdapter.sol";
-import {LiquidLaneRegistry} from "../../src/contracts/adapters/LiquidLaneRegistry.sol";
+import {AccountRegistry} from "../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
 import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
 import {MigratablesFactory} from "../../src/contracts/common/MigratablesFactory.sol";
 import {Registry} from "../../src/contracts/common/Registry.sol";
@@ -28,9 +28,9 @@ contract LiquidLaneAdapterTest is Test {
     MockERC20 internal asset;
     MockERC20 internal tokenToRedeem;
     MockLiquidLaneDelegator internal delegator;
-    MockLiquidLaneRegistry internal vaultFactory;
+    MockVaultRegistry internal vaultFactory;
     AdapterFactory internal adapterFactory;
-    LiquidLaneRegistry internal liquidLaneRegistry;
+    AccountRegistry internal accountRegistry;
     MigratablesFactory internal accountFactory;
     MockLiquidLaneVault internal vault;
     LiquidLaneAdapter internal adapter;
@@ -47,26 +47,28 @@ contract LiquidLaneAdapterTest is Test {
     function setUp() public {
         asset = new MockERC20("Asset", "ASSET");
         tokenToRedeem = new MockERC20("Token To Redeem", "TTR");
-        vaultFactory = new MockLiquidLaneRegistry();
+        vaultFactory = new MockVaultRegistry();
         vault = new MockLiquidLaneVault(address(asset));
         delegator = new MockLiquidLaneDelegator(address(vault));
         vault.setDelegator(address(delegator));
         vaultFactory.add(address(vault));
         adapterFactory = new AdapterFactory(curator);
-        liquidLaneRegistry = new LiquidLaneRegistry(curator);
+        accountRegistry = new AccountRegistry(curator);
         accountFactory = new MigratablesFactory(curator);
 
         LiquidLaneAdapter implementation =
-            new LiquidLaneAdapter(address(vaultFactory), address(adapterFactory), address(liquidLaneRegistry));
+            new LiquidLaneAdapter(address(vaultFactory), address(adapterFactory), address(accountRegistry));
         MockLiquidLaneAccount accountImplementation =
             new MockLiquidLaneAccount(address(accountFactory), address(asset), address(new MockLiquidLaneOracle(1e18)));
 
         vm.startPrank(curator);
         adapterFactory.whitelist(address(implementation));
         accountFactory.whitelist(address(accountImplementation));
-        liquidLaneRegistry.setAccountFactory(address(tokenToRedeem), address(accountFactory));
+        accountRegistry.setAccountFactory(address(tokenToRedeem), address(accountFactory));
+        address[] memory converters = new address[](1);
+        converters[0] = curator;
         ILiquidLaneAdapter.InitParams memory params =
-            ILiquidLaneAdapter.InitParams({pauser: pauser, unpauser: unpauser});
+            ILiquidLaneAdapter.InitParams({pauser: pauser, unpauser: unpauser, converters: converters});
         vm.expectEmit(false, false, false, true);
         emit ILiquidLaneAdapter.Initialize(params);
         adapter = LiquidLaneAdapter(adapterFactory.create(1, curator, abi.encode(address(vault), abi.encode(params))));
@@ -85,7 +87,7 @@ contract LiquidLaneAdapterTest is Test {
         assertGt(account.code.length, 0);
         assertEq(MockLiquidLaneAccount(account).adapter(), address(adapter));
         assertEq(MockLiquidLaneAccount(account).vault(), address(vault));
-        assertEq(MockLiquidLaneAccount(account).tokenToRedeem(), address(tokenToRedeem));
+        assertEq(MockLiquidLaneAccount(account).TOKEN_TO_REDEEM(), address(tokenToRedeem));
         assertEq(MockLiquidLaneAccount(account).owner(), curator);
     }
 
@@ -270,7 +272,7 @@ contract LiquidLaneAdapterTest is Test {
             caller: filler,
             signer: signer,
             nonce: 7,
-            deadline: block.timestamp + 1 days
+            deadline: uint48(vm.getBlockTimestamp() + 1 days)
         });
         bytes memory signature = _signSignedSwap(signerKey, signedSwap);
 
@@ -302,11 +304,13 @@ contract LiquidLaneAdapterTest is Test {
             signer: signer,
             protocol: protocol,
             nonce: 9,
-            deadline: uint48(block.timestamp + 1 days)
+            deadline: uint48(vm.getBlockTimestamp() + 1 days)
         });
         bytes memory signerSignature = _signDiscount(signerKey, discount);
         ILiquidLaneAdapter.DiscountSwap memory discountSwap = ILiquidLaneAdapter.DiscountSwap({
-            discount: discount, signerSignature: signerSignature, protocolDeadline: uint48(block.timestamp + 5 minutes)
+            discount: discount,
+            signerSignature: signerSignature,
+            protocolDeadline: uint48(vm.getBlockTimestamp() + 5 minutes)
         });
         bytes memory protocolSignature = _signDiscountSwap(protocolKey, discountSwap);
 
@@ -431,7 +435,7 @@ contract MockERC20 is ERC20 {
     }
 }
 
-contract MockLiquidLaneRegistry is Registry {
+contract MockVaultRegistry is Registry {
     function add(address entity) external {
         _addEntity(entity);
     }
@@ -510,7 +514,7 @@ contract MockLiquidLaneAccount is MigratableEntity, IAccount {
     address public immutable ORACLE;
     address public adapter;
     address public vault;
-    address public tokenToRedeem;
+    address public TOKEN_TO_REDEEM;
 
     constructor(address factory, address asset_, address oracle_) MigratableEntity(factory) {
         asset = asset_;
@@ -539,7 +543,11 @@ contract MockLiquidLaneAccount is MigratableEntity, IAccount {
     }
 
     function _initialize(uint64, address, bytes memory data) internal override {
-        (adapter, vault, tokenToRedeem) = abi.decode(data, (address, address, address));
+        IAccount.InitParams memory params = abi.decode(data, (IAccount.InitParams));
+
+        adapter = params.adapter;
+        vault = params.vault;
+        TOKEN_TO_REDEEM = params.tokenToRedeem;
         IERC20(asset).approve(adapter, type(uint256).max);
     }
 }

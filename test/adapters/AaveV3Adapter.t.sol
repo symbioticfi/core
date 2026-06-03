@@ -18,7 +18,7 @@ import {MockAaveAToken, MockAavePool} from "../mocks/HoodiScenarioProtocolMocks.
 contract AaveV3AdapterTest is Test {
     AaveV3AdapterRegistryMock internal vaultFactory;
     AdapterFactory internal factory;
-    Token internal collateral;
+    Token internal assetToken;
     MockAaveAToken internal aToken;
     MockAavePool internal pool;
     AaveV3AdapterVaultMock internal vault;
@@ -33,11 +33,11 @@ contract AaveV3AdapterTest is Test {
     function setUp() public {
         vaultFactory = new AaveV3AdapterRegistryMock();
         factory = new AdapterFactory(address(this));
-        collateral = new Token("Collateral");
-        aToken = new MockAaveAToken(address(collateral));
-        pool = new MockAavePool(address(collateral), address(aToken), address(0));
+        assetToken = new Token("Asset");
+        aToken = new MockAaveAToken(address(assetToken));
+        pool = new MockAavePool(address(assetToken), address(aToken), address(0));
         aToken.setPool(address(pool));
-        vault = new AaveV3AdapterVaultMock(address(collateral), delegator);
+        vault = new AaveV3AdapterVaultMock(address(assetToken), delegator);
         vaultFactory.add(address(vault));
 
         AaveV3Adapter implementation =
@@ -48,8 +48,8 @@ contract AaveV3AdapterTest is Test {
     }
 
     function test_InitializeRejectsMissingReserve() public {
-        Token localCollateral = new Token("Other");
-        AaveV3AdapterVaultMock localVault = new AaveV3AdapterVaultMock(address(localCollateral), delegator);
+        Token localAssetToken = new Token("Other");
+        AaveV3AdapterVaultMock localVault = new AaveV3AdapterVaultMock(address(localAssetToken), delegator);
         vaultFactory.add(address(localVault));
 
         vm.expectRevert(IAaveV3Adapter.InvalidAToken.selector);
@@ -59,7 +59,7 @@ contract AaveV3AdapterTest is Test {
     function test_FreeAssetsUseVaultAsset() public {
         assertEq(adapter.freeAssets(), 0);
 
-        collateral.transfer(address(adapter), 123);
+        assetToken.transfer(address(adapter), 123);
 
         assertEq(adapter.freeAssets(), 123);
     }
@@ -69,9 +69,9 @@ contract AaveV3AdapterTest is Test {
     }
 
     function test_ATokenViewDoesNotFollowReserveTokenUpdates() public {
-        MockAaveAToken newAToken = new MockAaveAToken(address(collateral));
+        MockAaveAToken newAToken = new MockAaveAToken(address(assetToken));
 
-        pool.setReserveToken(address(collateral), address(newAToken));
+        pool.setReserveToken(address(assetToken), address(newAToken));
 
         assertEq(adapter.aToken(), address(aToken));
     }
@@ -81,16 +81,16 @@ contract AaveV3AdapterTest is Test {
         assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_VAULT_RELAYER(), relayer);
         assertEq(IMerklClaimer(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
         assertEq(AaveV3Adapter(address(adapter)).owner(), curator);
-        assertEq(AaveV3Adapter(address(adapter)).converters()[0], curator);
+        assertTrue(AaveV3Adapter(address(adapter)).isConverter(curator));
     }
 
     function test_ConvertRejectsATokenInput() public {
         vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
-        ICoWSwapConverter(address(adapter)).convert(address(aToken), 1, address(collateral), "");
+        ICoWSwapConverter(address(adapter)).convert(address(aToken), 1, address(assetToken), "");
     }
 
     function test_AllocateAndDeallocateThroughAave() public {
-        collateral.transfer(address(adapter), 100);
+        assetToken.transfer(address(adapter), 100);
 
         vm.prank(delegator);
         uint256 allocated = adapter.allocate(100);
@@ -105,12 +105,12 @@ contract AaveV3AdapterTest is Test {
         uint256 deallocated = adapter.deallocate(70);
 
         assertEq(deallocated, 40);
-        assertEq(collateral.balanceOf(address(adapter)), 40);
+        assertEq(assetToken.balanceOf(address(adapter)), 40);
         assertEq(adapter.freeAssets(), 40);
         assertEq(adapter.totalAssets(), 100);
 
         vm.prank(address(vault));
-        collateral.transferFrom(address(adapter), address(vault), deallocated);
+        assetToken.transferFrom(address(adapter), address(vault), deallocated);
 
         assertEq(adapter.freeAssets(), 0);
         assertEq(adapter.totalAssets(), 60);
@@ -124,7 +124,7 @@ contract AaveV3AdapterTest is Test {
     }
 
     function test_AllocateReturnsZeroWhenSupplyReverts() public {
-        collateral.transfer(address(adapter), 100);
+        assetToken.transfer(address(adapter), 100);
         pool.setRevertOnSupply(true);
 
         vm.prank(delegator);
@@ -132,11 +132,11 @@ contract AaveV3AdapterTest is Test {
 
         assertEq(allocated, 0);
         assertEq(aToken.balanceOf(address(adapter)), 0);
-        assertEq(collateral.balanceOf(address(adapter)), 100);
+        assertEq(assetToken.balanceOf(address(adapter)), 100);
     }
 
     function test_DeallocateReturnsZeroWhenWithdrawRevertsOrNoLiquidity() public {
-        collateral.transfer(address(adapter), 100);
+        assetToken.transfer(address(adapter), 100);
 
         vm.prank(delegator);
         adapter.allocate(100);

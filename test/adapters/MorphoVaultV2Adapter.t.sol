@@ -22,7 +22,7 @@ contract MorphoVaultV2AdapterTest is Test {
     MorphoAdapterRegistryMock internal vaultFactory;
     AdapterFactory internal factory;
     MorphoVaultFactoryMock internal morphoVaultFactory;
-    Token internal collateral;
+    Token internal assetToken;
     MorphoAdapterVaultMock internal vault;
     MorphoVaultMock internal morphoVault;
     IMorphoVaultV2Adapter internal adapter;
@@ -38,9 +38,9 @@ contract MorphoVaultV2AdapterTest is Test {
         vaultFactory = new MorphoAdapterRegistryMock();
         factory = new AdapterFactory(address(this));
         morphoVaultFactory = new MorphoVaultFactoryMock();
-        collateral = new Token("Collateral");
-        vault = new MorphoAdapterVaultMock(address(collateral), delegator);
-        morphoVault = new MorphoVaultMock(address(collateral), morphoAdapterRegistry);
+        assetToken = new Token("Asset");
+        vault = new MorphoAdapterVaultMock(address(assetToken), delegator);
+        morphoVault = new MorphoVaultMock(address(assetToken), morphoAdapterRegistry);
         vaultFactory.add(address(vault));
         morphoVaultFactory.setVault(address(morphoVault), true);
 
@@ -69,12 +69,12 @@ contract MorphoVaultV2AdapterTest is Test {
         assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_VAULT_RELAYER(), relayer);
         assertEq(IMerklClaimer(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
         assertEq(MorphoVaultV2Adapter(address(adapter)).owner(), curator);
-        assertEq(MorphoVaultV2Adapter(address(adapter)).converters()[0], curator);
+        assertTrue(MorphoVaultV2Adapter(address(adapter)).isConverter(curator));
     }
 
     function test_ConvertRejectsMorphoVaultInput() public {
         vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
-        ICoWSwapConverter(address(adapter)).convert(address(morphoVault), 1, address(collateral), "");
+        ICoWSwapConverter(address(adapter)).convert(address(morphoVault), 1, address(assetToken), "");
     }
 
     function test_InitializeValidatesMorphoVaultShape() public {
@@ -106,7 +106,7 @@ contract MorphoVaultV2AdapterTest is Test {
         MorphoLiquidityAdapterMock liquidityAdapter = new MorphoLiquidityAdapterMock();
         liquidityAdapter.setRealAssets(25);
         morphoVault.setLiquidityAdapter(address(liquidityAdapter));
-        collateral.transfer(address(adapter), 100);
+        assetToken.transfer(address(adapter), 100);
 
         vm.prank(delegator);
         uint256 allocated = adapter.allocate(100);
@@ -119,19 +119,19 @@ contract MorphoVaultV2AdapterTest is Test {
         uint256 deallocated = adapter.deallocate(40);
 
         assertEq(deallocated, 40);
-        assertEq(collateral.balanceOf(address(adapter)), 40);
+        assertEq(assetToken.balanceOf(address(adapter)), 40);
         assertEq(adapter.freeAssets(), 40);
         assertEq(adapter.totalAssets(), 100);
 
         vm.prank(address(vault));
-        collateral.transferFrom(address(adapter), address(vault), deallocated);
+        assetToken.transferFrom(address(adapter), address(vault), deallocated);
 
         assertEq(adapter.freeAssets(), 0);
         assertEq(adapter.totalAssets(), 60);
     }
 
     function test_AllocateReturnsZeroWhenDepositFailsOrMintsNoShares() public {
-        collateral.transfer(address(adapter), 100);
+        assetToken.transfer(address(adapter), 100);
         morphoVault.setRevertOnDeposit(true);
 
         vm.prank(delegator);
@@ -144,7 +144,7 @@ contract MorphoVaultV2AdapterTest is Test {
         assertEq(adapter.allocate(50), 0);
 
         assertEq(morphoVault.balanceOf(address(adapter)), 0);
-        assertEq(collateral.balanceOf(address(adapter)), 100);
+        assertEq(assetToken.balanceOf(address(adapter)), 100);
     }
 
     function test_DeallocateReturnsZeroForZeroAmountNoLiquidityAndWithdrawFailure() public {
@@ -154,7 +154,7 @@ contract MorphoVaultV2AdapterTest is Test {
         vm.prank(delegator);
         assertEq(adapter.deallocate(100), 0);
 
-        collateral.transfer(address(adapter), 100);
+        assetToken.transfer(address(adapter), 100);
         vm.prank(delegator);
         adapter.allocate(100);
 

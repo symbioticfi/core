@@ -35,8 +35,8 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
 
     /// @custom:storage-location erc7201:symbiotic.storage.CoWSwapConverter
     struct CoWSwapConverterStorage {
+        mapping(address converter => bool status) isConverter;
         mapping(uint256 nonce => mapping(bytes32 requestHash => uint48 timestamp)) executableAt;
-        address[] converters;
     }
 
     /* CONSTRUCTOR */
@@ -53,9 +53,9 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         return _getCoWSwapConverterStorage().executableAt[nonce][requestHash];
     }
 
-    /// @inheritdoc IConverter
-    function converters() public view returns (address[] memory) {
-        return _getCoWSwapConverterStorage().converters;
+    /// @inheritdoc ICoWSwapConverter
+    function isConverter(address converter) public view returns (bool status) {
+        return _getCoWSwapConverterStorage().isConverter[converter];
     }
 
     /* PUBLIC FUNCTIONS */
@@ -73,7 +73,7 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
             revert TooFarValidTo();
         }
 
-        if (!_isConverter(msg.sender)) {
+        if (!isConverter(msg.sender)) {
             CoWSwapConverterStorage storage $ = _getCoWSwapConverterStorage();
             uint48 timestamp = $.executableAt[nonces(tokenIn)][keccak256(abi.encode(tokenIn, amountIn, tokenOut, data))];
             if (timestamp == 0) {
@@ -125,23 +125,16 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     {
         requestHash = keccak256(abi.encode(tokenIn, amountIn, tokenOut, data));
         CoWSwapConverterStorage storage $ = _getCoWSwapConverterStorage();
-        $.executableAt[nonces(tokenIn)][requestHash] = uint48(block.timestamp + EXECUTION_DELAY);
+        $.executableAt[nonces(tokenIn)][requestHash] = uint48(block.timestamp) + EXECUTION_DELAY;
 
         emit PrepareConvert(tokenIn, amountIn, tokenOut, data);
     }
 
     /// @inheritdoc ICoWSwapConverter
-    function setConverters(address[] calldata newConverters) public onlyOwner {
-        _getCoWSwapConverterStorage().converters = newConverters;
+    function setConverterStatus(address converter, bool status) public onlyOwner {
+        _getCoWSwapConverterStorage().isConverter[converter] = status;
 
-        emit SetConverters(newConverters);
-    }
-
-    /* INITIALIZATION */
-
-    /// @dev Registers the initial converters allowed to create orders without the prepared-request delay.
-    function __CoWSwapConverter_init(address[] memory initConverters) internal virtual {
-        _getCoWSwapConverterStorage().converters = initConverters;
+        emit SetConverterStatus(converter, status);
     }
 
     /* INTERNAL FUNCTIONS */
@@ -152,17 +145,6 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         assembly {
             $.slot := slot
         }
-    }
-
-    /// @dev Returns whether `account` may create conversion orders without the prepared-request delay.
-    function _isConverter(address account) internal view returns (bool) {
-        address[] storage curConverters = _getCoWSwapConverterStorage().converters;
-        for (uint256 i; i < curConverters.length; ++i) {
-            if (curConverters[i] == account) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /// @dev Return the EIP-712 signing hash for the specified order.
@@ -198,7 +180,7 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     /// parameters.
     /// @param owner The address of the user who owns this order.
     /// @param validTo The epoch time at which the order will stop being valid.
-    function _packOrderUidParams(bytes memory orderUid, bytes32 orderDigest, address owner, uint32 validTo)
+    function _packOrderUidParams(bytes memory orderUid, bytes32 orderDigest, address owner, uint48 validTo)
         internal
         pure
     {
@@ -206,6 +188,16 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
             mstore(add(orderUid, 56), validTo)
             mstore(add(orderUid, 52), owner)
             mstore(add(orderUid, 32), orderDigest)
+        }
+    }
+
+    /* INITIALIZATION */
+
+    /// @dev Registers the initial converters allowed to create orders without the prepared-request delay.
+    function __CoWSwapConverter_init(address[] memory initConverters) internal virtual {
+        CoWSwapConverterStorage storage $ = _getCoWSwapConverterStorage();
+        for (uint256 i; i < initConverters.length; ++i) {
+            $.isConverter[initConverters[i]] = true;
         }
     }
 }

@@ -160,36 +160,6 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         super.release(_convertToShare(amount));
     }
 
-    /* INITIALIZATION */
-
-    /// @dev Initializes the configured base asset and network-operator pair.
-    function __initialize(address initVault, bytes memory data) internal override {
-        RestakingInitParams memory params = abi.decode(data, (RestakingInitParams));
-
-        super.__initialize(initVault, abi.encode(params.initParams));
-        if (asset == params.asset) {
-            revert NotRestaking();
-        }
-        asset = params.asset;
-
-        address curAsset = IERC4626(vault).asset();
-        for (uint256 depth; curAsset != params.asset && depth < MAX_DEPTH; ++depth) {
-            if (!IRegistry(VAULT_FACTORY).isEntity(curAsset)) {
-                revert InvalidBaseAsset();
-            }
-            underlyingVaults.push(curAsset);
-            IERC20(curAsset).forceApprove(IVaultV2(curAsset).withdrawalQueue(), type(uint256).max);
-            IERC20(IERC4626(curAsset).asset()).forceApprove(curAsset, type(uint256).max);
-            curAsset = IERC4626(curAsset).asset();
-        }
-        if (curAsset != params.asset) {
-            revert InvalidAsset();
-        }
-        if (underlyingVaults.length > 0) {
-            IERC20(curAsset).forceApprove(underlyingVaults[underlyingVaults.length - 1], type(uint256).max);
-        }
-    }
-
     /* INTERNAL FUNCTIONS */
 
     /// @inheritdoc AppAdapter
@@ -227,5 +197,35 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
             amount = IERC4626(underlyingVaults[i - 1]).previewDeposit(amount);
         }
         return amount;
+    }
+
+    /* INITIALIZATION */
+
+    /// @dev Initializes the configured base asset and network-operator pair.
+    function __initialize(address initVault, bytes memory data) internal override {
+        RestakingInitParams memory params = abi.decode(data, (RestakingInitParams));
+
+        super.__initialize(initVault, abi.encode(params.initParams));
+        if (asset == params.asset) {
+            revert NotRestaking();
+        }
+        asset = params.asset;
+
+        address curAsset = IERC4626(vault).asset();
+        for (uint256 depth; curAsset != params.asset && depth < MAX_DEPTH; ++depth) {
+            if (!IRegistry(VAULT_FACTORY).isEntity(curAsset)) {
+                revert InvalidBaseAsset();
+            }
+            underlyingVaults.push(curAsset);
+            IERC20(curAsset).forceApprove(IVaultV2(curAsset).withdrawalQueue(), type(uint256).max);
+            IERC20(IERC4626(curAsset).asset()).forceApprove(curAsset, type(uint256).max);
+            curAsset = IERC4626(curAsset).asset();
+        }
+        if (curAsset != params.asset) {
+            revert InvalidAsset();
+        }
+        if (underlyingVaults.length > 0) {
+            IERC20(curAsset).forceApprove(underlyingVaults[underlyingVaults.length - 1], type(uint256).max);
+        }
     }
 }

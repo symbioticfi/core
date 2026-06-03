@@ -21,9 +21,9 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 contract VaultV1 is VaultStorageV1, MigratableEntity, AccessControlUpgradeable, IVaultV1 {
     using Checkpoints for Checkpoints.Trace256;
-    using Math for uint256;
     using SafeCast for uint256;
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
     constructor(address delegatorFactory, address slasherFactory, address vaultFactory)
         VaultStorageV1(delegatorFactory, slasherFactory)

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IMidasDataFeed} from "../oracles/IMidasOracle.sol";
+import {IMidasDataFeed} from "./IMidasOracle.sol";
 
 /**
  * @title IMidasRedemptionVault

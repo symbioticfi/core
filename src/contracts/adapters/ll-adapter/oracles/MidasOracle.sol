@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {ILiquidLaneOracle} from "../../../../interfaces/adapters/ll-adapter/ILiquidLaneOracle.sol";
-import {IMidasDataFeed, IMidasOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/IMidasOracle.sol";
+import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
+import {IMidasDataFeed, IMidasOracle} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
 
 /// @title MidasOracle
 /// @notice Midas data-feed oracle returning a token price in `1e18` precision.
@@ -15,13 +15,14 @@ contract MidasOracle is IMidasOracle {
 
     /* CONSTRUCTOR */
 
+    /// @notice Creates the Midas data-feed oracle.
     constructor(address dataFeed) {
         DATA_FEED = dataFeed;
     }
 
     /* VIEW FUNCTIONS */
 
-    /// @inheritdoc ILiquidLaneOracle
+    /// @inheritdoc IOracle
     function getPrice() public view returns (uint256) {
         return IMidasDataFeed(DATA_FEED).getDataInBase18();
     }

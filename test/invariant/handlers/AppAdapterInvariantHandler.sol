@@ -56,7 +56,7 @@ contract AppAdapterInvariantHandler is Test {
     address internal constant BURNER = address(0xB);
     address internal constant CURATOR = address(0xC);
 
-    Token public collateral;
+    Token public assetToken;
     VaultV2 public vault;
     UniversalDelegator public delegator;
     WithdrawalQueue public queue;
@@ -82,7 +82,7 @@ contract AppAdapterInvariantHandler is Test {
 
     constructor() {
         _initialize();
-        lastTimestamp = block.timestamp;
+        lastTimestamp = vm.getBlockTimestamp();
         lastStake = adapter.stake();
         _rememberHistory(uint48(lastTimestamp), lastStake);
         _rememberObservation(uint48(lastTimestamp));
@@ -92,9 +92,9 @@ contract AppAdapterInvariantHandler is Test {
         address actor = _actor(actorSeed);
         assets = bound(assets, 1, 1000 ether);
 
-        deal(address(collateral), actor, assets);
+        deal(address(assetToken), actor, assets);
         vm.startPrank(actor);
-        collateral.approve(address(vault), assets);
+        assetToken.approve(address(vault), assets);
         try vault.deposit(assets, actor) {} catch {}
         vm.stopPrank();
 
@@ -106,9 +106,9 @@ contract AppAdapterInvariantHandler is Test {
         shares = bound(shares, 1, 1000 ether);
         uint256 assets = vault.previewMint(shares);
 
-        deal(address(collateral), actor, assets);
+        deal(address(assetToken), actor, assets);
         vm.startPrank(actor);
-        collateral.approve(address(vault), assets);
+        assetToken.approve(address(vault), assets);
         try vault.mint(shares, actor) {} catch {}
         vm.stopPrank();
 
@@ -359,7 +359,7 @@ contract AppAdapterInvariantHandler is Test {
 
     function warp(uint256 timeJump) external {
         timeJump = bound(timeJump, 1, duration * 2);
-        vm.warp(block.timestamp + timeJump);
+        vm.warp(vm.getBlockTimestamp() + timeJump);
 
         _afterAction(false);
     }
@@ -367,13 +367,13 @@ contract AppAdapterInvariantHandler is Test {
     function warpToBoundary(uint256 boundarySeed) external {
         uint256 boundary = boundarySeed % 4;
         if (boundary == 0) {
-            vm.warp(block.timestamp + 1);
+            vm.warp(vm.getBlockTimestamp() + 1);
         } else if (boundary == 1) {
-            vm.warp(block.timestamp + duration - 1);
+            vm.warp(vm.getBlockTimestamp() + duration - 1);
         } else if (boundary == 2) {
-            vm.warp(block.timestamp + duration);
+            vm.warp(vm.getBlockTimestamp() + duration);
         } else {
-            vm.warp(block.timestamp + duration + 1);
+            vm.warp(vm.getBlockTimestamp() + duration + 1);
         }
 
         _afterAction(false);
@@ -397,12 +397,12 @@ contract AppAdapterInvariantHandler is Test {
         uint256 adapterFreeAssets = adapter.freeAssets();
 
         assertEq(adapterTotalAssets, adapterSlashable + adapterFreeAssets);
-        assertEq(collateral.balanceOf(address(adapter)), adapterTotalAssets);
+        assertEq(assetToken.balanceOf(address(adapter)), adapterTotalAssets);
         assertLe(adapter.stake(), adapterSlashable);
         assertLe(adapterSlashable, adapterTotalAssets);
         assertEq(delegator.totalAssets(), adapterTotalAssets);
-        assertEq(vault.totalAssets(), collateral.balanceOf(address(vault)) + adapterTotalAssets);
-        assertEq(adapter.stake(), adapter.stakeAt(uint48(block.timestamp)));
+        assertEq(vault.totalAssets(), assetToken.balanceOf(address(vault)) + adapterTotalAssets);
+        assertEq(adapter.stake(), adapter.stakeAt(uint48(vm.getBlockTimestamp())));
     }
 
     function assertQueueInvariant() external view {
@@ -413,13 +413,13 @@ contract AppAdapterInvariantHandler is Test {
         }
 
         assertFalse(emptyQueuePendingRouteViolated);
-        assertLe(claimableAssets, collateral.balanceOf(address(queue)));
+        assertLe(claimableAssets, assetToken.balanceOf(address(queue)));
         assertLe(queue.totalFilled(), queue.totalRequested());
         assertEq(queue.pendingShares(), queue.totalRequested() - queue.totalFilled());
     }
 
     function _afterAction(bool slashAction) internal {
-        uint256 currentTimestamp = block.timestamp;
+        uint256 currentTimestamp = vm.getBlockTimestamp();
         uint256 currentStake = adapter.stake();
 
         if (!slashAction && currentTimestamp == lastTimestamp && currentStake < lastStake) {
@@ -445,7 +445,7 @@ contract AppAdapterInvariantHandler is Test {
     }
 
     function _checkObservations() internal {
-        uint256 currentTimestamp = block.timestamp;
+        uint256 currentTimestamp = vm.getBlockTimestamp();
         for (uint256 i; i < OBSERVATIONS; ++i) {
             Observation memory observation = observations[i];
             if (
@@ -506,7 +506,7 @@ contract AppAdapterInvariantHandler is Test {
     function _initialize() internal {
         vm.warp(100);
 
-        collateral = new Token("Collateral");
+        assetToken = new Token("Asset");
         VaultFactory vaultFactory = new VaultFactory(address(this));
         WithdrawalQueueFactory withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
         DelegatorFactory delegatorFactory = new DelegatorFactory(address(this));
@@ -596,7 +596,7 @@ contract AppAdapterInvariantHandler is Test {
             IVaultV2.InitParams({
                 name: "Vault",
                 symbol: "vTKN",
-                asset: address(collateral),
+                asset: address(assetToken),
                 depositWhitelist: false,
                 depositorToWhitelist: address(this),
                 isDepositLimit: false,

@@ -3,7 +3,7 @@ pragma solidity ^0.8.35;
 
 import {Test} from "forge-std/Test.sol";
 
-import {MidasAccount} from "../../../../src/contracts/adapters/ll-adapter/accounts/MidasAccount.sol";
+import {MidasAccount} from "../../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {mAPOLLO_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mAPOLLO_Account.sol";
 import {mBASIS_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBASIS_Account.sol";
@@ -26,7 +26,7 @@ import {
 import {mTBILL_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mTBILL_Account.sol";
 import {MigratablesFactory} from "../../../../src/contracts/common/MigratablesFactory.sol";
 import {IAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
-import {IMidasRedemptionVault} from "../../../../src/interfaces/adapters/ll-adapter/accounts/IMidasRedemptionVault.sol";
+import {IMidasRedemptionVault} from "../../../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -34,7 +34,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 contract MidasTokensToRedeemMainnetTest is Test {
     struct TokenSpec {
         string symbol;
-        uint256 maxWithdrawalDelay;
+        uint48 maxWithdrawalDelay;
     }
 
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -73,8 +73,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(IMidasTokenRedeemConfig(address(implementation)).MAX_WITHDRAWAL_DELAY(), spec.maxWithdrawalDelay);
 
         factory.whitelist(address(implementation));
-        MidasAccount account =
-            MidasAccount(factory.create(1, address(this), abi.encode(adapter, address(vault), token)));
+        MidasAccount account = MidasAccount(factory.create(1, address(this), _initData(token, vault)));
 
         assertEq(IERC20Metadata(token).symbol(), spec.symbol);
         assertEq(IMidasRedemptionVaultWithMToken(redemptionVault).mToken(), token);
@@ -83,6 +82,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(account.REDEMPTION_VAULT(), redemptionVault);
         assertEq(account.ORACLE(), implementation.ORACLE());
         assertEq(account.COOLDOWN(), _cooldown(spec.maxWithdrawalDelay));
+        assertTrue(account.isConverter(address(this)));
         assertEq(account.adapter(), adapter);
         assertEq(account.vault(), address(vault));
         assertEq(
@@ -92,6 +92,20 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(IERC20(token).allowance(address(account), redemptionVault), type(uint256).max);
         assertEq(IERC20(redemptionToken).allowance(address(account), redemptionVault), type(uint256).max);
         assertEq(IAccount(address(account)).totalAssets(), 0);
+    }
+
+    function _initData(address tokenToRedeem, MidasTokensToRedeemAssetVault vault)
+        internal
+        view
+        returns (bytes memory)
+    {
+        address[] memory converters = new address[](1);
+        converters[0] = address(this);
+        return abi.encode(
+            IAccount.InitParams({
+                adapter: adapter, vault: address(vault), tokenToRedeem: tokenToRedeem, converters: converters
+            })
+        );
     }
 
     function _ethereumMainnetSpecs() internal pure returns (TokenSpec[] memory specs) {
@@ -140,7 +154,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         return new mRe7BTC_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
     }
 
-    function _ethereumCompSpec(string memory symbol, uint256 maxWithdrawalDelay)
+    function _ethereumCompSpec(string memory symbol, uint48 maxWithdrawalDelay)
         internal
         pure
         returns (TokenSpec memory spec)
@@ -148,8 +162,8 @@ contract MidasTokensToRedeemMainnetTest is Test {
         spec = TokenSpec(symbol, maxWithdrawalDelay);
     }
 
-    function _cooldown(uint256 maxWithdrawalDelay) internal pure returns (uint256) {
-        uint256 cooldownDays = maxWithdrawalDelay / 10 / 1 days;
+    function _cooldown(uint48 maxWithdrawalDelay) internal pure returns (uint48) {
+        uint48 cooldownDays = maxWithdrawalDelay / 10 / 1 days;
         if (cooldownDays == 0) {
             return 1 days;
         }
@@ -168,7 +182,7 @@ interface IMidasRedemptionVaultWithMToken is IMidasRedemptionVault {
 }
 
 interface IMidasTokenRedeemConfig {
-    function MAX_WITHDRAWAL_DELAY() external view returns (uint256);
+    function MAX_WITHDRAWAL_DELAY() external view returns (uint48);
 }
 
 contract MidasTokensToRedeemAssetVault {
