@@ -56,10 +56,7 @@ abstract contract MidasAccount is Account, CoWSwapConverter, IMidasAccount {
 
     function requestRedeem() public onlyOwner {
         sync();
-
-        if (!_requestRedeem()) {
-            revert NoRedeemableAssets();
-        }
+        _requestRedeem();
     }
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
