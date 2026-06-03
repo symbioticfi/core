@@ -62,10 +62,10 @@ contract UniversalDelegatorAdapterFactoryMock {
 }
 
 contract UniversalDelegatorAdapterRegistryMock {
-    mapping(address vault => mapping(address adapterFactory => bool status)) public isWhitelisted;
+    mapping(address vault => mapping(address adapter => bool status)) public isWhitelisted;
 
-    function setWhitelisted(address vault, address adapterFactory, bool status) external {
-        isWhitelisted[vault][adapterFactory] = status;
+    function setWhitelisted(address vault, address adapter, bool status) external {
+        isWhitelisted[vault][adapter] = status;
     }
 }
 
@@ -275,18 +275,14 @@ contract UniversalDelegatorSweepPendingTest is Test {
         adapterRegistry = new UniversalDelegatorAdapterRegistryMock();
         delegator = new UniversalDelegatorSweepHarness(address(adapterRegistry));
         delegator.grantRoleForTest(ADD_ADAPTER_ROLE, address(this));
-        adapterRegistry.setWhitelisted(delegator.vault(), address(adapterFactory), true);
+        adapterFactory.setEntity(address(adapterFactory), true);
     }
 
     function _newAdapter(uint256 totalAssets, uint256 deallocateReturn)
         internal
         returns (UniversalDelegatorSweepAdapter adapter)
     {
-        adapterRegistry.setWhitelisted(delegator.vault(), address(adapterFactory), true);
-        adapter = new UniversalDelegatorSweepAdapter(
-            address(adapterFactory), delegator.vault(), totalAssets, deallocateReturn
-        );
-        adapterFactory.setEntity(address(adapter), true);
+        adapter = _newWhitelistedAdapterForVault(delegator.vault(), totalAssets, deallocateReturn);
     }
 
     function _newAdapterForVault(address vault, uint256 totalAssets, uint256 deallocateReturn)
@@ -294,7 +290,14 @@ contract UniversalDelegatorSweepPendingTest is Test {
         returns (UniversalDelegatorSweepAdapter adapter)
     {
         adapter = new UniversalDelegatorSweepAdapter(address(adapterFactory), vault, totalAssets, deallocateReturn);
-        adapterFactory.setEntity(address(adapter), true);
+    }
+
+    function _newWhitelistedAdapterForVault(address vault, uint256 totalAssets, uint256 deallocateReturn)
+        internal
+        returns (UniversalDelegatorSweepAdapter adapter)
+    {
+        adapter = _newAdapterForVault(vault, totalAssets, deallocateReturn);
+        adapterRegistry.setWhitelisted(vault, address(adapter), true);
     }
 
     function _addAdapters(uint256 count, uint256 totalAssets, uint256 deallocateReturn)
@@ -421,9 +424,8 @@ contract UniversalDelegatorSweepPendingTest is Test {
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
         vault.mintFreeAssets(100);
         delegator.setVault(address(vault));
-        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
 
-        UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(address(vault), 0, 0);
+        UniversalDelegatorSweepAdapter adapter = _newWhitelistedAdapterForVault(address(vault), 0, 0);
         adapter.setAllocatable(70);
         adapter.setAllocateReturn(40);
 
@@ -448,9 +450,8 @@ contract UniversalDelegatorSweepPendingTest is Test {
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
         vault.mintFreeAssets(100);
         delegator.setVault(address(vault));
-        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
 
-        UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(address(vault), 0, 0);
+        UniversalDelegatorSweepAdapter adapter = _newWhitelistedAdapterForVault(address(vault), 0, 0);
         adapter.setAllocatable(100);
         adapter.setAllocateReturn(100);
 
@@ -471,9 +472,8 @@ contract UniversalDelegatorSweepPendingTest is Test {
         UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
         delegator.setVault(address(vault));
-        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
 
-        UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(address(vault), 100, 100);
+        UniversalDelegatorSweepAdapter adapter = _newWhitelistedAdapterForVault(address(vault), 100, 100);
         delegator.addAdapterForTest(address(adapter));
 
         vm.prank(address(adapter));
@@ -552,7 +552,6 @@ contract UniversalDelegatorSweepPendingTest is Test {
     function test_DeallocatableSimulatesFullDeallocationWithoutMutatingState() public {
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(0));
         delegator.setVault(address(vault));
-        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
 
         UniversalDelegatorSweepAdapter adapter1 = _newAdapter(100, 40);
         UniversalDelegatorSweepAdapter adapter2 = _newAdapter(80, 25);
@@ -575,11 +574,10 @@ contract UniversalDelegatorSweepPendingTest is Test {
     function test_DeallocatableBubblesUnexpectedAdapterRevert() public {
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(0));
         delegator.setVault(address(vault));
-        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
 
         UniversalDelegatorSweepRevertingAdapter adapter =
             new UniversalDelegatorSweepRevertingAdapter(address(adapterFactory), address(vault), 100);
-        adapterFactory.setEntity(address(adapter), true);
+        adapterRegistry.setWhitelisted(address(vault), address(adapter), true);
         delegator.addAdapterForTest(address(adapter));
 
         vm.expectRevert(UniversalDelegatorSweepAdapterBoom.selector);
@@ -591,11 +589,10 @@ contract UniversalDelegatorSweepPendingTest is Test {
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
         vault.mintFreeAssets(100);
         delegator.setVault(address(vault));
-        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
 
         UniversalDelegatorSweepReentrantAdapter adapter =
             new UniversalDelegatorSweepReentrantAdapter(address(adapterFactory), address(vault), delegator);
-        adapterFactory.setEntity(address(adapter), true);
+        adapterRegistry.setWhitelisted(address(vault), address(adapter), true);
 
         delegator.addAdapterForTest(address(adapter));
         delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
@@ -609,12 +606,16 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(bytes4(adapter.reentrantRevertData()), ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
     }
 
-    function test_AddAdapterRevertsIfAdapterVaultDoesNotMatchDelegatorVault() public {
+    function test_AddAdapterAcceptsWhitelistedAdapterEvenIfAdapterVaultDoesNotMatchDelegatorVault() public {
         delegator.setVault(address(0xBEEF));
         UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(address(0xCAFE), 100, 0);
+        adapterRegistry.setWhitelisted(delegator.vault(), address(adapter), true);
 
-        vm.expectRevert(IUniversalDelegator.InvalidAdapter.selector);
-        delegator.addAdapterForTest(address(adapter));
+        uint16 index = delegator.addAdapterForTest(address(adapter));
+
+        assertEq(index, 1);
+        assertEq(delegator.adapters(0), address(adapter));
+        assertEq(adapter.vault(), address(0xCAFE));
     }
 
     function test_AddAdapterUsesVaultWhitelistContext() public {
@@ -622,8 +623,22 @@ contract UniversalDelegatorSweepPendingTest is Test {
         UniversalDelegatorSweepHarness vaultDelegator = new UniversalDelegatorSweepHarness(address(adapterRegistry));
         vaultDelegator.setVault(vault);
         vaultDelegator.grantRoleForTest(ADD_ADAPTER_ROLE, address(this));
-        adapterRegistry.setWhitelisted(vault, address(adapterFactory), true);
         UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(vault, 100, 0);
+        adapterRegistry.setWhitelisted(vault, address(adapter), true);
+
+        uint16 index = vaultDelegator.addAdapterForTest(address(adapter));
+
+        assertEq(index, 1);
+        assertEq(vaultDelegator.adapters(0), address(adapter));
+    }
+
+    function test_AddAdapterUsesAdapterWhitelistEntry() public {
+        address vault = address(0xBEEF);
+        UniversalDelegatorSweepHarness vaultDelegator = new UniversalDelegatorSweepHarness(address(adapterRegistry));
+        vaultDelegator.setVault(vault);
+        vaultDelegator.grantRoleForTest(ADD_ADAPTER_ROLE, address(this));
+        UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(vault, 100, 0);
+        adapterRegistry.setWhitelisted(vault, address(adapter), true);
 
         uint16 index = vaultDelegator.addAdapterForTest(address(adapter));
 
@@ -636,21 +651,30 @@ contract UniversalDelegatorSweepPendingTest is Test {
         UniversalDelegatorSweepHarness vaultDelegator = new UniversalDelegatorSweepHarness(address(adapterRegistry));
         vaultDelegator.setVault(vault);
         vaultDelegator.grantRoleForTest(ADD_ADAPTER_ROLE, address(this));
-        adapterRegistry.setWhitelisted(address(0), address(adapterFactory), true);
         UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(vault, 100, 0);
+        adapterRegistry.setWhitelisted(address(0), address(adapter), true);
 
         vm.expectRevert(IUniversalDelegator.InvalidAdapter.selector);
         vaultDelegator.addAdapterForTest(address(adapter));
     }
 
-    function test_AddAdapterRevertsIfAdapterFactoryIsNotWhitelisted() public {
-        adapterRegistry.setWhitelisted(delegator.vault(), address(adapterFactory), false);
+    function test_AddAdapterRevertsIfAdapterIsNotWhitelisted() public {
         UniversalDelegatorSweepAdapter adapter =
             new UniversalDelegatorSweepAdapter(address(adapterFactory), delegator.vault(), 0, 0);
-        adapterFactory.setEntity(address(adapter), true);
 
         vm.expectRevert(IUniversalDelegator.InvalidAdapter.selector);
         delegator.addAdapterForTest(address(adapter));
+    }
+
+    function test_AddAdapterIgnoresAdapterFactoryEntityStatus() public {
+        adapterFactory.setEntity(address(adapterFactory), false);
+        UniversalDelegatorSweepAdapter adapter = _newAdapterForVault(delegator.vault(), 0, 0);
+        adapterRegistry.setWhitelisted(delegator.vault(), address(adapter), true);
+
+        uint16 index = delegator.addAdapterForTest(address(adapter));
+
+        assertEq(index, 1);
+        assertEq(delegator.adapters(0), address(adapter));
     }
 
     function test_RemoveAdapterRevertsWhenAdapterHasAssets() public {
@@ -669,12 +693,11 @@ contract UniversalDelegatorSweepPendingTest is Test {
         UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(100);
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
         delegator.setVault(address(vault));
-        adapterRegistry.setWhitelisted(address(vault), address(adapterFactory), true);
         queue.setPendingAfterFill(100);
 
-        UniversalDelegatorSweepAdapter adapter1 = _newAdapterForVault(address(vault), 0, 0);
-        UniversalDelegatorSweepAdapter adapter2 = _newAdapterForVault(address(vault), 100, 0);
-        UniversalDelegatorSweepAdapter adapter3 = _newAdapterForVault(address(vault), 0, 0);
+        UniversalDelegatorSweepAdapter adapter1 = _newWhitelistedAdapterForVault(address(vault), 0, 0);
+        UniversalDelegatorSweepAdapter adapter2 = _newWhitelistedAdapterForVault(address(vault), 100, 0);
+        UniversalDelegatorSweepAdapter adapter3 = _newWhitelistedAdapterForVault(address(vault), 0, 0);
         delegator.addAdapterForTest(address(adapter1));
         uint16 pendingIndex = delegator.addAdapterForTest(address(adapter2));
         delegator.addAdapterForTest(address(adapter3));

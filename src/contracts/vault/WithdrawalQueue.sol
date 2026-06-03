@@ -32,9 +32,9 @@ contract WithdrawalQueue is MigratableEntity, ERC721Upgradeable, IWithdrawalQueu
     uint256 public totalRequested;
     /// @inheritdoc IWithdrawalQueue
     mapping(uint256 tokenId => WithdrawalRequest) public requests;
+    /// @inheritdoc IWithdrawalQueue
+    uint256 public totalRequests;
 
-    /// @dev The next withdrawal NFT id.
-    uint256 internal _nextTokenId;
     /// @dev Cumulative filled shares to packed fill index and cumulative assets.
     Checkpoints.Trace256 internal _cumulSharesToCumulAssets;
 
@@ -107,7 +107,7 @@ contract WithdrawalQueue is MigratableEntity, ERC721Upgradeable, IWithdrawalQueu
 
         IERC20(vault).safeTransferFrom(msg.sender, address(this), shares);
 
-        tokenId = _nextTokenId++;
+        tokenId = totalRequests++;
         requests[tokenId] = WithdrawalRequest({shares: shares, sharesClaimed: 0, prevRequestSum: totalRequested});
         totalRequested += shares;
 

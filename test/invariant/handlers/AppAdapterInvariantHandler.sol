@@ -28,6 +28,7 @@ import {
 } from "../../../src/interfaces/vault/IVaultV2.sol";
 import {Token} from "../../mocks/Token.sol";
 import {
+    AppAdapterUniversalAdapterFactoryMock,
     AppAdapterUniversalEntityMock,
     AppAdapterUniversalMigratableEntityMock,
     AppAdapterUniversalNetworkMiddlewareServiceMock
@@ -510,7 +511,7 @@ contract AppAdapterInvariantHandler is Test {
         WithdrawalQueueFactory withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
         DelegatorFactory delegatorFactory = new DelegatorFactory(address(this));
         AdapterRegistry adapterRegistry = new AdapterRegistry(address(this));
-        AdapterFactory adapterFactory = new AdapterFactory(address(this));
+        AdapterFactory adapterFactory = new AppAdapterUniversalAdapterFactoryMock(address(this));
         ProtocolFeeRegistry protocolFee = new ProtocolFeeRegistry(address(this));
         protocolFee.setGlobalReceiver(address(this));
         AppAdapterUniversalNetworkMiddlewareServiceMock networkMiddlewareService =
@@ -551,7 +552,6 @@ contract AppAdapterInvariantHandler is Test {
         delegator = _createDelegator(delegatorFactory, vault);
         vault.setDelegator(address(delegator));
         queue = WithdrawalQueue(vault.withdrawalQueue());
-        adapterRegistry.setWhitelistedStatus(address(vault), address(adapterFactory), true);
 
         adapter = IAppAdapter(
             adapterFactory.create(
@@ -567,6 +567,7 @@ contract AppAdapterInvariantHandler is Test {
                 )
             )
         );
+        adapterRegistry.setWhitelistedStatus(address(vault), address(adapter), true);
         delegator.addAdapter(address(adapter));
         delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE);
 

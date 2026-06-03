@@ -10,7 +10,6 @@ import {WithdrawalQueue} from "../vault/WithdrawalQueue.sol";
 
 import {IAdapterRegistry} from "../../interfaces/IAdapterRegistry.sol";
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
-import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {
@@ -137,12 +136,7 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function addAdapter(address adapter) public onlyRole(ADD_ADAPTER_ROLE) nonReentrant returns (uint16 index) {
-        address adapterFactory = IEntity(adapter).FACTORY();
-        if (
-            !IRegistry(adapterFactory).isEntity(adapter)
-                || !IAdapterRegistry(ADAPTER_REGISTRY).isWhitelisted(vault, adapterFactory)
-                || IAdapter(adapter).vault() != vault
-        ) {
+        if (!IAdapterRegistry(ADAPTER_REGISTRY).isWhitelisted(vault, adapter)) {
             revert InvalidAdapter();
         }
         if (_isAdapterAdded[adapter]) {

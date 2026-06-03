@@ -29,6 +29,12 @@ contract AppAdapterUniversalMigratableEntityMock is MigratableEntity {
     constructor(address factory) MigratableEntity(factory) {}
 }
 
+contract AppAdapterUniversalAdapterFactoryMock is AdapterFactory {
+    constructor(address owner) AdapterFactory(owner) {
+        _addEntity(address(this));
+    }
+}
+
 contract AppAdapterUniversalEntityMock is Entity {
     constructor(address factory, uint64 type_) Entity(factory, type_) {}
 }
@@ -73,7 +79,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
         withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
         delegatorFactory = new DelegatorFactory(address(this));
         adapterRegistry = new AdapterRegistry(address(this));
-        adapterFactory = new AdapterFactory(address(this));
+        adapterFactory = new AppAdapterUniversalAdapterFactoryMock(address(this));
         protocolFee = new ProtocolFeeRegistry(address(this));
         protocolFee.setGlobalReceiver(address(this));
         networkMiddlewareService = new AppAdapterUniversalNetworkMiddlewareServiceMock();
@@ -112,7 +118,6 @@ contract AppAdapterUniversalDelegatorTest is Test {
         vault = _createVault();
         delegator = _createDelegator(vault);
         vault.setDelegator(address(delegator));
-        adapterRegistry.setWhitelistedStatus(address(vault), address(adapterFactory), true);
 
         adapter = IAppAdapter(
             adapterFactory.create(
@@ -128,6 +133,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
                 )
             )
         );
+        adapterRegistry.setWhitelistedStatus(address(vault), address(adapter), true);
         delegator.addAdapter(address(adapter));
         delegator.setLimits(address(adapter), 100, MAX_SHARE);
 

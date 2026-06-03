@@ -80,6 +80,12 @@ interface IWithdrawalQueue is IMigratableEntity, IERC721Metadata, IMulticallable
     function totalRequested() external view returns (uint256 requested);
 
     /**
+     * @notice Total withdrawal requests created.
+     * @return count Total requests.
+     */
+    function totalRequests() external view returns (uint256 count);
+
+    /**
      * @notice Returns the request details for a withdrawal NFT.
      * @param tokenId Withdrawal NFT id.
      * @return shares Vault shares requested for withdrawal.

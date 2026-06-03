@@ -114,10 +114,6 @@ contract WithdrawalQueueHarness is WithdrawalQueue {
 
     constructor(address factory) WithdrawalQueue(factory) {}
 
-    function nextTokenId() public view returns (uint256) {
-        return _nextTokenId;
-    }
-
     function checkpointLength() public view returns (uint256) {
         return _cumulSharesToCumulAssets.length();
     }
@@ -328,20 +324,20 @@ contract WithdrawalQueueClaimHandler is Test {
     function assertShareConservationAndRequestLedger() external view {
         uint256 requested = queue.totalRequested();
         uint256 filled = queue.totalFilled();
-        uint256 nextTokenId = queue.nextTokenId();
+        uint256 totalRequests = queue.totalRequests();
 
         assertEq(requested, modelTotalRequested);
         assertEq(filled, modelTotalFilled);
         assertLe(filled, requested);
         assertEq(queue.pendingShares(), requested - filled);
         assertEq(vault.balanceOf(address(queue)), queue.pendingShares());
-        assertEq(nextTokenId, _requests.length);
+        assertEq(totalRequests, _requests.length);
 
         uint256 running;
         uint256 totalFilledAllocated;
         uint256 totalClaimedShares;
         uint256 totalClaimableShares;
-        for (uint256 tokenId; tokenId < nextTokenId; ++tokenId) {
+        for (uint256 tokenId; tokenId < totalRequests; ++tokenId) {
             (uint256 shares, uint256 claimedShares, uint256 prevRequestSum) = queue.requests(tokenId);
 
             assertEq(prevRequestSum, running);

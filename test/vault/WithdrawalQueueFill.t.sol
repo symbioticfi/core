@@ -197,11 +197,45 @@ contract WithdrawalQueueFillTest is Test {
     function test_WithdrawalQueueExposesRequestRedeemApi() public pure {
         assertEq(IWithdrawalQueue.requestRedeem.selector, bytes4(keccak256("requestRedeem(uint256,address)")));
         assertEq(IWithdrawalQueue.isClaimed.selector, bytes4(keccak256("isClaimed(uint256)")));
+        assertEq(IWithdrawalQueue.totalRequests.selector, bytes4(keccak256("totalRequests()")));
     }
 
     function test_RequestRedeemRevertsZeroShares() public {
         vm.expectRevert(IWithdrawalQueue.ZeroShares.selector);
         WithdrawalQueue(queue).requestRedeem(0, alice);
+    }
+
+    function test_RequestRedeemUsesTotalRequestsAsTokenId() public {
+        address bob = address(0xB0B);
+
+        WithdrawalQueueFillVault(vault).mintShares(alice, 60, 60);
+
+        assertEq(WithdrawalQueue(queue).totalRequests(), 0);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, 60);
+        uint256 firstTokenId = WithdrawalQueue(queue).requestRedeem(40, alice);
+        uint256 secondTokenId = WithdrawalQueue(queue).requestRedeem(20, bob);
+        vm.stopPrank();
+
+        assertEq(firstTokenId, 0);
+        assertEq(secondTokenId, 1);
+        assertEq(WithdrawalQueue(queue).totalRequests(), 2);
+        assertEq(WithdrawalQueue(queue).ownerOf(firstTokenId), alice);
+        assertEq(WithdrawalQueue(queue).ownerOf(secondTokenId), bob);
+    }
+
+    function test_RequestStorageUsesMappingAndExplicitTotalRequestsCounter() public {
+        WithdrawalQueueFillVault(vault).mintShares(alice, 40, 40);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, 40);
+        WithdrawalQueue(queue).requestRedeem(40, alice);
+        vm.stopPrank();
+
+        assertEq(uint256(vm.load(queue, bytes32(uint256(12)))), 0);
+        assertEq(uint256(vm.load(queue, bytes32(uint256(13)))), 1);
+        assertEq(WithdrawalQueue(queue).totalRequests(), 1);
     }
 
     function test_MulticallCanRequestRedeemAndBubbleReverts() public {

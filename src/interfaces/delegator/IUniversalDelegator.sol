@@ -398,10 +398,4 @@ interface IUniversalDelegator is IMulticallable {
      */
     function sweepPending() external returns (uint256 pendingAssets);
 
-    /**
-     * @notice Simulate full route deallocation through the internal self-call target.
-     * @return deallocated Deallocated assets.
-     * @dev Only the delegator can call this function.
-     */
-    function __deallocateAll() external returns (uint256 deallocated);
 }
