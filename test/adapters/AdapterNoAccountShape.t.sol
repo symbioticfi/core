@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {Test} from "forge-std/Test.sol";
 
 import {AaveV3Adapter} from "../../src/contracts/adapters/AaveV3Adapter.sol";
+import {ERC4626Adapter} from "../../src/contracts/adapters/ERC4626Adapter.sol";
 import {MorphoVaultV2Adapter} from "../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
 
 contract AdapterNoAccountShapeTest is Test {
@@ -18,6 +19,7 @@ contract AdapterNoAccountShapeTest is Test {
         address morphoAdapterRegistry = makeAddr("morphoAdapterRegistry");
 
         new AaveV3Adapter(aavePool, vaultFactory, adapterFactory, rewards, settlement, relayer);
+        new ERC4626Adapter(vaultFactory, adapterFactory, rewards, settlement, relayer);
         new MorphoVaultV2Adapter(
             vaultFactory, adapterFactory, rewards, settlement, morphoVaultFactory, relayer, morphoAdapterRegistry
         );

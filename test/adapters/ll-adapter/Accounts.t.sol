@@ -4,8 +4,17 @@ pragma solidity ^0.8.35;
 import {Test} from "forge-std/Test.sol";
 
 import {ACRED_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRED_Account.sol";
+import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
+import {DigiFTAccount} from "../../../src/contracts/adapters/ll-adapter/DigiFTAccount.sol";
+import {HumaAccount} from "../../../src/contracts/adapters/ll-adapter/HumaAccount.sol";
+import {PikuAccount} from "../../../src/contracts/adapters/ll-adapter/PikuAccount.sol";
+import {PRIME_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PRIME_Account.sol";
+import {PST_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PST_Account.sol";
+import {TheoAccount} from "../../../src/contracts/adapters/ll-adapter/TheoAccount.sol";
+import {ThreeJaneAccount} from "../../../src/contracts/adapters/ll-adapter/ThreeJaneAccount.sol";
 import {weETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
+import {ChainlinkOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ChainlinkOracle.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 
@@ -13,6 +22,10 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract AccountsTest is Test {
+    address internal constant PST_TOKEN_ADDRESS = 0x22aE3D9a738471f405169Af055d31c687087d4c7;
+    address internal constant PST_CHAINLINK_FEED_ADDRESS = 0x4BE50bE32dB1510240d542f77c5B36Ca0D0965E6;
+    uint48 internal constant PST_STALENESS_DURATION = 2 days;
+
     address internal adapter = makeAddr("adapter");
     address internal redemptionWallet = makeAddr("redemptionWallet");
 
@@ -135,6 +148,191 @@ contract AccountsTest is Test {
         assertEq(account.totalAssets(), 4 ether);
     }
 
+    function testCentrifugeAccountRequestsAndClaimsAsyncRedeemVault() public {
+        MockERC20 tokenToRedeem = new MockERC20("Centrifuge Share", "CFGSHARE", 18);
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault asyncVault = new MockAsyncRedeemVault(tokenToRedeem, asset, 2e6);
+        MockOracle oracle = new MockOracle(2e18);
+        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, asyncVault, oracle);
+
+        tokenToRedeem.mint(address(account), 3 ether);
+
+        assertEq(account.totalAssets(), 6e6);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(tokenToRedeem.balanceOf(address(asyncVault)), 3 ether);
+        assertEq(account.totalAssets(), 6e6);
+
+        asyncVault.fulfill(0, address(account), 3 ether);
+        account.sync();
+
+        assertEq(asset.balanceOf(address(account)), 6e6);
+        assertEq(account.totalAssets(), 6e6);
+    }
+
+    function testFigureAccountInstantRedeemsPrimeThenRequestsWyldsRedeem() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 wylds = new MockERC20("Wrapped YLDS", "wYLDS", 6);
+        MockPrimeToken prime = new MockPrimeToken(wylds, 125e4);
+        MockAsyncRedeemVault asyncVault = new MockAsyncRedeemVault(wylds, asset, 1e6);
+        MockOracle oracle = new MockOracle(125e16);
+        PRIME_Account account = _deployPrime(prime, wylds, asset, asyncVault, oracle);
+
+        prime.mint(address(account), 100e6);
+
+        assertEq(account.totalAssets(), 125e6);
+
+        account.sync();
+
+        assertEq(prime.balanceOf(address(account)), 0);
+        assertEq(wylds.balanceOf(address(asyncVault)), 125e6);
+        assertEq(account.totalAssets(), 125e6);
+
+        asyncVault.fulfill(0, address(account), 125e6);
+        account.sync();
+
+        assertEq(asset.balanceOf(address(account)), 125e6);
+        assertEq(account.totalAssets(), 125e6);
+    }
+
+    function testPikuAccountRequestsAndClaimsAccountableVaultRedeem() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 tokenToRedeem = new MockERC20("Morini FXArbUSDTRY", "aFXArbUSDTRY", 6);
+        MockAsyncRedeemVault asyncVault = new MockAsyncRedeemVault(tokenToRedeem, asset, 1_000_393);
+        MockOracle oracle = new MockOracle(1_000_393e12);
+        PikuAccount account = _deployPiku(tokenToRedeem, asset, asyncVault, oracle);
+
+        tokenToRedeem.mint(address(account), 1000e6);
+
+        assertEq(account.totalAssets(), 1_000_393_000);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(tokenToRedeem.balanceOf(address(asyncVault)), 1000e6);
+        assertEq(account.totalAssets(), 1_000_393_000);
+
+        asyncVault.fulfill(0, address(account), 1000e6);
+        account.sync();
+
+        assertEq(asset.balanceOf(address(account)), 1_000_393_000);
+        assertEq(account.totalAssets(), 1_000_393_000);
+    }
+
+    function testHumaAccountRequestsAndClaimsTrancheRedemption() public {
+        MockERC20 tokenToRedeem = new MockERC20("Huma Senior Tranche", "HST", 18);
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockHumaTrancheVault redemptionVault = new MockHumaTrancheVault(tokenToRedeem, asset);
+        MockOracle oracle = new MockOracle(2e18);
+        HumaAccount account = _deployHuma(tokenToRedeem, asset, redemptionVault, oracle);
+
+        tokenToRedeem.mint(address(account), 3 ether);
+
+        assertEq(account.totalAssets(), 6e6);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(tokenToRedeem.balanceOf(address(redemptionVault)), 3 ether);
+        assertEq(account.pendingAssets(), 6e6);
+        assertEq(account.totalAssets(), 6e6);
+
+        redemptionVault.fulfill(address(account), 6e6);
+        account.sync();
+
+        assertEq(asset.balanceOf(address(account)), 6e6);
+        assertEq(account.pendingAssets(), 0);
+        assertEq(account.totalAssets(), 6e6);
+    }
+
+    function testHumaAccountClaimsPoolClosureWithdrawal() public {
+        MockERC20 tokenToRedeem = new MockERC20("Huma Junior Tranche", "HJT", 18);
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockHumaTrancheVault redemptionVault = new MockHumaTrancheVault(tokenToRedeem, asset);
+        MockOracle oracle = new MockOracle(15e17);
+        HumaAccount account = _deployHuma(tokenToRedeem, asset, redemptionVault, oracle);
+
+        tokenToRedeem.mint(address(account), 2 ether);
+
+        account.sync();
+        redemptionVault.fulfillAfterClosure(address(account), 3e6);
+        account.sync();
+
+        assertEq(asset.balanceOf(address(account)), 3e6);
+        assertEq(account.pendingAssets(), 0);
+        assertEq(account.totalAssets(), 3e6);
+    }
+
+    function testTheoAccountRedeemsERC4626SharesIntoAsset() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken("Theo thBILL", "thBILL", 18, asset, 2e6);
+        MockOracle oracle = new MockOracle(2e18);
+        TheoAccount account = _deployTheo(tokenToRedeem, asset, oracle);
+
+        tokenToRedeem.mint(address(account), 5 ether);
+
+        assertEq(account.totalAssets(), 10e6);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(asset.balanceOf(address(account)), 10e6);
+        assertEq(account.totalAssets(), 10e6);
+    }
+
+    function testThreeJaneAccountRedeemsERC4626SharesIntoAsset() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken("3Jane USD3", "USD3", 6, asset, 1_001_000);
+        MockOracle oracle = new MockOracle(1_001_000_000_000_000_000);
+        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, asset, oracle);
+
+        tokenToRedeem.mint(address(account), 1000e6);
+
+        assertEq(account.totalAssets(), 1001e6);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(asset.balanceOf(address(account)), 1001e6);
+        assertEq(account.totalAssets(), 1001e6);
+    }
+
+    function testDigiFTAccountForwardsHeldInventoryToRedemptionWallet() public {
+        MockERC20 tokenToRedeem = new MockERC20("DigiFT Money Market Fund Token", "DMMF01", 18);
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockOracle oracle = new MockOracle(1e18);
+        DigiFTAccount account = _deployDigiFT(tokenToRedeem, asset, oracle);
+
+        tokenToRedeem.mint(address(account), 50 ether);
+
+        assertEq(account.REDEMPTION_WALLET(), redemptionWallet);
+        assertEq(account.totalAssets(), 50e6);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(tokenToRedeem.balanceOf(redemptionWallet), 50 ether);
+        assertEq(account.totalAssets(), 0);
+    }
+
+    function testPSTAccountHardcodesMainnetTokenAndChainlinkFeed() public {
+        vm.mockCall(PST_TOKEN_ADDRESS, abi.encodeWithSignature("decimals()"), abi.encode(uint8(6)));
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        address redemptionVault = makeAddr("humaRedemptionVault");
+        PST_Account implementation = new PST_Account(redemptionVault, address(factory));
+        ChainlinkOracle oracle = ChainlinkOracle(implementation.ORACLE());
+
+        assertEq(implementation.TOKEN_TO_REDEEM(), PST_TOKEN_ADDRESS);
+        assertEq(implementation.REDEMPTION_VAULT(), redemptionVault);
+        assertEq(oracle.AGGREGATOR_0(), PST_CHAINLINK_FEED_ADDRESS);
+        assertEq(oracle.AGGREGATOR_1(), address(0));
+        assertEq(oracle.STALENESS_DURATION_0(), PST_STALENESS_DURATION);
+        assertEq(oracle.STALENESS_DURATION_1(), 0);
+    }
+
     function _deployACRED(MockERC20 tokenToRedeem, MockERC20 asset, MockOracle oracle)
         internal
         returns (ACRED_Account account)
@@ -177,6 +375,89 @@ contract AccountsTest is Test {
         factory.whitelist(address(implementation));
         account =
             weETH_Account(payable(factory.create(1, address(this), _initData(address(asset), address(mocks.weETH)))));
+    }
+
+    function _deployCentrifuge(
+        MockERC20 tokenToRedeem,
+        MockERC20 asset,
+        MockAsyncRedeemVault asyncVault,
+        MockOracle oracle
+    ) internal returns (CentrifugeAccount account) {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        CentrifugeAccount implementation =
+            new CentrifugeAccount(address(asyncVault), address(tokenToRedeem), address(factory), address(oracle));
+        factory.whitelist(address(implementation));
+        account = CentrifugeAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
+    }
+
+    function _deployPrime(
+        MockPrimeToken prime,
+        MockERC20 wylds,
+        MockERC20 asset,
+        MockAsyncRedeemVault asyncVault,
+        MockOracle oracle
+    ) internal returns (PRIME_Account account) {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        PRIME_Account implementation =
+            new PRIME_Account(address(asyncVault), address(prime), address(wylds), address(factory), address(oracle));
+        factory.whitelist(address(implementation));
+        account = PRIME_Account(factory.create(1, address(this), _initData(address(asset), address(prime))));
+    }
+
+    function _deployPiku(MockERC20 tokenToRedeem, MockERC20 asset, MockAsyncRedeemVault asyncVault, MockOracle oracle)
+        internal
+        returns (PikuAccount account)
+    {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        PikuAccount implementation =
+            new PikuAccount(address(asyncVault), address(tokenToRedeem), address(factory), address(oracle));
+        factory.whitelist(address(implementation));
+        account = PikuAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
+    }
+
+    function _deployHuma(
+        MockERC20 tokenToRedeem,
+        MockERC20 asset,
+        MockHumaTrancheVault redemptionVault,
+        MockOracle oracle
+    ) internal returns (HumaAccount account) {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        HumaAccount implementation =
+            new HumaAccount(address(redemptionVault), address(tokenToRedeem), address(factory), address(oracle));
+        factory.whitelist(address(implementation));
+        account = HumaAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
+    }
+
+    function _deployTheo(MockERC4626RedeemToken tokenToRedeem, MockERC20 asset, MockOracle oracle)
+        internal
+        returns (TheoAccount account)
+    {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        TheoAccount implementation = new TheoAccount(address(tokenToRedeem), address(factory), address(oracle));
+        factory.whitelist(address(implementation));
+        account = TheoAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
+    }
+
+    function _deployThreeJane(MockERC4626RedeemToken tokenToRedeem, MockERC20 asset, MockOracle oracle)
+        internal
+        returns (ThreeJaneAccount account)
+    {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        ThreeJaneAccount implementation =
+            new ThreeJaneAccount(address(tokenToRedeem), address(factory), address(oracle));
+        factory.whitelist(address(implementation));
+        account = ThreeJaneAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
+    }
+
+    function _deployDigiFT(MockERC20 tokenToRedeem, MockERC20 asset, MockOracle oracle)
+        internal
+        returns (DigiFTAccount account)
+    {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        DigiFTAccount implementation =
+            new DigiFTAccount(redemptionWallet, address(tokenToRedeem), address(factory), address(oracle));
+        factory.whitelist(address(implementation));
+        account = DigiFTAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
 
     function _lstMocks() internal returns (LstMocks memory mocks) {
@@ -310,6 +591,134 @@ contract MockWeETH is MockERC20 {
 
     function getEETHByWeETH(uint256 weETHAmount) external pure returns (uint256 eETHAmount) {
         return weETHAmount;
+    }
+}
+
+contract MockPrimeToken is MockERC20 {
+    MockERC20 internal immutable _wylds;
+    uint256 internal immutable _wyldsPerPrime;
+
+    constructor(MockERC20 wylds_, uint256 wyldsPerPrime_) MockERC20("Hastra PRIME", "PRIME", 6) {
+        _wylds = wylds_;
+        _wyldsPerPrime = wyldsPerPrime_;
+    }
+
+    function asset() external view returns (address) {
+        return address(_wylds);
+    }
+
+    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
+        if (msg.sender != owner) {
+            _spendAllowance(owner, msg.sender, shares);
+        }
+        _burn(owner, shares);
+        assets = shares * _wyldsPerPrime / 1e6;
+        _wylds.mint(receiver, assets);
+    }
+}
+
+contract MockERC4626RedeemToken is MockERC20 {
+    MockERC20 internal immutable _asset;
+    uint256 internal immutable _assetsPerShare;
+
+    constructor(string memory name_, string memory symbol_, uint8 decimals_, MockERC20 asset_, uint256 assetsPerShare_)
+        MockERC20(name_, symbol_, decimals_)
+    {
+        _asset = asset_;
+        _assetsPerShare = assetsPerShare_;
+    }
+
+    function asset() external view returns (address) {
+        return address(_asset);
+    }
+
+    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
+        if (msg.sender != owner) {
+            _spendAllowance(owner, msg.sender, shares);
+        }
+        _burn(owner, shares);
+        assets = shares * _assetsPerShare / 10 ** decimals();
+        _asset.mint(receiver, assets);
+    }
+}
+
+contract MockHumaTrancheVault {
+    MockERC20 public immutable share;
+    MockERC20 public immutable asset;
+
+    mapping(address account => uint256 assets) public claimableAssets;
+    mapping(address account => uint256 assets) public closureAssets;
+
+    constructor(MockERC20 share_, MockERC20 asset_) {
+        share = share_;
+        asset = asset_;
+    }
+
+    function addRedemptionRequest(uint256 shares) external {
+        IERC20(address(share)).transferFrom(msg.sender, address(this), shares);
+    }
+
+    function fulfill(address account, uint256 assets) external {
+        claimableAssets[account] += assets;
+    }
+
+    function fulfillAfterClosure(address account, uint256 assets) external {
+        closureAssets[account] += assets;
+    }
+
+    function disburse() external {
+        uint256 assets = claimableAssets[msg.sender];
+        claimableAssets[msg.sender] = 0;
+        asset.mint(msg.sender, assets);
+    }
+
+    function withdrawAfterPoolClosure() external {
+        uint256 assets = closureAssets[msg.sender];
+        closureAssets[msg.sender] = 0;
+        asset.mint(msg.sender, assets);
+    }
+}
+
+contract MockAsyncRedeemVault {
+    MockERC20 public immutable share;
+    MockERC20 public immutable asset;
+    uint256 public immutable assetsPerShare;
+
+    mapping(uint256 requestId => mapping(address controller => uint256 shares)) public pending;
+    mapping(uint256 requestId => mapping(address controller => uint256 shares)) public claimable;
+
+    constructor(MockERC20 share_, MockERC20 asset_, uint256 assetsPerShare_) {
+        share = share_;
+        asset = asset_;
+        assetsPerShare = assetsPerShare_;
+    }
+
+    function convertToAssets(uint256 shares) public view returns (uint256) {
+        return shares * assetsPerShare / 10 ** share.decimals();
+    }
+
+    function requestRedeem(uint256 shares, address controller, address owner) external returns (uint256 requestId) {
+        IERC20(address(share)).transferFrom(owner, address(this), shares);
+        pending[requestId][controller] += shares;
+    }
+
+    function pendingRedeemRequest(uint256 requestId, address controller) external view returns (uint256 shares) {
+        return pending[requestId][controller];
+    }
+
+    function claimableRedeemRequest(uint256 requestId, address controller) external view returns (uint256 shares) {
+        return claimable[requestId][controller];
+    }
+
+    function fulfill(uint256 requestId, address controller, uint256 shares) external {
+        pending[requestId][controller] -= shares;
+        claimable[requestId][controller] += shares;
+    }
+
+    function redeem(uint256 shares, address receiver, address controller) external returns (uint256 assets) {
+        claimable[0][controller] -= shares;
+        assets = convertToAssets(shares);
+        asset.mint(receiver, assets);
     }
 }
 

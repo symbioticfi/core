@@ -127,21 +127,20 @@ contract MorphoVaultV2Adapter is Adapter, CoWSwapConverter, MerklClaimer, IMorph
 
         __CoWSwapConverter_init(params.converters);
 
-        address curMorphoVault = params.morphoVault;
-
         if (
-            curMorphoVault == address(0) || !IMorphoVaultV2Factory(MORPHO_VAULT_FACTORY).isVaultV2(curMorphoVault)
-                || !IMorphoVaultV2(curMorphoVault).abdicated(IMorphoVaultV2.setAdapterRegistry.selector)
-                || IMorphoVaultV2(curMorphoVault).adapterRegistry() != MORPHO_ADAPTER_REGISTRY
-                || IMorphoVaultV2(curMorphoVault).asset() != IERC4626(vault).asset()
+            params.morphoVault == address(0)
+                || !IMorphoVaultV2Factory(MORPHO_VAULT_FACTORY).isVaultV2(params.morphoVault)
+                || !IMorphoVaultV2(params.morphoVault).abdicated(IMorphoVaultV2.setAdapterRegistry.selector)
+                || IMorphoVaultV2(params.morphoVault).adapterRegistry() != MORPHO_ADAPTER_REGISTRY
+                || IMorphoVaultV2(params.morphoVault).asset() != IERC4626(vault).asset()
         ) {
             revert InvalidMorphoVault();
         }
 
-        morphoVault = curMorphoVault;
+        morphoVault = params.morphoVault;
 
-        IERC20(IERC4626(vault).asset()).forceApprove(curMorphoVault, type(uint256).max);
+        IERC20(IERC4626(vault).asset()).forceApprove(params.morphoVault, type(uint256).max);
 
-        emit Initialize(curMorphoVault);
+        emit Initialize(params.morphoVault);
     }
 }
