@@ -16,16 +16,10 @@ interface IEtherFiAccount {
     /* FUNCTIONS */
 
     /**
-     * @notice Returns the eETH token address.
-     * @return eETH The eETH token address.
+     * @notice Returns the ether.fi withdraw request NFT address.
+     * @return withdrawRequestNft The withdraw request NFT address.
      */
-    function EETH() external view returns (address eETH);
-
-    /**
-     * @notice Returns the ether.fi liquidity pool address.
-     * @return liquidityPool The liquidity pool address.
-     */
-    function LIQUIDITY_POOL() external view returns (address liquidityPool);
+    function WITHDRAW_REQUEST_NFT() external view returns (address withdrawRequestNft);
 
     /**
      * @notice Returns the ether.fi redemption manager address.
@@ -34,22 +28,16 @@ interface IEtherFiAccount {
     function REDEMPTION_MANAGER() external view returns (address redemptionManager);
 
     /**
-     * @notice Returns the ether.fi withdraw request NFT address.
-     * @return withdrawRequestNft The withdraw request NFT address.
+     * @notice Returns the ether.fi liquidity pool address.
+     * @return liquidityPool The liquidity pool address.
      */
-    function WITHDRAW_REQUEST_NFT() external view returns (address withdrawRequestNft);
+    function LIQUIDITY_POOL() external view returns (address liquidityPool);
 
     /**
-     * @notice Returns the stETH token address.
-     * @return stETH The stETH token address.
+     * @notice Returns the eETH token address.
+     * @return eETH The eETH token address.
      */
-    function STETH() external view returns (address stETH);
-
-    /**
-     * @notice Returns the wstETH token address.
-     * @return wstETH The wstETH token address.
-     */
-    function WSTETH() external view returns (address wstETH);
+    function EETH() external view returns (address eETH);
 
     /**
      * @notice Returns the WETH token address.

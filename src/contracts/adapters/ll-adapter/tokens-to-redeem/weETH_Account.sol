@@ -14,14 +14,8 @@ contract weETH_Account is EtherFiAccount {
         address liquidityPool,
         address redemptionManager,
         address withdrawRequestNft,
-        address stETH,
-        address wstETH,
         address weth
-    )
-        EtherFiAccount(
-            withdrawRequestNft, redemptionManager, liquidityPool, weETH, factory, oracle, wstETH, stETH, eETH, weth
-        )
-    {}
+    ) EtherFiAccount(withdrawRequestNft, redemptionManager, liquidityPool, weETH, factory, oracle, eETH, weth) {}
 }
 
 contract weETH_AccountFactory is MigratablesFactory {

@@ -6,6 +6,7 @@ import {Logs} from "../../utils/Logs.sol";
 import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
 import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
+import {ProtocolFeeRegistry} from "../../../src/contracts/ProtocolFeeRegistry.sol";
 import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDelegator.sol";
 import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol";
@@ -18,46 +19,63 @@ contract V2DeployBaseScript is Script {
     struct DeploymentData {
         SymbioticCoreConstants.Core core;
         AdapterRegistry adapterRegistry;
+        ProtocolFeeRegistry protocolFeeRegistry;
         WithdrawalQueueFactory withdrawalQueueFactory;
         WithdrawalQueue withdrawalQueue;
         VaultV2 vaultV2;
         UniversalDelegator universalDelegator;
     }
 
-    function runBase(address adapterRegistryOwner, address protocolFee)
+    function runBase(address owner) public virtual returns (DeploymentData memory data) {
+        data = runBase(owner, owner);
+    }
+
+    function runBase(address adapterRegistryOwner, address protocolFeeRegistryOwner)
         public
         virtual
         returns (DeploymentData memory data)
     {
         require(adapterRegistryOwner != address(0), "invalid adapter registry owner");
+        require(protocolFeeRegistryOwner != address(0), "invalid protocol fee registry owner");
 
         data.core = _core();
 
         _startBroadcast();
+        address broadcaster = _scriptOwner();
         data.adapterRegistry = new AdapterRegistry(adapterRegistryOwner);
-        data.withdrawalQueueFactory = new WithdrawalQueueFactory(adapterRegistryOwner);
+        data.protocolFeeRegistry = new ProtocolFeeRegistry(protocolFeeRegistryOwner);
+        data.withdrawalQueueFactory = new WithdrawalQueueFactory(broadcaster);
         data.withdrawalQueue = new WithdrawalQueue(address(data.withdrawalQueueFactory));
         data.withdrawalQueueFactory.whitelist(address(data.withdrawalQueue));
+        if (adapterRegistryOwner != broadcaster) {
+            data.withdrawalQueueFactory.transferOwnership(adapterRegistryOwner);
+        }
         data.vaultV2 = new VaultV2(
             address(data.core.vaultFactory),
             address(data.core.delegatorFactory),
-            protocolFee,
+            address(data.protocolFeeRegistry),
             address(data.withdrawalQueueFactory)
         );
+        data.core.vaultFactory.whitelist(address(data.vaultV2));
         data.universalDelegator = new UniversalDelegator(
             UNIVERSAL_DELEGATOR_TYPE,
             address(data.core.vaultFactory),
             address(data.adapterRegistry),
             address(data.core.delegatorFactory)
         );
+        data.core.delegatorFactory.whitelist(address(data.universalDelegator));
         _stopBroadcast();
 
         assert(data.adapterRegistry.owner() == adapterRegistryOwner);
+        assert(data.protocolFeeRegistry.owner() == protocolFeeRegistryOwner);
         assert(data.withdrawalQueueFactory.owner() == adapterRegistryOwner);
         assert(IMigratableEntity(address(data.vaultV2)).FACTORY() == address(data.core.vaultFactory));
         assert(data.universalDelegator.TYPE() == UNIVERSAL_DELEGATOR_TYPE);
+        assert(data.core.vaultFactory.implementation(data.core.vaultFactory.lastVersion()) == address(data.vaultV2));
+        assert(data.core.delegatorFactory.implementation(UNIVERSAL_DELEGATOR_TYPE) == address(data.universalDelegator));
 
         Logs.log(string.concat("Deployed AdapterRegistry: ", vm.toString(address(data.adapterRegistry))));
+        Logs.log(string.concat("Deployed ProtocolFeeRegistry: ", vm.toString(address(data.protocolFeeRegistry))));
         Logs.log(string.concat("Deployed WithdrawalQueueFactory: ", vm.toString(address(data.withdrawalQueueFactory))));
         Logs.log(string.concat("Deployed WithdrawalQueue: ", vm.toString(address(data.withdrawalQueue))));
         Logs.log(string.concat("Deployed VaultV2: ", vm.toString(address(data.vaultV2))));
@@ -70,6 +88,11 @@ contract V2DeployBaseScript is Script {
 
     function _stopBroadcast() internal virtual {
         vm.stopBroadcast();
+    }
+
+    function _scriptOwner() internal view virtual returns (address owner_) {
+        (,, address origin) = vm.readCallers();
+        return origin == address(0) ? msg.sender : origin;
     }
 
     function _core() internal view virtual returns (SymbioticCoreConstants.Core memory) {

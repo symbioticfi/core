@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.35;
 
-import {AaveV3AdapterDeployBaseScript} from "./base/AaveV3AdapterDeployBase.s.sol";
+import {MorphoVaultV2AdapterDeployBaseScript} from "./base/MorphoVaultV2AdapterDeployBase.s.sol";
 
-// forge script script/deploy/AaveV3AdapterDeploy.s.sol:AaveV3AdapterDeployScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
+// forge script script/deploy/DeployMorphoVaultV2Adapter.s.sol:DeployMorphoVaultV2AdapterScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
 
-contract AaveV3AdapterDeployScript is AaveV3AdapterDeployBaseScript {
+contract DeployMorphoVaultV2AdapterScript is MorphoVaultV2AdapterDeployBaseScript {
     // Address that will own the adapter factory after deployment.
     address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
-    // AaveV3 mock pool from AaveV3MocksDeployScript output.
-    address public constant AAVE_POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
+    // MorphoVaultV2 dependencies used by the Morpho adapter.
+    address public constant MORPHO_VAULT_FACTORY = 0xA1D94F746dEfa1928926b84fB2596c06926C0405;
+    address public constant MORPHO_ADAPTER_REGISTRY = 0x3696c5eAe4a7Ffd04Ea163564571E9CD8Ed9364e;
     // CoW Protocol settlement used by the converter.
     address public constant COW_SWAP_SETTLEMENT = 0x0000000000000000000000000000000000000000;
     // CoW Protocol vault relayer approved by the converter.
@@ -21,7 +22,8 @@ contract AaveV3AdapterDeployScript is AaveV3AdapterDeployBaseScript {
         runBase(
             DeployParams({
                 adapterFactoryOwner: ADAPTER_FACTORY_OWNER,
-                aavePool: AAVE_POOL,
+                morphoVaultFactory: MORPHO_VAULT_FACTORY,
+                morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY,
                 cowSwapSettlement: COW_SWAP_SETTLEMENT,
                 cowSwapVaultRelayer: COW_SWAP_VAULT_RELAYER,
                 merklDistributor: MERKL_DISTRIBUTOR

@@ -15,8 +15,8 @@ contract MorphoVaultV2AdapterDeployScript is MorphoVaultV2AdapterDeployBaseScrip
     address public constant COW_SWAP_SETTLEMENT = 0x0000000000000000000000000000000000000000;
     // CoW Protocol vault relayer approved by the converter.
     address public constant COW_SWAP_VAULT_RELAYER = 0x0000000000000000000000000000000000000000;
-    // Rewards contract address used by the adapter.
-    address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;
+    // Mainnet Merkl Distributor used by the reward claimer.
+    address public constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
 
     function run() public {
         runBase(
@@ -26,7 +26,7 @@ contract MorphoVaultV2AdapterDeployScript is MorphoVaultV2AdapterDeployBaseScrip
                 morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY,
                 cowSwapSettlement: COW_SWAP_SETTLEMENT,
                 cowSwapVaultRelayer: COW_SWAP_VAULT_RELAYER,
-                rewards: REWARDS
+                merklDistributor: MERKL_DISTRIBUTOR
             })
         );
     }

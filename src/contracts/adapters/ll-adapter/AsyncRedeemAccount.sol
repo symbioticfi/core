@@ -18,35 +18,32 @@ abstract contract AsyncRedeemAccount is Account, IAsyncRedeemAccount {
     /* IMMUTABLES */
 
     /// @inheritdoc IAsyncRedeemAccount
-    address public immutable ASYNC_REDEEM_VAULT;
+    uint48 public immutable COOLDOWN;
     /// @inheritdoc IAsyncRedeemAccount
-    address public immutable REDEEM_SHARE;
+    address public immutable ASYNC_REDEEM_VAULT;
 
     /* STATE VARIABLES */
 
+    /// @inheritdoc IAsyncRedeemAccount
+    uint48 public lastRequestTimestamp;
     /// @dev ERC-7540 redemption request ids.
     uint256[] internal _requestIds;
 
     /* CONSTRUCTOR */
 
     /// @notice Creates the async redeem account implementation.
-    constructor(address asyncRedeemVault, address tokenToRedeem, address redeemShare, address factory, address oracle)
+    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address asyncRedeemVault)
         Account(factory, oracle, tokenToRedeem)
     {
-        REDEEM_SHARE = redeemShare;
+        COOLDOWN = cooldown;
         ASYNC_REDEEM_VAULT = asyncRedeemVault;
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns held redeem-share value plus pending async redemption request value in vault assets.
+    /// @dev Returns pending async redemption request value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
         IAsyncRedeemVault asyncRedeemVault = IAsyncRedeemVault(ASYNC_REDEEM_VAULT);
-        address redeemShare = REDEEM_SHARE;
-
-        if (redeemShare != _asset && redeemShare != TOKEN_TO_REDEEM) {
-            assets += asyncRedeemVault.convertToAssets(IERC20(redeemShare).balanceOf(address(this)));
-        }
 
         for (uint256 i; i < _requestIds.length; ++i) {
             uint256 requestId = _requestIds[i];
@@ -57,57 +54,45 @@ abstract contract AsyncRedeemAccount is Account, IAsyncRedeemAccount {
         }
     }
 
-    /// @dev Claims processed requests, prepares provider-specific shares, and submits held redeem shares.
-    function _sync() internal override {
-        _claimRedeemRequests();
-        _beforeRequestRedeem();
-        _requestRedeem();
-    }
-
-    /// @dev Hook for provider-specific conversion before submitting redeem shares.
-    function _beforeRequestRedeem() internal virtual {}
-
-    /// @dev Submits held redeem shares to the async redeem vault.
-    function _requestRedeem() internal {
-        uint256 shares = IERC20(REDEEM_SHARE).balanceOf(address(this));
-        if (shares == 0) {
-            return;
-        }
-
-        uint256 requestId = IAsyncRedeemVault(ASYNC_REDEEM_VAULT).requestRedeem(shares, address(this), address(this));
-        _addRequestId(requestId);
-    }
-
-    /// @dev Claims all currently claimable redemption shares and prunes completed request ids.
-    function _claimRedeemRequests() internal {
+    /// @dev Claims processed requests and submits held token-to-redeem balance.
+    function _sync() internal virtual override {
         IAsyncRedeemVault asyncRedeemVault = IAsyncRedeemVault(ASYNC_REDEEM_VAULT);
 
         for (uint256 i = _requestIds.length; i > 0; --i) {
             uint256 index = i - 1;
-            uint256 requestId = _requestIds[index];
-            uint256 claimableShares = asyncRedeemVault.claimableRedeemRequest(requestId, address(this));
+            uint256 trackedRequestId = _requestIds[index];
+            uint256 claimableShares = asyncRedeemVault.claimableRedeemRequest(trackedRequestId, address(this));
             if (claimableShares > 0) {
                 asyncRedeemVault.redeem(claimableShares, address(this), address(this));
             }
 
             if (
-                asyncRedeemVault.pendingRedeemRequest(requestId, address(this)) == 0
-                    && asyncRedeemVault.claimableRedeemRequest(requestId, address(this)) == 0
+                asyncRedeemVault.pendingRedeemRequest(trackedRequestId, address(this)) == 0
+                    && asyncRedeemVault.claimableRedeemRequest(trackedRequestId, address(this)) == 0
             ) {
                 _requestIds[index] = _requestIds[_requestIds.length - 1];
                 _requestIds.pop();
             }
         }
-    }
 
-    /// @dev Adds the request id once, preserving aggregated request id zero semantics.
-    function _addRequestId(uint256 requestId) internal {
+        if (msg.sender != owner() && lastRequestTimestamp > 0 && block.timestamp < lastRequestTimestamp + COOLDOWN) {
+            return;
+        }
+
+        uint256 shares = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        if (shares == 0) {
+            return;
+        }
+
+        uint256 newRequestId = asyncRedeemVault.requestRedeem(shares, address(this), address(this));
         for (uint256 i; i < _requestIds.length; ++i) {
-            if (_requestIds[i] == requestId) {
+            if (_requestIds[i] == newRequestId) {
+                lastRequestTimestamp = uint48(block.timestamp);
                 return;
             }
         }
-        _requestIds.push(requestId);
+        _requestIds.push(newRequestId);
+        lastRequestTimestamp = uint48(block.timestamp);
     }
 
     /* INITIALIZATION */
@@ -115,6 +100,6 @@ abstract contract AsyncRedeemAccount is Account, IAsyncRedeemAccount {
     /// @dev Initializes the account for an adapter and vault.
     function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
         super._initialize(initialVersion, owner_, data);
-        IERC20(REDEEM_SHARE).forceApprove(ASYNC_REDEEM_VAULT, type(uint256).max);
+        IERC20(TOKEN_TO_REDEEM).forceApprove(ASYNC_REDEEM_VAULT, type(uint256).max);
     }
 }

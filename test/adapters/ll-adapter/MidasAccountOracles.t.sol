@@ -186,7 +186,7 @@ contract MidasAccountOraclesTest is Test {
         assertEq(redemptionVault.lastTokenOut(), address(0));
     }
 
-    function testMidasAccountRequestRedeemDoesNothingWithNoBalance() public {
+    function testMidasAccountDoesNotExposeRequestRedeem() public {
         MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
         MockERC20 asset = new MockERC20("Asset", "ASSET");
         MockMidasRedemptionVault redemptionVault =
@@ -194,8 +194,88 @@ contract MidasAccountOraclesTest is Test {
         MidasNonCompAccount account =
             _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
 
-        account.requestRedeem();
-        assertEq(redemptionVault.lastTokenOut(), address(0));
+        (bool success,) = address(account).call(abi.encodeWithSignature("requestRedeem()"));
+        assertFalse(success);
+    }
+
+    function testMidasAccountDoesNotExposeTotalRequests() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
+        MidasNonCompAccount account =
+            _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
+
+        (bool success,) = address(account).staticcall(abi.encodeWithSignature("totalRequests()"));
+        assertFalse(success);
+    }
+
+    function testMidasAccountDoesNotCapPendingRequests() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
+        redemptionVault.setDataFeed(address(asset), address(new MockMidasDataFeed(1e18)));
+        MidasNonCompAccount account =
+            _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
+
+        for (uint256 i; i < 25; ++i) {
+            tokenToRedeem.mint(address(account), 1 ether);
+            account.sync();
+        }
+
+        assertEq(redemptionVault.currentRequestId(), 25);
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(account.totalAssets(), 25 ether);
+    }
+
+    function testMidasAccountOwnerSyncBypassesCooldown() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
+        redemptionVault.setDataFeed(address(asset), address(new MockMidasDataFeed(1e18)));
+        MidasNonCompAccount account = _deployNonCompAccount(
+            tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault, 1 days
+        );
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        account.sync();
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        account.sync();
+
+        assertEq(redemptionVault.currentRequestId(), 2);
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+    }
+
+    function testMidasAccountPermissionlessSyncRespectsCooldown() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
+        redemptionVault.setDataFeed(address(asset), address(new MockMidasDataFeed(1e18)));
+        MidasNonCompAccount account = _deployNonCompAccount(
+            tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault, 1 days
+        );
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        vm.prank(makeAddr("keeper"));
+        account.sync();
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        vm.prank(makeAddr("keeper"));
+        account.sync();
+
+        assertEq(redemptionVault.currentRequestId(), 1);
+        assertEq(tokenToRedeem.balanceOf(address(account)), 1 ether);
+
+        vm.warp(vm.getBlockTimestamp() + 1 days);
+        vm.prank(makeAddr("keeper"));
+        account.sync();
+
+        assertEq(redemptionVault.currentRequestId(), 2);
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
     }
 
     function testConvertRejectsNonAssetTokenOut() public {
@@ -303,13 +383,23 @@ contract MidasAccountOraclesTest is Test {
         address fallbackToken,
         MockMidasRedemptionVault redemptionVault
     ) internal returns (MidasNonCompAccount account) {
+        account = _deployNonCompAccount(tokenToRedeem, asset, fallbackToken, redemptionVault, 0);
+    }
+
+    function _deployNonCompAccount(
+        MockERC20 tokenToRedeem,
+        MockERC20 asset,
+        address fallbackToken,
+        MockMidasRedemptionVault redemptionVault,
+        uint48 cooldown
+    ) internal returns (MidasNonCompAccount account) {
         vault = address(new MockVault(address(asset)));
         oracle = address(new MidasOracle(redemptionVault.mTokenDataFeed()));
         MigratablesFactory factory = new MigratablesFactory(address(this));
         MidasNonCompAccount implementation = new MidasNonCompAccount(
             oracle,
             address(factory),
-            0,
+            cooldown,
             address(tokenToRedeem),
             fallbackToken,
             address(redemptionVault),

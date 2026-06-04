@@ -11,13 +11,6 @@ uint8 constant REQUEST_STATUS_PENDING = 0;
  * @notice Interface for Midas liquidity lane accounts.
  */
 interface IMidasAccount is IAccount {
-    /* ERRORS */
-
-    /**
-     * @notice Raised when there is no token-to-redeem inventory to request.
-     */
-    error NoRedeemableAssets();
-
     /* FUNCTIONS */
 
     /**

@@ -8,10 +8,10 @@ import {V2DeployBaseScript} from "./base/V2DeployBase.s.sol";
 contract V2DeployScript is V2DeployBaseScript {
     // Address that will own the new AdapterRegistry.
     address public constant ADAPTER_REGISTRY_OWNER = 0x0000000000000000000000000000000000000000;
-    // ProtocolFeeRegistry address used by VaultV2.
-    address public constant PROTOCOL_FEE = 0x3E5a669F673712Bf72De956608E89D36561cbAf1;
+    // Address that will own the new ProtocolFeeRegistry.
+    address public constant PROTOCOL_FEE_REGISTRY_OWNER = 0x0000000000000000000000000000000000000000;
 
     function run() public {
-        runBase(ADAPTER_REGISTRY_OWNER, PROTOCOL_FEE);
+        runBase(ADAPTER_REGISTRY_OWNER, PROTOCOL_FEE_REGISTRY_OWNER);
     }
 }

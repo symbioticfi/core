@@ -17,7 +17,7 @@ contract AaveV3AdapterDeployBaseScript is Script {
         address aavePool;
         address cowSwapSettlement;
         address cowSwapVaultRelayer;
-        address rewards;
+        address merklDistributor;
     }
 
     struct DeploymentData {
@@ -28,7 +28,7 @@ contract AaveV3AdapterDeployBaseScript is Script {
     function runBase(DeployParams memory params) public virtual returns (DeploymentData memory data) {
         _validateParams(params);
 
-        address vaultFactory = address(SymbioticCoreConstants.core().vaultFactory);
+        address vaultFactory = _coreVaultFactory();
 
         _startBroadcast();
         (data.adapterFactory, data.adapterImplementation) = _deployAdapterFactory(params, vaultFactory);
@@ -36,6 +36,7 @@ contract AaveV3AdapterDeployBaseScript is Script {
 
         assert(Ownable(data.adapterFactory).owner() == params.adapterFactoryOwner);
         assert(AaveV3Adapter(data.adapterImplementation).FACTORY() == data.adapterFactory);
+        assert(AdapterFactory(data.adapterFactory).implementation(1) == data.adapterImplementation);
 
         Logs.log(
             string.concat(
@@ -60,7 +61,7 @@ contract AaveV3AdapterDeployBaseScript is Script {
                 params.aavePool,
                 vaultFactory,
                 adapterFactory,
-                params.rewards,
+                params.merklDistributor,
                 params.cowSwapSettlement,
                 params.cowSwapVaultRelayer
             )
@@ -77,12 +78,16 @@ contract AaveV3AdapterDeployBaseScript is Script {
         require(params.aavePool != address(0), "invalid Aave pool");
         require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
         require(params.cowSwapVaultRelayer != address(0), "invalid CoW vault relayer");
-        require(params.rewards != address(0), "invalid rewards");
+        require(params.merklDistributor != address(0), "invalid Merkl distributor");
     }
 
-    function _scriptOwner() internal view returns (address owner_) {
+    function _scriptOwner() internal view virtual returns (address owner_) {
         (,, address origin) = vm.readCallers();
         return origin == address(0) ? msg.sender : origin;
+    }
+
+    function _coreVaultFactory() internal view virtual returns (address) {
+        return address(SymbioticCoreConstants.core().vaultFactory);
     }
 
     function _startBroadcast() internal virtual {

@@ -7,8 +7,6 @@ import {Account} from "./Account.sol";
 
 import {IMidasAccount, REQUEST_STATUS_PENDING} from "../../../interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
 import {IMidasRedemptionVault} from "../../../interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
-import {IAccount} from "../../../interfaces/adapters/ll-adapter/IAccount.sol";
-import {IOracle} from "../../../interfaces/adapters/ll-adapter/IOracle.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -52,13 +50,6 @@ abstract contract MidasAccount is Account, CoWSwapConverter, IMidasAccount {
         REDEMPTION_VAULT = redemptionVault;
     }
 
-    /* PUBLIC FUNCTIONS (CURATOR) */
-
-    function requestRedeem() public onlyOwner {
-        sync();
-        _requestRedeem();
-    }
-
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc CoWSwapConverter
@@ -100,26 +91,20 @@ abstract contract MidasAccount is Account, CoWSwapConverter, IMidasAccount {
             _requestIds.pop();
         }
 
-        if (lastRequestTimestamp > 0 && block.timestamp < lastRequestTimestamp + COOLDOWN) {
+        if (msg.sender != owner() && lastRequestTimestamp > 0 && block.timestamp < lastRequestTimestamp + COOLDOWN) {
             return;
         }
 
-        if (_requestRedeem()) {
-            lastRequestTimestamp = uint48(block.timestamp);
-        }
-    }
-
-    function _requestRedeem() internal returns (bool success) {
         uint256 amount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         if (amount == 0) {
-            return false;
+            return;
         }
         (address dataFeed,,,) = IMidasRedemptionVault(REDEMPTION_VAULT).tokensConfig(_asset);
         _requestIds.push(
             IMidasRedemptionVault(REDEMPTION_VAULT)
                 .redeemRequest(dataFeed == address(0) ? REDEMPTION_TOKEN : _asset, amount)
         );
-        return true;
+        lastRequestTimestamp = uint48(block.timestamp);
     }
 
     /* INITIALIZATION */
@@ -127,7 +112,7 @@ abstract contract MidasAccount is Account, CoWSwapConverter, IMidasAccount {
     /// @dev Initializes the account for an adapter and vault.
     function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
         super._initialize(initialVersion, owner_, data);
-        IAccount.InitParams memory params = abi.decode(data, (IAccount.InitParams));
+        InitParams memory params = abi.decode(data, (InitParams));
 
         IERC20(_asset).forceApprove(REDEMPTION_VAULT, type(uint256).max);
         IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_VAULT, type(uint256).max);
@@ -168,7 +153,6 @@ contract MidasCompAccount is MidasAccount {
 
     /// @dev Returns pending request value using the current oracle rate.
     function _pendingAssets() internal view override returns (uint256) {
-        uint256 price = IOracle(ORACLE).getPrice();
         uint256 amount;
         for (uint256 i; i < _requestIds.length; ++i) {
             (,, uint8 status, uint256 amountMToken,,) =
@@ -177,7 +161,7 @@ contract MidasCompAccount is MidasAccount {
                 amount += amountMToken;
             }
         }
-        return _tokenToRedeemToAssets(amount, price);
+        return _tokenToRedeemToAssets(amount);
     }
 }
 

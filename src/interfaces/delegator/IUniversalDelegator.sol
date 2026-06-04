@@ -405,5 +405,4 @@ interface IUniversalDelegator is IMulticallable {
      * @return pendingAssets Assets still pending after the sweep.
      */
     function sweepPending() external returns (uint256 pendingAssets);
-
 }

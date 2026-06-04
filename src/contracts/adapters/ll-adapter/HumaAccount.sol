@@ -43,29 +43,6 @@ contract HumaAccount is Account, IHumaAccount {
 
     /// @dev Claims fulfilled proceeds and submits held tranche tokens for redemption.
     function _sync() internal override {
-        _claimRedeemedAssets();
-        _requestRedeem();
-    }
-
-    /// @dev Submits held tranche tokens to the Huma tranche vault.
-    function _requestRedeem() internal {
-        uint256 shares = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (shares == 0) {
-            return;
-        }
-
-        IHumaTrancheVault(REDEMPTION_VAULT).addRedemptionRequest(shares);
-
-        uint256 requestedShares = shares - IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (requestedShares == 0) {
-            return;
-        }
-
-        pendingAssets += _tokenToRedeemToAssets(requestedShares);
-    }
-
-    /// @dev Claims normal epoch proceeds and pool-closure proceeds when available.
-    function _claimRedeemedAssets() internal {
         uint256 assetsBefore = IERC20(_asset).balanceOf(address(this));
         IHumaTrancheVault redemptionVault = IHumaTrancheVault(REDEMPTION_VAULT);
 
@@ -74,12 +51,21 @@ contract HumaAccount is Account, IHumaAccount {
         try redemptionVault.withdrawAfterPoolClosure() {} catch {}
 
         uint256 claimedAssets = IERC20(_asset).balanceOf(address(this)) - assetsBefore;
-        if (claimedAssets == 0) {
+        if (claimedAssets > 0) {
+            pendingAssets = claimedAssets >= pendingAssets ? 0 : pendingAssets - claimedAssets;
+        }
+
+        uint256 shares = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        if (shares == 0) {
             return;
         }
 
-        uint256 assets = pendingAssets;
-        pendingAssets = claimedAssets >= assets ? 0 : assets - claimedAssets;
+        redemptionVault.addRedemptionRequest(shares);
+
+        uint256 requestedShares = shares - IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        if (requestedShares > 0) {
+            pendingAssets += _tokenToRedeemToAssets(requestedShares);
+        }
     }
 
     /* INITIALIZATION */

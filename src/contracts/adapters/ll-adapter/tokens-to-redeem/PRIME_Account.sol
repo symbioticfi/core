@@ -6,8 +6,10 @@ import {FigureAccount} from "../FigureAccount.sol";
 import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 
 contract PRIME_Account is FigureAccount {
-    constructor(address asyncRedeemVault, address tokenToRedeem, address redeemShare, address factory, address oracle)
-        FigureAccount(asyncRedeemVault, tokenToRedeem, redeemShare, factory, oracle)
+    uint48 internal constant TOKEN_COOLDOWN = 1 days;
+
+    constructor(address asyncRedeemVault, address tokenToRedeem, address factory, address oracle)
+        FigureAccount(oracle, factory, TOKEN_COOLDOWN, tokenToRedeem, asyncRedeemVault)
     {}
 }
 

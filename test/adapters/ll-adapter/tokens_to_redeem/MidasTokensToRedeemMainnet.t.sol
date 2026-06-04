@@ -7,8 +7,10 @@ import {MidasAccount} from "../../../../src/contracts/adapters/ll-adapter/MidasA
 import {MidasOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {mAPOLLO_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mAPOLLO_Account.sol";
 import {mBASIS_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBASIS_Account.sol";
+import {mBTC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBTC_Account.sol";
 import {mEDGE_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mEDGE_Account.sol";
 import {mEVUSD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mEVUSD_Account.sol";
+import {mFARM_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mFARM_Account.sol";
 import {mFONE_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mFONE_Account.sol";
 import {mGLOBAL_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mGLOBAL_Account.sol";
 import {mHYPER_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHYPER_Account.sol";
@@ -16,6 +18,7 @@ import {mHyperBTC_Account} from "../../../../src/contracts/adapters/ll-adapter/t
 import {mHyperETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHyperETH_Account.sol";
 import {mM1USD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mM1USD_Account.sol";
 import {mMEV_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mMEV_Account.sol";
+import {mevBTC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mevBTC_Account.sol";
 import {mRe7BTC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mRe7BTC_Account.sol";
 import {mRe7YIELD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mRe7YIELD_Account.sol";
 import {mROX_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mROX_Account.sol";
@@ -23,6 +26,7 @@ import {mSL_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-
 import {
     msyrupUSDp_Account
 } from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/msyrupUSDp_Account.sol";
+import {msyrupUSD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/msyrupUSD_Account.sol";
 import {mTBILL_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mTBILL_Account.sol";
 import {MigratablesFactory} from "../../../../src/contracts/common/MigratablesFactory.sol";
 import {IAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
@@ -54,7 +58,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
         MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(MAINNET_USDC);
         TokenSpec[] memory specs = _ethereumMainnetSpecs();
-        assertEq(specs.length, 17);
+        assertEq(specs.length, 21);
 
         for (uint256 i; i < specs.length; ++i) {
             _assertOnboarded(i, specs[i], vault);
@@ -109,7 +113,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
     }
 
     function _ethereumMainnetSpecs() internal pure returns (TokenSpec[] memory specs) {
-        specs = new TokenSpec[](17);
+        specs = new TokenSpec[](21);
         specs[0] = TokenSpec("mF-ONE", 35 days);
         specs[1] = _ethereumCompSpec("mTBILL", 3 days);
         specs[2] = _ethereumCompSpec("mGLOBAL", 65 days);
@@ -127,6 +131,10 @@ contract MidasTokensToRedeemMainnetTest is Test {
         specs[14] = _ethereumCompSpec("mMEV", 3 days);
         specs[15] = _ethereumCompSpec("mBASIS", 7 days);
         specs[16] = _ethereumCompSpec("mRe7BTC", 24 days);
+        specs[17] = _ethereumCompSpec("mBTC", 7 days);
+        specs[18] = _ethereumCompSpec("mevBTC", 7 days);
+        specs[19] = _ethereumCompSpec("msyrupUSD", 7 days);
+        specs[20] = _ethereumCompSpec("mFARM", 7 days);
     }
 
     function _deployImplementation(uint256 index, MigratablesFactory factory)
@@ -151,7 +159,11 @@ contract MidasTokensToRedeemMainnetTest is Test {
         if (index == 13) return new mEDGE_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
         if (index == 14) return new mMEV_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
         if (index == 15) return new mBASIS_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        return new mRe7BTC_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+        if (index == 16) return new mRe7BTC_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+        if (index == 17) return new mBTC_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+        if (index == 18) return new mevBTC_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+        if (index == 19) return new msyrupUSD_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+        return new mFARM_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
     }
 
     function _ethereumCompSpec(string memory symbol, uint48 maxWithdrawalDelay)

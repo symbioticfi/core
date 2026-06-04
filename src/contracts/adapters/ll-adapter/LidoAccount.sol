@@ -5,42 +5,122 @@ pragma solidity ^0.8.35;
 import {Account} from "./Account.sol";
 
 import {ILidoAccount} from "../../../interfaces/adapters/ll-adapter/lido/ILidoAccount.sol";
+import {ILidoWithdrawalQueue} from "../../../interfaces/adapters/ll-adapter/lido/ILidoWithdrawalQueue.sol";
+import {IWETH} from "../../../interfaces/adapters/ll-adapter/etherfi/IWETH.sol";
 import {IWstETH} from "../../../interfaces/adapters/ll-adapter/lido/IWstETH.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title LidoAccount
 /// @notice Account for Lido wstETH redemptions.
 contract LidoAccount is Account, ILidoAccount {
+    using SafeERC20 for IERC20;
+    using Math for uint256;
+
+    /* IMMUTABLES */
+
     /// @inheritdoc ILidoAccount
-    address public immutable STETH;
+    address public immutable WITHDRAWAL_QUEUE;
     /// @inheritdoc ILidoAccount
     address public immutable WSTETH;
+    /// @inheritdoc ILidoAccount
+    address public immutable STETH;
+
+    /* STATE VARIABLES */
+
+    /// @inheritdoc ILidoAccount
+    uint256 public pendingAssets;
+    /// @dev Lido withdrawal request ids.
+    uint256[] internal _requestIds;
+
+    /* CONSTRUCTOR */
 
     /// @notice Creates the Lido account implementation.
-    constructor(address factory, address oracle, address wstETH, address stETH) Account(factory, oracle, wstETH) {
-        STETH = stETH;
+    constructor(address factory, address oracle, address wstETH, address stETH, address withdrawalQueue)
+        Account(factory, oracle, wstETH)
+    {
+        WITHDRAWAL_QUEUE = withdrawalQueue;
         WSTETH = wstETH;
+        STETH = stETH;
     }
 
-    /// @dev Returns additional stETH value when the vault asset is not stETH.
+    /* INTERNAL FUNCTIONS */
+
+    /// @dev Returns held stETH value plus pending request value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
-        if (_asset == STETH) {
-            return 0;
-        }
+        assets = pendingAssets;
 
         uint256 stETHBalance = IERC20(STETH).balanceOf(address(this));
         if (stETHBalance > 0) {
-            assets = _tokenToRedeemToAssets(IWstETH(WSTETH).getWstETHByStETH(stETHBalance));
+            assets += _tokenToRedeemToAssets(IWstETH(WSTETH).getWstETHByStETH(stETHBalance));
         }
     }
 
-    /// @dev Unwraps held wstETH into stETH.
+    /// @dev Claims finalized withdrawals and submits held wstETH or stETH inventory.
     function _sync() internal override {
-        uint256 amountToRedeem = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (amountToRedeem == 0) {
-            return;
+        ILidoWithdrawalQueue withdrawalQueue = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE);
+
+        for (uint256 i = _requestIds.length; i > 0; --i) {
+            uint256 ethBalanceBefore = address(this).balance;
+            try withdrawalQueue.claimWithdrawal(_requestIds[i - 1]) {
+                uint256 claimed = address(this).balance - ethBalanceBefore;
+                if (claimed > 0) {
+                    IWETH(_asset).deposit{value: claimed}();
+                    uint256 claimedAssets = claimed.mulDiv(_unit, 1e18);
+                    pendingAssets = pendingAssets > claimedAssets ? pendingAssets - claimedAssets : 0;
+                    _requestIds[i - 1] = _requestIds[_requestIds.length - 1];
+                    _requestIds.pop();
+                }
+            } catch {}
         }
-        IWstETH(WSTETH).unwrap(amountToRedeem);
+
+        uint256 amountToRedeem = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        uint256 minStETHAmount = withdrawalQueue.MIN_STETH_WITHDRAWAL_AMOUNT();
+        uint256 maxStETHAmount = withdrawalQueue.MAX_STETH_WITHDRAWAL_AMOUNT();
+        if (amountToRedeem > 0 && IWstETH(WSTETH).getStETHByWstETH(amountToRedeem) >= minStETHAmount) {
+            uint256 maxWstETHAmount = IWstETH(WSTETH).getWstETHByStETH(maxStETHAmount);
+            uint256[] memory amounts = new uint256[](amountToRedeem.ceilDiv(maxWstETHAmount));
+            uint256 remaining = amountToRedeem;
+            for (uint256 i; i < amounts.length; ++i) {
+                amounts[i] = remaining > maxWstETHAmount ? maxWstETHAmount : remaining;
+                remaining -= amounts[i];
+            }
+            uint256[] memory requestIds = withdrawalQueue.requestWithdrawalsWstETH(amounts, address(this));
+            for (uint256 i; i < requestIds.length; ++i) {
+                _requestIds.push(requestIds[i]);
+            }
+            pendingAssets += _tokenToRedeemToAssets(amountToRedeem);
+        }
+
+        uint256 stETHBalance = IERC20(STETH).balanceOf(address(this));
+        if (stETHBalance >= minStETHAmount) {
+            uint256[] memory amounts = new uint256[](stETHBalance.ceilDiv(maxStETHAmount));
+            uint256 remaining = stETHBalance;
+            for (uint256 i; i < amounts.length; ++i) {
+                amounts[i] = remaining > maxStETHAmount ? maxStETHAmount : remaining;
+                remaining -= amounts[i];
+            }
+            uint256[] memory requestIds = withdrawalQueue.requestWithdrawals(amounts, address(this));
+            for (uint256 i; i < requestIds.length; ++i) {
+                _requestIds.push(requestIds[i]);
+            }
+            pendingAssets += _tokenToRedeemToAssets(IWstETH(WSTETH).getWstETHByStETH(stETHBalance));
+        }
     }
+
+    /* INITIALIZATION */
+
+    /// @dev Initializes the account for an adapter and vault.
+    function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
+        super._initialize(initialVersion, owner_, data);
+
+        IERC20(WSTETH).forceApprove(WITHDRAWAL_QUEUE, type(uint256).max);
+        IERC20(STETH).forceApprove(WITHDRAWAL_QUEUE, type(uint256).max);
+    }
+
+    /* RECEIVE */
+
+    receive() external payable {}
 }

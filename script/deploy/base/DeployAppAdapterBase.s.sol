@@ -9,16 +9,14 @@ import {Logs} from "../../utils/Logs.sol";
 import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
 import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
-import {MorphoVaultV2Adapter} from "../../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
+import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
 
-contract MorphoVaultV2AdapterDeployBaseScript is Script {
+contract DeployAppAdapterBaseScript is Script {
     struct DeployParams {
         address adapterFactoryOwner;
-        address morphoVaultFactory;
-        address morphoAdapterRegistry;
         address cowSwapSettlement;
         address cowSwapVaultRelayer;
-        address merklDistributor;
+        address networkMiddlewareService;
     }
 
     struct DeploymentData {
@@ -36,12 +34,12 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
         _stopBroadcast();
 
         assert(Ownable(data.adapterFactory).owner() == params.adapterFactoryOwner);
-        assert(MorphoVaultV2Adapter(data.adapterImplementation).FACTORY() == data.adapterFactory);
+        assert(AppAdapter(data.adapterImplementation).FACTORY() == data.adapterFactory);
         assert(AdapterFactory(data.adapterFactory).implementation(1) == data.adapterImplementation);
 
         Logs.log(
             string.concat(
-                "Deployed MorphoVaultV2 adapter factory",
+                "Deployed App adapter factory",
                 "\n    adapterFactory:",
                 vm.toString(data.adapterFactory),
                 "\n    adapterImplementation:",
@@ -58,14 +56,12 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
 
         adapterFactory = address(new AdapterFactory(broadcaster));
         adapterImplementation = address(
-            new MorphoVaultV2Adapter(
+            new AppAdapter(
                 vaultFactory,
                 adapterFactory,
-                params.merklDistributor,
                 params.cowSwapSettlement,
-                params.morphoVaultFactory,
                 params.cowSwapVaultRelayer,
-                params.morphoAdapterRegistry
+                params.networkMiddlewareService
             )
         );
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);
@@ -77,11 +73,9 @@ contract MorphoVaultV2AdapterDeployBaseScript is Script {
 
     function _validateParams(DeployParams memory params) internal pure {
         require(params.adapterFactoryOwner != address(0), "invalid adapter factory owner");
-        require(params.morphoVaultFactory != address(0), "invalid Morpho vault factory");
-        require(params.morphoAdapterRegistry != address(0), "invalid Morpho adapter registry");
         require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
         require(params.cowSwapVaultRelayer != address(0), "invalid CoW vault relayer");
-        require(params.merklDistributor != address(0), "invalid Merkl distributor");
+        require(params.networkMiddlewareService != address(0), "invalid network middleware service");
     }
 
     function _scriptOwner() internal view virtual returns (address owner_) {

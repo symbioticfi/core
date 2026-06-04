@@ -17,8 +17,8 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     address public constant ADAPTER_REGISTRY_OWNER = 0x0000000000000000000000000000000000000001;
     // Address that will own both adapter factories after deployment.
     address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000001;
-    // ProtocolFeeRegistry address used by VaultV2.
-    address public constant PROTOCOL_FEE = 0x3E5a669F673712Bf72De956608E89D36561cbAf1;
+    // Address that will own the new ProtocolFeeRegistry.
+    address public constant PROTOCOL_FEE_REGISTRY_OWNER = 0x0000000000000000000000000000000000000001;
     // AaveV3 pool used by the Aave adapter.
     address public constant AAVE_POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     // MorphoVaultV2 dependencies used by the Morpho adapter.
@@ -27,22 +27,22 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     // CoW Protocol dependencies used by adapter reward converters.
     address public constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address public constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
-    // Rewards contract address used by adapters.
-    address public constant REWARDS = 0xa13e65cA0FeFa52cCb9615108fF400EF4806866B;
+    // Mainnet Merkl Distributor used by adapter reward claimers.
+    address public constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     // Vault scope for the adapter factories, or zero address for the global whitelist.
     address public constant VAULT = 0x0000000000000000000000000000000000000000;
 
     struct DeployParams {
         address adapterRegistryOwner;
         address adapterFactoryOwner;
+        address protocolFeeRegistryOwner;
         address vault;
-        address protocolFee;
         address aavePool;
         address morphoVaultFactory;
         address morphoAdapterRegistry;
         address cowSwapSettlement;
         address cowSwapVaultRelayer;
-        address rewards;
+        address merklDistributor;
     }
 
     struct DeploymentData {
@@ -62,14 +62,14 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
             DeployParams({
                 adapterRegistryOwner: ADAPTER_REGISTRY_OWNER,
                 adapterFactoryOwner: ADAPTER_FACTORY_OWNER,
+                protocolFeeRegistryOwner: PROTOCOL_FEE_REGISTRY_OWNER,
                 vault: VAULT,
-                protocolFee: PROTOCOL_FEE,
                 aavePool: AAVE_POOL,
                 morphoVaultFactory: MORPHO_VAULT_FACTORY,
                 morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY,
                 cowSwapSettlement: COW_SWAP_SETTLEMENT,
                 cowSwapVaultRelayer: COW_SWAP_VAULT_RELAYER,
-                rewards: REWARDS
+                merklDistributor: MERKL_DISTRIBUTOR
             })
         );
     }
@@ -79,18 +79,19 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         address adapterRegistryOwner = params.adapterRegistryOwner;
         require(deployer != address(0), "invalid deployer");
         require(adapterRegistryOwner != address(0), "invalid adapter registry owner");
+        require(params.protocolFeeRegistryOwner != address(0), "invalid protocol fee registry owner");
 
         DeployParams memory deployParams = DeployParams({
             adapterRegistryOwner: deployer,
             adapterFactoryOwner: params.adapterFactoryOwner,
+            protocolFeeRegistryOwner: params.protocolFeeRegistryOwner,
             vault: params.vault,
-            protocolFee: params.protocolFee,
             aavePool: params.aavePool,
             morphoVaultFactory: params.morphoVaultFactory,
             morphoAdapterRegistry: params.morphoAdapterRegistry,
             cowSwapSettlement: params.cowSwapSettlement,
             cowSwapVaultRelayer: params.cowSwapVaultRelayer,
-            rewards: params.rewards
+            merklDistributor: params.merklDistributor
         });
 
         data.v2 = _deployV2(deployParams);
@@ -127,7 +128,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         virtual
         returns (V2DeployBaseScript.DeploymentData memory data)
     {
-        data = new V2DeployBaseScript().runBase(params.adapterRegistryOwner, params.protocolFee);
+        data = new V2DeployBaseScript().runBase(params.adapterRegistryOwner, params.protocolFeeRegistryOwner);
     }
 
     function _deployAave(DeployParams memory params)
@@ -142,7 +143,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 aavePool: params.aavePool,
                 cowSwapSettlement: params.cowSwapSettlement,
                 cowSwapVaultRelayer: params.cowSwapVaultRelayer,
-                rewards: params.rewards
+                merklDistributor: params.merklDistributor
             })
         );
     }
@@ -160,7 +161,7 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 morphoAdapterRegistry: params.morphoAdapterRegistry,
                 cowSwapSettlement: params.cowSwapSettlement,
                 cowSwapVaultRelayer: params.cowSwapVaultRelayer,
-                rewards: params.rewards
+                merklDistributor: params.merklDistributor
             })
         );
     }

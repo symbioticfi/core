@@ -13,8 +13,6 @@ import {
 import {IOracle} from "../../../interfaces/adapters/ll-adapter/IOracle.sol";
 import {IWETH} from "../../../interfaces/adapters/ll-adapter/etherfi/IWETH.sol";
 import {IWeETH} from "../../../interfaces/adapters/ll-adapter/etherfi/IWeETH.sol";
-import {IWstETH} from "../../../interfaces/adapters/ll-adapter/lido/IWstETH.sol";
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -28,17 +26,13 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
     /* IMMUTABLES */
 
     /// @inheritdoc IEtherFiAccount
-    address public immutable EETH;
-    /// @inheritdoc IEtherFiAccount
-    address public immutable LIQUIDITY_POOL;
+    address public immutable WITHDRAW_REQUEST_NFT;
     /// @inheritdoc IEtherFiAccount
     address public immutable REDEMPTION_MANAGER;
     /// @inheritdoc IEtherFiAccount
-    address public immutable WITHDRAW_REQUEST_NFT;
+    address public immutable LIQUIDITY_POOL;
     /// @inheritdoc IEtherFiAccount
-    address public immutable STETH;
-    /// @inheritdoc IEtherFiAccount
-    address public immutable WSTETH;
+    address public immutable EETH;
     /// @inheritdoc IEtherFiAccount
     address public immutable WETH;
 
@@ -46,6 +40,8 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
 
     /// @inheritdoc IEtherFiAccount
     uint256 public pendingAssets;
+    /// @dev Ether.fi withdrawal request ids pending claim.
+    uint256[] internal _requestIds;
 
     /* CONSTRUCTOR */
 
@@ -57,16 +53,12 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
         address tokenToRedeem,
         address factory,
         address oracle,
-        address wstETH,
-        address stETH,
         address eETH,
         address weth
     ) Account(factory, oracle, tokenToRedeem) {
         WITHDRAW_REQUEST_NFT = withdrawRequestNft;
         REDEMPTION_MANAGER = redemptionManager;
         LIQUIDITY_POOL = liquidityPool;
-        WSTETH = wstETH;
-        STETH = stETH;
         EETH = eETH;
         WETH = weth;
     }
@@ -77,93 +69,82 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
     function claimWithdraw(uint256 requestId) public {
         uint256 ethBalanceBefore = address(this).balance;
         IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(requestId);
-        _wrapClaimedEth(ethBalanceBefore);
+        if (_wrapClaimedEth(ethBalanceBefore)) {
+            for (uint256 i; i < _requestIds.length; ++i) {
+                if (_requestIds[i] == requestId) {
+                    _requestIds[i] = _requestIds[_requestIds.length - 1];
+                    _requestIds.pop();
+                    return;
+                }
+            }
+        }
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns pending requests plus held non-asset stETH/WETH value in vault assets.
+    /// @dev Returns pending request value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
         assets = pendingAssets;
-
-        if (_asset == WETH) {
-            assets += _fromBase18Asset(IERC20(STETH).balanceOf(address(this)));
-        } else if (_asset == STETH) {
-            assets += _fromBase18Asset(IERC20(WETH).balanceOf(address(this)));
-        }
     }
 
-    /// @dev Uses no-fee instant redemption into stETH when available, otherwise queues a WETH-backed withdrawal.
+    /// @dev Uses no-fee instant redemption into WETH when available, otherwise queues a WETH-backed withdrawal.
     function _sync() internal override {
+        for (uint256 i = _requestIds.length; i > 0; --i) {
+            uint256 ethBalanceBefore = address(this).balance;
+            try IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(_requestIds[i - 1]) {
+                if (_wrapClaimedEth(ethBalanceBefore)) {
+                    _requestIds[i - 1] = _requestIds[_requestIds.length - 1];
+                    _requestIds.pop();
+                }
+            } catch {}
+        }
+
         uint256 amountToRedeem = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         if (amountToRedeem == 0) {
             return;
         }
 
-        if (_tryInstantRedeem(amountToRedeem, STETH)) {
-            if (_asset == WSTETH) {
-                _wrapAllStethToWsteth();
+        IEtherFiRedemptionManager manager = IEtherFiRedemptionManager(REDEMPTION_MANAGER);
+        address outputToken = manager.ETH_ADDRESS();
+        (,, uint16 exitFeeInBps,) = manager.tokenToRedemptionInfo(outputToken);
+        if (exitFeeInBps == 0 && manager.canRedeem(IWeETH(TOKEN_TO_REDEEM).getEETHByWeETH(amountToRedeem), outputToken))
+        {
+            uint256 ethBalanceBefore = address(this).balance;
+            IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_MANAGER, amountToRedeem);
+            manager.redeemWeEth(amountToRedeem, address(this), outputToken);
+
+            uint256 claimed = address(this).balance - ethBalanceBefore;
+            if (claimed == 0) {
+                revert InstantRedemptionUnavailable();
             }
+
+            _wrapEth(claimed);
             return;
         }
 
-        _requestWithdrawal(amountToRedeem, IOracle(ORACLE).getPrice());
-    }
-
-    /// @dev Attempts an ether.fi instant redemption only when the configured exit fee is zero.
-    function _tryInstantRedeem(uint256 amountToRedeem, address outputToken) internal returns (bool) {
-        IEtherFiRedemptionManager manager = IEtherFiRedemptionManager(REDEMPTION_MANAGER);
-        (,, uint16 exitFeeInBps,) = manager.tokenToRedemptionInfo(outputToken);
-        if (exitFeeInBps > 0) {
-            return false;
-        }
-
-        uint256 eETHAmount = IWeETH(TOKEN_TO_REDEEM).getEETHByWeETH(amountToRedeem);
-        if (!manager.canRedeem(eETHAmount, outputToken)) {
-            return false;
-        }
-
-        IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_MANAGER, amountToRedeem);
-        manager.redeemWeEth(amountToRedeem, address(this), outputToken);
-        return true;
-    }
-
-    /// @dev Opens a delayed ether.fi withdrawal request from unwrapped eETH.
-    function _requestWithdrawal(uint256 amountToRedeem, uint256 price) internal {
-        pendingAssets += _tokenToRedeemToAssets(amountToRedeem, price);
-
+        pendingAssets += _tokenToRedeemToAssets(amountToRedeem, IOracle(ORACLE).getPrice());
         uint256 eETHAmount = IWeETH(TOKEN_TO_REDEEM).unwrap(amountToRedeem);
         IERC20(EETH).forceApprove(LIQUIDITY_POOL, eETHAmount);
-        IEtherFiLiquidityPool(LIQUIDITY_POOL).requestWithdraw(address(this), eETHAmount);
-    }
-
-    /// @dev Wraps any instant redemption stETH proceeds into wstETH.
-    function _wrapAllStethToWsteth() internal {
-        uint256 stETHBalance = IERC20(STETH).balanceOf(address(this));
-        if (stETHBalance == 0) {
-            revert InstantRedemptionUnavailable();
-        }
-
-        IERC20(STETH).forceApprove(WSTETH, stETHBalance);
-        IWstETH(WSTETH).wrap(stETHBalance);
+        _requestIds.push(IEtherFiLiquidityPool(LIQUIDITY_POOL).requestWithdraw(address(this), eETHAmount));
     }
 
     /// @dev Wraps ETH received from queued withdrawal claims into WETH.
-    function _wrapClaimedEth(uint256 ethBalanceBefore) internal {
+    function _wrapClaimedEth(uint256 ethBalanceBefore) internal returns (bool wrapped) {
         uint256 claimed = address(this).balance - ethBalanceBefore;
         if (claimed == 0) {
-            return;
+            return false;
         }
 
-        IWETH(WETH).deposit{value: claimed}();
+        _wrapEth(claimed);
 
-        uint256 claimedAssets = _fromBase18Asset(claimed);
+        uint256 claimedAssets = claimed.mulDiv(_unit, 1e18);
         pendingAssets = pendingAssets > claimedAssets ? pendingAssets - claimedAssets : 0;
+        wrapped = true;
     }
 
-    /// @dev Converts an 18-decimal ETH-denominated amount into the vault asset decimals.
-    function _fromBase18Asset(uint256 amount) internal view returns (uint256) {
-        return amount.mulDiv(_unit, 1e18);
+    /// @dev Wraps ETH into WETH.
+    function _wrapEth(uint256 amount) internal {
+        IWETH(WETH).deposit{value: amount}();
     }
 
     /* RECEIVE */

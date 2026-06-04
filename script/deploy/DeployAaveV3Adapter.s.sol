@@ -3,12 +3,12 @@ pragma solidity ^0.8.35;
 
 import {AaveV3AdapterDeployBaseScript} from "./base/AaveV3AdapterDeployBase.s.sol";
 
-// forge script script/deploy/AaveV3AdapterDeploy.s.sol:AaveV3AdapterDeployScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
+// forge script script/deploy/DeployAaveV3Adapter.s.sol:DeployAaveV3AdapterScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
 
-contract AaveV3AdapterDeployScript is AaveV3AdapterDeployBaseScript {
+contract DeployAaveV3AdapterScript is AaveV3AdapterDeployBaseScript {
     // Address that will own the adapter factory after deployment.
     address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
-    // AaveV3 mock pool from AaveV3MocksDeployScript output.
+    // AaveV3 pool used by the Aave adapter.
     address public constant AAVE_POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     // CoW Protocol settlement used by the converter.
     address public constant COW_SWAP_SETTLEMENT = 0x0000000000000000000000000000000000000000;

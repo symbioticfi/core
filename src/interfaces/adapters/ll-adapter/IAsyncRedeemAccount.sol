@@ -9,14 +9,20 @@ interface IAsyncRedeemAccount {
     /* FUNCTIONS */
 
     /**
+     * @notice Returns the minimum delay between redemption requests for non-owner callers.
+     * @return cooldown The cooldown duration.
+     */
+    function COOLDOWN() external view returns (uint48 cooldown);
+
+    /**
      * @notice Returns the ERC-7540 async redeem vault.
      * @return vault The async redeem vault address.
      */
     function ASYNC_REDEEM_VAULT() external view returns (address vault);
 
     /**
-     * @notice Returns the share token submitted to the async redeem vault.
-     * @return share The redeem share token address.
+     * @notice Returns the timestamp of the latest redemption request.
+     * @return time The latest redemption request timestamp.
      */
-    function REDEEM_SHARE() external view returns (address share);
+    function lastRequestTimestamp() external view returns (uint48 time);
 }
