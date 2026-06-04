@@ -122,6 +122,7 @@ contract UniversalDelegatorSweepVault {
     function push(uint256 assets, address adapter) external {
         pushedAssets += assets;
         lastPushAdapter = adapter;
+        UniversalDelegatorSweepToken(asset).mint(address(this), assets);
     }
 }
 
@@ -465,6 +466,87 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(allocated, 0);
         assertEq(adapter.allocateCalls(), 1);
         assertEq(adapter.lastAllocateAssets(), 0);
+        assertEq(vault.pulledAssets(), 0);
+    }
+
+    function test_AllocateExactDeallocatesRouteToFundAllocation() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        vault.mintFreeAssets(20);
+        delegator.setVault(address(vault));
+
+        UniversalDelegatorSweepAdapter source = _newWhitelistedAdapterForVault(address(vault), 100, 50);
+        UniversalDelegatorSweepAdapter target = _newWhitelistedAdapterForVault(address(vault), 0, 0);
+        target.setAllocatable(70);
+        target.setAllocateReturn(70);
+
+        delegator.addAdapterForTest(address(source));
+        delegator.addAdapterForTest(address(target));
+        delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
+        delegator.setLimits(address(target), type(uint256).max, MAX_SHARE);
+
+        vm.prank(address(target));
+        uint256 allocated = delegator.allocateExact(address(target), 70);
+
+        assertEq(allocated, 70);
+        assertEq(source.lastDeallocateAssets(), 50);
+        assertEq(source.totalAssets(), 50);
+        assertEq(target.lastAllocateAssets(), 70);
+        assertEq(target.totalAssets(), 70);
+        assertEq(vault.pushedAssets(), 50);
+        assertEq(vault.pulledAssets(), 70);
+        assertEq(vault.lastPushAdapter(), address(source));
+        assertEq(vault.lastPullAdapter(), address(target));
+    }
+
+    function test_AllocateExactReturnsZeroWhenPendingAssetsRemain() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(10);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        vault.mintFreeAssets(100);
+        queue.setPendingAfterFill(10);
+        delegator.setVault(address(vault));
+
+        UniversalDelegatorSweepAdapter adapter = _newWhitelistedAdapterForVault(address(vault), 0, 0);
+        adapter.setAllocatable(100);
+        adapter.setAllocateReturn(100);
+
+        delegator.addAdapterForTest(address(adapter));
+        delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
+        delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE);
+
+        vm.prank(address(adapter));
+        uint256 allocated = delegator.allocateExact(address(adapter), 50);
+
+        assertEq(allocated, 0);
+        assertEq(queue.fillCalls(), 1);
+        assertEq(adapter.allocateCalls(), 0);
+        assertEq(vault.pulledAssets(), 0);
+    }
+
+    function test_AllocateExactReturnsZeroWhenRouteCannotDeallocateEnough() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        vault.mintFreeAssets(20);
+        delegator.setVault(address(vault));
+
+        UniversalDelegatorSweepAdapter source = _newWhitelistedAdapterForVault(address(vault), 100, 30);
+        UniversalDelegatorSweepAdapter target = _newWhitelistedAdapterForVault(address(vault), 0, 0);
+        target.setAllocatable(70);
+        target.setAllocateReturn(70);
+
+        delegator.addAdapterForTest(address(source));
+        delegator.addAdapterForTest(address(target));
+        delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
+        delegator.setLimits(address(target), type(uint256).max, MAX_SHARE);
+
+        vm.prank(address(target));
+        uint256 allocated = delegator.allocateExact(address(target), 70);
+
+        assertEq(allocated, 0);
+        assertEq(source.lastDeallocateAssets(), 50);
+        assertEq(source.totalAssets(), 70);
+        assertEq(target.allocateCalls(), 0);
+        assertEq(vault.pushedAssets(), 30);
         assertEq(vault.pulledAssets(), 0);
     }
 

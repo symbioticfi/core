@@ -342,6 +342,14 @@ interface IUniversalDelegator is IMulticallable {
     function allocateAll(uint256 assets) external returns (uint256 allocated);
 
     /**
+     * @notice Allocate exact assets to an adapter, deallocating from the ordered route when vault free assets are insufficient.
+     * @param adapter Adapter address.
+     * @param assets Assets to allocate.
+     * @return allocated Allocated assets.
+     */
+    function allocateExact(address adapter, uint256 assets) external returns (uint256 allocated);
+
+    /**
      * @notice Deallocate assets from a specific adapter.
      * @param adapter Adapter address.
      * @param assets Assets to deallocate.

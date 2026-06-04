@@ -275,6 +275,23 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
+    function allocateExact(address adapter, uint256 assets)
+        public
+        onlyRole(ALLOCATE_ROLE)
+        nonReentrant
+        returns (uint256 allocated)
+    {
+        if (sweepPending() > 0) {
+            return 0;
+        }
+        uint256 toDeallocate = assets.saturatingSub(VaultV2(vault).freeAssets());
+        if (toDeallocate > _deallocateAll(toDeallocate)) {
+            return 0;
+        }
+        return _allocate(adapter, assets);
+    }
+
+    /// @inheritdoc IUniversalDelegator
     function deallocate(address adapter, uint256 assets)
         public
         onlyRole(DEALLOCATE_ROLE)
