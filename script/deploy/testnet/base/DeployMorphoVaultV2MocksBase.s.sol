@@ -14,7 +14,7 @@ import {
     MockMorphoVaultHarnessUpgradeable
 } from "../../../../test/mocks/HoodiScenarioProtocolMocks.sol";
 
-contract MorphoVaultV2MocksDeployBaseScript is Script {
+contract DeployMorphoVaultV2MocksBaseScript is Script {
     bytes32 internal constant ERC1967_ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
 
     struct DeployParams {

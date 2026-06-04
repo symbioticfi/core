@@ -9,12 +9,13 @@ import {Logs} from "../../utils/Logs.sol";
 import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
 import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
-import {AaveV3Adapter} from "../../../src/contracts/adapters/AaveV3Adapter.sol";
+import {MorphoVaultV2Adapter} from "../../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
 
-contract AaveV3AdapterDeployBaseScript is Script {
+contract DeployMorphoVaultV2AdapterBaseScript is Script {
     struct DeployParams {
         address adapterFactoryOwner;
-        address aavePool;
+        address morphoVaultFactory;
+        address morphoAdapterRegistry;
         address cowSwapSettlement;
         address cowSwapVaultRelayer;
         address merklDistributor;
@@ -35,12 +36,12 @@ contract AaveV3AdapterDeployBaseScript is Script {
         _stopBroadcast();
 
         assert(Ownable(data.adapterFactory).owner() == params.adapterFactoryOwner);
-        assert(AaveV3Adapter(data.adapterImplementation).FACTORY() == data.adapterFactory);
+        assert(MorphoVaultV2Adapter(data.adapterImplementation).FACTORY() == data.adapterFactory);
         assert(AdapterFactory(data.adapterFactory).implementation(1) == data.adapterImplementation);
 
         Logs.log(
             string.concat(
-                "Deployed AaveV3 adapter factory",
+                "Deployed MorphoVaultV2 adapter factory",
                 "\n    adapterFactory:",
                 vm.toString(data.adapterFactory),
                 "\n    adapterImplementation:",
@@ -57,13 +58,14 @@ contract AaveV3AdapterDeployBaseScript is Script {
 
         adapterFactory = address(new AdapterFactory(broadcaster));
         adapterImplementation = address(
-            new AaveV3Adapter(
-                params.aavePool,
+            new MorphoVaultV2Adapter(
                 vaultFactory,
                 adapterFactory,
                 params.merklDistributor,
                 params.cowSwapSettlement,
-                params.cowSwapVaultRelayer
+                params.morphoVaultFactory,
+                params.cowSwapVaultRelayer,
+                params.morphoAdapterRegistry
             )
         );
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);
@@ -75,7 +77,8 @@ contract AaveV3AdapterDeployBaseScript is Script {
 
     function _validateParams(DeployParams memory params) internal pure {
         require(params.adapterFactoryOwner != address(0), "invalid adapter factory owner");
-        require(params.aavePool != address(0), "invalid Aave pool");
+        require(params.morphoVaultFactory != address(0), "invalid Morpho vault factory");
+        require(params.morphoAdapterRegistry != address(0), "invalid Morpho adapter registry");
         require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
         require(params.cowSwapVaultRelayer != address(0), "invalid CoW vault relayer");
         require(params.merklDistributor != address(0), "invalid Merkl distributor");

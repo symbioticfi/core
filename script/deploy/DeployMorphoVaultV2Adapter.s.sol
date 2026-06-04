@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.35;
 
-import {MorphoVaultV2AdapterDeployBaseScript} from "./base/MorphoVaultV2AdapterDeployBase.s.sol";
+import {DeployMorphoVaultV2AdapterBaseScript} from "./base/DeployMorphoVaultV2AdapterBase.s.sol";
 
 // forge script script/deploy/DeployMorphoVaultV2Adapter.s.sol:DeployMorphoVaultV2AdapterScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
 
-contract DeployMorphoVaultV2AdapterScript is MorphoVaultV2AdapterDeployBaseScript {
+contract DeployMorphoVaultV2AdapterScript is DeployMorphoVaultV2AdapterBaseScript {
     // Address that will own the adapter factory after deployment.
     address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
     // MorphoVaultV2 dependencies used by the Morpho adapter.

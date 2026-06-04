@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {V2DeployBaseScript} from "./base/V2DeployBase.s.sol";
+import {DeployV2BaseScript} from "./base/DeployV2Base.s.sol";
 
-// forge script script/deploy/V2Deploy.s.sol:V2DeployScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
+// forge script script/deploy/DeployV2.s.sol:DeployV2Script --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
 
-contract V2DeployScript is V2DeployBaseScript {
+contract DeployV2Script is DeployV2BaseScript {
     // Address that will own the new AdapterRegistry.
     address public constant ADAPTER_REGISTRY_OWNER = 0x0000000000000000000000000000000000000000;
     // Address that will own the new ProtocolFeeRegistry.

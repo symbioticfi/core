@@ -3,10 +3,10 @@ pragma solidity ^0.8.35;
 
 import {Test} from "forge-std/Test.sol";
 
-import {AaveV3AdapterDeployBaseScript} from "../../script/deploy/base/AaveV3AdapterDeployBase.s.sol";
+import {DeployAaveV3AdapterBaseScript} from "../../script/deploy/base/DeployAaveV3AdapterBase.s.sol";
 import {DeployAppAdapterBaseScript} from "../../script/deploy/base/DeployAppAdapterBase.s.sol";
-import {MorphoVaultV2AdapterDeployBaseScript} from "../../script/deploy/base/MorphoVaultV2AdapterDeployBase.s.sol";
-import {V2DeployBaseScript} from "../../script/deploy/base/V2DeployBase.s.sol";
+import {DeployMorphoVaultV2AdapterBaseScript} from "../../script/deploy/base/DeployMorphoVaultV2AdapterBase.s.sol";
+import {DeployV2BaseScript} from "../../script/deploy/base/DeployV2Base.s.sol";
 import {SymbioticCoreConstants} from "../integration/SymbioticCoreConstants.sol";
 import "../integration/SymbioticCoreImports.sol";
 
@@ -21,7 +21,7 @@ import {IMigratablesFactory} from "../../src/interfaces/common/IMigratablesFacto
 import {SimpleEntity} from "../mocks/SimpleEntity.sol";
 import {SimpleMigratableEntity} from "../mocks/SimpleMigratableEntity.sol";
 
-contract V2DeployBaseScriptHarness is V2DeployBaseScript {
+contract DeployV2BaseScriptHarness is DeployV2BaseScript {
     SymbioticCoreConstants.Core internal _testCore;
 
     constructor(VaultFactory vaultFactory, DelegatorFactory delegatorFactory) {
@@ -42,7 +42,7 @@ contract V2DeployBaseScriptHarness is V2DeployBaseScript {
     }
 }
 
-contract AaveV3AdapterDeployBaseScriptHarness is AaveV3AdapterDeployBaseScript {
+contract DeployAaveV3AdapterBaseScriptHarness is DeployAaveV3AdapterBaseScript {
     address internal immutable _vaultFactory;
 
     constructor(address vaultFactory) {
@@ -62,7 +62,7 @@ contract AaveV3AdapterDeployBaseScriptHarness is AaveV3AdapterDeployBaseScript {
     }
 }
 
-contract MorphoVaultV2AdapterDeployBaseScriptHarness is MorphoVaultV2AdapterDeployBaseScript {
+contract DeployMorphoVaultV2AdapterBaseScriptHarness is DeployMorphoVaultV2AdapterBaseScript {
     address internal immutable _vaultFactory;
 
     constructor(address vaultFactory) {
@@ -105,7 +105,7 @@ contract DeployAppAdapterBaseScriptHarness is DeployAppAdapterBaseScript {
 contract DeploymentScriptsTest is Test {
     address internal owner = address(0x1001);
 
-    function test_V2DeployDeploysProtocolFeeRegistryAndWhitelistsImplementations() public {
+    function test_DeployV2InstallsProtocolFeeRegistryAndWhitelistsImplementations() public {
         VaultFactory vaultFactory = new VaultFactory(address(this));
         DelegatorFactory delegatorFactory = new DelegatorFactory(address(this));
 
@@ -115,12 +115,12 @@ contract DeploymentScriptsTest is Test {
             delegatorFactory.whitelist(address(new SimpleEntity(address(delegatorFactory), i)));
         }
 
-        V2DeployBaseScriptHarness script = new V2DeployBaseScriptHarness(vaultFactory, delegatorFactory);
+        DeployV2BaseScriptHarness script = new DeployV2BaseScriptHarness(vaultFactory, delegatorFactory);
 
         vaultFactory.transferOwnership(address(script));
         delegatorFactory.transferOwnership(address(script));
 
-        V2DeployBaseScript.DeploymentData memory data = script.runBase(owner, owner);
+        DeployV2BaseScript.DeploymentData memory data = script.runBase(owner, owner);
 
         assertEq(data.protocolFeeRegistry.owner(), owner);
         assertEq(vaultFactory.implementation(3), address(data.vaultV2));
@@ -131,14 +131,14 @@ contract DeploymentScriptsTest is Test {
 
     function test_AdapterDeployBasesDeployFactoryImplementationAndWhitelist() public {
         VaultFactory vaultFactory = new VaultFactory(address(this));
-        AaveV3AdapterDeployBaseScriptHarness aaveScript =
-            new AaveV3AdapterDeployBaseScriptHarness(address(vaultFactory));
-        MorphoVaultV2AdapterDeployBaseScriptHarness morphoScript =
-            new MorphoVaultV2AdapterDeployBaseScriptHarness(address(vaultFactory));
+        DeployAaveV3AdapterBaseScriptHarness aaveScript =
+            new DeployAaveV3AdapterBaseScriptHarness(address(vaultFactory));
+        DeployMorphoVaultV2AdapterBaseScriptHarness morphoScript =
+            new DeployMorphoVaultV2AdapterBaseScriptHarness(address(vaultFactory));
         DeployAppAdapterBaseScriptHarness appScript = new DeployAppAdapterBaseScriptHarness(address(vaultFactory));
 
-        AaveV3AdapterDeployBaseScript.DeploymentData memory aave = aaveScript.runBase(
-            AaveV3AdapterDeployBaseScript.DeployParams({
+        DeployAaveV3AdapterBaseScript.DeploymentData memory aave = aaveScript.runBase(
+            DeployAaveV3AdapterBaseScript.DeployParams({
                 adapterFactoryOwner: owner,
                 aavePool: address(0x2001),
                 cowSwapSettlement: address(0x2002),
@@ -146,8 +146,8 @@ contract DeploymentScriptsTest is Test {
                 merklDistributor: address(0x2004)
             })
         );
-        MorphoVaultV2AdapterDeployBaseScript.DeploymentData memory morpho = morphoScript.runBase(
-            MorphoVaultV2AdapterDeployBaseScript.DeployParams({
+        DeployMorphoVaultV2AdapterBaseScript.DeploymentData memory morpho = morphoScript.runBase(
+            DeployMorphoVaultV2AdapterBaseScript.DeployParams({
                 adapterFactoryOwner: owner,
                 morphoVaultFactory: address(0x3001),
                 morphoAdapterRegistry: address(0x3002),

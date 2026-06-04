@@ -15,7 +15,7 @@ import {WithdrawalQueueFactory} from "../../../src/contracts/WithdrawalQueueFact
 import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
 import {UNIVERSAL_DELEGATOR_TYPE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 
-contract V2DeployBaseScript is Script {
+contract DeployV2BaseScript is Script {
     struct DeploymentData {
         SymbioticCoreConstants.Core core;
         AdapterRegistry adapterRegistry;

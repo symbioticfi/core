@@ -3,9 +3,9 @@ pragma solidity ^0.8.35;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {AaveV3AdapterDeployBaseScript} from "script/deploy/base/AaveV3AdapterDeployBase.s.sol";
-import {MorphoVaultV2AdapterDeployBaseScript} from "script/deploy/base/MorphoVaultV2AdapterDeployBase.s.sol";
-import {V2DeployBaseScript} from "script/deploy/base/V2DeployBase.s.sol";
+import {DeployAaveV3AdapterBaseScript} from "script/deploy/base/DeployAaveV3AdapterBase.s.sol";
+import {DeployMorphoVaultV2AdapterBaseScript} from "script/deploy/base/DeployMorphoVaultV2AdapterBase.s.sol";
+import {DeployV2BaseScript} from "script/deploy/base/DeployV2Base.s.sol";
 import {V2WhitelistAdaptersBaseScript} from "script/upgrade/base/V2WhitelistAdaptersBase.s.sol";
 import {Logs} from "script/utils/Logs.sol";
 import {ScriptBase} from "script/utils/ScriptBase.s.sol";
@@ -46,9 +46,9 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     }
 
     struct DeploymentData {
-        V2DeployBaseScript.DeploymentData v2;
-        AaveV3AdapterDeployBaseScript.DeploymentData aave;
-        MorphoVaultV2AdapterDeployBaseScript.DeploymentData morpho;
+        DeployV2BaseScript.DeploymentData v2;
+        DeployAaveV3AdapterBaseScript.DeploymentData aave;
+        DeployMorphoVaultV2AdapterBaseScript.DeploymentData morpho;
         bytes whitelistAaveFactoryData;
         address whitelistAaveFactoryTarget;
         bytes whitelistMorphoFactoryData;
@@ -126,19 +126,19 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     function _deployV2(DeployParams memory params)
         internal
         virtual
-        returns (V2DeployBaseScript.DeploymentData memory data)
+        returns (DeployV2BaseScript.DeploymentData memory data)
     {
-        data = new V2DeployBaseScript().runBase(params.adapterRegistryOwner, params.protocolFeeRegistryOwner);
+        data = new DeployV2BaseScript().runBase(params.adapterRegistryOwner, params.protocolFeeRegistryOwner);
     }
 
     function _deployAave(DeployParams memory params)
         internal
         virtual
-        returns (AaveV3AdapterDeployBaseScript.DeploymentData memory data)
+        returns (DeployAaveV3AdapterBaseScript.DeploymentData memory data)
     {
-        AaveV3AdapterDeployBaseScript script = new AaveV3AdapterDeployBaseScript();
+        DeployAaveV3AdapterBaseScript script = new DeployAaveV3AdapterBaseScript();
         data = script.runBase(
-            AaveV3AdapterDeployBaseScript.DeployParams({
+            DeployAaveV3AdapterBaseScript.DeployParams({
                 adapterFactoryOwner: params.adapterFactoryOwner,
                 aavePool: params.aavePool,
                 cowSwapSettlement: params.cowSwapSettlement,
@@ -151,11 +151,11 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     function _deployMorpho(DeployParams memory params)
         internal
         virtual
-        returns (MorphoVaultV2AdapterDeployBaseScript.DeploymentData memory data)
+        returns (DeployMorphoVaultV2AdapterBaseScript.DeploymentData memory data)
     {
-        MorphoVaultV2AdapterDeployBaseScript script = new MorphoVaultV2AdapterDeployBaseScript();
+        DeployMorphoVaultV2AdapterBaseScript script = new DeployMorphoVaultV2AdapterBaseScript();
         data = script.runBase(
-            MorphoVaultV2AdapterDeployBaseScript.DeployParams({
+            DeployMorphoVaultV2AdapterBaseScript.DeployParams({
                 adapterFactoryOwner: params.adapterFactoryOwner,
                 morphoVaultFactory: params.morphoVaultFactory,
                 morphoAdapterRegistry: params.morphoAdapterRegistry,

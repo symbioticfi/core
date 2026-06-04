@@ -7,13 +7,13 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import {Logs} from "../../utils/Logs.sol";
-import {AaveV3AdapterDeployBaseScript} from "../base/AaveV3AdapterDeployBase.s.sol";
+import {DeployAaveV3AdapterBaseScript} from "../base/DeployAaveV3AdapterBase.s.sol";
 import {DeployAppAdapterBaseScript} from "../base/DeployAppAdapterBase.s.sol";
 import {DeployCoreBaseScript} from "../base/DeployCoreBase.s.sol";
-import {MorphoVaultV2AdapterDeployBaseScript} from "../base/MorphoVaultV2AdapterDeployBase.s.sol";
-import {V2DeployBaseScript} from "../base/V2DeployBase.s.sol";
-import {AaveV3MocksDeployBaseScript} from "../testnet/base/AaveV3MocksDeployBase.s.sol";
-import {MorphoVaultV2MocksDeployBaseScript} from "../testnet/base/MorphoVaultV2MocksDeployBase.s.sol";
+import {DeployMorphoVaultV2AdapterBaseScript} from "../base/DeployMorphoVaultV2AdapterBase.s.sol";
+import {DeployV2BaseScript} from "../base/DeployV2Base.s.sol";
+import {DeployAaveV3MocksBaseScript} from "../testnet/base/DeployAaveV3MocksBase.s.sol";
+import {DeployMorphoVaultV2MocksBaseScript} from "../testnet/base/DeployMorphoVaultV2MocksBase.s.sol";
 
 import {Token} from "../../../test/mocks/Token.sol";
 import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
@@ -46,7 +46,7 @@ import {IVaultTokenized, VAULT_TOKENIZED_VERSION} from "../../../src/interfaces/
 import {IVaultV2, VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
 import {IWithdrawalQueue} from "../../../src/interfaces/vault/IWithdrawalQueue.sol";
 
-contract FullCoreChaosV2DeployScript is V2DeployBaseScript {
+contract DeployFullCoreChaosV2Script is DeployV2BaseScript {
     SymbioticCoreConstants.Core internal _localCore;
 
     constructor(SymbioticCoreConstants.Core memory core_) {
@@ -58,7 +58,7 @@ contract FullCoreChaosV2DeployScript is V2DeployBaseScript {
     }
 }
 
-contract FullCoreChaosAaveV3AdapterDeployScript is AaveV3AdapterDeployBaseScript {
+contract DeployFullCoreChaosAaveV3AdapterScript is DeployAaveV3AdapterBaseScript {
     address internal immutable _vaultFactory;
 
     constructor(address vaultFactory) {
@@ -70,7 +70,7 @@ contract FullCoreChaosAaveV3AdapterDeployScript is AaveV3AdapterDeployBaseScript
     }
 }
 
-contract FullCoreChaosMorphoVaultV2AdapterDeployScript is MorphoVaultV2AdapterDeployBaseScript {
+contract DeployFullCoreChaosMorphoVaultV2AdapterScript is DeployMorphoVaultV2AdapterBaseScript {
     address internal immutable _vaultFactory;
 
     constructor(address vaultFactory) {
@@ -82,7 +82,7 @@ contract FullCoreChaosMorphoVaultV2AdapterDeployScript is MorphoVaultV2AdapterDe
     }
 }
 
-contract FullCoreChaosAppAdapterDeployScript is DeployAppAdapterBaseScript {
+contract DeployFullCoreChaosAppAdapterScript is DeployAppAdapterBaseScript {
     address internal immutable _vaultFactory;
 
     constructor(address vaultFactory) {
@@ -94,7 +94,7 @@ contract FullCoreChaosAppAdapterDeployScript is DeployAppAdapterBaseScript {
     }
 }
 
-contract FullCoreChaosDeployScript is Script {
+contract DeployFullCoreChaosScript is Script {
     using Subnetwork for address;
 
     struct Actors {
@@ -143,7 +143,7 @@ contract FullCoreChaosDeployScript is Script {
 
         DeployCoreBaseScript.CoreDeploymentData memory coreData = new DeployCoreBaseScript().run(owner);
         SymbioticCoreConstants.Core memory core = _coreFrom(coreData);
-        V2DeployBaseScript.DeploymentData memory v2 = new FullCoreChaosV2DeployScript(core).runBase(owner, owner);
+        DeployV2BaseScript.DeploymentData memory v2 = new DeployFullCoreChaosV2Script(core).runBase(owner, owner);
 
         Token[3] memory tokens = [new Token("Chaos Alpha"), new Token("Chaos Beta"), new Token("Chaos Gamma")];
         Actors memory actors = _actors(seed);
@@ -280,21 +280,21 @@ contract FullCoreChaosDeployScript is Script {
 
     function _deployAdapters(
         SymbioticCoreConstants.Core memory core,
-        V2DeployBaseScript.DeploymentData memory v2,
+        DeployV2BaseScript.DeploymentData memory v2,
         address owner,
         Actors memory actors,
         V2Vault memory vault,
         uint256 seed
     ) internal returns (AdapterDeployments memory adapters) {
-        AaveV3MocksDeployBaseScript.DeploymentData memory aaveMocks =
-            new AaveV3MocksDeployBaseScript().runBase(vault.asset);
-        MorphoVaultV2MocksDeployBaseScript.DeploymentData memory morphoMocks = new MorphoVaultV2MocksDeployBaseScript()
+        DeployAaveV3MocksBaseScript.DeploymentData memory aaveMocks =
+            new DeployAaveV3MocksBaseScript().runBase(vault.asset);
+        DeployMorphoVaultV2MocksBaseScript.DeploymentData memory morphoMocks = new DeployMorphoVaultV2MocksBaseScript()
             .runBase(
-                MorphoVaultV2MocksDeployBaseScript.DeployParams({adapterRegistryOwner: owner, collateral: vault.asset})
+                DeployMorphoVaultV2MocksBaseScript.DeployParams({adapterRegistryOwner: owner, collateral: vault.asset})
             );
 
         adapters.appFactory =
-        new FullCoreChaosAppAdapterDeployScript(address(core.vaultFactory))
+        new DeployFullCoreChaosAppAdapterScript(address(core.vaultFactory))
         .runBase(
             DeployAppAdapterBaseScript.DeployParams({
                 adapterFactoryOwner: owner,
@@ -305,9 +305,9 @@ contract FullCoreChaosDeployScript is Script {
         )
         .adapterFactory;
         adapters.aaveFactory =
-        new FullCoreChaosAaveV3AdapterDeployScript(address(core.vaultFactory))
+        new DeployFullCoreChaosAaveV3AdapterScript(address(core.vaultFactory))
         .runBase(
-            AaveV3AdapterDeployBaseScript.DeployParams({
+            DeployAaveV3AdapterBaseScript.DeployParams({
                 adapterFactoryOwner: owner,
                 aavePool: aaveMocks.aavePool,
                 cowSwapSettlement: address(0xA11CE),
@@ -317,9 +317,9 @@ contract FullCoreChaosDeployScript is Script {
         )
         .adapterFactory;
         adapters.morphoFactory =
-        new FullCoreChaosMorphoVaultV2AdapterDeployScript(address(core.vaultFactory))
+        new DeployFullCoreChaosMorphoVaultV2AdapterScript(address(core.vaultFactory))
         .runBase(
-            MorphoVaultV2AdapterDeployBaseScript.DeployParams({
+            DeployMorphoVaultV2AdapterBaseScript.DeployParams({
                 adapterFactoryOwner: owner,
                 morphoVaultFactory: morphoMocks.morphoVaultFactory,
                 morphoAdapterRegistry: morphoMocks.morphoAdapterRegistry,
