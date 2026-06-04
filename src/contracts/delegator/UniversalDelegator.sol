@@ -247,7 +247,6 @@ contract UniversalDelegator is
             }
         }
 
-        delete autoAllocateAdapters;
         autoAllocateAdapters = newAutoAllocateAdapters;
 
         emit SetAutoAllocateAdapters(newAutoAllocateAdapters);
