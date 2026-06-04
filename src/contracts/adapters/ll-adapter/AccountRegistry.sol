@@ -12,7 +12,7 @@ contract AccountRegistry is Ownable, IAccountRegistry {
     /* STATE VARIABLES */
 
     /// @inheritdoc IAccountRegistry
-    mapping(address tokenToRedeem => address factory) public accountFactories;
+    mapping(address asset => mapping(address tokenToRedeem => address factory)) public accountFactories;
 
     /* CONSTRUCTOR */
 
@@ -21,13 +21,16 @@ contract AccountRegistry is Ownable, IAccountRegistry {
     /* PUBLIC FUNCTIONS (OWNER) */
 
     /// @inheritdoc IAccountRegistry
-    function setAccountFactory(address tokenToRedeem, address factory) public onlyOwner {
-        if (tokenToRedeem == address(0) || factory == address(0)) {
+    function setAccountFactory(address asset, address tokenToRedeem, address factory) public onlyOwner {
+        if (accountFactories[asset][tokenToRedeem] != address(0)) {
+            revert AccountFactoryAlreadySet();
+        }
+        if (asset == address(0) || tokenToRedeem == address(0) || factory == address(0)) {
             revert InvalidConfiguration();
         }
 
-        accountFactories[tokenToRedeem] = factory;
+        accountFactories[asset][tokenToRedeem] = factory;
 
-        emit SetAccountFactory(tokenToRedeem, factory);
+        emit SetAccountFactory(asset, tokenToRedeem, factory);
     }
 }

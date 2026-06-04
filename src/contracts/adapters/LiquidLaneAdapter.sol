@@ -343,7 +343,8 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
             revert TooManyTokensToRedeem();
         }
 
-        address accountFactory = IAccountRegistry(ACCOUNT_REGISTRY).accountFactories(tokenToRedeem);
+        address accountFactory =
+            IAccountRegistry(ACCOUNT_REGISTRY).accountFactories(IERC4626(vault).asset(), tokenToRedeem);
         if (accounts[tokenToRedeem] == address(0)) {
             address[] memory accountConverters = _accountConverters;
             IAccount.InitParams memory params = IAccount.InitParams({

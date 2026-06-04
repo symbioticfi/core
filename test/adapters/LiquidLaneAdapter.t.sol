@@ -64,7 +64,7 @@ contract LiquidLaneAdapterTest is Test {
         vm.startPrank(curator);
         adapterFactory.whitelist(address(implementation));
         accountFactory.whitelist(address(accountImplementation));
-        accountRegistry.setAccountFactory(address(tokenToRedeem), address(accountFactory));
+        accountRegistry.setAccountFactory(address(asset), address(tokenToRedeem), address(accountFactory));
         address[] memory converters = new address[](1);
         converters[0] = curator;
         ILiquidLaneAdapter.InitParams memory params =

@@ -11,6 +11,7 @@ contract AccountRegistryTest is Test {
     AccountRegistry internal registry;
 
     address internal owner = makeAddr("owner");
+    address internal asset = makeAddr("asset");
     address internal tokenToRedeem = makeAddr("tokenToRedeem");
     address internal accountFactory = makeAddr("accountFactory");
 
@@ -20,12 +21,20 @@ contract AccountRegistryTest is Test {
 
     function test_SetAccountFactoryStoresFactory() public {
         vm.expectEmit(true, true, true, true, address(registry));
-        emit IAccountRegistry.SetAccountFactory(tokenToRedeem, accountFactory);
+        emit IAccountRegistry.SetAccountFactory(asset, tokenToRedeem, accountFactory);
 
         vm.prank(owner);
-        registry.setAccountFactory(tokenToRedeem, accountFactory);
+        registry.setAccountFactory(asset, tokenToRedeem, accountFactory);
 
-        assertEq(registry.accountFactories(tokenToRedeem), accountFactory);
+        assertEq(registry.accountFactories(asset, tokenToRedeem), accountFactory);
+    }
+
+    function test_SetAccountFactoryRevertsIfAlreadySet() public {
+        vm.startPrank(owner);
+        registry.setAccountFactory(asset, tokenToRedeem, accountFactory);
+        vm.expectRevert(IAccountRegistry.AccountFactoryAlreadySet.selector);
+        registry.setAccountFactory(asset, tokenToRedeem, makeAddr("otherAccountFactory"));
+        vm.stopPrank();
     }
 
     function test_MigratablesFactoryApiIsUnavailable() public {
