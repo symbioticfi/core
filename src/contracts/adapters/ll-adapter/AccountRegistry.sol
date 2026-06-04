@@ -25,9 +25,6 @@ contract AccountRegistry is Ownable, IAccountRegistry {
         if (accountFactories[asset][tokenToRedeem] != address(0)) {
             revert AccountFactoryAlreadySet();
         }
-        if (asset == address(0) || tokenToRedeem == address(0) || factory == address(0)) {
-            revert InvalidConfiguration();
-        }
 
         accountFactories[asset][tokenToRedeem] = factory;
 

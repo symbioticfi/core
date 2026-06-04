@@ -9,11 +9,6 @@ interface IAccountRegistry {
     /* ERRORS */
 
     /**
-     * @notice Raised when a registry configuration is invalid.
-     */
-    error InvalidConfiguration();
-
-    /**
      * @notice Raised when an account factory is already configured.
      */
     error AccountFactoryAlreadySet();

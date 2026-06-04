@@ -29,6 +29,16 @@ contract AccountRegistryTest is Test {
         assertEq(registry.accountFactories(asset, tokenToRedeem), accountFactory);
     }
 
+    function test_SetAccountFactoryAllowsZeroAddresses() public {
+        vm.expectEmit(true, true, true, true, address(registry));
+        emit IAccountRegistry.SetAccountFactory(address(0), address(0), address(0));
+
+        vm.prank(owner);
+        registry.setAccountFactory(address(0), address(0), address(0));
+
+        assertEq(registry.accountFactories(address(0), address(0)), address(0));
+    }
+
     function test_SetAccountFactoryRevertsIfAlreadySet() public {
         vm.startPrank(owner);
         registry.setAccountFactory(asset, tokenToRedeem, accountFactory);
