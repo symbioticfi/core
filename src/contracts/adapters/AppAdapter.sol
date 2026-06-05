@@ -128,7 +128,7 @@ contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
     /* PUBLIC FUNCTIONS (NETWORK) */
 
     /// @inheritdoc IAppAdapter
-    function slash(uint256 amount) public virtual returns (uint256) {
+    function slash(uint256 amount) public virtual {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
             revert NotNetworkMiddleware();
         }
@@ -148,7 +148,6 @@ contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
         _sendToBurner(amount);
 
         emit Slash(amount);
-        return amount;
     }
 
     /// @inheritdoc IAppAdapter

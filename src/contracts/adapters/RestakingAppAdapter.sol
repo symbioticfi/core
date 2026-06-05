@@ -73,6 +73,19 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         revert Unsupported();
     }
 
+    /// @inheritdoc IRestakingAppAdapter
+    function isUnsyncedSlash() public view returns (bool) {
+        for (uint256 i; i < underlyingVaults.length; ++i) {
+            if (
+                withdrawalRequests[underlyingVaults[i]].firstUnclaimed
+                    < withdrawalRequests[underlyingVaults[i]].tokenIds.length
+            ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IConverter
@@ -149,15 +162,15 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /* PUBLIC FUNCTIONS (NETWORK) */
 
     /// @inheritdoc IAppAdapter
-    function slash(uint256 amount) public override(AppAdapter, IAppAdapter) returns (uint256) {
+    function slash(uint256 amount) public override(AppAdapter, IAppAdapter) {
         syncSlash();
-        return super.slash(_convertToShare(amount));
+        super.slash(_convertToShare(amount, true));
     }
 
     /// @inheritdoc IAppAdapter
     function release(uint256 amount) public override(AppAdapter, IAppAdapter) {
         syncSlash();
-        super.release(_convertToShare(amount));
+        super.release(_convertToShare(amount, false));
     }
 
     /* INTERNAL FUNCTIONS */
@@ -192,9 +205,11 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     }
 
     /// @dev Converts the configured base asset into current vault-asset shares with previewDeposit.
-    function _convertToShare(uint256 amount) internal view returns (uint256) {
+    function _convertToShare(uint256 amount, bool roundUp) internal view returns (uint256) {
         for (uint256 i = underlyingVaults.length; i > 0; --i) {
-            amount = IERC4626(underlyingVaults[i - 1]).previewDeposit(amount);
+            amount = roundUp
+                ? IERC4626(underlyingVaults[i - 1]).previewWithdraw(amount)
+                : IERC4626(underlyingVaults[i - 1]).previewDeposit(amount);
         }
         return amount;
     }

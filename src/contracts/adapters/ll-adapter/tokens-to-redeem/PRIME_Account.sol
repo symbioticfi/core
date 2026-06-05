@@ -8,8 +8,17 @@ import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 contract PRIME_Account is FigureAccount {
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
 
-    constructor(address asyncRedeemVault, address tokenToRedeem, address factory, address oracle)
-        FigureAccount(oracle, factory, TOKEN_COOLDOWN, tokenToRedeem, asyncRedeemVault)
+    constructor(
+        address oracle,
+        address factory,
+        address tokenToRedeem,
+        address asyncRedeemVault,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer
+    )
+        FigureAccount(
+            oracle, factory, TOKEN_COOLDOWN, tokenToRedeem, asyncRedeemVault, cowSwapSettlement, cowSwapVaultRelayer
+        )
     {}
 }
 

@@ -68,11 +68,6 @@ interface ILiquidLaneAdapter is IAdapter {
     error InsufficientAllocate();
 
     /**
-     * @notice Raised when VaultV2 cannot deallocate enough vault assets for a swap.
-     */
-    error InsufficientDeallocate();
-
-    /**
      * @notice Raised when a discount configuration is invalid.
      */
     error InvalidDiscount();
@@ -118,12 +113,10 @@ interface ILiquidLaneAdapter is IAdapter {
      * @notice Initialization parameters for the liquidity lane adapter.
      * @param pauser Address allowed to pause swaps.
      * @param unpauser Address allowed to unpause swaps.
-     * @param converters Initial account converters exempt from the prepared-request delay.
      */
     struct InitParams {
         address pauser;
         address unpauser;
-        address[] converters;
     }
 
     /**

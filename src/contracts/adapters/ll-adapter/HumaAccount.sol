@@ -28,9 +28,14 @@ contract HumaAccount is Account, IHumaAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Huma account implementation.
-    constructor(address redemptionVault, address tokenToRedeem, address factory, address oracle)
-        Account(factory, oracle, tokenToRedeem)
-    {
+    constructor(
+        address oracle,
+        address factory,
+        address tokenToRedeem,
+        address redemptionVault,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer
+    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
         REDEMPTION_VAULT = redemptionVault;
     }
 

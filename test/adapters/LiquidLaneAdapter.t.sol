@@ -58,17 +58,16 @@ contract LiquidLaneAdapterTest is Test {
 
         LiquidLaneAdapter implementation =
             new LiquidLaneAdapter(address(vaultFactory), address(adapterFactory), address(accountRegistry));
-        MockLiquidLaneAccount accountImplementation =
-            new MockLiquidLaneAccount(address(accountFactory), address(asset), address(new MockLiquidLaneOracle(1e18)));
+        MockLiquidLaneAccount accountImplementation = new MockLiquidLaneAccount(
+            address(accountFactory), address(asset), address(new MockLiquidLaneOracle(1e18)), address(tokenToRedeem)
+        );
 
         vm.startPrank(curator);
         adapterFactory.whitelist(address(implementation));
         accountFactory.whitelist(address(accountImplementation));
         accountRegistry.setAccountFactory(address(asset), address(tokenToRedeem), address(accountFactory));
-        address[] memory converters = new address[](1);
-        converters[0] = curator;
         ILiquidLaneAdapter.InitParams memory params =
-            ILiquidLaneAdapter.InitParams({pauser: pauser, unpauser: unpauser, converters: converters});
+            ILiquidLaneAdapter.InitParams({pauser: pauser, unpauser: unpauser});
         vm.expectEmit(false, false, false, true);
         emit ILiquidLaneAdapter.Initialize(params);
         adapter = LiquidLaneAdapter(adapterFactory.create(1, curator, abi.encode(address(vault), abi.encode(params))));
@@ -98,6 +97,16 @@ contract LiquidLaneAdapterTest is Test {
         vm.expectRevert();
         adapter.addTokenToRedeem(address(otherTokenToRedeem));
         vm.stopPrank();
+    }
+
+    function testAddTokenToRedeemReusesExistingAccountForDuplicateToken() public {
+        address account = adapter.accounts(address(tokenToRedeem));
+
+        vm.prank(curator);
+        adapter.addTokenToRedeem(address(tokenToRedeem));
+
+        assertEq(adapter.getTokensToRedeemLength(), 2);
+        assertEq(adapter.accounts(address(tokenToRedeem)), account);
     }
 
     function testRemoveTokenToRedeemClearsConfiguration() public {
@@ -196,6 +205,25 @@ contract LiquidLaneAdapterTest is Test {
         assertEq(asset.balanceOf(address(vault)), 105 ether);
         assertEq(adapter.totalAssets(), 0);
         assertEq(adapter.freeAssets(), 0);
+    }
+
+    function testSwapUsesDelegatorAllocateExactForShortfall() public {
+        asset.mint(address(vault), 40 ether);
+        tokenToRedeem.mint(marketMaker, 100 ether);
+        delegator.setRevertDeallocateExact(true);
+
+        vm.startPrank(marketMaker);
+        tokenToRedeem.transfer(address(adapter), 100 ether);
+        adapter.swap(
+            ILiquidLaneAdapter.Swap({
+                recipient: recipient, tokenIn: address(tokenToRedeem), amountIn: 100 ether, amountOut: 90 ether
+            })
+        );
+        vm.stopPrank();
+
+        assertEq(delegator.allocateExactCalls(), 1);
+        assertEq(asset.balanceOf(recipient), 90 ether);
+        assertEq(asset.balanceOf(address(vault)), 0);
     }
 
     function testPrefundedAcquisitionDoesNotAllocateVaultAssetsAndPaysReceiver() public {
@@ -474,9 +502,15 @@ contract MockLiquidLaneVault {
 
 contract MockLiquidLaneDelegator {
     address public immutable vault;
+    bool public revertDeallocateExact;
+    uint256 public allocateExactCalls;
 
     constructor(address vault_) {
         vault = vault_;
+    }
+
+    function setRevertDeallocateExact(bool newRevertDeallocateExact) external {
+        revertDeallocateExact = newRevertDeallocateExact;
     }
 
     function allocatable(address) external view returns (uint256) {
@@ -497,7 +531,24 @@ contract MockLiquidLaneDelegator {
         }
     }
 
-    function deallocateExact(uint256 assets) external pure returns (uint256 deallocated) {
+    function allocateExact(address adapter, uint256 assets) external returns (uint256 allocated) {
+        ++allocateExactCalls;
+        MockERC20 asset = MockERC20(MockLiquidLaneVault(vault).asset());
+        uint256 freeAssets = asset.balanceOf(vault);
+        if (freeAssets < assets) {
+            asset.mint(vault, assets - freeAssets);
+        }
+        MockLiquidLaneVault(vault).pull(assets, adapter);
+        allocated = IAdapter(adapter).allocate(assets);
+        if (allocated < assets) {
+            MockLiquidLaneVault(vault).push(assets - allocated, adapter);
+        }
+    }
+
+    function deallocateExact(uint256 assets) external view returns (uint256 deallocated) {
+        if (revertDeallocateExact) {
+            revert();
+        }
         return assets;
     }
 
@@ -514,11 +565,12 @@ contract MockLiquidLaneAccount is MigratableEntity, IAccount {
     address public immutable ORACLE;
     address public adapter;
     address public vault;
-    address public TOKEN_TO_REDEEM;
+    address public immutable TOKEN_TO_REDEEM;
 
-    constructor(address factory, address asset_, address oracle_) MigratableEntity(factory) {
+    constructor(address factory, address asset_, address oracle_, address tokenToRedeem) MigratableEntity(factory) {
         asset = asset_;
         ORACLE = oracle_;
+        TOKEN_TO_REDEEM = tokenToRedeem;
     }
 
     modifier onlyAdapter() {
@@ -542,12 +594,33 @@ contract MockLiquidLaneAccount is MigratableEntity, IAccount {
         assets = IERC20(asset).balanceOf(address(this));
     }
 
-    function _initialize(uint64, address, bytes memory data) internal override {
-        IAccount.InitParams memory params = abi.decode(data, (IAccount.InitParams));
+    function COW_SWAP_SETTLEMENT() external pure returns (address) {
+        return address(0);
+    }
 
-        adapter = params.adapter;
-        vault = params.vault;
-        TOKEN_TO_REDEEM = params.tokenToRedeem;
+    function COW_SWAP_VAULT_RELAYER() external pure returns (address) {
+        return address(0);
+    }
+
+    function convert(address, uint256, address, bytes calldata) external pure {}
+
+    function executableAt(uint256, bytes32) external pure returns (uint48) {
+        return 0;
+    }
+
+    function isConverter(address) external pure returns (bool) {
+        return false;
+    }
+
+    function prepareConvert(address, uint256, address, bytes calldata) external pure returns (bytes32) {
+        return bytes32(0);
+    }
+
+    function setConverterStatus(address, bool) external pure {}
+
+    function _initialize(uint64, address, bytes memory data) internal override {
+        (vault, adapter) = abi.decode(data, (address, address));
+
         IERC20(asset).approve(adapter, type(uint256).max);
     }
 }

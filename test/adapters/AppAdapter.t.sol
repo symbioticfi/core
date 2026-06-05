@@ -220,16 +220,15 @@ contract AppAdapterTest is Test {
         adapter.slash(100);
     }
 
-    function test_SlashUsesConfiguredPairAndReturnsSlashedAmount() public {
+    function test_SlashUsesConfiguredPairAndBurnsSlashedAmount() public {
         _allocate(100);
 
         vm.expectEmit(true, true, true, true, address(adapter));
         emit IAppAdapter.Slash(40);
 
         vm.prank(networkMiddleware);
-        uint256 slashedAmount = adapter.slash(40);
+        adapter.slash(40);
 
-        assertEq(slashedAmount, 40);
         assertEq(adapter.totalAssets(), 60);
         assertEq(adapter.slashable(), 60);
         assertEq(delegator.decreaseLimitsCalls(), 1);
@@ -245,9 +244,8 @@ contract AppAdapterTest is Test {
         emit IAppAdapter.Slash(100);
 
         vm.prank(networkMiddleware);
-        uint256 slashedAmount = adapter.slash(150);
+        adapter.slash(150);
 
-        assertEq(slashedAmount, 100);
         assertEq(adapter.totalAssets(), 0);
         assertEq(adapter.slashable(), 0);
         assertEq(adapter.stake(), 0);

@@ -98,18 +98,8 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(IAccount(address(account)).totalAssets(), 0);
     }
 
-    function _initData(address tokenToRedeem, MidasTokensToRedeemAssetVault vault)
-        internal
-        view
-        returns (bytes memory)
-    {
-        address[] memory converters = new address[](1);
-        converters[0] = address(this);
-        return abi.encode(
-            IAccount.InitParams({
-                adapter: adapter, vault: address(vault), tokenToRedeem: tokenToRedeem, converters: converters
-            })
-        );
+    function _initData(address, MidasTokensToRedeemAssetVault vault) internal view returns (bytes memory) {
+        return abi.encode(address(vault), adapter);
     }
 
     function _ethereumMainnetSpecs() internal pure returns (TokenSpec[] memory specs) {

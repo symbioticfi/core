@@ -177,6 +177,16 @@ contract CoWSwapConverterTest is Test {
         assertTrue(settlement.lastSigned());
     }
 
+    function test_PrepareConvertRevertsWhenRequestIsAlreadyScheduledOnCurrentNonce() public {
+        bytes memory data =
+            _orderData(100, 90, 0, 1, uint48(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
+
+        converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
+
+        vm.expectRevert(ICoWSwapConverter.AlreadyReservedOrder.selector);
+        converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
+    }
+
     function test_PreparedConvertRevertsWhenTokenOutChanges() public {
         address caller = makeAddr("caller");
         Token otherTokenOut = new Token("Other Token Out");
@@ -185,7 +195,7 @@ contract CoWSwapConverterTest is Test {
         converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
 
         vm.warp(vm.getBlockTimestamp() + EXECUTION_DELAY);
-        vm.expectRevert(ICoWSwapConverter.InvalidNonce.selector);
+        vm.expectRevert(ICoWSwapConverter.ExecutionDelayNotElapsed.selector);
         vm.prank(caller);
         converter.convert(address(tokenIn), 100, address(otherTokenOut), data);
     }
@@ -200,7 +210,7 @@ contract CoWSwapConverterTest is Test {
         converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(100, 80, 0, 2));
 
         vm.warp(vm.getBlockTimestamp() + EXECUTION_DELAY);
-        vm.expectRevert(ICoWSwapConverter.InvalidNonce.selector);
+        vm.expectRevert(ICoWSwapConverter.ExecutionDelayNotElapsed.selector);
         vm.prank(caller);
         converter.convert(address(tokenIn), 100, address(tokenOut), data);
     }

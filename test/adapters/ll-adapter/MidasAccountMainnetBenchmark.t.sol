@@ -178,17 +178,8 @@ contract MidasAccountMainnetBenchmarkTest is Test {
         account = MidasCompAccountBenchHarness(factory.create(1, address(this), _initData(MAINNET_MTBILL)));
     }
 
-    function _initData(address tokenToRedeem) internal returns (bytes memory) {
-        address[] memory converters = new address[](1);
-        converters[0] = address(this);
-        return abi.encode(
-            IAccount.InitParams({
-                adapter: makeAddr("adapter"),
-                vault: address(vault),
-                tokenToRedeem: tokenToRedeem,
-                converters: converters
-            })
-        );
+    function _initData(address) internal returns (bytes memory) {
+        return abi.encode(address(vault), makeAddr("adapter"));
     }
 
     function _benchmarkFinalizeRedeem(uint256 count) internal {

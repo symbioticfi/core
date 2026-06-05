@@ -62,4 +62,10 @@ interface IRestakingAppAdapter is IAppAdapter {
      * @notice Synchronizes pending slashed withdrawal requests.
      */
     function syncSlash() external;
+
+    /**
+     * @notice Returns whether there are pending slashed withdrawal requests to sync.
+     * @return status Whether there are pending slashed withdrawal requests.
+     */
+    function isUnsyncedSlash() external view returns (bool status);
 }

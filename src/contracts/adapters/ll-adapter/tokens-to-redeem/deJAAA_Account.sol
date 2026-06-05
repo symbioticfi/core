@@ -9,8 +9,16 @@ contract deJAAA_Account is CentrifugeAccount {
     address internal constant TOKEN_ADDRESS = 0xAAA0008C8CF3A7Dca931adaF04336A5D808C82Cc;
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
 
-    constructor(address asyncRedeemVault, address factory, address oracle)
-        CentrifugeAccount(oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, asyncRedeemVault)
+    constructor(
+        address oracle,
+        address factory,
+        address asyncRedeemVault,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer
+    )
+        CentrifugeAccount(
+            oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, asyncRedeemVault, cowSwapSettlement, cowSwapVaultRelayer
+        )
     {}
 }
 

@@ -6,9 +6,15 @@ import {LidoAccount} from "../LidoAccount.sol";
 import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 
 contract wstETH_Account is LidoAccount {
-    constructor(address factory, address oracle, address wstETH, address stETH, address withdrawalQueue)
-        LidoAccount(factory, oracle, wstETH, stETH, withdrawalQueue)
-    {}
+    constructor(
+        address stETH,
+        address oracle,
+        address wstETH,
+        address factory,
+        address withdrawalQueue,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer
+    ) LidoAccount(stETH, oracle, wstETH, factory, withdrawalQueue, cowSwapSettlement, cowSwapVaultRelayer) {}
 }
 
 contract wstETH_AccountFactory is MigratablesFactory {

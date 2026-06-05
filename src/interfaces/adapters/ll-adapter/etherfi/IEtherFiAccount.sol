@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {IAccount} from "../IAccount.sol";
+
 /**
  * @title IEtherFiAccount
  * @notice Interface for ether.fi liquidity lane accounts.
  */
-interface IEtherFiAccount {
+interface IEtherFiAccount is IAccount {
     /* ERRORS */
 
     /**

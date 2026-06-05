@@ -39,6 +39,14 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         mapping(uint256 nonce => mapping(bytes32 requestHash => uint48 timestamp)) executableAt;
     }
 
+    /// @dev Returns CoW converter storage at the ERC-7201 namespace.
+    function _getCoWSwapConverterStorage() internal pure returns (CoWSwapConverterStorage storage $) {
+        uint256 slot = erc7201("symbiotic.storage.CoWSwapConverter");
+        assembly {
+            $.slot := slot
+        }
+    }
+
     /* CONSTRUCTOR */
 
     constructor(address cowSwapSettlement, address cowSwapVaultRelayer) {
@@ -74,12 +82,9 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         }
 
         if (!isConverter(msg.sender)) {
-            CoWSwapConverterStorage storage $ = _getCoWSwapConverterStorage();
-            uint48 timestamp = $.executableAt[nonces(tokenIn)][keccak256(abi.encode(tokenIn, amountIn, tokenOut, data))];
-            if (timestamp == 0) {
-                revert InvalidNonce();
-            }
-            if (block.timestamp < timestamp) {
+            uint48 timestamp = _getCoWSwapConverterStorage()
+            .executableAt[nonces(tokenIn)][keccak256(abi.encode(tokenIn, amountIn, tokenOut, data))];
+            if (timestamp == 0 || block.timestamp < timestamp) {
                 revert ExecutionDelayNotElapsed();
             }
         }
@@ -124,7 +129,11 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         returns (bytes32 requestHash)
     {
         requestHash = keccak256(abi.encode(tokenIn, amountIn, tokenOut, data));
+
         CoWSwapConverterStorage storage $ = _getCoWSwapConverterStorage();
+        if ($.executableAt[nonces(tokenIn)][requestHash] > 0) {
+            revert AlreadyReservedOrder();
+        }
         $.executableAt[nonces(tokenIn)][requestHash] = uint48(block.timestamp) + EXECUTION_DELAY;
 
         emit PrepareConvert(tokenIn, amountIn, tokenOut, data);
@@ -138,14 +147,6 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     }
 
     /* INTERNAL FUNCTIONS */
-
-    /// @dev Returns CoW converter storage at the ERC-7201 namespace.
-    function _getCoWSwapConverterStorage() internal pure returns (CoWSwapConverterStorage storage $) {
-        uint256 slot = erc7201("symbiotic.storage.CoWSwapConverter");
-        assembly {
-            $.slot := slot
-        }
-    }
 
     /// @dev Return the EIP-712 signing hash for the specified order.
     ///

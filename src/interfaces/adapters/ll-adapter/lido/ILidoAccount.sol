@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {IAccount} from "../IAccount.sol";
+
 /**
  * @title ILidoAccount
  * @notice Interface for Lido liquidity lane accounts.
  */
-interface ILidoAccount {
+interface ILidoAccount is IAccount {
     /* FUNCTIONS */
 
     /**

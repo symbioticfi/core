@@ -12,7 +12,17 @@ contract PikuAccount is AsyncRedeemAccount, IPikuAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Piku account implementation.
-    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address asyncRedeemVault)
-        AsyncRedeemAccount(oracle, factory, cooldown, tokenToRedeem, asyncRedeemVault)
+    constructor(
+        address oracle,
+        address factory,
+        uint48 cooldown,
+        address tokenToRedeem,
+        address asyncRedeemVault,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer
+    )
+        AsyncRedeemAccount(
+            oracle, factory, cooldown, tokenToRedeem, asyncRedeemVault, cowSwapSettlement, cowSwapVaultRelayer
+        )
     {}
 }

@@ -410,12 +410,8 @@ contract MidasAccountOraclesTest is Test {
         account = MidasNonCompAccount(factory.create(1, address(this), _initData(address(tokenToRedeem))));
     }
 
-    function _initData(address tokenToRedeem) internal view returns (bytes memory) {
-        address[] memory converters = new address[](1);
-        converters[0] = address(this);
-        return abi.encode(
-            IAccount.InitParams({adapter: adapter, vault: vault, tokenToRedeem: tokenToRedeem, converters: converters})
-        );
+    function _initData(address) internal view returns (bytes memory) {
+        return abi.encode(vault, adapter);
     }
 }
 

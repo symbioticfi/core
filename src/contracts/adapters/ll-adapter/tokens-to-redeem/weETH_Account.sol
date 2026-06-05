@@ -7,15 +7,30 @@ import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 
 contract weETH_Account is EtherFiAccount {
     constructor(
-        address factory,
-        address oracle,
-        address weETH,
         address eETH,
+        address weth,
+        address weETH,
+        address oracle,
+        address factory,
         address liquidityPool,
         address redemptionManager,
+        address cowSwapSettlement,
         address withdrawRequestNft,
-        address weth
-    ) EtherFiAccount(withdrawRequestNft, redemptionManager, liquidityPool, weETH, factory, oracle, eETH, weth) {}
+        address cowSwapVaultRelayer
+    )
+        EtherFiAccount(
+            eETH,
+            weth,
+            oracle,
+            factory,
+            liquidityPool,
+            weETH,
+            redemptionManager,
+            cowSwapSettlement,
+            withdrawRequestNft,
+            cowSwapVaultRelayer
+        )
+    {}
 }
 
 contract weETH_AccountFactory is MigratablesFactory {

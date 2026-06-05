@@ -38,9 +38,15 @@ contract LidoAccount is Account, ILidoAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Lido account implementation.
-    constructor(address factory, address oracle, address wstETH, address stETH, address withdrawalQueue)
-        Account(factory, oracle, wstETH)
-    {
+    constructor(
+        address stETH,
+        address oracle,
+        address wstETH,
+        address factory,
+        address withdrawalQueue,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer
+    ) Account(oracle, factory, wstETH, cowSwapSettlement, cowSwapVaultRelayer) {
         WITHDRAWAL_QUEUE = withdrawalQueue;
         WSTETH = wstETH;
         STETH = stETH;

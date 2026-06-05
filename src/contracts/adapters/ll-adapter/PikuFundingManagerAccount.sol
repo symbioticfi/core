@@ -28,9 +28,14 @@ contract PikuFundingManagerAccount is Account, IPikuFundingManagerAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Piku funding manager account implementation.
-    constructor(address fundingManager, address tokenToRedeem, address factory, address oracle)
-        Account(factory, oracle, tokenToRedeem)
-    {
+    constructor(
+        address oracle,
+        address factory,
+        address tokenToRedeem,
+        address fundingManager,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer
+    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
         FUNDING_MANAGER = fundingManager;
     }
 

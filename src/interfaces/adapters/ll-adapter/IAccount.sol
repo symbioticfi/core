@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {ICoWSwapConverter} from "../common/ICoWSwapConverter.sol";
+
 /**
  * @title IAccount
  * @notice Interface for token-specific liquidity lane accounts.
  */
-interface IAccount {
+interface IAccount is ICoWSwapConverter {
     /* ERRORS */
 
     /**
@@ -13,21 +15,10 @@ interface IAccount {
      */
     error NotAdapter();
 
-    /* STRUCTS */
-
     /**
-     * @notice Initialization parameters for token-specific liquidity lane accounts.
-     * @param adapter Adapter allowed to sweep realized vault assets.
-     * @param vault Vault bound to the account.
-     * @param tokenToRedeem Token submitted through this account.
-     * @param converters Initial converters exempt from the prepared-request delay when supported by the account.
+     * @notice Raised when the account oracle returns zero.
      */
-    struct InitParams {
-        address adapter;
-        address vault;
-        address tokenToRedeem;
-        address[] converters;
-    }
+    error InvalidOracle();
 
     /* FUNCTIONS */
 

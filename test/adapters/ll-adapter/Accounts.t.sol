@@ -3,7 +3,6 @@ pragma solidity ^0.8.35;
 
 import {Test} from "forge-std/Test.sol";
 
-import {ACRED_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRED_Account.sol";
 import {ACRDX_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
 import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
 import {DigiFTAccount} from "../../../src/contracts/adapters/ll-adapter/DigiFTAccount.sol";
@@ -43,27 +42,9 @@ contract AccountsTest is Test {
     uint48 internal constant PST_STALENESS_DURATION = 2 days;
 
     address internal adapter = makeAddr("adapter");
+    address internal cowSwapSettlement = makeAddr("cowSwapSettlement");
+    address internal cowSwapVaultRelayer = makeAddr("cowSwapVaultRelayer");
     address internal redemptionWallet = makeAddr("redemptionWallet");
-
-    function testSecuritizeAccountForwardsHeldInventoryToRedemptionWallet() public {
-        MockERC20 tokenToRedeem = new MockERC20("ACRED", "ACRED", 6);
-        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
-        MockOracle oracle = new MockOracle(2e18);
-        ACRED_Account account = _deployACRED(tokenToRedeem, asset, oracle);
-
-        tokenToRedeem.mint(address(account), 10e6);
-
-        assertEq(account.ORACLE(), address(oracle));
-        assertEq(MockVault(account.vault()).asset(), address(asset));
-        assertEq(account.REDEMPTION_WALLET(), redemptionWallet);
-        assertEq(account.totalAssets(), 20e6);
-
-        account.sync();
-
-        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
-        assertEq(tokenToRedeem.balanceOf(redemptionWallet), 10e6);
-        assertEq(account.totalAssets(), 0);
-    }
 
     function testWstETHAccountRequestsWithdrawalAndClaimsWETH() public {
         MockERC20 stETH = new MockERC20("Liquid staked Ether", "stETH", 18);
@@ -116,11 +97,13 @@ contract AccountsTest is Test {
         MockOracle oracle = new MockOracle(1e18);
         MigratablesFactory factory = new MigratablesFactory(address(this));
         wstETH_Account implementation = new wstETH_Account(
-            address(factory),
+            address(stETH),
             address(oracle),
             address(wstETH),
-            address(stETH),
-            address(new MockLidoWithdrawalQueue(address(wstETH), address(stETH)))
+            address(factory),
+            address(new MockLidoWithdrawalQueue(address(wstETH), address(stETH))),
+            cowSwapSettlement,
+            cowSwapVaultRelayer
         );
         factory.whitelist(address(implementation));
 
@@ -241,20 +224,35 @@ contract AccountsTest is Test {
         assertEq(account.totalAssets(), 4 ether);
     }
 
+    function testWeETHAccountQueuedWithdrawalRevertsWhenOracleReturnsZero() public {
+        LstMocks memory mocks = _lstMocks();
+        MockOracle oracle = new MockOracle(0);
+        weETH_Account account = _deployWeETH(mocks, mocks.weth, oracle);
+
+        mocks.weETH.mint(address(account), 4 ether);
+        mocks.redemptionManager.setExitFee(mocks.redemptionManager.ETH_ADDRESS(), 0);
+        mocks.redemptionManager.setRedeemable(mocks.redemptionManager.ETH_ADDRESS(), false);
+
+        vm.expectRevert();
+        account.sync();
+    }
+
     function testWeETHAccountInitializesWithoutLocalVaultAssetGuard() public {
         LstMocks memory mocks = _lstMocks();
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockOracle oracle = new MockOracle(1e18);
         MigratablesFactory factory = new MigratablesFactory(address(this));
         weETH_Account implementation = new weETH_Account(
-            address(factory),
-            address(oracle),
-            address(mocks.weETH),
             address(mocks.eETH),
+            address(mocks.weth),
+            address(mocks.weETH),
+            address(oracle),
+            address(factory),
             address(mocks.liquidityPool),
             address(mocks.redemptionManager),
+            cowSwapSettlement,
             address(mocks.withdrawRequestNft),
-            address(mocks.weth)
+            cowSwapVaultRelayer
         );
         factory.whitelist(address(implementation));
 
@@ -297,6 +295,32 @@ contract AccountsTest is Test {
 
         (bool success,) = address(account).staticcall(abi.encodeWithSignature("totalRequests()"));
         assertFalse(success);
+    }
+
+    function testAsyncRedeemAccountExposesCowSwapConverter() public {
+        MockERC20 tokenToRedeem = new MockERC20("Centrifuge Share", "CFGSHARE", 18);
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault asyncVault = new MockAsyncRedeemVault(tokenToRedeem, asset, 2e6);
+        MockOracle oracle = new MockOracle(2e18);
+        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, asyncVault, oracle);
+
+        (bool success, bytes memory returnData) =
+            address(account).staticcall(abi.encodeWithSignature("COW_SWAP_SETTLEMENT()"));
+        assertTrue(success);
+        assertEq(abi.decode(returnData, (address)), cowSwapSettlement);
+    }
+
+    function testAccountTotalAssetsRevertsWhenOracleReturnsZero() public {
+        MockERC20 tokenToRedeem = new MockERC20("Centrifuge Share", "CFGSHARE", 18);
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault asyncVault = new MockAsyncRedeemVault(tokenToRedeem, asset, 2e6);
+        MockOracle oracle = new MockOracle(0);
+        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, asyncVault, oracle);
+
+        tokenToRedeem.mint(address(account), 1 ether);
+
+        vm.expectRevert();
+        account.totalAssets();
     }
 
     function testAsyncRedeemAccountDoesNotCapFreshPendingRequestIds() public {
@@ -538,7 +562,8 @@ contract AccountsTest is Test {
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         address redemptionVault = makeAddr("humaRedemptionVault");
-        PST_Account implementation = new PST_Account(redemptionVault, address(factory));
+        PST_Account implementation =
+            new PST_Account(address(factory), redemptionVault, cowSwapSettlement, cowSwapVaultRelayer);
         ChainlinkOracle oracle = ChainlinkOracle(implementation.ORACLE());
 
         assertEq(implementation.TOKEN_TO_REDEEM(), PST_TOKEN_ADDRESS);
@@ -563,23 +588,33 @@ contract AccountsTest is Test {
         _mockDecimals(DEJAAA_TOKEN_ADDRESS, 18);
 
         assertEq(
-            new JTRSY_Account(address(asyncVault), address(factory), address(oracle)).TOKEN_TO_REDEEM(),
+            new JTRSY_Account(
+                    address(oracle), address(factory), address(asyncVault), cowSwapSettlement, cowSwapVaultRelayer
+                ).TOKEN_TO_REDEEM(),
             JTRSY_TOKEN_ADDRESS
         );
         assertEq(
-            new JAAA_Account(address(asyncVault), address(factory), address(oracle)).TOKEN_TO_REDEEM(),
+            new JAAA_Account(
+                    address(oracle), address(factory), address(asyncVault), cowSwapSettlement, cowSwapVaultRelayer
+                ).TOKEN_TO_REDEEM(),
             JAAA_TOKEN_ADDRESS
         );
         assertEq(
-            new ACRDX_Account(address(asyncVault), address(factory), address(oracle)).TOKEN_TO_REDEEM(),
+            new ACRDX_Account(
+                    address(oracle), address(factory), address(asyncVault), cowSwapSettlement, cowSwapVaultRelayer
+                ).TOKEN_TO_REDEEM(),
             ACRDX_TOKEN_ADDRESS
         );
         assertEq(
-            new deJTRSY_Account(address(asyncVault), address(factory), address(oracle)).TOKEN_TO_REDEEM(),
+            new deJTRSY_Account(
+                    address(oracle), address(factory), address(asyncVault), cowSwapSettlement, cowSwapVaultRelayer
+                ).TOKEN_TO_REDEEM(),
             DEJTRSY_TOKEN_ADDRESS
         );
         assertEq(
-            new deJAAA_Account(address(asyncVault), address(factory), address(oracle)).TOKEN_TO_REDEEM(),
+            new deJAAA_Account(
+                    address(oracle), address(factory), address(asyncVault), cowSwapSettlement, cowSwapVaultRelayer
+                ).TOKEN_TO_REDEEM(),
             DEJAAA_TOKEN_ADDRESS
         );
     }
@@ -589,7 +624,7 @@ contract AccountsTest is Test {
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         MockOracle oracle = new MockOracle(1e18);
-        USP_Account account = new USP_Account(address(factory), address(oracle));
+        USP_Account account = new USP_Account(address(oracle), address(factory), cowSwapSettlement, cowSwapVaultRelayer);
 
         assertEq(account.TOKEN_TO_REDEEM(), USP_TOKEN_ADDRESS);
         assertEq(account.FUNDING_MANAGER(), USP_FUNDING_MANAGER_ADDRESS);
@@ -600,20 +635,10 @@ contract AccountsTest is Test {
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         MockOracle oracle = new MockOracle(1e18);
-        sUSD3_Account account = new sUSD3_Account(address(factory), address(oracle));
+        sUSD3_Account account =
+            new sUSD3_Account(address(oracle), address(factory), cowSwapSettlement, cowSwapVaultRelayer);
 
         assertEq(account.TOKEN_TO_REDEEM(), SUSD3_TOKEN_ADDRESS);
-    }
-
-    function _deployACRED(MockERC20 tokenToRedeem, MockERC20 asset, MockOracle oracle)
-        internal
-        returns (ACRED_Account account)
-    {
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        ACRED_Account implementation =
-            new ACRED_Account(address(factory), address(oracle), address(tokenToRedeem), redemptionWallet);
-        factory.whitelist(address(implementation));
-        account = ACRED_Account(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
 
     function _deployWstETH(
@@ -625,7 +650,13 @@ contract AccountsTest is Test {
     ) internal returns (wstETH_Account account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         wstETH_Account implementation = new wstETH_Account(
-            address(factory), address(oracle), address(wstETH), address(stETH), address(withdrawalQueue)
+            address(stETH),
+            address(oracle),
+            address(wstETH),
+            address(factory),
+            address(withdrawalQueue),
+            cowSwapSettlement,
+            cowSwapVaultRelayer
         );
         factory.whitelist(address(implementation));
         account = wstETH_Account(payable(factory.create(1, address(this), _initData(address(asset), address(wstETH)))));
@@ -637,14 +668,16 @@ contract AccountsTest is Test {
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         weETH_Account implementation = new weETH_Account(
-            address(factory),
-            address(oracle),
-            address(mocks.weETH),
             address(mocks.eETH),
+            address(mocks.weth),
+            address(mocks.weETH),
+            address(oracle),
+            address(factory),
             address(mocks.liquidityPool),
             address(mocks.redemptionManager),
+            cowSwapSettlement,
             address(mocks.withdrawRequestNft),
-            address(mocks.weth)
+            cowSwapVaultRelayer
         );
         factory.whitelist(address(implementation));
         account =
@@ -669,7 +702,13 @@ contract AccountsTest is Test {
     ) internal returns (CentrifugeAccount account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         CentrifugeAccount implementation = new CentrifugeAccount(
-            address(oracle), address(factory), cooldown, address(tokenToRedeem), address(asyncVault)
+            address(oracle),
+            address(factory),
+            cooldown,
+            address(tokenToRedeem),
+            address(asyncVault),
+            cowSwapSettlement,
+            cowSwapVaultRelayer
         );
         factory.whitelist(address(implementation));
         account = CentrifugeAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
@@ -683,8 +722,14 @@ contract AccountsTest is Test {
         MockOracle oracle
     ) internal returns (PRIME_Account account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        PRIME_Account implementation =
-            new PRIME_Account(address(asyncVault), address(prime), address(factory), address(oracle));
+        PRIME_Account implementation = new PRIME_Account(
+            address(oracle),
+            address(factory),
+            address(prime),
+            address(asyncVault),
+            cowSwapSettlement,
+            cowSwapVaultRelayer
+        );
         factory.whitelist(address(implementation));
         account = PRIME_Account(factory.create(1, address(this), _initData(address(asset), address(prime))));
     }
@@ -694,8 +739,15 @@ contract AccountsTest is Test {
         returns (PikuAccount account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        PikuAccount implementation =
-            new PikuAccount(address(oracle), address(factory), 0, address(tokenToRedeem), address(asyncVault));
+        PikuAccount implementation = new PikuAccount(
+            address(oracle),
+            address(factory),
+            0,
+            address(tokenToRedeem),
+            address(asyncVault),
+            cowSwapSettlement,
+            cowSwapVaultRelayer
+        );
         factory.whitelist(address(implementation));
         account = PikuAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
@@ -708,7 +760,12 @@ contract AccountsTest is Test {
     ) internal returns (PikuFundingManagerAccount account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         PikuFundingManagerAccount implementation = new PikuFundingManagerAccount(
-            address(fundingManager), address(tokenToRedeem), address(factory), address(oracle)
+            address(oracle),
+            address(factory),
+            address(tokenToRedeem),
+            address(fundingManager),
+            cowSwapSettlement,
+            cowSwapVaultRelayer
         );
         factory.whitelist(address(implementation));
         account = PikuFundingManagerAccount(
@@ -723,8 +780,14 @@ contract AccountsTest is Test {
         MockOracle oracle
     ) internal returns (HumaAccount account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        HumaAccount implementation =
-            new HumaAccount(address(redemptionVault), address(tokenToRedeem), address(factory), address(oracle));
+        HumaAccount implementation = new HumaAccount(
+            address(oracle),
+            address(factory),
+            address(tokenToRedeem),
+            address(redemptionVault),
+            cowSwapSettlement,
+            cowSwapVaultRelayer
+        );
         factory.whitelist(address(implementation));
         account = HumaAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
@@ -734,7 +797,9 @@ contract AccountsTest is Test {
         returns (TheoAccount account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        TheoAccount implementation = new TheoAccount(address(tokenToRedeem), address(factory), address(oracle));
+        TheoAccount implementation = new TheoAccount(
+            address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement, cowSwapVaultRelayer
+        );
         factory.whitelist(address(implementation));
         account = TheoAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
@@ -744,8 +809,9 @@ contract AccountsTest is Test {
         returns (ThreeJaneAccount account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        ThreeJaneAccount implementation =
-            new ThreeJaneAccount(address(tokenToRedeem), address(factory), address(oracle));
+        ThreeJaneAccount implementation = new ThreeJaneAccount(
+            address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement, cowSwapVaultRelayer
+        );
         factory.whitelist(address(implementation));
         account = ThreeJaneAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
@@ -755,8 +821,14 @@ contract AccountsTest is Test {
         returns (DigiFTAccount account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        DigiFTAccount implementation =
-            new DigiFTAccount(redemptionWallet, address(tokenToRedeem), address(factory), address(oracle));
+        DigiFTAccount implementation = new DigiFTAccount(
+            address(oracle),
+            address(factory),
+            address(tokenToRedeem),
+            redemptionWallet,
+            cowSwapSettlement,
+            cowSwapVaultRelayer
+        );
         factory.whitelist(address(implementation));
         account = DigiFTAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
@@ -773,16 +845,8 @@ contract AccountsTest is Test {
         mocks.withdrawRequestNft = new MockEtherFiWithdrawRequestNFT();
     }
 
-    function _initData(address asset, address tokenToRedeem) internal returns (bytes memory) {
-        address[] memory converters = new address[](0);
-        return abi.encode(
-            IAccount.InitParams({
-                adapter: adapter,
-                vault: address(_vault(MockERC20(asset))),
-                tokenToRedeem: tokenToRedeem,
-                converters: converters
-            })
-        );
+    function _initData(address asset, address) internal returns (bytes memory) {
+        return abi.encode(address(_vault(MockERC20(asset))), adapter);
     }
 
     function _vault(MockERC20 asset) internal returns (MockVault vault) {

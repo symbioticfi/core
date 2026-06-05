@@ -10,7 +10,6 @@ import {IEtherFiRedemptionManager} from "../../../interfaces/adapters/ll-adapter
 import {
     IEtherFiWithdrawRequestNFT
 } from "../../../interfaces/adapters/ll-adapter/etherfi/IEtherFiWithdrawRequestNFT.sol";
-import {IOracle} from "../../../interfaces/adapters/ll-adapter/IOracle.sol";
 import {IWETH} from "../../../interfaces/adapters/ll-adapter/etherfi/IWETH.sol";
 import {IWeETH} from "../../../interfaces/adapters/ll-adapter/etherfi/IWeETH.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -47,15 +46,17 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
 
     /// @notice Creates the ether.fi account implementation.
     constructor(
-        address withdrawRequestNft,
-        address redemptionManager,
+        address eETH,
+        address weth,
+        address oracle,
+        address factory,
         address liquidityPool,
         address tokenToRedeem,
-        address factory,
-        address oracle,
-        address eETH,
-        address weth
-    ) Account(factory, oracle, tokenToRedeem) {
+        address redemptionManager,
+        address cowSwapSettlement,
+        address withdrawRequestNft,
+        address cowSwapVaultRelayer
+    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
         WITHDRAW_REQUEST_NFT = withdrawRequestNft;
         REDEMPTION_MANAGER = redemptionManager;
         LIQUIDITY_POOL = liquidityPool;
@@ -122,7 +123,7 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
             return;
         }
 
-        pendingAssets += _tokenToRedeemToAssets(amountToRedeem, IOracle(ORACLE).getPrice());
+        pendingAssets += _tokenToRedeemToAssets(amountToRedeem);
         uint256 eETHAmount = IWeETH(TOKEN_TO_REDEEM).unwrap(amountToRedeem);
         IERC20(EETH).forceApprove(LIQUIDITY_POOL, eETHAmount);
         _requestIds.push(IEtherFiLiquidityPool(LIQUIDITY_POOL).requestWithdraw(address(this), eETHAmount));

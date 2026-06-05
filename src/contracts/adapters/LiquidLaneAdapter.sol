@@ -70,9 +70,6 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     /// @inheritdoc ILiquidLaneAdapter
     mapping(address tokenToRedeem => address account) public accounts;
 
-    /// @dev Initial converter permissions passed to accounts that support conversion.
-    address[] internal _accountConverters;
-
     /// @dev Set while the adapter is funding a swap through VaultV2. Transient: only meaningful within the
     ///      single swap transaction that reads it back through the delegator's `allocatable()` callback.
     bool internal transient _inSwap;
@@ -342,17 +339,13 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         if (tokensToRedeem.length >= MAX_TOKENS_TO_REDEEM) {
             revert TooManyTokensToRedeem();
         }
-
-        address accountFactory =
-            IAccountRegistry(ACCOUNT_REGISTRY).accountFactories(IERC4626(vault).asset(), tokenToRedeem);
         if (accounts[tokenToRedeem] == address(0)) {
-            address[] memory accountConverters = _accountConverters;
-            IAccount.InitParams memory params = IAccount.InitParams({
-                adapter: address(this), vault: vault, tokenToRedeem: tokenToRedeem, converters: accountConverters
-            });
+            address accountFactory =
+                IAccountRegistry(ACCOUNT_REGISTRY).accountFactories(IERC4626(vault).asset(), tokenToRedeem);
             accounts[tokenToRedeem] = IMigratablesFactory(accountFactory)
-                .create(IMigratablesFactory(accountFactory).lastVersion(), owner(), abi.encode(params));
+                .create(IMigratablesFactory(accountFactory).lastVersion(), owner(), abi.encode(vault, address(this)));
         }
+
         tokensToRedeem.push(tokenToRedeem);
 
         emit AddTokenToRedeem(tokenToRedeem, accounts[tokenToRedeem]);
@@ -396,7 +389,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     }
 
     /// @inheritdoc IAdapter
-    function deallocate(uint256) public override(Adapter, IAdapter) returns (uint256 deallocated) {
+    function deallocate(uint256) public override(Adapter, IAdapter) onlyDelegator returns (uint256 deallocated) {
         address asset = IERC4626(vault).asset();
         for (uint256 i; i < tokensToRedeem.length; ++i) {
             address account = accounts[tokensToRedeem[i]];
@@ -473,18 +466,11 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         }
 
         if (tokenOutToAllocate > 0) {
-            address delegator = IVaultV2(vault).delegator();
-            IUniversalDelegator(delegator).sweepPending();
-            uint256 tokenOutToDeallocate = tokenOutToAllocate.saturatingSub(IVaultV2(vault).freeAssets());
-            if (
-                tokenOutToDeallocate > 0
-                    && IUniversalDelegator(delegator).deallocateExact(tokenOutToDeallocate) < tokenOutToDeallocate
-            ) {
-                revert InsufficientDeallocate();
-            }
-
             _inSwap = true;
-            if (IUniversalDelegator(delegator).allocate(address(this), tokenOutToAllocate) < tokenOutToAllocate) {
+            if (
+                IUniversalDelegator(IVaultV2(vault).delegator()).allocateExact(address(this), tokenOutToAllocate)
+                    < tokenOutToAllocate
+            ) {
                 revert InsufficientAllocate();
             }
             _inSwap = false;
@@ -538,7 +524,6 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
         pauser = params.pauser;
         unpauser = params.unpauser;
-        _accountConverters = params.converters;
 
         emit Initialize(params);
     }

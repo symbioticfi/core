@@ -15,7 +15,13 @@ contract TheoAccount is Account, ITheoAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Theo account implementation.
-    constructor(address tokenToRedeem, address factory, address oracle) Account(factory, oracle, tokenToRedeem) {}
+    constructor(
+        address oracle,
+        address factory,
+        address tokenToRedeem,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer
+    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {}
 
     /* INTERNAL FUNCTIONS */
 

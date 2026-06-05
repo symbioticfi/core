@@ -2,7 +2,6 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {CoWSwapConverter} from "../common/CoWSwapConverter.sol";
 import {Account} from "./Account.sol";
 
 import {IMidasAccount, REQUEST_STATUS_PENDING} from "../../../interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
@@ -13,7 +12,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title MidasAccount
 /// @notice Base account for Midas redemption integrations.
-abstract contract MidasAccount is Account, CoWSwapConverter, IMidasAccount {
+abstract contract MidasAccount is Account, IMidasAccount {
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
@@ -44,25 +43,10 @@ abstract contract MidasAccount is Account, CoWSwapConverter, IMidasAccount {
         address redemptionVault,
         address cowSwapSettlement,
         address cowSwapVaultRelayer
-    ) Account(factory, oracle, tokenToRedeem) CoWSwapConverter(cowSwapSettlement, cowSwapVaultRelayer) {
+    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
         COOLDOWN = cooldown;
         REDEMPTION_TOKEN = redemptionToken;
         REDEMPTION_VAULT = redemptionVault;
-    }
-
-    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
-
-    /// @inheritdoc CoWSwapConverter
-    function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data) public override {
-        sync();
-
-        if (tokenIn == _asset || tokenIn == TOKEN_TO_REDEEM) {
-            revert InvalidTokenIn();
-        }
-        if (tokenOut != _asset) {
-            revert InvalidTokenOut();
-        }
-        super.convert(tokenIn, amountIn, tokenOut, data);
     }
 
     /* INTERNAL FUNCTIONS */
@@ -112,12 +96,9 @@ abstract contract MidasAccount is Account, CoWSwapConverter, IMidasAccount {
     /// @dev Initializes the account for an adapter and vault.
     function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
         super._initialize(initialVersion, owner_, data);
-        InitParams memory params = abi.decode(data, (InitParams));
 
         IERC20(_asset).forceApprove(REDEMPTION_VAULT, type(uint256).max);
         IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_VAULT, type(uint256).max);
-
-        __CoWSwapConverter_init(params.converters);
     }
 }
 

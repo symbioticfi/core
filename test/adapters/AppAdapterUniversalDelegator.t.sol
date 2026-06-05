@@ -228,9 +228,8 @@ contract AppAdapterUniversalDelegatorTest is Test {
         delegator.forceDeallocate(address(adapter), 40);
 
         vm.prank(networkMiddleware);
-        uint256 slashed = adapter.slash(observedStake);
+        adapter.slash(observedStake);
 
-        assertEq(slashed, observedStake);
         assertEq(assetToken.balanceOf(BURNER), burnerBalanceBefore + observedStake);
         assertEq(adapter.totalAssets(), 0);
         assertEq(adapter.slashable(), 0);

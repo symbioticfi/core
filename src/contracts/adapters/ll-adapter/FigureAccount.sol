@@ -36,9 +36,15 @@ contract FigureAccount is Account, IFigureAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Figure account implementation.
-    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address asyncRedeemVault)
-        Account(factory, oracle, tokenToRedeem)
-    {
+    constructor(
+        address oracle,
+        address factory,
+        uint48 cooldown,
+        address tokenToRedeem,
+        address asyncRedeemVault,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer
+    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
         COOLDOWN = cooldown;
         WYLDS = IERC4626(tokenToRedeem).asset();
         ASYNC_REDEEM_VAULT = asyncRedeemVault;

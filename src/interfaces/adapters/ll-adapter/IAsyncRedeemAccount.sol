@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {IAccount} from "./IAccount.sol";
+
 /**
  * @title IAsyncRedeemAccount
  * @notice Interface for liquidity lane accounts that redeem through ERC-7540 async redeem vaults.
  */
-interface IAsyncRedeemAccount {
+interface IAsyncRedeemAccount is IAccount {
     /* FUNCTIONS */
 
     /**

@@ -3,8 +3,10 @@
 pragma solidity ^0.8.35;
 
 import {MigratableEntity} from "../../common/MigratableEntity.sol";
+import {CoWSwapConverter} from "../common/CoWSwapConverter.sol";
 
 import {IAccount} from "../../../interfaces/adapters/ll-adapter/IAccount.sol";
+import {IConverter} from "../../../interfaces/adapters/common/IConverter.sol";
 import {IOracle} from "../../../interfaces/adapters/ll-adapter/IOracle.sol";
 
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -15,7 +17,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title Account
 /// @notice Base account for token-to-redeem integrations.
-abstract contract Account is MigratableEntity, IAccount {
+abstract contract Account is MigratableEntity, CoWSwapConverter, IAccount {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -43,7 +45,13 @@ abstract contract Account is MigratableEntity, IAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the account implementation.
-    constructor(address factory, address oracle, address tokenToRedeem) MigratableEntity(factory) {
+    constructor(
+        address oracle,
+        address factory,
+        address tokenToRedeem,
+        address cowSwapSettlement,
+        address cowSwapVaultRelayer
+    ) MigratableEntity(factory) CoWSwapConverter(cowSwapSettlement, cowSwapVaultRelayer) {
         TO_ASSETS_DIVISOR = 1e18 * 10 ** IERC20Metadata(tokenToRedeem).decimals();
         TOKEN_TO_REDEEM = tokenToRedeem;
         ORACLE = oracle;
@@ -60,11 +68,27 @@ abstract contract Account is MigratableEntity, IAccount {
         assets += _totalAssets();
     }
 
-    /* PUBLIC FUNCTIONS */
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IAccount
     function sync() public nonReentrant {
         _sync();
+    }
+
+    /// @inheritdoc CoWSwapConverter
+    function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data)
+        public
+        override(CoWSwapConverter, IConverter)
+    {
+        sync();
+
+        if (tokenIn == _asset || tokenIn == TOKEN_TO_REDEEM) {
+            revert InvalidTokenIn();
+        }
+        if (tokenOut != _asset) {
+            revert InvalidTokenOut();
+        }
+        super.convert(tokenIn, amountIn, tokenOut, data);
     }
 
     /* INTERNAL FUNCTIONS */
@@ -76,7 +100,11 @@ abstract contract Account is MigratableEntity, IAccount {
     }
 
     function _tokenToRedeemToAssets(uint256 amount) internal view returns (uint256) {
-        return _tokenToRedeemToAssets(amount, IOracle(ORACLE).getPrice());
+        uint256 rate = IOracle(ORACLE).getPrice();
+        if (rate == 0) {
+            revert InvalidOracle();
+        }
+        return _tokenToRedeemToAssets(amount, rate);
     }
 
     function _tokenToRedeemToAssets(uint256 amount, uint256 rate) internal view returns (uint256) {
@@ -90,14 +118,15 @@ abstract contract Account is MigratableEntity, IAccount {
     /* INITIALIZATION */
 
     /// @dev Initializes the account for an adapter and vault.
-    function _initialize(uint64, address, bytes memory data) internal virtual override {
-        InitParams memory params = abi.decode(data, (InitParams));
+    function _initialize(uint64, address initOwner, bytes memory data) internal virtual override {
+        (vault, adapter) = abi.decode(data, (address, address));
 
-        vault = params.vault;
-        adapter = params.adapter;
+        address[] memory converters = new address[](1);
+        converters[0] = initOwner;
+        __CoWSwapConverter_init(converters);
 
-        _asset = IERC4626(params.vault).asset();
+        _asset = IERC4626(vault).asset();
         _unit = 10 ** IERC20Metadata(_asset).decimals();
-        IERC20(_asset).forceApprove(params.adapter, type(uint256).max);
+        IERC20(_asset).forceApprove(adapter, type(uint256).max);
     }
 }

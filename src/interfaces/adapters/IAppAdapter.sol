@@ -169,8 +169,7 @@ interface IAppAdapter is IAdapter, ICoWSwapConverter {
     /**
      * @notice Slash the configured pair.
      * @param amount Maximum amount to slash.
-     * @return slashedAmount Amount slashed.
      * @dev Only the configured network middleware can call this function.
      */
-    function slash(uint256 amount) external returns (uint256 slashedAmount);
+    function slash(uint256 amount) external;
 }
