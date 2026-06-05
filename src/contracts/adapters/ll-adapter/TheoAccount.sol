@@ -2,15 +2,15 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {Account} from "./Account.sol";
+import {Account} from "./common/Account.sol";
 
 import {ITheoAccount} from "../../../interfaces/adapters/ll-adapter/theo/ITheoAccount.sol";
+import {ISthUSD} from "../../../interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
 
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title TheoAccount
-/// @notice Account for Theo ERC-4626-style redemptions.
+/// @notice Account for Theo sthUSD async redemptions.
 contract TheoAccount is Account, ITheoAccount {
     /* CONSTRUCTOR */
 
@@ -25,17 +25,28 @@ contract TheoAccount is Account, ITheoAccount {
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns no additional assets for synchronous Theo redemptions.
-    function _totalAssets() internal pure override returns (uint256) {
-        return 0;
+    /// @dev Returns pending sthUSD redemption request value in vault assets.
+    function _totalAssets() internal view override returns (uint256 assets) {
+        address token = TOKEN_TO_REDEEM;
+        (assets,,) = ISthUSD(token).currentRedeemRequest(address(this));
+        assets = _redemptionTokenToAssets(ISthUSD(token).asset(), assets);
     }
 
-    /// @dev Redeems held Theo shares into the vault asset.
+    /// @dev Initiates held sthUSD redemption and claims matured thUSD requests.
     function _sync() internal override {
-        uint256 shares = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (shares == 0) {
-            return;
+        address token = TOKEN_TO_REDEEM;
+        (, uint256 shares, uint256 claimableTimestamp) = ISthUSD(token).currentRedeemRequest(address(this));
+        if (shares > 0) {
+            if (block.timestamp < claimableTimestamp) {
+                return;
+            }
+
+            ISthUSD(token).redeem(shares, address(this), address(this));
         }
-        IERC4626(TOKEN_TO_REDEEM).redeem(shares, address(this), address(this));
+
+        shares = IERC20(token).balanceOf(address(this));
+        if (shares > 0) {
+            ISthUSD(token).initiateRedeem(shares, address(this));
+        }
     }
 }

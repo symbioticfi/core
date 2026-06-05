@@ -2,20 +2,19 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {PikuAccount} from "../PikuAccount.sol";
-import {PikuOracle} from "../oracles/PikuOracle.sol";
+import {GaibAccount} from "../GaibAccount.sol";
+import {SaidOracle} from "../oracles/SaidOracle.sol";
 import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 
-contract aFXArbUSDTRY_Account is PikuAccount {
-    address internal constant TOKEN_ADDRESS = 0x99351BaEd3d8aB544CCb08aF96A105910fdA71E7;
-    uint48 internal constant TOKEN_COOLDOWN = 1 days;
+contract sAID_Account is GaibAccount {
+    address internal constant TOKEN_ADDRESS = 0xB3B3c527BA57cd61648e2EC2F5e006A0B390A9F8;
+    uint48 internal constant TOKEN_COOLDOWN = 6 days;
 
     constructor(address factory, address cowSwapSettlement, address cowSwapVaultRelayer)
-        PikuAccount(
-            address(new PikuOracle(TOKEN_ADDRESS)),
+        GaibAccount(
+            address(new SaidOracle(TOKEN_ADDRESS)),
             factory,
             TOKEN_COOLDOWN,
-            TOKEN_ADDRESS,
             TOKEN_ADDRESS,
             cowSwapSettlement,
             cowSwapVaultRelayer
@@ -23,6 +22,6 @@ contract aFXArbUSDTRY_Account is PikuAccount {
     {}
 }
 
-contract aFXArbUSDTRY_AccountFactory is MigratablesFactory {
+contract sAID_AccountFactory is MigratablesFactory {
     constructor(address newOwner) MigratablesFactory(newOwner) {}
 }

@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {Account} from "./Account.sol";
+import {Account} from "./common/Account.sol";
 
 import {IDigiFTAccount} from "../../../interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol";
 
@@ -44,9 +44,8 @@ contract DigiFTAccount is Account, IDigiFTAccount {
     ///      DigiFT processing is off-chain; any resulting vault-asset proceeds must be sent back separately.
     function _sync() internal override {
         uint256 amountToRedeem = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (amountToRedeem == 0) {
-            return;
+        if (amountToRedeem > 0) {
+            IERC20(TOKEN_TO_REDEEM).safeTransfer(REDEMPTION_WALLET, amountToRedeem);
         }
-        IERC20(TOKEN_TO_REDEEM).safeTransfer(REDEMPTION_WALLET, amountToRedeem);
     }
 }

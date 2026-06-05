@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {AsyncRedeemAccount} from "./AsyncRedeemAccount.sol";
+import {AsyncRedeemAccount} from "./common/AsyncRedeemAccount.sol";
 
 import {ICentrifugeAccount} from "../../../interfaces/adapters/ll-adapter/centrifuge/ICentrifugeAccount.sol";
 
@@ -17,12 +17,7 @@ contract CentrifugeAccount is AsyncRedeemAccount, ICentrifugeAccount {
         address factory,
         uint48 cooldown,
         address tokenToRedeem,
-        address asyncRedeemVault,
         address cowSwapSettlement,
         address cowSwapVaultRelayer
-    )
-        AsyncRedeemAccount(
-            oracle, factory, cooldown, tokenToRedeem, asyncRedeemVault, cowSwapSettlement, cowSwapVaultRelayer
-        )
-    {}
+    ) AsyncRedeemAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {}
 }

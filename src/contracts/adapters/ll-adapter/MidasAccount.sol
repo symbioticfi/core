@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {Account} from "./Account.sol";
+import {CooldownAccount} from "./common/CooldownAccount.sol";
 
 import {IMidasAccount, REQUEST_STATUS_PENDING} from "../../../interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
 import {IMidasRedemptionVault} from "../../../interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
@@ -12,13 +12,11 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title MidasAccount
 /// @notice Base account for Midas redemption integrations.
-abstract contract MidasAccount is Account, IMidasAccount {
+abstract contract MidasAccount is CooldownAccount, IMidasAccount {
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
 
-    /// @inheritdoc IMidasAccount
-    uint48 public immutable COOLDOWN;
     /// @inheritdoc IMidasAccount
     address public immutable REDEMPTION_TOKEN;
     /// @inheritdoc IMidasAccount
@@ -27,9 +25,7 @@ abstract contract MidasAccount is Account, IMidasAccount {
     /* STATE VARIABLES */
 
     /// @inheritdoc IMidasAccount
-    uint48 public lastRequestTimestamp;
-    /// @dev Midas redemption request ids.
-    uint256[] internal _requestIds;
+    uint64[] public requestIds;
 
     /* CONSTRUCTOR */
 
@@ -43,8 +39,7 @@ abstract contract MidasAccount is Account, IMidasAccount {
         address redemptionVault,
         address cowSwapSettlement,
         address cowSwapVaultRelayer
-    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
-        COOLDOWN = cooldown;
+    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
         REDEMPTION_TOKEN = redemptionToken;
         REDEMPTION_VAULT = redemptionVault;
     }
@@ -63,32 +58,31 @@ abstract contract MidasAccount is Account, IMidasAccount {
         assets += _pendingAssets();
     }
 
-    /// @dev Synchronizes Midas redemption requests and submits held inventory when cooldown permits.
-    function _sync() internal override {
-        for (uint256 i = _requestIds.length; i > 0; --i) {
-            (,, uint8 status,,,) = IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(_requestIds[i - 1]);
+    /// @dev Clears Midas redemption requests that are no longer pending.
+    function _finalizeRequests() internal override {
+        for (uint256 i = requestIds.length; i > 0; --i) {
+            (,, uint8 status,,,) = IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestIds[i - 1]);
             if (status == REQUEST_STATUS_PENDING) {
                 continue;
             }
 
-            _requestIds[i - 1] = _requestIds[_requestIds.length - 1];
-            _requestIds.pop();
+            requestIds[i - 1] = requestIds[requestIds.length - 1];
+            requestIds.pop();
         }
+    }
 
-        if (msg.sender != owner() && lastRequestTimestamp > 0 && block.timestamp < lastRequestTimestamp + COOLDOWN) {
-            return;
-        }
-
-        uint256 amount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (amount == 0) {
-            return;
-        }
-        (address dataFeed,,,) = IMidasRedemptionVault(REDEMPTION_VAULT).tokensConfig(_asset);
-        _requestIds.push(
-            IMidasRedemptionVault(REDEMPTION_VAULT)
-                .redeemRequest(dataFeed == address(0) ? REDEMPTION_TOKEN : _asset, amount)
+    /// @dev Submits held token-to-redeem inventory to the Midas redemption vault.
+    function _requestRedeem() internal override {
+        address redemptionVault = REDEMPTION_VAULT;
+        (address dataFeed,,,) = IMidasRedemptionVault(redemptionVault).tokensConfig(_asset);
+        requestIds.push(
+            uint64(
+                IMidasRedemptionVault(redemptionVault).redeemRequest(
+                    dataFeed == address(0) ? REDEMPTION_TOKEN : _asset,
+                    IERC20(TOKEN_TO_REDEEM).balanceOf(address(this))
+                )
+            )
         );
-        lastRequestTimestamp = uint48(block.timestamp);
     }
 
     /* INITIALIZATION */
@@ -97,7 +91,6 @@ abstract contract MidasAccount is Account, IMidasAccount {
     function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
         super._initialize(initialVersion, owner_, data);
 
-        IERC20(_asset).forceApprove(REDEMPTION_VAULT, type(uint256).max);
         IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_VAULT, type(uint256).max);
     }
 }
@@ -135,9 +128,9 @@ contract MidasCompAccount is MidasAccount {
     /// @dev Returns pending request value using the current oracle rate.
     function _pendingAssets() internal view override returns (uint256) {
         uint256 amount;
-        for (uint256 i; i < _requestIds.length; ++i) {
+        for (uint256 i; i < requestIds.length; ++i) {
             (,, uint8 status, uint256 amountMToken,,) =
-                IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(_requestIds[i]);
+                IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestIds[i]);
             if (status == REQUEST_STATUS_PENDING) {
                 amount += amountMToken;
             }
@@ -178,9 +171,9 @@ contract MidasNonCompAccount is MidasAccount {
 
     /// @dev Returns pending request value using each request's locked rate.
     function _pendingAssets() internal view override returns (uint256 assets) {
-        for (uint256 i; i < _requestIds.length; ++i) {
+        for (uint256 i; i < requestIds.length; ++i) {
             (,, uint8 status, uint256 amountMToken, uint256 mTokenRate,) =
-                IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(_requestIds[i]);
+                IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestIds[i]);
             if (status == REQUEST_STATUS_PENDING) {
                 assets += _tokenToRedeemToAssets(amountMToken, mTokenRate);
             }

@@ -35,6 +35,13 @@ interface ILidoAccount is IAccount {
     function pendingAssets() external view returns (uint256 assets);
 
     /**
+     * @notice Returns a Lido withdrawal request id by index.
+     * @param index The request index.
+     * @return requestId The withdrawal request id.
+     */
+    function requestIds(uint256 index) external view returns (uint64 requestId);
+
+    /**
      * @notice Receives ETH from Lido withdrawal claims.
      */
     receive() external payable;

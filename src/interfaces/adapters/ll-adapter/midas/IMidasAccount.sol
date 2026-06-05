@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IAccount} from "../IAccount.sol";
+import {ICooldownAccount} from "../ICooldownAccount.sol";
 
 /// @dev Midas redemption-request status for a pending (not yet processed) request.
 uint8 constant REQUEST_STATUS_PENDING = 0;
@@ -10,14 +10,8 @@ uint8 constant REQUEST_STATUS_PENDING = 0;
  * @title IMidasAccount
  * @notice Interface for Midas liquidity lane accounts.
  */
-interface IMidasAccount is IAccount {
+interface IMidasAccount is ICooldownAccount {
     /* FUNCTIONS */
-
-    /**
-     * @notice Returns the minimum delay between redemption requests.
-     * @return cooldown The cooldown duration.
-     */
-    function COOLDOWN() external view returns (uint48 cooldown);
 
     /**
      * @notice Returns the fallback redemption token when the vault asset is not configured in Midas.
@@ -32,8 +26,9 @@ interface IMidasAccount is IAccount {
     function REDEMPTION_VAULT() external view returns (address redemptionVault);
 
     /**
-     * @notice Returns the timestamp of the latest redemption request.
-     * @return time The latest redemption request timestamp.
+     * @notice Returns a Midas redemption request id by index.
+     * @param index The request index.
+     * @return requestId The redemption request id.
      */
-    function lastRequestTimestamp() external view returns (uint48 time);
+    function requestIds(uint256 index) external view returns (uint64 requestId);
 }

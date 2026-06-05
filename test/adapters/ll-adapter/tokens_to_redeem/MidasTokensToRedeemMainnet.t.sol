@@ -5,6 +5,9 @@ import {Test} from "forge-std/Test.sol";
 
 import {MidasAccount} from "../../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
+import {
+    CarryTradeUSDTRYLeverage_Account
+} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/CarryTradeUSDTRYLeverage_Account.sol";
 import {mAPOLLO_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mAPOLLO_Account.sol";
 import {mBASIS_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBASIS_Account.sol";
 import {mBTC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBTC_Account.sol";
@@ -28,6 +31,9 @@ import {
 } from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/msyrupUSDp_Account.sol";
 import {msyrupUSD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/msyrupUSD_Account.sol";
 import {mTBILL_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mTBILL_Account.sol";
+import {
+    StockMarketTRBasisTrade_Account
+} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
 import {MigratablesFactory} from "../../../../src/contracts/common/MigratablesFactory.sol";
 import {IAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IMidasRedemptionVault} from "../../../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
@@ -58,9 +64,21 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
         MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(MAINNET_USDC);
         TokenSpec[] memory specs = _ethereumMainnetSpecs();
-        assertEq(specs.length, 21);
+        assertEq(specs.length, 23);
 
         for (uint256 i; i < specs.length; ++i) {
+            _assertOnboarded(i, specs[i], vault);
+        }
+    }
+
+    function testOnboardsRequestedPikuMidasTokensToRedeem() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Midas onboarding");
+        vm.createSelectFork(mainnetRpcUrl);
+
+        MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(MAINNET_USDC);
+        TokenSpec[] memory specs = _ethereumMainnetSpecs();
+
+        for (uint256 i = 21; i < specs.length; ++i) {
             _assertOnboarded(i, specs[i], vault);
         }
     }
@@ -94,7 +112,6 @@ contract MidasTokensToRedeemMainnetTest is Test {
         );
         assertGt(MidasOracle(account.ORACLE()).getPrice(), 0);
         assertEq(IERC20(token).allowance(address(account), redemptionVault), type(uint256).max);
-        assertEq(IERC20(redemptionToken).allowance(address(account), redemptionVault), type(uint256).max);
         assertEq(IAccount(address(account)).totalAssets(), 0);
     }
 
@@ -103,7 +120,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
     }
 
     function _ethereumMainnetSpecs() internal pure returns (TokenSpec[] memory specs) {
-        specs = new TokenSpec[](21);
+        specs = new TokenSpec[](23);
         specs[0] = TokenSpec("mF-ONE", 35 days);
         specs[1] = _ethereumCompSpec("mTBILL", 3 days);
         specs[2] = _ethereumCompSpec("mGLOBAL", 65 days);
@@ -125,6 +142,8 @@ contract MidasTokensToRedeemMainnetTest is Test {
         specs[18] = _ethereumCompSpec("mevBTC", 7 days);
         specs[19] = _ethereumCompSpec("msyrupUSD", 7 days);
         specs[20] = _ethereumCompSpec("mFARM", 7 days);
+        specs[21] = _ethereumCompSpec("CarryTradeUSDTRYLeverage", 2 days);
+        specs[22] = _ethereumCompSpec("StockMarketTRBasisTrade", 2 days);
     }
 
     function _deployImplementation(uint256 index, MigratablesFactory factory)
@@ -153,7 +172,11 @@ contract MidasTokensToRedeemMainnetTest is Test {
         if (index == 17) return new mBTC_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
         if (index == 18) return new mevBTC_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
         if (index == 19) return new msyrupUSD_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        return new mFARM_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+        if (index == 20) return new mFARM_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+        if (index == 21) {
+            return new CarryTradeUSDTRYLeverage_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+        }
+        return new StockMarketTRBasisTrade_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
     }
 
     function _ethereumCompSpec(string memory symbol, uint48 maxWithdrawalDelay)

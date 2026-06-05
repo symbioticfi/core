@@ -9,16 +9,8 @@ contract deJTRSY_Account is CentrifugeAccount {
     address internal constant TOKEN_ADDRESS = 0xA6233014B9b7aaa74f38fa1977ffC7A89642dC72;
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
 
-    constructor(
-        address oracle,
-        address factory,
-        address asyncRedeemVault,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    )
-        CentrifugeAccount(
-            oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, asyncRedeemVault, cowSwapSettlement, cowSwapVaultRelayer
-        )
+    constructor(address oracle, address factory, address cowSwapSettlement, address cowSwapVaultRelayer)
+        CentrifugeAccount(oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, cowSwapSettlement, cowSwapVaultRelayer)
     {}
 }
 

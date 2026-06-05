@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {Account} from "./Account.sol";
+import {Account} from "./common/Account.sol";
 
 import {ILidoAccount} from "../../../interfaces/adapters/ll-adapter/lido/ILidoAccount.sol";
 import {ILidoWithdrawalQueue} from "../../../interfaces/adapters/ll-adapter/lido/ILidoWithdrawalQueue.sol";
@@ -32,8 +32,8 @@ contract LidoAccount is Account, ILidoAccount {
 
     /// @inheritdoc ILidoAccount
     uint256 public pendingAssets;
-    /// @dev Lido withdrawal request ids.
-    uint256[] internal _requestIds;
+    /// @inheritdoc ILidoAccount
+    uint64[] public requestIds;
 
     /* CONSTRUCTOR */
 
@@ -66,53 +66,52 @@ contract LidoAccount is Account, ILidoAccount {
 
     /// @dev Claims finalized withdrawals and submits held wstETH or stETH inventory.
     function _sync() internal override {
-        ILidoWithdrawalQueue withdrawalQueue = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE);
+        address withdrawalQueue = WITHDRAWAL_QUEUE;
 
-        for (uint256 i = _requestIds.length; i > 0; --i) {
+        for (uint256 i = requestIds.length; i > 0; --i) {
             uint256 ethBalanceBefore = address(this).balance;
-            try withdrawalQueue.claimWithdrawal(_requestIds[i - 1]) {
+            try ILidoWithdrawalQueue(withdrawalQueue).claimWithdrawal(requestIds[i - 1]) {
                 uint256 claimed = address(this).balance - ethBalanceBefore;
                 if (claimed > 0) {
                     IWETH(_asset).deposit{value: claimed}();
                     uint256 claimedAssets = claimed.mulDiv(_unit, 1e18);
                     pendingAssets = pendingAssets > claimedAssets ? pendingAssets - claimedAssets : 0;
-                    _requestIds[i - 1] = _requestIds[_requestIds.length - 1];
-                    _requestIds.pop();
+                    requestIds[i - 1] = requestIds[requestIds.length - 1];
+                    requestIds.pop();
                 }
             } catch {}
         }
 
         uint256 amountToRedeem = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        uint256 minStETHAmount = withdrawalQueue.MIN_STETH_WITHDRAWAL_AMOUNT();
-        uint256 maxStETHAmount = withdrawalQueue.MAX_STETH_WITHDRAWAL_AMOUNT();
+        uint256 minStETHAmount = ILidoWithdrawalQueue(withdrawalQueue).MIN_STETH_WITHDRAWAL_AMOUNT();
+        uint256 maxStETHAmount = ILidoWithdrawalQueue(withdrawalQueue).MAX_STETH_WITHDRAWAL_AMOUNT();
         if (amountToRedeem > 0 && IWstETH(WSTETH).getStETHByWstETH(amountToRedeem) >= minStETHAmount) {
             uint256 maxWstETHAmount = IWstETH(WSTETH).getWstETHByStETH(maxStETHAmount);
-            uint256[] memory amounts = new uint256[](amountToRedeem.ceilDiv(maxWstETHAmount));
-            uint256 remaining = amountToRedeem;
-            for (uint256 i; i < amounts.length; ++i) {
-                amounts[i] = remaining > maxWstETHAmount ? maxWstETHAmount : remaining;
-                remaining -= amounts[i];
-            }
-            uint256[] memory requestIds = withdrawalQueue.requestWithdrawalsWstETH(amounts, address(this));
-            for (uint256 i; i < requestIds.length; ++i) {
-                _requestIds.push(requestIds[i]);
+            uint256[] memory ids = ILidoWithdrawalQueue(withdrawalQueue)
+                .requestWithdrawalsWstETH(_splitAmounts(amountToRedeem, maxWstETHAmount), address(this));
+            for (uint256 i; i < ids.length; ++i) {
+                requestIds.push(uint64(ids[i]));
             }
             pendingAssets += _tokenToRedeemToAssets(amountToRedeem);
         }
 
         uint256 stETHBalance = IERC20(STETH).balanceOf(address(this));
         if (stETHBalance >= minStETHAmount) {
-            uint256[] memory amounts = new uint256[](stETHBalance.ceilDiv(maxStETHAmount));
-            uint256 remaining = stETHBalance;
-            for (uint256 i; i < amounts.length; ++i) {
-                amounts[i] = remaining > maxStETHAmount ? maxStETHAmount : remaining;
-                remaining -= amounts[i];
-            }
-            uint256[] memory requestIds = withdrawalQueue.requestWithdrawals(amounts, address(this));
-            for (uint256 i; i < requestIds.length; ++i) {
-                _requestIds.push(requestIds[i]);
+            uint256[] memory ids = ILidoWithdrawalQueue(withdrawalQueue)
+                .requestWithdrawals(_splitAmounts(stETHBalance, maxStETHAmount), address(this));
+            for (uint256 i; i < ids.length; ++i) {
+                requestIds.push(uint64(ids[i]));
             }
             pendingAssets += _tokenToRedeemToAssets(IWstETH(WSTETH).getWstETHByStETH(stETHBalance));
+        }
+    }
+
+    /// @dev Splits an amount into Lido queue-sized requests.
+    function _splitAmounts(uint256 amount, uint256 maxAmount) internal pure returns (uint256[] memory amounts) {
+        amounts = new uint256[](amount.ceilDiv(maxAmount));
+        for (uint256 i; i < amounts.length; ++i) {
+            amounts[i] = amount > maxAmount ? maxAmount : amount;
+            amount -= amounts[i];
         }
     }
 

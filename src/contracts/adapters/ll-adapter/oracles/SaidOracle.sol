@@ -2,22 +2,22 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {IAsyncRedeemVault} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
+import {ISaid} from "../../../../interfaces/adapters/ll-adapter/gaib/ISaid.sol";
 import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
-import {IPikuOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/IPikuOracle.sol";
+import {ISaidOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/ISaidOracle.sol";
 
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-/// @title PikuOracle
-/// @notice Oracle returning a Piku Accountable vault share price in `1e18` precision.
-contract PikuOracle is IPikuOracle {
+/// @title SaidOracle
+/// @notice Oracle returning the GAIB sAID unstaking NAV in `1e18` precision.
+contract SaidOracle is ISaidOracle {
     using Math for uint256;
 
     /* IMMUTABLES */
 
-    /// @inheritdoc IPikuOracle
+    /// @inheritdoc ISaidOracle
     address public immutable VAULT;
 
     /// @dev Vault asset unit.
@@ -27,7 +27,7 @@ contract PikuOracle is IPikuOracle {
 
     /* CONSTRUCTOR */
 
-    /// @notice Creates the Piku Accountable vault oracle.
+    /// @notice Creates the GAIB sAID oracle.
     constructor(address vault) {
         VAULT = vault;
         _shareUnit = 10 ** IERC20Metadata(vault).decimals();
@@ -38,6 +38,6 @@ contract PikuOracle is IPikuOracle {
 
     /// @inheritdoc IOracle
     function getPrice() public view returns (uint256) {
-        return IAsyncRedeemVault(VAULT).convertToAssets(_shareUnit).mulDiv(1e18, _assetUnit);
+        return ISaid(VAULT).convertToAssetsWithLoss(_shareUnit).mulDiv(1e18, _assetUnit);
     }
 }

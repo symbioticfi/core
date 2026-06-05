@@ -2,12 +2,12 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {MigratableEntity} from "../../common/MigratableEntity.sol";
-import {CoWSwapConverter} from "../common/CoWSwapConverter.sol";
+import {MigratableEntity} from "../../../common/MigratableEntity.sol";
+import {CoWSwapConverter} from "../../common/CoWSwapConverter.sol";
 
-import {IAccount} from "../../../interfaces/adapters/ll-adapter/IAccount.sol";
-import {IConverter} from "../../../interfaces/adapters/common/IConverter.sol";
-import {IOracle} from "../../../interfaces/adapters/ll-adapter/IOracle.sol";
+import {IConverter} from "../../../../interfaces/adapters/common/IConverter.sol";
+import {IAccount} from "../../../../interfaces/adapters/ll-adapter/IAccount.sol";
+import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -23,7 +23,7 @@ abstract contract Account is MigratableEntity, CoWSwapConverter, IAccount {
 
     /* IMMUTABLES */
 
-    /// @notice Token submitted through this account.
+    /// @inheritdoc IAccount
     address public immutable TOKEN_TO_REDEEM;
     /// @inheritdoc IAccount
     address public immutable ORACLE;
@@ -32,7 +32,7 @@ abstract contract Account is MigratableEntity, CoWSwapConverter, IAccount {
 
     /* STATE VARIABLES */
 
-    /// @notice Adapter allowed to sweep realized vault assets.
+    /// @inheritdoc IAccount
     address public adapter;
     /// @inheritdoc IAccount
     address public vault;
@@ -63,7 +63,10 @@ abstract contract Account is MigratableEntity, CoWSwapConverter, IAccount {
     function totalAssets() public view returns (uint256 assets) {
         assets = IERC20(_asset).balanceOf(address(this));
 
-        assets += _tokenToRedeemToAssets(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)));
+        uint256 tokenToRedeemBalance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        if (tokenToRedeemBalance > 0) {
+            assets += _tokenToRedeemToAssets(tokenToRedeemBalance);
+        }
 
         assets += _totalAssets();
     }

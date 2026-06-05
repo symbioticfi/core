@@ -16,6 +16,8 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract MidasAccountOraclesTest is Test {
+    uint256 internal constant MAX_EXPECTED_REQUESTS = 17;
+
     address internal adapter = makeAddr("adapter");
     address internal oracle = makeAddr("oracle");
     address internal vault = makeAddr("vault");
@@ -186,6 +188,17 @@ contract MidasAccountOraclesTest is Test {
         assertEq(redemptionVault.lastTokenOut(), address(0));
     }
 
+    function testMidasAccountSkipsTokenToRedeemOracleWhenBalanceIsZero() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(0)));
+        MidasNonCompAccount account =
+            _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
+
+        assertEq(account.totalAssets(), 0);
+    }
+
     function testMidasAccountDoesNotExposeRequestRedeem() public {
         MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
         MockERC20 asset = new MockERC20("Asset", "ASSET");
@@ -227,6 +240,46 @@ contract MidasAccountOraclesTest is Test {
         assertEq(redemptionVault.currentRequestId(), 25);
         assertEq(tokenToRedeem.balanceOf(address(account)), 0);
         assertEq(account.totalAssets(), 25 ether);
+    }
+
+    function testBenchmarkMidasRequestIdsMaxExpectedRequests() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
+        redemptionVault.setDataFeed(address(asset), address(new MockMidasDataFeed(1e18)));
+        MidasNonCompAccount account =
+            _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
+
+        for (uint256 i; i < MAX_EXPECTED_REQUESTS - 1; ++i) {
+            tokenToRedeem.mint(address(account), 1 ether);
+            account.sync();
+        }
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        uint256 gasBefore = gasleft();
+        account.sync();
+        uint256 requestGas = gasBefore - gasleft();
+
+        gasBefore = gasleft();
+        uint256 assets = account.totalAssets();
+        uint256 totalAssetsGas = gasBefore - gasleft();
+
+        for (uint256 i; i < MAX_EXPECTED_REQUESTS; ++i) {
+            redemptionVault.approveRequest(i, 1e18);
+        }
+
+        gasBefore = gasleft();
+        account.sync();
+        uint256 finalizeGas = gasBefore - gasleft();
+
+        assertEq(assets, MAX_EXPECTED_REQUESTS * 1 ether);
+        assertEq(asset.balanceOf(address(account)), MAX_EXPECTED_REQUESTS * 1 ether);
+
+        emit log_named_uint("maxExpectedRequests", MAX_EXPECTED_REQUESTS);
+        emit log_named_uint("requestGas", requestGas);
+        emit log_named_uint("totalAssetsGas", totalAssetsGas);
+        emit log_named_uint("finalizeGas", finalizeGas);
     }
 
     function testMidasAccountOwnerSyncBypassesCooldown() public {

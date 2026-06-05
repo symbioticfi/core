@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {Account} from "./Account.sol";
+import {Account} from "./common/Account.sol";
 
 import {IHumaAccount} from "../../../interfaces/adapters/ll-adapter/huma/IHumaAccount.sol";
 import {IHumaTrancheVault} from "../../../interfaces/adapters/ll-adapter/huma/IHumaTrancheVault.sol";
@@ -49,11 +49,11 @@ contract HumaAccount is Account, IHumaAccount {
     /// @dev Claims fulfilled proceeds and submits held tranche tokens for redemption.
     function _sync() internal override {
         uint256 assetsBefore = IERC20(_asset).balanceOf(address(this));
-        IHumaTrancheVault redemptionVault = IHumaTrancheVault(REDEMPTION_VAULT);
+        address redemptionVault = REDEMPTION_VAULT;
 
-        try redemptionVault.disburse() {} catch {}
+        try IHumaTrancheVault(redemptionVault).disburse() {} catch {}
 
-        try redemptionVault.withdrawAfterPoolClosure() {} catch {}
+        try IHumaTrancheVault(redemptionVault).withdrawAfterPoolClosure() {} catch {}
 
         uint256 claimedAssets = IERC20(_asset).balanceOf(address(this)) - assetsBefore;
         if (claimedAssets > 0) {
@@ -65,7 +65,7 @@ contract HumaAccount is Account, IHumaAccount {
             return;
         }
 
-        redemptionVault.addRedemptionRequest(shares);
+        IHumaTrancheVault(redemptionVault).addRedemptionRequest(shares);
 
         uint256 requestedShares = shares - IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         if (requestedShares > 0) {

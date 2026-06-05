@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {Account} from "./Account.sol";
+import {Account} from "./common/Account.sol";
 
 import {IEtherFiAccount} from "../../../interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
 import {IEtherFiLiquidityPool} from "../../../interfaces/adapters/ll-adapter/etherfi/IEtherFiLiquidityPool.sol";
@@ -39,8 +39,8 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
 
     /// @inheritdoc IEtherFiAccount
     uint256 public pendingAssets;
-    /// @dev Ether.fi withdrawal request ids pending claim.
-    uint256[] internal _requestIds;
+    /// @inheritdoc IEtherFiAccount
+    uint64[] public requestIds;
 
     /* CONSTRUCTOR */
 
@@ -71,10 +71,10 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
         uint256 ethBalanceBefore = address(this).balance;
         IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(requestId);
         if (_wrapClaimedEth(ethBalanceBefore)) {
-            for (uint256 i; i < _requestIds.length; ++i) {
-                if (_requestIds[i] == requestId) {
-                    _requestIds[i] = _requestIds[_requestIds.length - 1];
-                    _requestIds.pop();
+            for (uint256 i; i < requestIds.length; ++i) {
+                if (requestIds[i] == requestId) {
+                    requestIds[i] = requestIds[requestIds.length - 1];
+                    requestIds.pop();
                     return;
                 }
             }
@@ -90,12 +90,12 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
 
     /// @dev Uses no-fee instant redemption into WETH when available, otherwise queues a WETH-backed withdrawal.
     function _sync() internal override {
-        for (uint256 i = _requestIds.length; i > 0; --i) {
+        for (uint256 i = requestIds.length; i > 0; --i) {
             uint256 ethBalanceBefore = address(this).balance;
-            try IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(_requestIds[i - 1]) {
+            try IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(requestIds[i - 1]) {
                 if (_wrapClaimedEth(ethBalanceBefore)) {
-                    _requestIds[i - 1] = _requestIds[_requestIds.length - 1];
-                    _requestIds.pop();
+                    requestIds[i - 1] = requestIds[requestIds.length - 1];
+                    requestIds.pop();
                 }
             } catch {}
         }
@@ -105,14 +105,17 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
             return;
         }
 
-        IEtherFiRedemptionManager manager = IEtherFiRedemptionManager(REDEMPTION_MANAGER);
-        address outputToken = manager.ETH_ADDRESS();
-        (,, uint16 exitFeeInBps,) = manager.tokenToRedemptionInfo(outputToken);
-        if (exitFeeInBps == 0 && manager.canRedeem(IWeETH(TOKEN_TO_REDEEM).getEETHByWeETH(amountToRedeem), outputToken))
-        {
+        address manager = REDEMPTION_MANAGER;
+        address outputToken = IEtherFiRedemptionManager(manager).ETH_ADDRESS();
+        (,, uint16 exitFeeInBps,) = IEtherFiRedemptionManager(manager).tokenToRedemptionInfo(outputToken);
+        if (
+            exitFeeInBps == 0
+                && IEtherFiRedemptionManager(manager)
+                    .canRedeem(IWeETH(TOKEN_TO_REDEEM).getEETHByWeETH(amountToRedeem), outputToken)
+        ) {
             uint256 ethBalanceBefore = address(this).balance;
             IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_MANAGER, amountToRedeem);
-            manager.redeemWeEth(amountToRedeem, address(this), outputToken);
+            IEtherFiRedemptionManager(manager).redeemWeEth(amountToRedeem, address(this), outputToken);
 
             uint256 claimed = address(this).balance - ethBalanceBefore;
             if (claimed == 0) {
@@ -126,7 +129,9 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
         pendingAssets += _tokenToRedeemToAssets(amountToRedeem);
         uint256 eETHAmount = IWeETH(TOKEN_TO_REDEEM).unwrap(amountToRedeem);
         IERC20(EETH).forceApprove(LIQUIDITY_POOL, eETHAmount);
-        _requestIds.push(IEtherFiLiquidityPool(LIQUIDITY_POOL).requestWithdraw(address(this), eETHAmount));
+        requestIds.push(
+            uint64(IEtherFiLiquidityPool(LIQUIDITY_POOL).requestWithdraw(address(this), eETHAmount))
+        );
     }
 
     /// @dev Wraps ETH received from queued withdrawal claims into WETH.

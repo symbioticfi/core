@@ -2,15 +2,15 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {Account} from "./Account.sol";
+import {Account} from "./common/Account.sol";
 
 import {IThreeJaneAccount} from "../../../interfaces/adapters/ll-adapter/threejane/IThreeJaneAccount.sol";
+import {IThreeJaneSUSD3} from "../../../interfaces/adapters/ll-adapter/threejane/IThreeJaneSUSD3.sol";
 
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title ThreeJaneAccount
-/// @notice Account for 3Jane ERC-4626 redemptions.
+/// @notice Account for 3Jane sUSD3 cooldown redemptions.
 contract ThreeJaneAccount is Account, IThreeJaneAccount {
     /* CONSTRUCTOR */
 
@@ -25,17 +25,41 @@ contract ThreeJaneAccount is Account, IThreeJaneAccount {
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns no additional assets for synchronous 3Jane redemptions.
+    /// @dev Returns no additional assets because cooldown shares remain held by this account.
     function _totalAssets() internal pure override returns (uint256) {
         return 0;
     }
 
-    /// @dev Redeems held 3Jane shares into the vault asset.
+    /// @dev Starts cooldowns and withdraws matured sUSD3 into USD3 during the withdrawal window.
     function _sync() internal override {
-        uint256 shares = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (shares == 0) {
+        address token = TOKEN_TO_REDEEM;
+        (uint48 cooldownEnd, uint48 windowEnd, uint256 shares) = IThreeJaneSUSD3(token).getCooldownStatus(address(this));
+
+        if (shares > 0) {
+            if (block.timestamp < cooldownEnd) {
+                return;
+            }
+
+            if (block.timestamp <= windowEnd) {
+                uint256 assets = IThreeJaneSUSD3(token).convertToAssets(shares);
+                uint256 availableAssets = IThreeJaneSUSD3(token).availableWithdrawLimit(address(this));
+                if (availableAssets < assets) {
+                    assets = availableAssets;
+                }
+                if (assets > 0) {
+                    IThreeJaneSUSD3(token).withdraw(assets, address(this), address(this));
+                }
+                return;
+            }
+        }
+
+        if (block.timestamp < IThreeJaneSUSD3(token).lockedUntil(address(this))) {
             return;
         }
-        IERC4626(TOKEN_TO_REDEEM).redeem(shares, address(this), address(this));
+
+        shares = IERC20(token).balanceOf(address(this));
+        if (shares > 0) {
+            IThreeJaneSUSD3(token).startCooldown(shares);
+        }
     }
 }

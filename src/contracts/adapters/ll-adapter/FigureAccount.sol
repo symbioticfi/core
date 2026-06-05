@@ -2,37 +2,17 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.35;
 
-import {Account} from "./Account.sol";
+import {AsyncRedeemAccount} from "./common/AsyncRedeemAccount.sol";
 
-import {IAsyncRedeemAccount} from "../../../interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
 import {IAsyncRedeemVault} from "../../../interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
 import {IFigureAccount} from "../../../interfaces/adapters/ll-adapter/figure/IFigureAccount.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title FigureAccount
 /// @notice Account for Figure/Hastra PRIME redemptions through wYLDS.
-contract FigureAccount is Account, IFigureAccount {
-    using SafeERC20 for IERC20;
-
-    /* IMMUTABLES */
-
-    /// @inheritdoc IAsyncRedeemAccount
-    uint48 public immutable COOLDOWN;
-    /// @inheritdoc IAsyncRedeemAccount
-    address public immutable ASYNC_REDEEM_VAULT;
-    /// @dev wYLDS share token submitted to the async redeem vault.
-    address internal immutable WYLDS;
-
-    /* STATE VARIABLES */
-
-    /// @inheritdoc IAsyncRedeemAccount
-    uint48 public lastRequestTimestamp;
-    /// @dev ERC-7540 redemption request ids.
-    uint256[] internal _requestIds;
-
+contract FigureAccount is AsyncRedeemAccount, IFigureAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Figure account implementation.
@@ -41,83 +21,28 @@ contract FigureAccount is Account, IFigureAccount {
         address factory,
         uint48 cooldown,
         address tokenToRedeem,
-        address asyncRedeemVault,
         address cowSwapSettlement,
         address cowSwapVaultRelayer
-    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
-        COOLDOWN = cooldown;
-        WYLDS = IERC4626(tokenToRedeem).asset();
-        ASYNC_REDEEM_VAULT = asyncRedeemVault;
-    }
+    ) AsyncRedeemAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {}
 
     /* INTERNAL FUNCTIONS */
 
     /// @dev Returns held wYLDS value plus pending async redemption request value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
-        IAsyncRedeemVault asyncRedeemVault = IAsyncRedeemVault(ASYNC_REDEEM_VAULT);
+        address asyncRedeemVault = _asyncRedeemVault();
 
-        assets += asyncRedeemVault.convertToAssets(IERC20(WYLDS).balanceOf(address(this)));
-
-        for (uint256 i; i < _requestIds.length; ++i) {
-            uint256 requestId = _requestIds[i];
-            assets += asyncRedeemVault.convertToAssets(
-                asyncRedeemVault.pendingRedeemRequest(requestId, address(this))
-                    + asyncRedeemVault.claimableRedeemRequest(requestId, address(this))
-            );
-        }
+        assets += IAsyncRedeemVault(asyncRedeemVault).convertToAssets(IERC20(asyncRedeemVault).balanceOf(address(this)));
+        assets += super._totalAssets();
     }
 
-    /// @dev Instantly redeems held PRIME into wYLDS before syncing wYLDS redemption requests.
-    function _sync() internal override {
-        uint256 amountToRedeem = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (amountToRedeem > 0) {
-            IERC4626(TOKEN_TO_REDEEM).redeem(amountToRedeem, address(this), address(this));
-        }
-
-        IAsyncRedeemVault asyncRedeemVault = IAsyncRedeemVault(ASYNC_REDEEM_VAULT);
-
-        for (uint256 i = _requestIds.length; i > 0; --i) {
-            uint256 index = i - 1;
-            uint256 trackedRequestId = _requestIds[index];
-            uint256 claimableShares = asyncRedeemVault.claimableRedeemRequest(trackedRequestId, address(this));
-            if (claimableShares > 0) {
-                asyncRedeemVault.redeem(claimableShares, address(this), address(this));
-            }
-
-            if (
-                asyncRedeemVault.pendingRedeemRequest(trackedRequestId, address(this)) == 0
-                    && asyncRedeemVault.claimableRedeemRequest(trackedRequestId, address(this)) == 0
-            ) {
-                _requestIds[index] = _requestIds[_requestIds.length - 1];
-                _requestIds.pop();
-            }
-        }
-
-        if (msg.sender != owner() && lastRequestTimestamp > 0 && block.timestamp < lastRequestTimestamp + COOLDOWN) {
-            return;
-        }
-
-        uint256 shares = IERC20(WYLDS).balanceOf(address(this));
-        if (shares == 0) {
-            return;
-        }
-
-        uint256 newRequestId = asyncRedeemVault.requestRedeem(shares, address(this), address(this));
-        for (uint256 i; i < _requestIds.length; ++i) {
-            if (_requestIds[i] == newRequestId) {
-                lastRequestTimestamp = uint48(block.timestamp);
-                return;
-            }
-        }
-        _requestIds.push(newRequestId);
-        lastRequestTimestamp = uint48(block.timestamp);
+    /// @dev Submits held wYLDS for async redemption.
+    function _requestRedeem() internal override {
+        IERC4626(TOKEN_TO_REDEEM).redeem(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), address(this), address(this));
+        super._requestRedeem();
     }
 
-    /* INITIALIZATION */
-
-    /// @dev Initializes the account for an adapter and vault.
-    function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
-        super._initialize(initialVersion, owner_, data);
-        IERC20(WYLDS).forceApprove(ASYNC_REDEEM_VAULT, type(uint256).max);
+    /// @dev Returns wYLDS as the ERC-7540 async redeem vault.
+    function _asyncRedeemVault() internal view override returns (address) {
+        return IERC4626(TOKEN_TO_REDEEM).asset();
     }
 }

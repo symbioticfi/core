@@ -1,30 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IAccount} from "./IAccount.sol";
+import {ICooldownAccount} from "./ICooldownAccount.sol";
 
 /**
  * @title IAsyncRedeemAccount
  * @notice Interface for liquidity lane accounts that redeem through ERC-7540 async redeem vaults.
  */
-interface IAsyncRedeemAccount is IAccount {
+interface IAsyncRedeemAccount is ICooldownAccount {
     /* FUNCTIONS */
 
     /**
-     * @notice Returns the minimum delay between redemption requests for non-owner callers.
-     * @return cooldown The cooldown duration.
+     * @notice Returns an ERC-7540 redemption request id by index.
+     * @param index The request index.
+     * @return requestId The redemption request id.
      */
-    function COOLDOWN() external view returns (uint48 cooldown);
-
-    /**
-     * @notice Returns the ERC-7540 async redeem vault.
-     * @return vault The async redeem vault address.
-     */
-    function ASYNC_REDEEM_VAULT() external view returns (address vault);
-
-    /**
-     * @notice Returns the timestamp of the latest redemption request.
-     * @return time The latest redemption request timestamp.
-     */
-    function lastRequestTimestamp() external view returns (uint48 time);
+    function requestIds(uint256 index) external view returns (uint64 requestId);
 }

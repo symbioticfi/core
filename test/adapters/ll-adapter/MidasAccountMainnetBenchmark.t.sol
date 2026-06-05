@@ -234,19 +234,19 @@ contract MidasNonCompAccountBenchHarness is MidasNonCompAccount {
     {}
 
     function pushRequestId(uint256 requestId) external {
-        _requestIds.push(requestId);
+        requestIds.push(uint64(requestId));
     }
 
     function requestIdAt(uint256 index) external view returns (uint256) {
-        return _requestIds[index];
+        return requestIds[index];
     }
 
     function requestIdsLength() external view returns (uint256) {
-        return _requestIds.length;
+        return requestIds.length;
     }
 
     function clearRequestIds() external {
-        delete _requestIds;
+        delete requestIds;
     }
 }
 
@@ -274,19 +274,19 @@ contract MidasCompAccountBenchHarness is MidasCompAccount {
     {}
 
     function requestIdsLength() external view returns (uint256) {
-        return _requestIds.length;
+        return requestIds.length;
     }
 
     function pushRequestId(uint256 requestId) external {
-        _requestIds.push(requestId);
+        requestIds.push(uint64(requestId));
     }
 
     function requestIdAt(uint256 index) external view returns (uint256) {
-        return _requestIds[index];
+        return requestIds[index];
     }
 
     function clearRequestIds() external {
-        delete _requestIds;
+        delete requestIds;
     }
 }
 

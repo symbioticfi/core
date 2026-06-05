@@ -12,14 +12,9 @@ contract PRIME_Account is FigureAccount {
         address oracle,
         address factory,
         address tokenToRedeem,
-        address asyncRedeemVault,
         address cowSwapSettlement,
         address cowSwapVaultRelayer
-    )
-        FigureAccount(
-            oracle, factory, TOKEN_COOLDOWN, tokenToRedeem, asyncRedeemVault, cowSwapSettlement, cowSwapVaultRelayer
-        )
-    {}
+    ) FigureAccount(oracle, factory, TOKEN_COOLDOWN, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {}
 }
 
 contract PRIME_AccountFactory is MigratablesFactory {

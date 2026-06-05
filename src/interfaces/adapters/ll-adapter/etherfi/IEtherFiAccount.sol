@@ -54,6 +54,13 @@ interface IEtherFiAccount is IAccount {
     function pendingAssets() external view returns (uint256 assets);
 
     /**
+     * @notice Returns an ether.fi withdrawal request id by index.
+     * @param index The request index.
+     * @return requestId The withdrawal request id.
+     */
+    function requestIds(uint256 index) external view returns (uint64 requestId);
+
+    /**
      * @notice Claims an ether.fi withdrawal request and wraps received ETH into WETH.
      * @param requestId The withdrawal request id.
      */
