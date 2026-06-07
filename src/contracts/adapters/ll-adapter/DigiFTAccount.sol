@@ -140,9 +140,8 @@ contract DigiFTSubAccount is IDigiFTSubAccount {
             revert NotAccount();
         }
 
-        IDigiFTSubRedManagement(SUB_RED_MANAGEMENT).redeem(
-            TOKEN_TO_REDEEM, ASSET, IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), block.timestamp
-        );
+        IDigiFTSubRedManagement(SUB_RED_MANAGEMENT)
+            .redeem(TOKEN_TO_REDEEM, ASSET, IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), block.timestamp);
     }
 
     /// @inheritdoc IDigiFTSubAccount

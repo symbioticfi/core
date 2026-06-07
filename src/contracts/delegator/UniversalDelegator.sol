@@ -92,6 +92,11 @@ contract UniversalDelegator is
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IUniversalDelegator
+    function getAdaptersLength() public view returns (uint256) {
+        return adapters.length;
+    }
+
+    /// @inheritdoc IUniversalDelegator
     function totalAssets() public view returns (uint256 assets) {
         for (uint256 i; i < adapters.length; ++i) {
             assets += IAdapter(adapters[i]).totalAssets();

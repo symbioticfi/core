@@ -70,6 +70,9 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     /// @inheritdoc ILiquidLaneAdapter
     mapping(address tokenToRedeem => address account) public accounts;
 
+    /// @dev Tracks whether a token is currently active for redemption.
+    mapping(address tokenToRedeem => bool exists) internal _isTokenToRedeem;
+
     /// @dev Set while the adapter is funding a swap through VaultV2.
     bool internal transient _inSwap;
 
@@ -330,6 +333,9 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /// @inheritdoc ILiquidLaneAdapter
     function addTokenToRedeem(address tokenToRedeem) public onlyOwner {
+        if (_isTokenToRedeem[tokenToRedeem]) {
+            revert InvalidTokenToRedeem();
+        }
         if (tokensToRedeem.length >= MAX_TOKENS_TO_REDEEM) {
             revert TooManyTokensToRedeem();
         }
@@ -340,6 +346,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
                 .create(IMigratablesFactory(accountFactory).lastVersion(), owner(), abi.encode(vault, address(this)));
         }
 
+        _isTokenToRedeem[tokenToRedeem] = true;
         tokensToRedeem.push(tokenToRedeem);
 
         emit AddTokenToRedeem(tokenToRedeem, accounts[tokenToRedeem]);
@@ -347,6 +354,9 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /// @inheritdoc ILiquidLaneAdapter
     function removeTokenToRedeem(address tokenToRedeem) public onlyOwner {
+        if (!_isTokenToRedeem[tokenToRedeem]) {
+            revert InvalidTokenToRedeem();
+        }
         if (IAccount(accounts[tokenToRedeem]).totalAssets() > 0) {
             revert AccountHasAssets();
         }
@@ -355,17 +365,22 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
             if (tokenToRedeem == tokensToRedeem[i]) {
                 tokensToRedeem[i] = tokensToRedeem[tokensToRedeem.length - 1];
                 tokensToRedeem.pop();
+                _isTokenToRedeem[tokenToRedeem] = false;
+                limit[tokenToRedeem] = 0;
 
                 emit RemoveTokenToRedeem(tokenToRedeem);
                 return;
             }
         }
-
         revert InvalidTokenToRedeem();
     }
 
     /// @inheritdoc ILiquidLaneAdapter
     function setLimit(address tokenToRedeem, uint256 newLimit) public onlyOwner {
+        if (!_isTokenToRedeem[tokenToRedeem]) {
+            revert InvalidTokenToRedeem();
+        }
+
         limit[tokenToRedeem] = newLimit;
 
         emit SetLimit(tokenToRedeem, newLimit);
@@ -445,8 +460,11 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     /// @dev Executes a direct or delegated swap after caller authentication has already succeeded.
     /// @param swap The swap payload to execute.
     function _swap(Swap memory swap) internal whenNotPaused {
-        uint256 assetsIn = getAmountOut(swap.tokenIn, swap.amountIn);
-        if (swap.amountOut > assetsIn.mulDiv(DISCOUNT_PRECISION - minDiscount[swap.tokenIn], DISCOUNT_PRECISION)) {
+        if (
+            swap.amountOut
+                > getAmountOut(swap.tokenIn, swap.amountIn)
+                    .mulDiv(DISCOUNT_PRECISION - minDiscount[swap.tokenIn], DISCOUNT_PRECISION)
+        ) {
             revert InvalidSwapRate();
         }
 
@@ -455,7 +473,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         uint256 tokenOutToAcquire = Math.min(swap.amountOut, curatorAcquireBalance + marketMakerAcquireBalance);
 
         uint256 tokenOutToAllocate = swap.amountOut - tokenOutToAcquire;
-        if (IAccount(accounts[swap.tokenIn]).totalAssets() + assetsIn > limit[swap.tokenIn]) {
+        if (IAccount(accounts[swap.tokenIn]).totalAssets() + tokenOutToAllocate > limit[swap.tokenIn]) {
             revert LimitExceeded();
         }
 

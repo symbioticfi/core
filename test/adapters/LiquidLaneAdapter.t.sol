@@ -99,13 +99,14 @@ contract LiquidLaneAdapterTest is Test {
         vm.stopPrank();
     }
 
-    function testAddTokenToRedeemReusesExistingAccountForDuplicateToken() public {
+    function testAddTokenToRedeemRevertsForDuplicateToken() public {
         address account = adapter.accounts(address(tokenToRedeem));
 
         vm.prank(curator);
+        vm.expectRevert(ILiquidLaneAdapter.InvalidTokenToRedeem.selector);
         adapter.addTokenToRedeem(address(tokenToRedeem));
 
-        assertEq(adapter.getTokensToRedeemLength(), 2);
+        assertEq(adapter.getTokensToRedeemLength(), 1);
         assertEq(adapter.accounts(address(tokenToRedeem)), account);
     }
 
@@ -117,6 +118,19 @@ contract LiquidLaneAdapterTest is Test {
 
         assertEq(adapter.getTokensToRedeemLength(), 0);
         assertEq(adapter.accounts(address(tokenToRedeem)), account);
+        assertEq(adapter.limit(address(tokenToRedeem)), 0);
+
+        vm.prank(curator);
+        vm.expectRevert(ILiquidLaneAdapter.InvalidTokenToRedeem.selector);
+        adapter.setLimit(address(tokenToRedeem), type(uint256).max);
+    }
+
+    function testRemoveTokenToRedeemRevertsForUnknownToken() public {
+        MockERC20 otherTokenToRedeem = new MockERC20("Other Token To Redeem", "OTTR");
+
+        vm.prank(curator);
+        vm.expectRevert(ILiquidLaneAdapter.InvalidTokenToRedeem.selector);
+        adapter.removeTokenToRedeem(address(otherTokenToRedeem));
     }
 
     function testInitializeSetsPauserAndUnpauserFromParams() public view {
@@ -236,6 +250,7 @@ contract LiquidLaneAdapterTest is Test {
         adapter.setReceiver(curatorReceiver);
         asset.approve(address(adapter), 40 ether);
         adapter.depositToAcquire(address(tokenToRedeem), 40 ether);
+        adapter.setLimit(address(tokenToRedeem), 0);
         adapter.setFiller(filler, true);
         vm.stopPrank();
 

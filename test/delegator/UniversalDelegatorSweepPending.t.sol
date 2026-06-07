@@ -334,6 +334,23 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(delegator.adapters(0), address(adapter));
     }
 
+    function test_GetAdaptersLengthReturnsConfiguredRouteLength() public {
+        UniversalDelegatorSweepAdapter adapter1 = _newAdapter(0, 0);
+        UniversalDelegatorSweepAdapter adapter2 = _newAdapter(0, 0);
+
+        assertEq(IUniversalDelegator(address(delegator)).getAdaptersLength(), 0);
+
+        delegator.addAdapterForTest(address(adapter1));
+        delegator.addAdapterForTest(address(adapter2));
+
+        assertEq(IUniversalDelegator(address(delegator)).getAdaptersLength(), 2);
+
+        delegator.grantRoleForTest(REMOVE_ADAPTER_ROLE, address(this));
+        delegator.removeAdapter(address(adapter1));
+
+        assertEq(IUniversalDelegator(address(delegator)).getAdaptersLength(), 1);
+    }
+
     function test_AddAdapterRevertsAlreadyAdded() public {
         UniversalDelegatorSweepAdapter adapter = _newAdapter(0, 0);
 
