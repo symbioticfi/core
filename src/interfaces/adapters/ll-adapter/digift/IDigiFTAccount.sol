@@ -11,10 +11,10 @@ interface IDigiFTAccount is IAccount {
     /* FUNCTIONS */
 
     /**
-     * @notice Returns the wallet receiving DigiFT redemption transfers.
-     * @return wallet The redemption wallet address.
+     * @notice Returns the DigiFT normal redemption manager.
+     * @return subRedManagement The redemption manager address.
      */
-    function REDEMPTION_WALLET() external view returns (address wallet);
+    function SUB_RED_MANAGEMENT() external view returns (address subRedManagement);
 
     /**
      * @notice Returns how long pending off-chain redemption assets remain counted.

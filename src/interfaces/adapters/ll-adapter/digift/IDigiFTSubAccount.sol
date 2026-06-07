@@ -16,7 +16,7 @@ interface IDigiFTSubAccount {
     /* FUNCTIONS */
 
     /**
-     * @notice Sends held DigiFT tokens to the redemption wallet.
+     * @notice Requests normal redemption of held DigiFT tokens.
      */
     function requestRedeem() external;
 

@@ -5,6 +5,7 @@ pragma solidity ^0.8.28;
 import {Account} from "./common/Account.sol";
 
 import {IDigiFTAccount} from "../../../interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol";
+import {IDigiFTSubRedManagement} from "../../../interfaces/adapters/ll-adapter/digift/IDigiFTSubRedManagement.sol";
 import {IDigiFTSubAccount} from "../../../interfaces/adapters/ll-adapter/digift/IDigiFTSubAccount.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -12,7 +13,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title DigiFTAccount
-/// @notice Account for DigiFT off-chain redemption transfers.
+/// @notice Account for DigiFT normal redemptions.
 contract DigiFTAccount is Account, IDigiFTAccount {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -20,7 +21,7 @@ contract DigiFTAccount is Account, IDigiFTAccount {
     /* IMMUTABLES */
 
     /// @inheritdoc IDigiFTAccount
-    address public immutable REDEMPTION_WALLET;
+    address public immutable SUB_RED_MANAGEMENT;
     /// @inheritdoc IDigiFTAccount
     uint48 public immutable PENDING_ASSETS_DURATION;
 
@@ -36,12 +37,12 @@ contract DigiFTAccount is Account, IDigiFTAccount {
         address oracle,
         address factory,
         address tokenToRedeem,
-        address redemptionWallet,
+        address subRedManagement,
         address cowSwapSettlement,
         address cowSwapVaultRelayer,
         uint48 pendingAssetsDuration
     ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
-        REDEMPTION_WALLET = redemptionWallet;
+        SUB_RED_MANAGEMENT = subRedManagement;
         PENDING_ASSETS_DURATION = pendingAssetsDuration;
     }
 
@@ -74,7 +75,7 @@ contract DigiFTAccount is Account, IDigiFTAccount {
                     address(this),
                     TOKEN_TO_REDEEM,
                     _tokenToRedeemToAssets(amount),
-                    REDEMPTION_WALLET,
+                    SUB_RED_MANAGEMENT,
                     uint48(block.timestamp + PENDING_ASSETS_DURATION)
                 )
             );
@@ -87,7 +88,7 @@ contract DigiFTAccount is Account, IDigiFTAccount {
 }
 
 /// @title DigiFTSubAccount
-/// @notice Request-holder subaccount for one DigiFT redemption transfer.
+/// @notice Request-holder subaccount for one DigiFT normal redemption.
 contract DigiFTSubAccount is IDigiFTSubAccount {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -100,8 +101,8 @@ contract DigiFTSubAccount is IDigiFTSubAccount {
     address internal immutable ACCOUNT;
     /// @dev DigiFT token submitted for redemption.
     address internal immutable TOKEN_TO_REDEEM;
-    /// @dev DigiFT wallet receiving redemption transfers.
-    address internal immutable REDEMPTION_WALLET;
+    /// @dev DigiFT normal redemption manager.
+    address internal immutable SUB_RED_MANAGEMENT;
     /// @dev Timestamp after which pending assets are no longer counted.
     uint48 internal immutable PENDING_ASSETS_DEADLINE;
 
@@ -118,15 +119,17 @@ contract DigiFTSubAccount is IDigiFTSubAccount {
         address account,
         address tokenToRedeem,
         uint256 pendingAssets_,
-        address redemptionWallet,
+        address subRedManagement,
         uint48 pendingAssetsDeadline
     ) {
         ASSET = asset;
         ACCOUNT = account;
         TOKEN_TO_REDEEM = tokenToRedeem;
         _pendingAssets = pendingAssets_;
-        REDEMPTION_WALLET = redemptionWallet;
+        SUB_RED_MANAGEMENT = subRedManagement;
         PENDING_ASSETS_DEADLINE = pendingAssetsDeadline;
+
+        IERC20(TOKEN_TO_REDEEM).forceApprove(SUB_RED_MANAGEMENT, type(uint256).max);
     }
 
     /* PUBLIC FUNCTIONS */
@@ -137,7 +140,9 @@ contract DigiFTSubAccount is IDigiFTSubAccount {
             revert NotAccount();
         }
 
-        IERC20(TOKEN_TO_REDEEM).safeTransfer(REDEMPTION_WALLET, IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)));
+        IDigiFTSubRedManagement(SUB_RED_MANAGEMENT).redeem(
+            TOKEN_TO_REDEEM, ASSET, IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), block.timestamp
+        );
     }
 
     /// @inheritdoc IDigiFTSubAccount

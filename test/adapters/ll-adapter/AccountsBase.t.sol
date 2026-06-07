@@ -58,7 +58,7 @@ abstract contract AccountsBase is Test {
     address internal adapter = makeAddr("adapter");
     address internal cowSwapSettlement = makeAddr("cowSwapSettlement");
     address internal cowSwapVaultRelayer = makeAddr("cowSwapVaultRelayer");
-    address internal redemptionWallet = makeAddr("redemptionWallet");
+    address internal subRedManagement = makeAddr("subRedManagement");
 
     function _deployWstETH(
         MockWstETH wstETH,
@@ -193,12 +193,19 @@ abstract contract AccountsBase is Test {
         internal
         returns (DigiFTAccount account)
     {
+        account = _deployDigiFT(tokenToRedeem, asset, oracle, subRedManagement);
+    }
+
+    function _deployDigiFT(MockERC20 tokenToRedeem, MockERC20 asset, MockOracle oracle, address subRedManagement_)
+        internal
+        returns (DigiFTAccount account)
+    {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         DigiFTAccount implementation = new DigiFTAccount(
             address(oracle),
             address(factory),
             address(tokenToRedeem),
-            redemptionWallet,
+            subRedManagement_,
             cowSwapSettlement,
             cowSwapVaultRelayer,
             DIGIFT_PENDING_ASSETS_DURATION
