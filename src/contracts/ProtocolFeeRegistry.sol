@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Symbiotic
-pragma solidity ^0.8.35;
+pragma solidity ^0.8.28;
 
 import {IProtocolFeeRegistry} from "../interfaces/IProtocolFeeRegistry.sol";
 import {MAX_MANAGEMENT_FEE, MAX_PERFORMANCE_FEE} from "../interfaces/vault/IVaultV2.sol";

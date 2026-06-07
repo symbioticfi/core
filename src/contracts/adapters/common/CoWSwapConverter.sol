@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Symbiotic
-pragma solidity ^0.8.35;
+pragma solidity ^0.8.28;
 
 import {
     COW_SWAP_BALANCE_ERC20,
@@ -39,11 +39,15 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         mapping(uint256 nonce => mapping(bytes32 requestHash => uint48 timestamp)) executableAt;
     }
 
+    // keccak256(abi.encode(uint256(keccak256("symbiotic.storage.CoWSwapConverter")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant CoWSwapConverterStorageLocation =
+        0x3df9c7cbf29babd0e533ef0d4bed13f4d98a54420cb0d13f763857af01123c00;
+
     /// @dev Returns CoW converter storage at the ERC-7201 namespace.
     function _getCoWSwapConverterStorage() internal pure returns (CoWSwapConverterStorage storage $) {
-        uint256 slot = erc7201("symbiotic.storage.CoWSwapConverter");
+        bytes32 location = CoWSwapConverterStorageLocation;
         assembly {
-            $.slot := slot
+            $.slot := location
         }
     }
 

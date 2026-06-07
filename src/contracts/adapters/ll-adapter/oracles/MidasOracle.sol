@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Symbiotic
-pragma solidity ^0.8.35;
+pragma solidity ^0.8.28;
 
 import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 import {IMidasDataFeed, IMidasOracle} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";

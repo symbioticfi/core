@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2026 Symbiotic
-pragma solidity ^0.8.35;
+pragma solidity ^0.8.28;
 
 import {CooldownAccount} from "./CooldownAccount.sol";
 
@@ -8,16 +8,19 @@ import {IAsyncRedeemAccount} from "../../../../interfaces/adapters/ll-adapter/IA
 import {IAsyncRedeemVault} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 
 /// @title AsyncRedeemAccount
 /// @notice Base account for ERC-7540 async redeem integrations.
 abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
+    using BitMaps for BitMaps.BitMap;
+
     /* STATE VARIABLES */
 
     /// @inheritdoc IAsyncRedeemAccount
     uint64[] public requestIds;
     /// @dev Whether an ERC-7540 redemption request id is tracked.
-    mapping(uint256 requestId => bool exists) internal _requestIdExists;
+    BitMaps.BitMap internal _requestIdExists;
 
     /* CONSTRUCTOR */
 
@@ -65,7 +68,7 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
                 IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(trackedRequestId, address(this)) == 0
                     && claimableShares == 0
             ) {
-                _requestIdExists[trackedRequestId] = false;
+                _requestIdExists.unset(trackedRequestId);
                 requestIds[index] = requestIds[requestIds.length - 1];
                 requestIds.pop();
             }
@@ -77,8 +80,8 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
         address asyncRedeemVault = _asyncRedeemVault();
         uint256 requestId = IAsyncRedeemVault(asyncRedeemVault)
             .requestRedeem(IERC20(asyncRedeemVault).balanceOf(address(this)), address(this), address(this));
-        if (!_requestIdExists[requestId]) {
-            _requestIdExists[requestId] = true;
+        if (!_requestIdExists.get(requestId)) {
+            _requestIdExists.set(requestId);
             requestIds.push(uint64(requestId));
         }
     }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.35;
+pragma solidity ^0.8.28;
 
 import {DeployMorphoVaultV2AdapterBaseScript} from "./base/DeployMorphoVaultV2AdapterBase.s.sol";
 
