@@ -49,11 +49,10 @@ contract HumaAccount is Account, IHumaAccount {
     /// @dev Claims fulfilled proceeds and submits held tranche tokens for redemption.
     function _sync() internal override {
         uint256 assetsBefore = IERC20(_asset).balanceOf(address(this));
-        address redemptionVault = REDEMPTION_VAULT;
 
-        try IHumaTrancheVault(redemptionVault).disburse() {} catch {}
+        try IHumaTrancheVault(REDEMPTION_VAULT).disburse() {} catch {}
 
-        try IHumaTrancheVault(redemptionVault).withdrawAfterPoolClosure() {} catch {}
+        try IHumaTrancheVault(REDEMPTION_VAULT).withdrawAfterPoolClosure() {} catch {}
 
         uint256 claimedAssets = IERC20(_asset).balanceOf(address(this)) - assetsBefore;
         if (claimedAssets > 0) {
@@ -61,15 +60,13 @@ contract HumaAccount is Account, IHumaAccount {
         }
 
         uint256 shares = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (shares == 0) {
-            return;
-        }
+        if (shares > 0) {
+            IHumaTrancheVault(REDEMPTION_VAULT).addRedemptionRequest(shares);
 
-        IHumaTrancheVault(redemptionVault).addRedemptionRequest(shares);
-
-        uint256 requestedShares = shares - IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (requestedShares > 0) {
-            pendingAssets += _tokenToRedeemToAssets(requestedShares);
+            uint256 requestedShares = shares - IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+            if (requestedShares > 0) {
+                pendingAssets += _tokenToRedeemToAssets(requestedShares);
+            }
         }
     }
 

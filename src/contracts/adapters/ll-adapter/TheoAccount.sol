@@ -27,26 +27,24 @@ contract TheoAccount is Account, ITheoAccount {
 
     /// @dev Returns pending sthUSD redemption request value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
-        address token = TOKEN_TO_REDEEM;
-        (assets,,) = ISthUSD(token).currentRedeemRequest(address(this));
-        assets = _redemptionTokenToAssets(ISthUSD(token).asset(), assets);
+        (assets,,) = ISthUSD(TOKEN_TO_REDEEM).currentRedeemRequest(address(this));
+        assets = _redemptionTokenToAssets(ISthUSD(TOKEN_TO_REDEEM).asset(), assets);
     }
 
     /// @dev Initiates held sthUSD redemption and claims matured thUSD requests.
     function _sync() internal override {
-        address token = TOKEN_TO_REDEEM;
-        (, uint256 shares, uint256 claimableTimestamp) = ISthUSD(token).currentRedeemRequest(address(this));
+        (, uint256 shares, uint256 claimableTimestamp) = ISthUSD(TOKEN_TO_REDEEM).currentRedeemRequest(address(this));
         if (shares > 0) {
             if (block.timestamp < claimableTimestamp) {
                 return;
             }
 
-            ISthUSD(token).redeem(shares, address(this), address(this));
+            ISthUSD(TOKEN_TO_REDEEM).redeem(shares, address(this), address(this));
         }
 
-        shares = IERC20(token).balanceOf(address(this));
+        shares = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         if (shares > 0) {
-            ISthUSD(token).initiateRedeem(shares, address(this));
+            ISthUSD(TOKEN_TO_REDEEM).initiateRedeem(shares, address(this));
         }
     }
 }

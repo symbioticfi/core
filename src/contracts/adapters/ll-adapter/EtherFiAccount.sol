@@ -105,33 +105,30 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
             return;
         }
 
-        address manager = REDEMPTION_MANAGER;
-        address outputToken = IEtherFiRedemptionManager(manager).ETH_ADDRESS();
-        (,, uint16 exitFeeInBps,) = IEtherFiRedemptionManager(manager).tokenToRedemptionInfo(outputToken);
+        address outputToken = IEtherFiRedemptionManager(REDEMPTION_MANAGER).ETH_ADDRESS();
+        (,, uint16 exitFeeInBps,) = IEtherFiRedemptionManager(REDEMPTION_MANAGER).tokenToRedemptionInfo(outputToken);
         if (
             exitFeeInBps == 0
-                && IEtherFiRedemptionManager(manager)
+                && IEtherFiRedemptionManager(REDEMPTION_MANAGER)
                     .canRedeem(IWeETH(TOKEN_TO_REDEEM).getEETHByWeETH(amountToRedeem), outputToken)
         ) {
             uint256 ethBalanceBefore = address(this).balance;
             IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_MANAGER, amountToRedeem);
-            IEtherFiRedemptionManager(manager).redeemWeEth(amountToRedeem, address(this), outputToken);
+            IEtherFiRedemptionManager(REDEMPTION_MANAGER).redeemWeEth(amountToRedeem, address(this), outputToken);
 
             uint256 claimed = address(this).balance - ethBalanceBefore;
             if (claimed == 0) {
                 revert InstantRedemptionUnavailable();
             }
 
-            _wrapEth(claimed);
+            IWETH(WETH).deposit{value: address(this).balance}();
             return;
         }
 
         pendingAssets += _tokenToRedeemToAssets(amountToRedeem);
         uint256 eETHAmount = IWeETH(TOKEN_TO_REDEEM).unwrap(amountToRedeem);
         IERC20(EETH).forceApprove(LIQUIDITY_POOL, eETHAmount);
-        requestIds.push(
-            uint64(IEtherFiLiquidityPool(LIQUIDITY_POOL).requestWithdraw(address(this), eETHAmount))
-        );
+        requestIds.push(uint64(IEtherFiLiquidityPool(LIQUIDITY_POOL).requestWithdraw(address(this), eETHAmount)));
     }
 
     /// @dev Wraps ETH received from queued withdrawal claims into WETH.
@@ -141,16 +138,11 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
             return false;
         }
 
-        _wrapEth(claimed);
+        IWETH(WETH).deposit{value: address(this).balance}();
 
         uint256 claimedAssets = claimed.mulDiv(_unit, 1e18);
         pendingAssets = pendingAssets > claimedAssets ? pendingAssets - claimedAssets : 0;
         wrapped = true;
-    }
-
-    /// @dev Wraps ETH into WETH.
-    function _wrapEth(uint256 amount) internal {
-        IWETH(WETH).deposit{value: amount}();
     }
 
     /* RECEIVE */

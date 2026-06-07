@@ -41,11 +41,12 @@ abstract contract CooldownAccount is Account, ICooldownAccount {
     function _sync() internal virtual override {
         _finalizeRequests();
 
-        if (msg.sender == owner() || lastRequestTimestamp == 0 || block.timestamp >= lastRequestTimestamp + COOLDOWN) {
-            if (IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)) > 0) {
-                _requestRedeem();
-                lastRequestTimestamp = uint48(block.timestamp);
-            }
+        if (
+            (msg.sender == owner() || lastRequestTimestamp == 0 || block.timestamp >= lastRequestTimestamp + COOLDOWN)
+                && IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)) > 0
+        ) {
+            _requestRedeem();
+            lastRequestTimestamp = uint48(block.timestamp);
         }
     }
 

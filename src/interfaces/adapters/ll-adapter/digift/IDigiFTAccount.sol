@@ -15,4 +15,17 @@ interface IDigiFTAccount is IAccount {
      * @return wallet The redemption wallet address.
      */
     function REDEMPTION_WALLET() external view returns (address wallet);
+
+    /**
+     * @notice Returns how long pending off-chain redemption assets remain counted.
+     * @return duration The pending assets duration.
+     */
+    function PENDING_ASSETS_DURATION() external view returns (uint48 duration);
+
+    /**
+     * @notice Returns a DigiFT redemption-request subaccount by index.
+     * @param index The subaccount index.
+     * @return subAccount The subaccount address.
+     */
+    function subAccounts(uint256 index) external view returns (address subAccount);
 }

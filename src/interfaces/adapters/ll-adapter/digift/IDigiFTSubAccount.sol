@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+/**
+ * @title IDigiFTSubAccount
+ * @notice Interface for DigiFT redemption-request subaccounts.
+ */
+interface IDigiFTSubAccount {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when a caller is not the parent account.
+     */
+    error NotAccount();
+
+    /* FUNCTIONS */
+
+    /**
+     * @notice Sends held DigiFT tokens to the redemption wallet.
+     */
+    function requestRedeem() external;
+
+    /**
+     * @notice Forwards returned vault assets to the parent account.
+     */
+    function sync() external;
+
+    /**
+     * @notice Returns the subaccount's pending and held vault-asset value.
+     * @return assets The pending and held vault-asset value.
+     */
+    function totalAssets() external view returns (uint256 assets);
+}

@@ -43,7 +43,7 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
         for (uint256 i; i < requestIds.length; ++i) {
             uint256 requestId = requestIds[i];
             assets += IAsyncRedeemVault(asyncRedeemVault)
-                .convertToAssets(
+                .previewWithdraw(
                     IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestId, address(this))
                         + IAsyncRedeemVault(asyncRedeemVault).claimableRedeemRequest(requestId, address(this))
                 );
@@ -61,13 +61,9 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
                 IAsyncRedeemVault(asyncRedeemVault).claimableRedeemRequest(trackedRequestId, address(this));
             if (claimableShares > 0) {
                 IAsyncRedeemVault(asyncRedeemVault).redeem(claimableShares, address(this), address(this));
-                claimableShares = 0;
             }
 
-            if (
-                IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(trackedRequestId, address(this)) == 0
-                    && claimableShares == 0
-            ) {
+            if (IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(trackedRequestId, address(this)) == 0) {
                 _requestIdExists.unset(trackedRequestId);
                 requestIds[index] = requestIds[requestIds.length - 1];
                 requestIds.pop();

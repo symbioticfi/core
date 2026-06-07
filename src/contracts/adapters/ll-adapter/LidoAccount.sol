@@ -66,11 +66,9 @@ contract LidoAccount is Account, ILidoAccount {
 
     /// @dev Claims finalized withdrawals and submits held wstETH or stETH inventory.
     function _sync() internal override {
-        address withdrawalQueue = WITHDRAWAL_QUEUE;
-
         for (uint256 i = requestIds.length; i > 0; --i) {
             uint256 ethBalanceBefore = address(this).balance;
-            try ILidoWithdrawalQueue(withdrawalQueue).claimWithdrawal(requestIds[i - 1]) {
+            try ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).claimWithdrawal(requestIds[i - 1]) {
                 uint256 claimed = address(this).balance - ethBalanceBefore;
                 if (claimed > 0) {
                     IWETH(_asset).deposit{value: claimed}();
@@ -83,11 +81,11 @@ contract LidoAccount is Account, ILidoAccount {
         }
 
         uint256 amountToRedeem = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        uint256 minStETHAmount = ILidoWithdrawalQueue(withdrawalQueue).MIN_STETH_WITHDRAWAL_AMOUNT();
-        uint256 maxStETHAmount = ILidoWithdrawalQueue(withdrawalQueue).MAX_STETH_WITHDRAWAL_AMOUNT();
+        uint256 minStETHAmount = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).MIN_STETH_WITHDRAWAL_AMOUNT();
+        uint256 maxStETHAmount = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).MAX_STETH_WITHDRAWAL_AMOUNT();
         if (amountToRedeem > 0 && IWstETH(WSTETH).getStETHByWstETH(amountToRedeem) >= minStETHAmount) {
             uint256 maxWstETHAmount = IWstETH(WSTETH).getWstETHByStETH(maxStETHAmount);
-            uint256[] memory ids = ILidoWithdrawalQueue(withdrawalQueue)
+            uint256[] memory ids = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE)
                 .requestWithdrawalsWstETH(_splitAmounts(amountToRedeem, maxWstETHAmount), address(this));
             for (uint256 i; i < ids.length; ++i) {
                 requestIds.push(uint64(ids[i]));
@@ -97,7 +95,7 @@ contract LidoAccount is Account, ILidoAccount {
 
         uint256 stETHBalance = IERC20(STETH).balanceOf(address(this));
         if (stETHBalance >= minStETHAmount) {
-            uint256[] memory ids = ILidoWithdrawalQueue(withdrawalQueue)
+            uint256[] memory ids = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE)
                 .requestWithdrawals(_splitAmounts(stETHBalance, maxStETHAmount), address(this));
             for (uint256 i; i < ids.length; ++i) {
                 requestIds.push(uint64(ids[i]));

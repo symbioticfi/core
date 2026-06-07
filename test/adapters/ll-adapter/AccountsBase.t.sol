@@ -51,6 +51,7 @@ abstract contract AccountsBase is Test {
     address internal constant SUSD3_TOKEN_ADDRESS = 0xf689555121e529Ff0463e191F9Bd9d1E496164a7;
     address internal constant USDC_TOKEN_ADDRESS = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     uint48 internal constant DUSD_TOKEN_COOLDOWN = 72 minutes;
+    uint48 internal constant DIGIFT_PENDING_ASSETS_DURATION = 1 days;
     uint48 internal constant PST_STALENESS_DURATION = 2 days;
     uint48 internal constant SAID_TOKEN_COOLDOWN = 6 days;
 
@@ -199,7 +200,8 @@ abstract contract AccountsBase is Test {
             address(tokenToRedeem),
             redemptionWallet,
             cowSwapSettlement,
-            cowSwapVaultRelayer
+            cowSwapVaultRelayer,
+            DIGIFT_PENDING_ASSETS_DURATION
         );
         factory.whitelist(address(implementation));
         account = DigiFTAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
@@ -711,6 +713,10 @@ contract MockAsyncRedeemVault is MockERC20 {
 
     function convertToAssets(uint256 shares) public view returns (uint256) {
         return shares * assetsPerShare / 10 ** decimals();
+    }
+
+    function previewWithdraw(uint256 shares) external view returns (uint256 assets) {
+        assets = convertToAssets(shares);
     }
 
     function requestRedeem(uint256 shares, address controller, address owner) external returns (uint256 requestId) {

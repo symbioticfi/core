@@ -32,8 +32,8 @@ contract ThreeJaneAccount is Account, IThreeJaneAccount {
 
     /// @dev Starts cooldowns and withdraws matured sUSD3 into USD3 during the withdrawal window.
     function _sync() internal override {
-        address token = TOKEN_TO_REDEEM;
-        (uint48 cooldownEnd, uint48 windowEnd, uint256 shares) = IThreeJaneSUSD3(token).getCooldownStatus(address(this));
+        (uint48 cooldownEnd, uint48 windowEnd, uint256 shares) =
+            IThreeJaneSUSD3(TOKEN_TO_REDEEM).getCooldownStatus(address(this));
 
         if (shares > 0) {
             if (block.timestamp < cooldownEnd) {
@@ -41,25 +41,25 @@ contract ThreeJaneAccount is Account, IThreeJaneAccount {
             }
 
             if (block.timestamp <= windowEnd) {
-                uint256 assets = IThreeJaneSUSD3(token).convertToAssets(shares);
-                uint256 availableAssets = IThreeJaneSUSD3(token).availableWithdrawLimit(address(this));
+                uint256 assets = IThreeJaneSUSD3(TOKEN_TO_REDEEM).convertToAssets(shares);
+                uint256 availableAssets = IThreeJaneSUSD3(TOKEN_TO_REDEEM).availableWithdrawLimit(address(this));
                 if (availableAssets < assets) {
                     assets = availableAssets;
                 }
                 if (assets > 0) {
-                    IThreeJaneSUSD3(token).withdraw(assets, address(this), address(this));
+                    IThreeJaneSUSD3(TOKEN_TO_REDEEM).withdraw(assets, address(this), address(this));
                 }
                 return;
             }
         }
 
-        if (block.timestamp < IThreeJaneSUSD3(token).lockedUntil(address(this))) {
+        if (block.timestamp < IThreeJaneSUSD3(TOKEN_TO_REDEEM).lockedUntil(address(this))) {
             return;
         }
 
-        shares = IERC20(token).balanceOf(address(this));
+        shares = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         if (shares > 0) {
-            IThreeJaneSUSD3(token).startCooldown(shares);
+            IThreeJaneSUSD3(TOKEN_TO_REDEEM).startCooldown(shares);
         }
     }
 }

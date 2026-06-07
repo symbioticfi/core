@@ -43,11 +43,11 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     /* STATE VARIABLES */
 
     /// @inheritdoc ILiquidLaneAdapter
-    address public marketMaker;
-    /// @inheritdoc ILiquidLaneAdapter
     address public pauser;
     /// @inheritdoc ILiquidLaneAdapter
     address public unpauser;
+    /// @inheritdoc ILiquidLaneAdapter
+    address public marketMaker;
     /// @inheritdoc ILiquidLaneAdapter
     bool public marketMakerCanAcquire;
     /// @inheritdoc ILiquidLaneAdapter
@@ -70,8 +70,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     /// @inheritdoc ILiquidLaneAdapter
     mapping(address tokenToRedeem => address account) public accounts;
 
-    /// @dev Set while the adapter is funding a swap through VaultV2. Transient: only meaningful within the
-    ///      single swap transaction that reads it back through the delegator's `allocatable()` callback.
+    /// @dev Set while the adapter is funding a swap through VaultV2.
     bool internal transient _inSwap;
 
     /* CONSTRUCTOR */
@@ -88,11 +87,6 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     /// @inheritdoc IAdapter
     function allocatable() public view override(Adapter, IAdapter) returns (uint256) {
         return _inSwap ? super.allocatable() : 0;
-    }
-
-    /// @inheritdoc ILiquidLaneAdapter
-    function paused() public view override(PausableUpgradeable, ILiquidLaneAdapter) returns (bool) {
-        return super.paused();
     }
 
     /// @inheritdoc IAdapter

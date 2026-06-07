@@ -73,14 +73,14 @@ abstract contract MidasAccount is CooldownAccount, IMidasAccount {
 
     /// @dev Submits held token-to-redeem inventory to the Midas redemption vault.
     function _requestRedeem() internal override {
-        address redemptionVault = REDEMPTION_VAULT;
-        (address dataFeed,,,) = IMidasRedemptionVault(redemptionVault).tokensConfig(_asset);
+        (address dataFeed,,,) = IMidasRedemptionVault(REDEMPTION_VAULT).tokensConfig(_asset);
         requestIds.push(
             uint64(
-                IMidasRedemptionVault(redemptionVault).redeemRequest(
-                    dataFeed == address(0) ? REDEMPTION_TOKEN : _asset,
-                    IERC20(TOKEN_TO_REDEEM).balanceOf(address(this))
-                )
+                IMidasRedemptionVault(REDEMPTION_VAULT)
+                    .redeemRequest(
+                        dataFeed == address(0) ? REDEMPTION_TOKEN : _asset,
+                        IERC20(TOKEN_TO_REDEEM).balanceOf(address(this))
+                    )
             )
         );
     }

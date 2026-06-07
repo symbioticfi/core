@@ -114,7 +114,7 @@ abstract contract Account is MigratableEntity, CoWSwapConverter, IAccount {
         return amount.mulDiv(rate * _unit, TO_ASSETS_DIVISOR);
     }
 
-    function _totalAssets() internal view virtual returns (uint256);
+    function _totalAssets() internal view virtual returns (uint256 assets);
 
     function _sync() internal virtual;
 

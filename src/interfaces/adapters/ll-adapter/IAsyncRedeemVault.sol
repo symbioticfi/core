@@ -16,6 +16,13 @@ interface IAsyncRedeemVault {
     function convertToAssets(uint256 shares) external view returns (uint256 assets);
 
     /**
+     * @notice Previews withdrawn assets for shares.
+     * @param shares The share amount.
+     * @return assets The asset amount.
+     */
+    function previewWithdraw(uint256 shares) external view returns (uint256 assets);
+
+    /**
      * @notice Returns pending redemption shares for a request.
      * @param requestId The request id.
      * @param controller The request controller.

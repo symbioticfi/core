@@ -30,8 +30,7 @@ contract FigureAccount is AsyncRedeemAccount, IFigureAccount {
     /// @dev Returns held wYLDS value plus pending async redemption request value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
         address asyncRedeemVault = _asyncRedeemVault();
-
-        assets += IAsyncRedeemVault(asyncRedeemVault).convertToAssets(IERC20(asyncRedeemVault).balanceOf(address(this)));
+        assets += IAsyncRedeemVault(asyncRedeemVault).previewWithdraw(IERC20(asyncRedeemVault).balanceOf(address(this)));
         assets += super._totalAssets();
     }
 

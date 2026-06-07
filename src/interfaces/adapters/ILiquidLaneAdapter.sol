@@ -397,12 +397,6 @@ interface ILiquidLaneAdapter is IAdapter {
     function unpauser() external view returns (address unpauserAddress);
 
     /**
-     * @notice Returns whether swaps are globally paused.
-     * @return status Whether swaps are paused.
-     */
-    function paused() external view returns (bool status);
-
-    /**
      * @notice Prefunds acquisition balances with vault assets.
      * @param tokenToRedeem The token-to-redeem address.
      * @param amount The asset amount to deposit.
