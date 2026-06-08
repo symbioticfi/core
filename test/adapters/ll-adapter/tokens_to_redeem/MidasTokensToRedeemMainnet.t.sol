@@ -104,7 +104,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(account.REDEMPTION_VAULT(), redemptionVault);
         assertEq(account.ORACLE(), implementation.ORACLE());
         assertEq(account.COOLDOWN(), _cooldown(spec.maxWithdrawalDelay));
-        assertTrue(account.isConverter(address(this)));
+        assertEq(account.converters(0), address(this));
         assertEq(account.adapter(), adapter);
         assertEq(account.vault(), address(vault));
         assertEq(

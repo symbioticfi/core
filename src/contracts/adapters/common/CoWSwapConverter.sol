@@ -35,7 +35,7 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
 
     /// @custom:storage-location erc7201:symbiotic.storage.CoWSwapConverter
     struct CoWSwapConverterStorage {
-        mapping(address converter => bool status) isConverter;
+        address[] converters;
         mapping(uint256 nonce => mapping(bytes32 requestHash => uint48 timestamp)) executableAt;
     }
 
@@ -66,8 +66,8 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     }
 
     /// @inheritdoc ICoWSwapConverter
-    function isConverter(address converter) public view returns (bool status) {
-        return _getCoWSwapConverterStorage().isConverter[converter];
+    function converters(uint256 index) public view returns (address) {
+        return _getCoWSwapConverterStorage().converters[index];
     }
 
     /* PUBLIC FUNCTIONS */
@@ -75,8 +75,11 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     /// @inheritdoc IConverter
     function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data) public virtual override {
         OrderParams memory params = abi.decode(data, (OrderParams));
-        if (amountIn == 0 || params.sellAmount + params.feeAmount != amountIn) {
+        if (amountIn == 0) {
             revert InvalidSellAmount();
+        }
+        if (params.buyAmount == 0) {
+            revert InvalidBuyAmount();
         }
         if (params.validTo <= block.timestamp) {
             revert ExpiredOrder();
@@ -85,7 +88,7 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
             revert TooFarValidTo();
         }
 
-        if (!isConverter(msg.sender)) {
+        if (!_isConverter(msg.sender)) {
             uint48 timestamp = _getCoWSwapConverterStorage()
             .executableAt[nonces(tokenIn)][keccak256(abi.encode(tokenIn, amountIn, tokenOut, data))];
             if (timestamp == 0 || block.timestamp < timestamp) {
@@ -106,11 +109,11 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
                     sellToken: tokenIn,
                     buyToken: tokenOut,
                     receiver: address(this),
-                    sellAmount: params.sellAmount,
+                    sellAmount: amountIn,
                     buyAmount: params.buyAmount,
                     validTo: params.validTo,
                     appData: params.appData,
-                    feeAmount: params.feeAmount,
+                    feeAmount: 0,
                     kind: COW_SWAP_KIND_SELL,
                     partiallyFillable: false,
                     sellTokenBalance: COW_SWAP_BALANCE_ERC20,
@@ -144,13 +147,22 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     }
 
     /// @inheritdoc ICoWSwapConverter
-    function setConverterStatus(address converter, bool status) public onlyOwner {
-        _getCoWSwapConverterStorage().isConverter[converter] = status;
+    function setConverters(address[] memory newConverters) public onlyOwner {
+        _getCoWSwapConverterStorage().converters = newConverters;
 
-        emit SetConverterStatus(converter, status);
+        emit SetConverters(newConverters);
     }
 
     /* INTERNAL FUNCTIONS */
+
+    function _isConverter(address converter) internal view returns (bool) {
+        for (uint256 i; i < _getCoWSwapConverterStorage().converters.length; ++i) {
+            if (_getCoWSwapConverterStorage().converters[i] == converter) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// @dev Return the EIP-712 signing hash for the specified order.
     ///
@@ -200,9 +212,7 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
 
     /// @dev Registers the initial converters allowed to create orders without the prepared-request delay.
     function __CoWSwapConverter_init(address[] memory initConverters) internal virtual {
-        CoWSwapConverterStorage storage $ = _getCoWSwapConverterStorage();
-        for (uint256 i; i < initConverters.length; ++i) {
-            $.isConverter[initConverters[i]] = true;
-        }
+        _getCoWSwapConverterStorage().converters = initConverters;
+        emit SetConverters(initConverters);
     }
 }

@@ -80,6 +80,11 @@ interface ICoWSwapConverter is IConverter {
     error InvalidSellAmount();
 
     /**
+     * @notice Raised when the buy amount is zero.
+     */
+    error InvalidBuyAmount();
+
+    /**
      * @notice Raised when the input token is the vault asset.
      */
     error InvalidTokenIn();
@@ -118,18 +123,14 @@ interface ICoWSwapConverter is IConverter {
 
     /**
      * @notice CoW Protocol order parameters provided through converter data.
-     * @param sellAmount The sell amount in `tokenIn`.
      * @param buyAmount The buy amount in `tokenOut`.
      * @param validTo The order expiry timestamp.
      * @param appData The CoW Protocol app data hash.
-     * @param feeAmount The fee amount in `tokenIn`.
      */
     struct OrderParams {
-        uint256 sellAmount;
         uint256 buyAmount;
         uint48 validTo;
         bytes32 appData;
-        uint256 feeAmount;
     }
 
     /**
@@ -176,11 +177,10 @@ interface ICoWSwapConverter is IConverter {
     event ReleaseExpiredOrder(bytes orderUid, address indexed token, uint256 amount);
 
     /**
-     * @notice Emitted when a converter authorization is updated.
-     * @param converter The converter address.
-     * @param status Whether the converter is authorized.
+     * @notice Emitted when converter authorizations are replaced.
+     * @param converters The authorized converters.
      */
-    event SetConverterStatus(address indexed converter, bool status);
+    event SetConverters(address[] converters);
 
     /* FUNCTIONS */
 
@@ -197,18 +197,17 @@ interface ICoWSwapConverter is IConverter {
     function COW_SWAP_VAULT_RELAYER() external view returns (address relayer);
 
     /**
-     * @notice Returns whether a converter may create orders without the prepared-request delay.
-     * @param converter The converter address.
-     * @return status Whether the converter is authorized.
+     * @notice Returns an authorized converter by index.
+     * @param index The converter index.
+     * @return converter The authorized converter.
      */
-    function isConverter(address converter) external view returns (bool status);
+    function converters(uint256 index) external view returns (address converter);
 
     /**
-     * @notice Sets whether a converter may create orders without the prepared-request delay.
-     * @param converter The converter address.
-     * @param status Whether the converter is authorized.
+     * @notice Replaces the converters that may create orders without the prepared-request delay.
+     * @param converters The authorized converters.
      */
-    function setConverterStatus(address converter, bool status) external;
+    function setConverters(address[] memory converters) external;
 
     /**
      * @notice Returns when a prepared conversion request can be executed.

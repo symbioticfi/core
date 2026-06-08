@@ -458,6 +458,9 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     /// @dev Executes a direct or delegated swap after caller authentication has already succeeded.
     /// @param swap The swap payload to execute.
     function _swap(Swap memory swap) internal whenNotPaused {
+        if (!_isTokenToRedeem[swap.tokenIn]) {
+            revert InvalidTokenToRedeem();
+        }
         if (
             swap.amountOut
                 > getAmountOut(swap.tokenIn, swap.amountIn)

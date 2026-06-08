@@ -38,7 +38,7 @@ contract MidasAccountOraclesTest is Test {
 
         assertEq(account.ORACLE(), oracle);
         assertEq(account.vault(), vault);
-        assertTrue(account.isConverter(address(this)));
+        assertEq(account.converters(0), address(this));
         assertEq(account.totalAssets(), 100 ether);
         account.sync();
 

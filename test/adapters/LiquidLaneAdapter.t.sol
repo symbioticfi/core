@@ -403,6 +403,18 @@ contract LiquidLaneAdapterTest is Test {
         vm.stopPrank();
     }
 
+    function testSwapRevertsForUnknownTokenToRedeem() public {
+        MockERC20 unknownTokenToRedeem = new MockERC20("Unknown Token To Redeem", "UTTR");
+
+        vm.expectRevert(ILiquidLaneAdapter.InvalidTokenToRedeem.selector);
+        vm.prank(marketMaker);
+        adapter.swap(
+            ILiquidLaneAdapter.Swap({
+                recipient: recipient, tokenIn: address(unknownTokenToRedeem), amountIn: 100 ether, amountOut: 90 ether
+            })
+        );
+    }
+
     function _signSignedSwap(uint256 signerKey, ILiquidLaneAdapter.SignedSwap memory signedSwap)
         internal
         view
@@ -651,15 +663,15 @@ contract MockLiquidLaneAccount is MigratableEntity, IAccount {
         return 0;
     }
 
-    function isConverter(address) external pure returns (bool) {
-        return false;
+    function converters(uint256) external pure returns (address) {
+        return address(0);
     }
 
     function prepareConvert(address, uint256, address, bytes calldata) external pure returns (bytes32) {
         return bytes32(0);
     }
 
-    function setConverterStatus(address, bool) external pure {}
+    function setConverters(address[] memory) external pure {}
 
     function _initialize(uint64, address, bytes memory data) internal override {
         (vault, adapter) = abi.decode(data, (address, address));

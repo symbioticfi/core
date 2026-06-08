@@ -69,7 +69,7 @@ contract MorphoVaultV2AdapterTest is Test {
         assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_VAULT_RELAYER(), relayer);
         assertEq(IMerklClaimer(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
         assertEq(MorphoVaultV2Adapter(address(adapter)).owner(), curator);
-        assertTrue(MorphoVaultV2Adapter(address(adapter)).isConverter(curator));
+        assertEq(ICoWSwapConverter(address(adapter)).converters(0), curator);
     }
 
     function test_ConvertRejectsMorphoVaultInput() public {

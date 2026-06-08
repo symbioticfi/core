@@ -57,7 +57,7 @@ contract ERC4626AdapterTest is Test {
         assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_VAULT_RELAYER(), relayer);
         assertEq(IMerklClaimer(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
         assertEq(ERC4626Adapter(address(adapter)).owner(), curator);
-        assertTrue(ERC4626Adapter(address(adapter)).isConverter(curator));
+        assertEq(ICoWSwapConverter(address(adapter)).converters(0), curator);
     }
 
     function test_ConvertRejectsERC4626VaultInput() public {

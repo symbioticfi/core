@@ -133,7 +133,7 @@ contract RestakingAppAdapterTest is Test {
         tokenIn.transfer(address(adapter), 100);
 
         vm.prank(curator);
-        adapter.convert(address(tokenIn), 100, address(baseAsset), _orderData(100, 90, 0, 1));
+        adapter.convert(address(tokenIn), 100, address(baseAsset), _orderData(90, 1));
 
         assertEq(settlement.lastOrderUid().length, 56);
         assertTrue(settlement.lastSigned());
@@ -502,18 +502,12 @@ contract RestakingAppAdapterTest is Test {
         );
     }
 
-    function _orderData(uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, uint256 salt)
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _orderData(uint256 buyAmount, uint256 salt) internal view returns (bytes memory) {
         return abi.encode(
             ICoWSwapConverter.OrderParams({
-                sellAmount: sellAmount,
                 buyAmount: buyAmount,
                 validTo: uint48(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION),
-                appData: bytes32(salt),
-                feeAmount: feeAmount
+                appData: bytes32(salt)
             })
         );
     }

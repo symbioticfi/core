@@ -881,11 +881,9 @@ contract DeployFullCoreChaosScript is Script {
         address[] memory list = _route(set, 0);
         bytes memory order = abi.encode(
             ICoWSwapConverter.OrderParams({
-                sellAmount: amount / 100,
                 buyAmount: amount / 100,
                 validTo: uint48(vm.getBlockTimestamp() + 10 minutes),
-                appData: keccak256(abi.encode(salt, "cow")),
-                feeAmount: 0
+                appData: keccak256(abi.encode(salt, "cow"))
             })
         );
 
@@ -900,9 +898,12 @@ contract DeployFullCoreChaosScript is Script {
             calls[1] = abi.encodeCall(IAdapter.freeAssets, ());
             _try(list[i], abi.encodeWithSignature("multicall(bytes[])", calls), "v2-adapter-multicall");
 
+            address[] memory converters = new address[](1);
+            converters[0] = actors.staker;
+            address[] memory emptyConverters = new address[](0);
             vm.startPrank(owner);
-            _try(list[i], abi.encodeCall(ICoWSwapConverter.setConverterStatus, (actors.staker, true)), "v2-cow-on");
-            _try(list[i], abi.encodeCall(ICoWSwapConverter.setConverterStatus, (actors.staker, false)), "v2-cow-off");
+            _try(list[i], abi.encodeCall(ICoWSwapConverter.setConverters, (converters)), "v2-cow-on");
+            _try(list[i], abi.encodeCall(ICoWSwapConverter.setConverters, (emptyConverters)), "v2-cow-off");
             vm.stopPrank();
 
             vm.prank(actors.staker);

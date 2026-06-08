@@ -69,7 +69,7 @@ contract AppAdapterTest is Test {
     function test_InitializeStoresConfiguredBurner() public view {
         assertEq(adapter.burner(), burner);
         assertEq(AppAdapter(address(adapter)).owner(), curator);
-        assertTrue(AppAdapter(address(adapter)).isConverter(curator));
+        assertEq(adapter.converters(0), curator);
     }
 
     function test_InitializeRejectsZeroBurner() public {
