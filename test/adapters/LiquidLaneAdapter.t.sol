@@ -347,7 +347,7 @@ contract LiquidLaneAdapterTest is Test {
         adapter.swap(signedSwap, signature);
     }
 
-    function testDiscountSwapUsesReusableSignerDiscountAndProtocolCosign() public {
+    function testDiscountSwapDoesNotConsumeReusableSignerDiscountNonce() public {
         uint256 signerKey = 0xB0B;
         uint256 protocolKey = 0xC0DE;
         address signer = vm.addr(signerKey);
@@ -372,17 +372,20 @@ contract LiquidLaneAdapterTest is Test {
         });
         bytes memory protocolSignature = _signDiscountSwap(protocolKey, discountSwap);
 
-        asset.mint(address(vault), 90 ether);
-        tokenToRedeem.mint(filler, 100 ether);
+        asset.mint(address(vault), 180 ether);
+        tokenToRedeem.mint(filler, 200 ether);
 
         vm.startPrank(filler);
         tokenToRedeem.transfer(address(adapter), 100 ether);
         uint256 amountOut = adapter.swap(discountSwap, protocolSignature, recipient, 100 ether);
+        tokenToRedeem.transfer(address(adapter), 100 ether);
+        uint256 secondAmountOut = adapter.swap(discountSwap, protocolSignature, recipient, 100 ether);
         vm.stopPrank();
 
         assertEq(amountOut, 90 ether);
-        assertEq(asset.balanceOf(recipient), 90 ether);
-        assertTrue(adapter.isUsedNonce(address(tokenToRedeem), 9));
+        assertEq(secondAmountOut, 90 ether);
+        assertEq(asset.balanceOf(recipient), 180 ether);
+        assertFalse(adapter.isUsedNonce(address(tokenToRedeem), 9));
     }
 
     function testSwapRevertsWhenRateViolatesMinDiscount() public {

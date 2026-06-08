@@ -3,8 +3,8 @@ pragma solidity ^0.8.28;
 
 import {Script} from "forge-std/Script.sol";
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {Logs} from "../../utils/Logs.sol";
 import {DeployAaveV3AdapterBaseScript} from "../base/DeployAaveV3AdapterBase.s.sol";
@@ -18,6 +18,16 @@ import {DeployMorphoVaultV2MocksBaseScript} from "../testnet/base/DeployMorphoVa
 import {Token} from "../../../test/mocks/Token.sol";
 import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
+import {LiquidLaneAdapter} from "../../../src/contracts/adapters/LiquidLaneAdapter.sol";
+import {AccountRegistry} from "../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
+import {
+    mFONE_Account,
+    mFONE_AccountFactory
+} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mFONE_Account.sol";
+import {
+    mGLOBAL_Account,
+    mGLOBAL_AccountFactory
+} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mGLOBAL_Account.sol";
 import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
 import {IAdapterRegistry} from "../../../src/interfaces/IAdapterRegistry.sol";
 import {IProtocolFeeRegistry} from "../../../src/interfaces/IProtocolFeeRegistry.sol";
@@ -25,6 +35,7 @@ import {IVaultConfigurator} from "../../../src/interfaces/IVaultConfigurator.sol
 import {IAdapter} from "../../../src/interfaces/adapters/IAdapter.sol";
 import {IAaveV3Adapter} from "../../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
+import {ILiquidLaneAdapter} from "../../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IConverter} from "../../../src/interfaces/adapters/common/IConverter.sol";
@@ -119,6 +130,14 @@ contract DeployFullCoreChaosAppAdapterScript is DeployAppAdapterBaseScript {
 contract DeployFullCoreChaosScript is Script {
     using Subnetwork for address;
 
+    address internal constant CHAOS_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address internal constant CHAOS_MFONE = 0x238a700eD6165261Cf8b2e544ba797BC11e466Ba;
+    address internal constant CHAOS_MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
+    address internal constant CHAOS_MFONE_REDEMPTION_VAULT = 0x44b0440e35c596e858cEA433D0d82F5a985fD19C;
+    address internal constant CHAOS_MGLOBAL_REDEMPTION_VAULT = 0x1e0fd66753198c7b8bA64edEe8d41D8628Bf20D7;
+    address internal constant CHAOS_COW_SETTLEMENT = address(0xCC05E7);
+    address internal constant CHAOS_COW_VAULT_RELAYER = address(0xCC0A7);
+
     struct Actors {
         address burner;
         address staker;
@@ -153,6 +172,13 @@ contract DeployFullCoreChaosScript is Script {
         V2AdapterSet[] sets;
     }
 
+    struct LiquidLaneAssets {
+        address usdc;
+        address aUsd;
+        address mFone;
+        address mGlobal;
+    }
+
     struct V2Infra {
         address adapterRegistry;
         address protocolFeeRegistry;
@@ -162,9 +188,14 @@ contract DeployFullCoreChaosScript is Script {
         address appFactory;
         address aaveFactory;
         address morphoFactory;
+        address liquidLaneFactory;
+        address accountRegistry;
+        address mFoneAccountFactory;
+        address mGlobalAccountFactory;
         address appAdapter;
         address aaveAdapter;
         address morphoAdapter;
+        address liquidLaneAdapter;
     }
 
     event ChaosCall(bytes32 indexed label, bool success);
@@ -187,17 +218,19 @@ contract DeployFullCoreChaosScript is Script {
         });
 
         Token[3] memory tokens = [new Token("Chaos Alpha"), new Token("Chaos Beta"), new Token("Chaos Gamma")];
+        LiquidLaneAssets memory liquidLaneAssets = _deployLiquidLaneAssets();
 
         _fund(ctx.actors, tokens);
+        _fundLiquidLaneAssets(ctx.actors, liquidLaneAssets);
         _register(core, ctx.actors);
         _configureProtocolFee(ctx.owner, infra.protocolFeeRegistry);
 
         V1Vault[] memory v1Vaults = _createV1Vaults(core, ctx.owner, ctx.actors, tokens, seed);
-        V2Vault[] memory v2Vaults = _createV2Vaults(core, ctx.owner, ctx.actors, tokens, seed);
-        AdapterDeployments memory adapters = _deployAdapters(core, infra, ctx, v2Vaults);
+        V2Vault[] memory v2Vaults = _createV2Vaults(core, ctx.owner, ctx.actors, tokens, liquidLaneAssets, seed);
+        AdapterDeployments memory adapters = _deployAdapters(core, infra, ctx, v2Vaults, liquidLaneAssets);
 
         _exerciseV1(ctx.owner, ctx.actors, v1Vaults, seed);
-        _exerciseV2(core, ctx, infra, v2Vaults, adapters);
+        _exerciseV2(core, ctx, infra, v2Vaults, adapters, liquidLaneAssets);
 
         Logs.log("Full core chaos deployment finished");
     }
@@ -263,12 +296,13 @@ contract DeployFullCoreChaosScript is Script {
         address owner,
         Actors memory actors,
         Token[3] memory tokens,
+        LiquidLaneAssets memory liquidLaneAssets,
         uint256 seed
     ) internal returns (V2Vault[] memory vaults) {
-        vaults = new V2Vault[](8);
+        vaults = new V2Vault[](10);
 
         for (uint64 i; i < uint64(vaults.length); ++i) {
-            address asset = address(tokens[(i + 1) % tokens.length]);
+            address asset = _v2VaultAsset(tokens, liquidLaneAssets, i);
             vaults[i].vault = core.vaultFactory
                 .create(
                     VAULT_V2_VERSION,
@@ -323,17 +357,22 @@ contract DeployFullCoreChaosScript is Script {
         SymbioticCoreConstants.Core memory core,
         V2Infra memory infra,
         ChaosContext memory ctx,
-        V2Vault[] memory vaults
+        V2Vault[] memory vaults,
+        LiquidLaneAssets memory liquidLaneAssets
     ) internal returns (AdapterDeployments memory adapters) {
         adapters.sets = new V2AdapterSet[](vaults.length);
 
         for (uint256 i; i < vaults.length; ++i) {
-            V2AdapterSet memory set = _deployAdapterSet(core, ctx, vaults[i], i);
+            V2AdapterSet memory set = _deployAdapterSet(core, ctx, vaults[i], liquidLaneAssets, i);
 
             vm.startPrank(ctx.owner);
             IAdapterRegistry(infra.adapterRegistry).setWhitelistedStatus(vaults[i].vault, set.appAdapter, true);
             IAdapterRegistry(infra.adapterRegistry).setWhitelistedStatus(vaults[i].vault, set.aaveAdapter, true);
             IAdapterRegistry(infra.adapterRegistry).setWhitelistedStatus(vaults[i].vault, set.morphoAdapter, true);
+            if (set.liquidLaneAdapter != address(0)) {
+                IAdapterRegistry(infra.adapterRegistry)
+                    .setWhitelistedStatus(vaults[i].vault, set.liquidLaneAdapter, true);
+            }
             vm.stopPrank();
 
             adapters.sets[i] = set;
@@ -344,18 +383,33 @@ contract DeployFullCoreChaosScript is Script {
         SymbioticCoreConstants.Core memory core,
         ChaosContext memory ctx,
         V2Vault memory vault,
+        LiquidLaneAssets memory liquidLaneAssets,
         uint256 i
     ) internal returns (V2AdapterSet memory set) {
-        DeployAaveV3MocksBaseScript.DeploymentData memory aaveMocks =
-            new DeployAaveV3MocksBaseScript().runBase(vault.asset);
-        DeployMorphoVaultV2MocksBaseScript.DeploymentData memory morphoMocks = new DeployMorphoVaultV2MocksBaseScript()
-            .runBase(
-                DeployMorphoVaultV2MocksBaseScript.DeployParams({
-                collateral: vault.asset, adapterRegistryOwner: ctx.owner
-            })
-            );
+        address[] memory converters = _converterSet(ctx.owner, ctx.actors, i);
+        (set.appFactory, set.appAdapter) = _deployAppAdapter(core, ctx, vault, converters, i);
+        (set.aaveFactory, set.aaveAdapter) = _deployAaveAdapter(core, ctx, vault, converters);
+        (set.morphoFactory, set.morphoAdapter) = _deployMorphoAdapter(core, ctx, vault, converters);
 
-        set.appFactory =
+        if (_isLiquidLaneVaultAsset(vault.asset, liquidLaneAssets)) {
+            (
+                set.liquidLaneFactory,
+                set.accountRegistry,
+                set.mFoneAccountFactory,
+                set.mGlobalAccountFactory,
+                set.liquidLaneAdapter
+            ) = _deployLiquidLaneSet(core, ctx, vault, liquidLaneAssets);
+        }
+    }
+
+    function _deployAppAdapter(
+        SymbioticCoreConstants.Core memory core,
+        ChaosContext memory ctx,
+        V2Vault memory vault,
+        address[] memory converters,
+        uint256 i
+    ) internal returns (address factory, address adapter) {
+        factory =
         new DeployFullCoreChaosAppAdapterScript(address(core.vaultFactory))
         .runBase(
             DeployAppAdapterBaseScript.DeployParams({
@@ -366,34 +420,7 @@ contract DeployFullCoreChaosScript is Script {
             })
         )
         .adapterFactory;
-        set.aaveFactory =
-        new DeployFullCoreChaosAaveV3AdapterScript(address(core.vaultFactory))
-        .runBase(
-            DeployAaveV3AdapterBaseScript.DeployParams({
-                adapterFactoryOwner: ctx.owner,
-                aavePool: aaveMocks.aavePool,
-                cowSwapSettlement: address(0xA11CE),
-                cowSwapVaultRelayer: address(0xA11CE2),
-                merklDistributor: ctx.owner
-            })
-        )
-        .adapterFactory;
-        set.morphoFactory =
-        new DeployFullCoreChaosMorphoVaultV2AdapterScript(address(core.vaultFactory))
-        .runBase(
-            DeployMorphoVaultV2AdapterBaseScript.DeployParams({
-                adapterFactoryOwner: ctx.owner,
-                morphoVaultFactory: morphoMocks.morphoVaultFactory,
-                morphoAdapterRegistry: morphoMocks.morphoAdapterRegistry,
-                cowSwapSettlement: address(0xBEEF1),
-                cowSwapVaultRelayer: address(0xBEEF2),
-                merklDistributor: ctx.owner
-            })
-        )
-        .adapterFactory;
-
-        address[] memory converters = _converterSet(ctx.owner, ctx.actors, i);
-        set.appAdapter = AdapterFactory(set.appFactory)
+        adapter = AdapterFactory(factory)
             .create(
                 1,
                 ctx.owner,
@@ -410,11 +437,60 @@ contract DeployFullCoreChaosScript is Script {
                     )
                 )
             );
-        set.aaveAdapter = AdapterFactory(set.aaveFactory)
+    }
+
+    function _deployAaveAdapter(
+        SymbioticCoreConstants.Core memory core,
+        ChaosContext memory ctx,
+        V2Vault memory vault,
+        address[] memory converters
+    ) internal returns (address factory, address adapter) {
+        DeployAaveV3MocksBaseScript.DeploymentData memory aaveMocks =
+            new DeployAaveV3MocksBaseScript().runBase(vault.asset);
+        factory =
+        new DeployFullCoreChaosAaveV3AdapterScript(address(core.vaultFactory))
+        .runBase(
+            DeployAaveV3AdapterBaseScript.DeployParams({
+                adapterFactoryOwner: ctx.owner,
+                aavePool: aaveMocks.aavePool,
+                cowSwapSettlement: address(0xA11CE),
+                cowSwapVaultRelayer: address(0xA11CE2),
+                merklDistributor: ctx.owner
+            })
+        )
+        .adapterFactory;
+        adapter = AdapterFactory(factory)
             .create(
                 1, ctx.owner, abi.encode(vault.vault, abi.encode(IAaveV3Adapter.InitParams({converters: converters})))
             );
-        set.morphoAdapter = AdapterFactory(set.morphoFactory)
+    }
+
+    function _deployMorphoAdapter(
+        SymbioticCoreConstants.Core memory core,
+        ChaosContext memory ctx,
+        V2Vault memory vault,
+        address[] memory converters
+    ) internal returns (address factory, address adapter) {
+        DeployMorphoVaultV2MocksBaseScript.DeploymentData memory morphoMocks = new DeployMorphoVaultV2MocksBaseScript()
+            .runBase(
+                DeployMorphoVaultV2MocksBaseScript.DeployParams({
+                collateral: vault.asset, adapterRegistryOwner: ctx.owner
+            })
+            );
+        factory =
+        new DeployFullCoreChaosMorphoVaultV2AdapterScript(address(core.vaultFactory))
+        .runBase(
+            DeployMorphoVaultV2AdapterBaseScript.DeployParams({
+                adapterFactoryOwner: ctx.owner,
+                morphoVaultFactory: morphoMocks.morphoVaultFactory,
+                morphoAdapterRegistry: morphoMocks.morphoAdapterRegistry,
+                cowSwapSettlement: address(0xBEEF1),
+                cowSwapVaultRelayer: address(0xBEEF2),
+                merklDistributor: ctx.owner
+            })
+        )
+        .adapterFactory;
+        adapter = AdapterFactory(factory)
             .create(
                 1,
                 ctx.owner,
@@ -425,6 +501,82 @@ contract DeployFullCoreChaosScript is Script {
                     )
                 )
             );
+    }
+
+    function _v2VaultAsset(Token[3] memory tokens, LiquidLaneAssets memory liquidLaneAssets, uint64 i)
+        internal
+        pure
+        returns (address)
+    {
+        if (i == 8) {
+            return liquidLaneAssets.usdc;
+        }
+        if (i == 9) {
+            return liquidLaneAssets.aUsd;
+        }
+        return address(tokens[(i + 1) % tokens.length]);
+    }
+
+    function _isLiquidLaneVaultAsset(address asset, LiquidLaneAssets memory liquidLaneAssets)
+        internal
+        pure
+        returns (bool)
+    {
+        return asset == liquidLaneAssets.usdc || asset == liquidLaneAssets.aUsd;
+    }
+
+    function _deployLiquidLaneSet(
+        SymbioticCoreConstants.Core memory core,
+        ChaosContext memory ctx,
+        V2Vault memory vault,
+        LiquidLaneAssets memory liquidLaneAssets
+    )
+        internal
+        returns (
+            address liquidLaneFactory,
+            address accountRegistry,
+            address mFoneAccountFactory,
+            address mGlobalAccountFactory,
+            address liquidLaneAdapter
+        )
+    {
+        liquidLaneFactory = address(new AdapterFactory(ctx.owner));
+        accountRegistry = address(new AccountRegistry(ctx.owner));
+        mFoneAccountFactory = _deployMFoneAccountFactory(ctx.owner);
+        mGlobalAccountFactory = _deployMGlobalAccountFactory(ctx.owner);
+
+        vm.startPrank(ctx.owner);
+        AccountRegistry(accountRegistry).setAccountFactory(vault.asset, liquidLaneAssets.mFone, mFoneAccountFactory);
+        AccountRegistry(accountRegistry).setAccountFactory(vault.asset, liquidLaneAssets.mGlobal, mGlobalAccountFactory);
+        vm.stopPrank();
+
+        LiquidLaneAdapter liquidLaneImplementation =
+            new LiquidLaneAdapter(address(core.vaultFactory), liquidLaneFactory, accountRegistry);
+        vm.prank(ctx.owner);
+        AdapterFactory(liquidLaneFactory).whitelist(address(liquidLaneImplementation));
+
+        liquidLaneAdapter = AdapterFactory(liquidLaneFactory)
+            .create(
+                1,
+                ctx.owner,
+                abi.encode(
+                    vault.vault, abi.encode(ILiquidLaneAdapter.InitParams({pauser: ctx.owner, unpauser: ctx.owner}))
+                )
+            );
+    }
+
+    function _deployMFoneAccountFactory(address owner) internal returns (address factory) {
+        factory = address(new mFONE_AccountFactory(owner));
+        mFONE_Account implementation = new mFONE_Account(factory, CHAOS_COW_SETTLEMENT, CHAOS_COW_VAULT_RELAYER);
+        vm.prank(owner);
+        mFONE_AccountFactory(factory).whitelist(address(implementation));
+    }
+
+    function _deployMGlobalAccountFactory(address owner) internal returns (address factory) {
+        factory = address(new mGLOBAL_AccountFactory(owner));
+        mGLOBAL_Account implementation = new mGLOBAL_Account(factory, CHAOS_COW_SETTLEMENT, CHAOS_COW_VAULT_RELAYER);
+        vm.prank(owner);
+        mGLOBAL_AccountFactory(factory).whitelist(address(implementation));
     }
 
     function _exerciseV1(address owner, Actors memory actors, V1Vault[] memory vaults, uint256 seed) internal {
@@ -520,7 +672,8 @@ contract DeployFullCoreChaosScript is Script {
         ChaosContext memory ctx,
         V2Infra memory infra,
         V2Vault[] memory vaults,
-        AdapterDeployments memory adapters
+        AdapterDeployments memory adapters,
+        LiquidLaneAssets memory liquidLaneAssets
     ) internal {
         _exerciseV2ProtocolFeeRegistry(ctx.owner, infra.protocolFeeRegistry, vaults);
 
@@ -532,6 +685,7 @@ contract DeployFullCoreChaosScript is Script {
             _exerciseV2VaultConfiguration(ctx.owner, ctx.actors, vaults[i], amount, i);
             _exerciseV2DelegatorSetup(ctx.owner, ctx.actors, vaults[i], set, amount);
             _exerciseV2TokenFlows(ctx.actors, vaults[i], amount);
+            _exerciseV2LiquidLane(ctx.owner, ctx.actors, set, liquidLaneAssets, amount);
             _exerciseV2AdapterHooks(ctx.owner, ctx.actors, vaults[i], set, amount, ctx.seed + i);
             _exerciseV2QueueAndDeallocation(ctx.owner, ctx.actors, vaults[i], set, amount);
         }
@@ -631,6 +785,13 @@ contract DeployFullCoreChaosScript is Script {
             abi.encodeCall(IAdapterRegistry.setWhitelistedStatus, (vault.vault, set.morphoAdapter, true)),
             "v2-reg-morpho-on"
         );
+        if (set.liquidLaneAdapter != address(0)) {
+            _try(
+                adapterRegistry,
+                abi.encodeCall(IAdapterRegistry.setWhitelistedStatus, (vault.vault, set.liquidLaneAdapter, true)),
+                "v2-reg-ll-on"
+            );
+        }
         _try(
             adapterRegistry,
             abi.encodeCall(IAdapterRegistry.setWhitelistedStatus, (vault.vault, address(0), false)),
@@ -643,6 +804,13 @@ contract DeployFullCoreChaosScript is Script {
             abi.encodeCall(IAdapterRegistry.isWhitelisted, (vault.vault, set.appAdapter)),
             "v2-reg-view-app"
         );
+        if (set.liquidLaneAdapter != address(0)) {
+            _try(
+                adapterRegistry,
+                abi.encodeCall(IAdapterRegistry.isWhitelisted, (vault.vault, set.liquidLaneAdapter)),
+                "v2-reg-view-ll"
+            );
+        }
 
         vm.prank(actors.staker);
         _try(
@@ -763,6 +931,9 @@ contract DeployFullCoreChaosScript is Script {
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.addAdapter, (set.appAdapter)), "v2-add-app");
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.addAdapter, (set.aaveAdapter)), "v2-add-aave");
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.addAdapter, (set.morphoAdapter)), "v2-add-morpho");
+        if (set.liquidLaneAdapter != address(0)) {
+            _try(vault.delegator, abi.encodeCall(IUniversalDelegator.addAdapter, (set.liquidLaneAdapter)), "v2-add-ll");
+        }
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.addAdapter, (set.appAdapter)), "v2-add-duplicate");
         _try(
             vault.delegator,
@@ -779,6 +950,13 @@ contract DeployFullCoreChaosScript is Script {
             abi.encodeCall(IUniversalDelegator.setLimits, (set.morphoAdapter, amount * 2, MAX_SHARE / 3)),
             "v2-limit-morpho"
         );
+        if (set.liquidLaneAdapter != address(0)) {
+            _try(
+                vault.delegator,
+                abi.encodeCall(IUniversalDelegator.setLimits, (set.liquidLaneAdapter, amount * 4, MAX_SHARE)),
+                "v2-limit-ll"
+            );
+        }
         _try(
             vault.delegator,
             abi.encodeCall(IUniversalDelegator.setLimits, (set.morphoAdapter, amount, MAX_SHARE + 1)),
@@ -867,6 +1045,104 @@ contract DeployFullCoreChaosScript is Script {
         _try(vault.vault, abi.encodeCall(IERC4626.withdraw, (amount / 5, actors.staker, actors.staker)), "v2-withdraw");
         _try(vault.vault, abi.encodeCall(IERC4626.redeem, (amount / 10, actors.staker, actors.staker)), "v2-redeem");
         _try(vault.vault, abi.encodeCall(IERC4626.deposit, (amount / 2, actors.staker)), "v2-redeposit");
+        vm.stopPrank();
+    }
+
+    function _exerciseV2LiquidLane(
+        address owner,
+        Actors memory actors,
+        V2AdapterSet memory set,
+        LiquidLaneAssets memory liquidLaneAssets,
+        uint256 amount
+    ) internal {
+        if (set.liquidLaneAdapter == address(0)) {
+            return;
+        }
+
+        vm.startPrank(owner);
+        _try(
+            set.liquidLaneAdapter,
+            abi.encodeCall(ILiquidLaneAdapter.setMarketMaker, (actors.staker, false)),
+            "v2-ll-market-maker"
+        );
+        _try(
+            set.liquidLaneAdapter,
+            abi.encodeCall(ILiquidLaneAdapter.setFiller, (actors.middleware, true)),
+            "v2-ll-filler"
+        );
+        _try(
+            set.liquidLaneAdapter,
+            abi.encodeCall(ILiquidLaneAdapter.addTokenToRedeem, (liquidLaneAssets.mFone)),
+            "v2-ll-add-mfone"
+        );
+        _try(
+            set.liquidLaneAdapter,
+            abi.encodeCall(ILiquidLaneAdapter.addTokenToRedeem, (liquidLaneAssets.mGlobal)),
+            "v2-ll-add-mglobal"
+        );
+        _try(
+            set.liquidLaneAdapter,
+            abi.encodeCall(ILiquidLaneAdapter.setLimit, (liquidLaneAssets.mFone, amount * 10)),
+            "v2-ll-limit-mfone"
+        );
+        _try(
+            set.liquidLaneAdapter,
+            abi.encodeCall(ILiquidLaneAdapter.setLimit, (liquidLaneAssets.mGlobal, amount * 10)),
+            "v2-ll-limit-mglobal"
+        );
+        _try(
+            set.liquidLaneAdapter,
+            abi.encodeCall(ILiquidLaneAdapter.setMinDiscount, (liquidLaneAssets.mFone, 0)),
+            "v2-ll-discount-mfone"
+        );
+        _try(
+            set.liquidLaneAdapter,
+            abi.encodeCall(ILiquidLaneAdapter.setMinDiscount, (liquidLaneAssets.mGlobal, 0)),
+            "v2-ll-discount-mglobal"
+        );
+        vm.stopPrank();
+
+        _exerciseV2LiquidLaneSwap(actors, set, liquidLaneAssets.mFone, amount / 10);
+        _exerciseV2LiquidLaneSwap(actors, set, liquidLaneAssets.mGlobal, amount / 12);
+
+        _try(set.liquidLaneAdapter, abi.encodeCall(ILiquidLaneAdapter.getTokensToRedeemLength, ()), "v2-ll-tokens");
+        _try(
+            set.liquidLaneAdapter,
+            abi.encodeCall(ILiquidLaneAdapter.getMaxAssets, (liquidLaneAssets.mFone)),
+            "v2-ll-max-assets"
+        );
+        _try(
+            set.liquidLaneAdapter,
+            abi.encodeCall(ILiquidLaneAdapter.getMaxRate, (liquidLaneAssets.mGlobal)),
+            "v2-ll-max-rate"
+        );
+    }
+
+    function _exerciseV2LiquidLaneSwap(
+        Actors memory actors,
+        V2AdapterSet memory set,
+        address tokenToRedeem,
+        uint256 amountIn
+    ) internal {
+        uint256 quotedOut = ILiquidLaneAdapter(set.liquidLaneAdapter).getAmountOut(tokenToRedeem, amountIn);
+        if (quotedOut == 0) {
+            return;
+        }
+
+        ChaosERC20Mock(tokenToRedeem).mint(actors.staker, amountIn);
+
+        vm.startPrank(actors.staker);
+        IERC20(tokenToRedeem).transfer(set.liquidLaneAdapter, amountIn);
+        _try(
+            set.liquidLaneAdapter,
+            abi.encodeWithSignature(
+                "swap((address,address,uint256,uint256))",
+                ILiquidLaneAdapter.Swap({
+                    recipient: actors.staker, tokenIn: tokenToRedeem, amountIn: amountIn, amountOut: quotedOut / 2
+                })
+            ),
+            "v2-ll-swap"
+        );
         vm.stopPrank();
     }
 
@@ -1142,6 +1418,9 @@ contract DeployFullCoreChaosScript is Script {
             _try(adapters.sets[i].appFactory, abi.encodeWithSignature("lastVersion()"), "v2-app-factory-last");
             _try(adapters.sets[i].aaveFactory, abi.encodeWithSignature("lastVersion()"), "v2-aave-factory-last");
             _try(adapters.sets[i].morphoFactory, abi.encodeWithSignature("lastVersion()"), "v2-morpho-factory-last");
+            if (adapters.sets[i].liquidLaneFactory != address(0)) {
+                _exerciseV2LiquidLaneFactories(adapters.sets[i]);
+            }
             _try(adapters.sets[i].appFactory, abi.encodeWithSignature("totalEntities()"), "v2-app-factory-total");
             _try(adapters.sets[i].aaveFactory, abi.encodeWithSignature("totalEntities()"), "v2-aave-factory-total");
             _try(adapters.sets[i].morphoFactory, abi.encodeWithSignature("totalEntities()"), "v2-morpho-factory-total");
@@ -1229,6 +1508,31 @@ contract DeployFullCoreChaosScript is Script {
         vm.stopPrank();
     }
 
+    function _exerciseV2LiquidLaneFactories(V2AdapterSet memory set) internal {
+        _try(set.liquidLaneFactory, abi.encodeWithSignature("lastVersion()"), "v2-ll-factory-last");
+        _try(set.liquidLaneFactory, abi.encodeWithSignature("totalEntities()"), "v2-ll-factory-total");
+        _try(set.liquidLaneFactory, abi.encodeWithSignature("entity(uint256)", 0), "v2-ll-factory-entity");
+        _try(
+            set.liquidLaneFactory,
+            abi.encodeWithSignature("isEntity(address)", set.liquidLaneAdapter),
+            "v2-ll-factory-is-entity"
+        );
+        _try(set.liquidLaneFactory, abi.encodeWithSignature("implementation(uint64)", 1), "v2-ll-factory-impl");
+        _try(set.liquidLaneFactory, abi.encodeWithSignature("blacklisted(uint64)", 1), "v2-ll-factory-blacklisted");
+        _try(
+            set.liquidLaneFactory,
+            abi.encodeWithSignature("migrate(address,uint64,bytes)", set.liquidLaneAdapter, 1, bytes("")),
+            "v2-ll-factory-migrate-same"
+        );
+        _try(set.mFoneAccountFactory, abi.encodeWithSignature("lastVersion()"), "v2-mfone-factory-last");
+        _try(set.mGlobalAccountFactory, abi.encodeWithSignature("lastVersion()"), "v2-mglobal-factory-last");
+        _try(set.mFoneAccountFactory, abi.encodeWithSignature("totalEntities()"), "v2-mfone-factory-total");
+        _try(set.mGlobalAccountFactory, abi.encodeWithSignature("totalEntities()"), "v2-mglobal-factory-total");
+        _try(set.mFoneAccountFactory, abi.encodeWithSignature("entity(uint256)", 0), "v2-mfone-factory-entity");
+        _try(set.mGlobalAccountFactory, abi.encodeWithSignature("entity(uint256)", 0), "v2-mglobal-factory-entity");
+        _try(set.accountRegistry, abi.encodeWithSignature("owner()"), "v2-ll-reg-owner");
+    }
+
     function _grantV2Roles(address vault, address account) internal {
         _try(
             vault, abi.encodeWithSignature("grantRole(bytes32,address)", MANAGEMENT_FEE_ROLE, account), "v2-grant-mgmt"
@@ -1297,7 +1601,8 @@ contract DeployFullCoreChaosScript is Script {
     }
 
     function _route(V2AdapterSet memory set, uint256 mode) internal pure returns (address[] memory route) {
-        route = new address[](3);
+        uint256 routeLength = set.liquidLaneAdapter == address(0) ? 3 : 4;
+        route = new address[](routeLength);
         if (mode == 1) {
             route[0] = set.morphoAdapter;
             route[1] = set.aaveAdapter;
@@ -1306,6 +1611,9 @@ contract DeployFullCoreChaosScript is Script {
             route[0] = set.appAdapter;
             route[1] = set.aaveAdapter;
             route[2] = set.morphoAdapter;
+        }
+        if (set.liquidLaneAdapter != address(0)) {
+            route[3] = set.liquidLaneAdapter;
         }
     }
 
@@ -1393,11 +1701,73 @@ contract DeployFullCoreChaosScript is Script {
         core.operatorRegistry.registerOperator();
     }
 
+    function _deployLiquidLaneAssets() internal returns (LiquidLaneAssets memory assets) {
+        ChaosERC20Mock tokenImplementation = new ChaosERC20Mock();
+        _installChaosToken(CHAOS_USDC, address(tokenImplementation), "USD Coin", "USDC", 6);
+        _installChaosToken(CHAOS_MFONE, address(tokenImplementation), "Midas mF-ONE", "mFONE", 18);
+        _installChaosToken(CHAOS_MGLOBAL, address(tokenImplementation), "Midas mGLOBAL", "mGLOBAL", 18);
+
+        ChaosERC20Mock aUsd = new ChaosERC20Mock();
+        aUsd.initialize("Chaos aUSD", "aUSD", 18);
+
+        assets = LiquidLaneAssets({usdc: CHAOS_USDC, aUsd: address(aUsd), mFone: CHAOS_MFONE, mGlobal: CHAOS_MGLOBAL});
+
+        ChaosMidasDataFeedMock mFoneFeed = new ChaosMidasDataFeedMock(1e18);
+        ChaosMidasDataFeedMock mGlobalFeed = new ChaosMidasDataFeedMock(1e18);
+        ChaosMidasRedemptionVaultMock redemptionVaultImplementation = new ChaosMidasRedemptionVaultMock();
+        _installMidasRedemptionVault(
+            CHAOS_MFONE_REDEMPTION_VAULT,
+            address(redemptionVaultImplementation),
+            assets.mFone,
+            assets.usdc,
+            address(mFoneFeed)
+        );
+        _installMidasRedemptionVault(
+            CHAOS_MGLOBAL_REDEMPTION_VAULT,
+            address(redemptionVaultImplementation),
+            assets.mGlobal,
+            assets.usdc,
+            address(mGlobalFeed)
+        );
+    }
+
+    function _installChaosToken(
+        address token,
+        address implementation,
+        string memory name,
+        string memory symbol,
+        uint8 decimals_
+    ) internal {
+        vm.etch(token, implementation.code);
+        ChaosERC20Mock(token).initialize(name, symbol, decimals_);
+    }
+
+    function _installMidasRedemptionVault(
+        address redemptionVault,
+        address implementation,
+        address tokenToRedeem,
+        address redemptionToken,
+        address dataFeed
+    ) internal {
+        vm.etch(redemptionVault, implementation.code);
+        ChaosMidasRedemptionVaultMock(redemptionVault).initialize(tokenToRedeem, redemptionToken, dataFeed);
+    }
+
     function _fund(Actors memory actors, Token[3] memory tokens) internal {
         for (uint256 i; i < tokens.length; ++i) {
             IERC20(address(tokens[i])).transfer(actors.staker, 100_000 ether);
             IERC20(address(tokens[i])).transfer(actors.burner, 1 ether);
         }
+    }
+
+    function _fundLiquidLaneAssets(Actors memory actors, LiquidLaneAssets memory liquidLaneAssets) internal {
+        uint256 amount = 1_000_000_000 ether;
+        ChaosERC20Mock(liquidLaneAssets.usdc).mint(actors.staker, amount);
+        ChaosERC20Mock(liquidLaneAssets.usdc).mint(actors.burner, amount);
+        ChaosERC20Mock(liquidLaneAssets.aUsd).mint(actors.staker, amount);
+        ChaosERC20Mock(liquidLaneAssets.aUsd).mint(actors.burner, amount);
+        ChaosERC20Mock(liquidLaneAssets.mFone).mint(actors.staker, amount);
+        ChaosERC20Mock(liquidLaneAssets.mGlobal).mint(actors.staker, amount);
     }
 
     function _configureProtocolFee(address owner, address protocolFeeRegistry) internal {
@@ -1498,5 +1868,167 @@ contract DeployFullCoreChaosScript is Script {
     function _scriptOwner() internal view returns (address owner) {
         (,, address origin) = vm.readCallers();
         owner = origin == address(0) ? msg.sender : origin;
+    }
+}
+
+contract ChaosERC20Mock {
+    string public name;
+    string public symbol;
+    uint8 public decimals;
+    uint256 public totalSupply;
+
+    bool internal _initialized;
+
+    mapping(address account => uint256 amount) public balanceOf;
+    mapping(address owner => mapping(address spender => uint256 amount)) public allowance;
+
+    event Approval(address indexed owner, address indexed spender, uint256 amount);
+    event Transfer(address indexed from, address indexed to, uint256 amount);
+
+    function initialize(string memory name_, string memory symbol_, uint8 decimals_) external {
+        require(!_initialized, "already initialized");
+        _initialized = true;
+        name = name_;
+        symbol = symbol_;
+        decimals = decimals_;
+    }
+
+    function mint(address to, uint256 amount) external {
+        totalSupply += amount;
+        balanceOf[to] += amount;
+        emit Transfer(address(0), to, amount);
+    }
+
+    function approve(address spender, uint256 amount) external returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        _transfer(msg.sender, to, amount);
+        return true;
+    }
+
+    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+        uint256 currentAllowance = allowance[from][msg.sender];
+        if (currentAllowance != type(uint256).max) {
+            allowance[from][msg.sender] = currentAllowance - amount;
+            emit Approval(from, msg.sender, currentAllowance - amount);
+        }
+
+        _transfer(from, to, amount);
+        return true;
+    }
+
+    function _transfer(address from, address to, uint256 amount) internal {
+        balanceOf[from] -= amount;
+        balanceOf[to] += amount;
+        emit Transfer(from, to, amount);
+    }
+}
+
+contract ChaosMidasDataFeedMock {
+    uint256 public answer;
+
+    constructor(uint256 answer_) {
+        answer = answer_;
+    }
+
+    function getDataInBase18() external view returns (uint256) {
+        return answer;
+    }
+}
+
+contract ChaosMidasRedemptionVaultMock {
+    uint8 internal constant REQUEST_STATUS_PROCESSED = 1;
+
+    struct Request {
+        address sender;
+        address tokenOut;
+        uint8 status;
+        uint256 amountMToken;
+        uint256 mTokenRate;
+        uint256 tokenOutRate;
+    }
+
+    address public tokenToRedeem;
+    address public redemptionToken;
+    address public mTokenDataFeed;
+    uint256 public currentRequestId;
+
+    bool internal _initialized;
+
+    mapping(address token => address dataFeed) public dataFeedOf;
+    mapping(uint256 requestId => Request request) internal _requests;
+
+    function initialize(address tokenToRedeem_, address redemptionToken_, address mTokenDataFeed_) external {
+        require(!_initialized, "already initialized");
+        _initialized = true;
+        tokenToRedeem = tokenToRedeem_;
+        redemptionToken = redemptionToken_;
+        mTokenDataFeed = mTokenDataFeed_;
+        dataFeedOf[redemptionToken_] = mTokenDataFeed_;
+    }
+
+    function tokensConfig(address token)
+        external
+        view
+        returns (address dataFeed, uint256 fee, uint256 allowance_, bool stable)
+    {
+        dataFeed = dataFeedOf[token];
+        allowance_ = type(uint256).max;
+        stable = token == redemptionToken;
+    }
+
+    function redeemRequest(address tokenOut, uint256 amountMTokenIn) external returns (uint256 requestId) {
+        require(IERC20(tokenToRedeem).transferFrom(msg.sender, address(this), amountMTokenIn), "transfer-from");
+
+        uint256 mTokenRate = ChaosMidasDataFeedMock(mTokenDataFeed).getDataInBase18();
+        uint256 tokenOutRate = _tokenRate(tokenOut);
+        requestId = currentRequestId++;
+        _requests[requestId] = Request({
+            sender: msg.sender,
+            tokenOut: tokenOut,
+            status: REQUEST_STATUS_PROCESSED,
+            amountMToken: amountMTokenIn,
+            mTokenRate: mTokenRate,
+            tokenOutRate: tokenOutRate
+        });
+
+        uint256 redemptionAmount = amountMTokenIn * mTokenRate * 10 ** ChaosERC20Mock(redemptionToken).decimals()
+            / (1e18 * 10 ** ChaosERC20Mock(tokenToRedeem).decimals());
+        ChaosERC20Mock(redemptionToken).mint(msg.sender, redemptionAmount);
+    }
+
+    function redeemRequests(uint256 requestId)
+        external
+        view
+        returns (
+            address sender,
+            address tokenOut,
+            uint8 status,
+            uint256 amountMToken,
+            uint256 mTokenRate,
+            uint256 tokenOutRate
+        )
+    {
+        Request memory request = _requests[requestId];
+        return (
+            request.sender,
+            request.tokenOut,
+            request.status,
+            request.amountMToken,
+            request.mTokenRate,
+            request.tokenOutRate
+        );
+    }
+
+    function _tokenRate(address token) internal view returns (uint256) {
+        address dataFeed = dataFeedOf[token];
+        if (dataFeed == address(0)) {
+            return 1e18;
+        }
+        return ChaosMidasDataFeedMock(dataFeed).getDataInBase18();
     }
 }

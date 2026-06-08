@@ -235,8 +235,6 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
             revert InvalidSignature();
         }
 
-        isUsedNonce[discount.tokenToRedeem][discount.nonce] = true;
-
         amountOut = getAmountOut(discount.tokenToRedeem, amountIn)
             .mulDiv(DISCOUNT_PRECISION - discount.discount, DISCOUNT_PRECISION);
         _swap(Swap({recipient: recipient, tokenIn: discount.tokenToRedeem, amountIn: amountIn, amountOut: amountOut}));
