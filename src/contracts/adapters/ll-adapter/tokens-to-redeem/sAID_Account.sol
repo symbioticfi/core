@@ -3,8 +3,8 @@
 pragma solidity ^0.8.28;
 
 import {GaibAccount} from "../GaibAccount.sol";
-import {SaidOracle} from "../oracles/SaidOracle.sol";
 import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
+import {SaidOracle} from "../oracles/SaidOracle.sol";
 
 contract sAID_Account is GaibAccount {
     address internal constant TOKEN_ADDRESS = 0xB3B3c527BA57cd61648e2EC2F5e006A0B390A9F8;

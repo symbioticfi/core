@@ -12,11 +12,11 @@ import {
     MAX_TOKENS_TO_REDEEM,
     SIGNED_SWAP_TYPEHASH
 } from "../../interfaces/adapters/ILiquidLaneAdapter.sol";
-import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
-import {IAccount} from "../../interfaces/adapters/ll-adapter/IAccount.sol";
 import {IAccountRegistry} from "../../interfaces/adapters/ll-adapter/IAccountRegistry.sol";
-import {IOracle} from "../../interfaces/adapters/ll-adapter/IOracle.sol";
+import {IAccount} from "../../interfaces/adapters/ll-adapter/IAccount.sol";
+import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IMigratablesFactory} from "../../interfaces/common/IMigratablesFactory.sol";
+import {IOracle} from "../../interfaces/adapters/ll-adapter/IOracle.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 

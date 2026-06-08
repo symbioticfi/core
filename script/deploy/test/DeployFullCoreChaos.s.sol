@@ -888,47 +888,9 @@ contract DeployFullCoreChaosScript is Script {
         );
 
         for (uint256 i; i < list.length; ++i) {
-            _try(list[i], abi.encodeCall(IAdapter.vault, ()), "v2-adapter-vault");
-            _try(list[i], abi.encodeCall(IAdapter.allocatable, ()), "v2-adapter-allocatable");
-            _try(list[i], abi.encodeCall(IAdapter.totalAssets, ()), "v2-adapter-total-assets");
-            _try(list[i], abi.encodeCall(IAdapter.freeAssets, ()), "v2-adapter-free-assets");
-
-            bytes[] memory calls = new bytes[](2);
-            calls[0] = abi.encodeCall(IAdapter.totalAssets, ());
-            calls[1] = abi.encodeCall(IAdapter.freeAssets, ());
-            _try(list[i], abi.encodeWithSignature("multicall(bytes[])", calls), "v2-adapter-multicall");
-
-            address[] memory converters = new address[](1);
-            converters[0] = actors.staker;
-            address[] memory emptyConverters = new address[](0);
-            vm.startPrank(owner);
-            _try(list[i], abi.encodeCall(ICoWSwapConverter.setConverters, (converters)), "v2-cow-on");
-            _try(list[i], abi.encodeCall(ICoWSwapConverter.setConverters, (emptyConverters)), "v2-cow-off");
-            vm.stopPrank();
-
-            vm.prank(actors.staker);
-            _try(
-                list[i],
-                abi.encodeCall(ICoWSwapConverter.prepareConvert, (vault.asset, amount / 100, vault.asset, order)),
-                "v2-cow-prepare"
-            );
-            vm.prank(actors.staker);
-            _try(
-                list[i],
-                abi.encodeCall(IConverter.convert, (vault.asset, amount / 100, vault.asset, order)),
-                "v2-cow-convert"
-            );
-
-            address[] memory rewardTokens = new address[](0);
-            uint256[] memory rewardAmounts = new uint256[](0);
-            bytes32[][] memory rewardProofs = new bytes32[][](0);
-            _try(list[i], abi.encodeCall(IMerklClaimer.claim, (rewardTokens, rewardAmounts, rewardProofs)), "v2-merkl");
-
-            vm.prank(owner);
-            _try(list[i], abi.encodeCall(IAdapter.deallocate, (amount / 100)), "v2-adapter-direct-deallocate");
-
-            vm.prank(owner);
-            _try(list[i], abi.encodeCall(IAdapter.requestDeallocate, (amount / 100)), "v2-adapter-direct-request");
+            _exerciseV2AdapterViews(list[i]);
+            _exerciseV2AdapterConverterHooks(owner, actors.staker, list[i], vault.asset, amount, order);
+            _exerciseV2AdapterMerklAndDeallocation(owner, list[i], amount);
         }
 
         _try(set.aaveAdapter, abi.encodeCall(IAaveV3Adapter.aToken, ()), "v2-aave-token");
@@ -956,6 +918,57 @@ contract DeployFullCoreChaosScript is Script {
 
         vm.prank(owner);
         _try(set.appAdapter, abi.encodeCall(IAdapter.allocate, (amount / 10)), "v2-adapter-direct-allocate");
+    }
+
+    function _exerciseV2AdapterViews(address adapter) internal {
+        _try(adapter, abi.encodeCall(IAdapter.vault, ()), "v2-adapter-vault");
+        _try(adapter, abi.encodeCall(IAdapter.allocatable, ()), "v2-adapter-allocatable");
+        _try(adapter, abi.encodeCall(IAdapter.totalAssets, ()), "v2-adapter-total-assets");
+        _try(adapter, abi.encodeCall(IAdapter.freeAssets, ()), "v2-adapter-free-assets");
+
+        bytes[] memory calls = new bytes[](2);
+        calls[0] = abi.encodeCall(IAdapter.totalAssets, ());
+        calls[1] = abi.encodeCall(IAdapter.freeAssets, ());
+        _try(adapter, abi.encodeWithSignature("multicall(bytes[])", calls), "v2-adapter-multicall");
+    }
+
+    function _exerciseV2AdapterConverterHooks(
+        address owner,
+        address staker,
+        address adapter,
+        address asset,
+        uint256 amount,
+        bytes memory order
+    ) internal {
+        address[] memory converters = new address[](1);
+        converters[0] = staker;
+        address[] memory emptyConverters = new address[](0);
+        vm.startPrank(owner);
+        _try(adapter, abi.encodeCall(ICoWSwapConverter.setConverters, (converters)), "v2-cow-on");
+        _try(adapter, abi.encodeCall(ICoWSwapConverter.setConverters, (emptyConverters)), "v2-cow-off");
+        vm.stopPrank();
+
+        vm.prank(staker);
+        _try(
+            adapter,
+            abi.encodeCall(ICoWSwapConverter.prepareConvert, (asset, amount / 100, asset, order)),
+            "v2-cow-prepare"
+        );
+        vm.prank(staker);
+        _try(adapter, abi.encodeCall(IConverter.convert, (asset, amount / 100, asset, order)), "v2-cow-convert");
+    }
+
+    function _exerciseV2AdapterMerklAndDeallocation(address owner, address adapter, uint256 amount) internal {
+        address[] memory rewardTokens = new address[](0);
+        uint256[] memory rewardAmounts = new uint256[](0);
+        bytes32[][] memory rewardProofs = new bytes32[][](0);
+        _try(adapter, abi.encodeCall(IMerklClaimer.claim, (rewardTokens, rewardAmounts, rewardProofs)), "v2-merkl");
+
+        vm.prank(owner);
+        _try(adapter, abi.encodeCall(IAdapter.deallocate, (amount / 100)), "v2-adapter-direct-deallocate");
+
+        vm.prank(owner);
+        _try(adapter, abi.encodeCall(IAdapter.requestDeallocate, (amount / 100)), "v2-adapter-direct-request");
     }
 
     function _exerciseV2QueueAndDeallocation(

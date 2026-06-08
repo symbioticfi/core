@@ -70,6 +70,11 @@ interface ICoWSwapConverter is IConverter {
     error InsufficientSellBalance();
 
     /**
+     * @notice Raised when the buy amount is zero.
+     */
+    error InvalidBuyAmount();
+
+    /**
      * @notice Raised when the prepared conversion nonce is no longer current.
      */
     error InvalidNonce();
@@ -78,11 +83,6 @@ interface ICoWSwapConverter is IConverter {
      * @notice Raised when the sell amount is zero or inconsistent with the converter input.
      */
     error InvalidSellAmount();
-
-    /**
-     * @notice Raised when the buy amount is zero.
-     */
-    error InvalidBuyAmount();
 
     /**
      * @notice Raised when the input token is the vault asset.

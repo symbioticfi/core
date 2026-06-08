@@ -7,8 +7,8 @@ import {CooldownAccount} from "./CooldownAccount.sol";
 import {IAsyncRedeemAccount} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
 import {IAsyncRedeemVault} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title AsyncRedeemAccount
 /// @notice Base account for ERC-7540 async redeem integrations.

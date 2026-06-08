@@ -33,6 +33,11 @@ interface ILiquidLaneAdapter is IAdapter {
     /* ERRORS */
 
     /**
+     * @notice Raised when an account with assets is being removed.
+     */
+    error AccountHasAssets();
+
+    /**
      * @notice Raised when a signed-swap nonce was already consumed.
      */
     error AlreadyUsedNonce();
@@ -48,9 +53,9 @@ interface ILiquidLaneAdapter is IAdapter {
     error ExpiredSwap();
 
     /**
-     * @notice Raised when an account with assets is being removed.
+     * @notice Raised when VaultV2 cannot allocate enough vault assets to the adapter.
      */
-    error AccountHasAssets();
+    error InsufficientAllocate();
 
     /**
      * @notice Raised when the account is not authorized to initiate the swap.
@@ -61,11 +66,6 @@ interface ILiquidLaneAdapter is IAdapter {
      * @notice Raised when the caller is not authorized for the requested action.
      */
     error InvalidCaller();
-
-    /**
-     * @notice Raised when VaultV2 cannot allocate enough vault assets to the adapter.
-     */
-    error InsufficientAllocate();
 
     /**
      * @notice Raised when a discount configuration is invalid.

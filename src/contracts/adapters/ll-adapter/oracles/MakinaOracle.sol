@@ -2,9 +2,9 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
-import {IMakinaSharePriceOracle} from "../../../../interfaces/adapters/ll-adapter/makina/IMakinaSharePriceOracle.sol";
 import {IMakinaOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/IMakinaOracle.sol";
+import {IMakinaSharePriceOracle} from "../../../../interfaces/adapters/ll-adapter/makina/IMakinaSharePriceOracle.sol";
+import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 

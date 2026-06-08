@@ -9,8 +9,8 @@ import {Subnetwork} from "../libraries/Subnetwork.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAppAdapter, BURNER_GAS_LIMIT, BURNER_RESERVE} from "../../interfaces/adapters/IAppAdapter.sol";
-import {IConverter} from "../../interfaces/adapters/common/IConverter.sol";
 import {IBurner} from "../../interfaces/slasher/IBurner.sol";
+import {IConverter} from "../../interfaces/adapters/common/IConverter.sol";
 import {INetworkMiddlewareService} from "../../interfaces/service/INetworkMiddlewareService.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";

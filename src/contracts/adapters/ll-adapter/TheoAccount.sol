@@ -4,8 +4,8 @@ pragma solidity ^0.8.28;
 
 import {Account} from "./common/Account.sol";
 
-import {ITheoAccount} from "../../../interfaces/adapters/ll-adapter/theo/ITheoAccount.sol";
 import {ISthUSD} from "../../../interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
+import {ITheoAccount} from "../../../interfaces/adapters/ll-adapter/theo/ITheoAccount.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 

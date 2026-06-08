@@ -2,8 +2,8 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 import {IMidasDataFeed, IMidasOracle} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
+import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 
 /// @title MidasOracle
 /// @notice Midas data-feed oracle returning a token price in `1e18` precision.
