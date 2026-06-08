@@ -71,20 +71,20 @@ contract CoWSwapConverterTest is Test {
 
         bytes memory orderUid = settlement.lastOrderUid();
 
-        vm.prank(owner);
+        vm.prank(converterRoleHolder);
         converter.invalidateCovert(orderUid);
 
         assertEq(settlement.lastOrderUid(), orderUid);
         assertFalse(settlement.lastSigned());
     }
 
-    function test_InvalidateCovertRevertsForNonOwner() public {
+    function test_InvalidateCovertRevertsForNonConverter() public {
         vm.prank(converterRoleHolder);
         converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(90, 1));
 
         bytes memory orderUid = settlement.lastOrderUid();
 
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, address(this)));
+        vm.expectRevert(ICoWSwapConverter.InvalidCaller.selector);
         converter.invalidateCovert(orderUid);
     }
 

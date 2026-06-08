@@ -118,7 +118,7 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
                     appData: params.appData,
                     feeAmount: 0,
                     kind: COW_SWAP_KIND_SELL,
-                    partiallyFillable: false,
+                    partiallyFillable: true,
                     sellTokenBalance: COW_SWAP_BALANCE_ERC20,
                     buyTokenBalance: COW_SWAP_BALANCE_ERC20
                 }),
@@ -156,14 +156,17 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     /* PUBLIC FUNCTIONS (OWNER) */
 
     /// @inheritdoc ICoWSwapConverter
-    function setConverters(address[] memory newConverters) public onlyOwner {
+    function setConverters(address[] calldata newConverters) public onlyOwner {
         _getCoWSwapConverterStorage().converters = newConverters;
 
         emit SetConverters(newConverters);
     }
 
     /// @inheritdoc ICoWSwapConverter
-    function invalidateCovert(bytes calldata orderUid) external onlyOwner {
+    function invalidateCovert(bytes calldata orderUid) external {
+        if (!_isConverter(msg.sender)) {
+            revert InvalidCaller();
+        }
         ICoWSwapSettlement(COW_SWAP_SETTLEMENT).setPreSignature(orderUid, false);
 
         emit InvalidateCovert(orderUid);

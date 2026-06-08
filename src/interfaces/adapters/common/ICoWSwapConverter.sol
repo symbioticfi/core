@@ -86,6 +86,11 @@ interface ICoWSwapConverter is IConverter {
     error InvalidBuyAmount();
 
     /**
+     * @notice Raised when the caller is not authorized.
+     */
+    error InvalidCaller();
+
+    /**
      * @notice Raised when the prepared conversion nonce is no longer current.
      */
     error InvalidNonce();
