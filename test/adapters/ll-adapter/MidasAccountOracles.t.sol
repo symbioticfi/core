@@ -427,15 +427,9 @@ contract MidasAccountOraclesTest is Test {
         vault = address(new MockVault(address(asset)));
         oracle = address(new MidasOracle(redemptionVault.mTokenDataFeed()));
         MigratablesFactory factory = new MigratablesFactory(address(this));
+        vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
         MidasCompAccount implementation = new MidasCompAccount(
-            oracle,
-            address(factory),
-            0,
-            address(tokenToRedeem),
-            fallbackToken,
-            address(redemptionVault),
-            cowSettlement,
-            cowRelayer
+            oracle, address(factory), 0, address(tokenToRedeem), fallbackToken, address(redemptionVault), cowSettlement
         );
         factory.whitelist(address(implementation));
         account = MidasCompAccount(factory.create(1, address(this), _initData(address(tokenToRedeem))));
@@ -460,6 +454,7 @@ contract MidasAccountOraclesTest is Test {
         vault = address(new MockVault(address(asset)));
         oracle = address(new MidasOracle(redemptionVault.mTokenDataFeed()));
         MigratablesFactory factory = new MigratablesFactory(address(this));
+        vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
         MidasNonCompAccount implementation = new MidasNonCompAccount(
             oracle,
             address(factory),
@@ -467,8 +462,7 @@ contract MidasAccountOraclesTest is Test {
             address(tokenToRedeem),
             fallbackToken,
             address(redemptionVault),
-            cowSettlement,
-            cowRelayer
+            cowSettlement
         );
         factory.whitelist(address(implementation));
         account = MidasNonCompAccount(factory.create(1, address(this), _initData(address(tokenToRedeem))));

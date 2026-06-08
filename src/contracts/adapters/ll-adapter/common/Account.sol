@@ -45,13 +45,10 @@ abstract contract Account is MigratableEntity, CoWSwapConverter, IAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the account implementation.
-    constructor(
-        address oracle,
-        address factory,
-        address tokenToRedeem,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    ) MigratableEntity(factory) CoWSwapConverter(cowSwapSettlement, cowSwapVaultRelayer) {
+    constructor(address oracle, address factory, address tokenToRedeem, address cowSwapSettlement)
+        MigratableEntity(factory)
+        CoWSwapConverter(cowSwapSettlement)
+    {
         TO_ASSETS_DIVISOR = 1e18 * 10 ** IERC20Metadata(tokenToRedeem).decimals();
         TOKEN_TO_REDEEM = tokenToRedeem;
         ORACLE = oracle;

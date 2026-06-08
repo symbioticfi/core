@@ -16,7 +16,7 @@ contract mHYPER_Account is MidasCompAccount, IMidasTokenAccount {
     address internal constant TOKEN_ADDRESS = 0x9b5528528656DBC094765E2abB79F293c21191B9;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x6Be2f55816efd0d91f52720f096006d63c366e98;
 
-    constructor(address factory, address cowSwapSettlement, address cowSwapVaultRelayer)
+    constructor(address factory, address cowSwapSettlement)
         MidasCompAccount(
             address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
             factory,
@@ -24,8 +24,7 @@ contract mHYPER_Account is MidasCompAccount, IMidasTokenAccount {
             TOKEN_ADDRESS,
             MAINNET_USDC,
             REDEMPTION_VAULT_ADDRESS,
-            cowSwapSettlement,
-            cowSwapVaultRelayer
+            cowSwapSettlement
         )
     {}
 }

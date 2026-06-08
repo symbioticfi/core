@@ -41,8 +41,7 @@ contract TheoAccountTest is AccountsBase {
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         MockOracle oracle = new MockOracle(1e18);
-        sthUSD_Account account =
-            new sthUSD_Account(address(oracle), address(factory), cowSwapSettlement, cowSwapVaultRelayer);
+        sthUSD_Account account = new sthUSD_Account(address(oracle), address(factory), cowSwapSettlement);
 
         assertEq(account.TOKEN_TO_REDEEM(), STHUSD_TOKEN_ADDRESS);
     }

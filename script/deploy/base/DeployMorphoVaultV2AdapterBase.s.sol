@@ -17,7 +17,6 @@ contract DeployMorphoVaultV2AdapterBaseScript is Script {
         address morphoVaultFactory;
         address morphoAdapterRegistry;
         address cowSwapSettlement;
-        address cowSwapVaultRelayer;
         address merklDistributor;
     }
 
@@ -64,7 +63,6 @@ contract DeployMorphoVaultV2AdapterBaseScript is Script {
                 params.merklDistributor,
                 params.cowSwapSettlement,
                 params.morphoVaultFactory,
-                params.cowSwapVaultRelayer,
                 params.morphoAdapterRegistry
             )
         );
@@ -80,7 +78,6 @@ contract DeployMorphoVaultV2AdapterBaseScript is Script {
         require(params.morphoVaultFactory != address(0), "invalid Morpho vault factory");
         require(params.morphoAdapterRegistry != address(0), "invalid Morpho adapter registry");
         require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
-        require(params.cowSwapVaultRelayer != address(0), "invalid CoW vault relayer");
         require(params.merklDistributor != address(0), "invalid Merkl distributor");
     }
 

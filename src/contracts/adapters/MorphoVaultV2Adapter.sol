@@ -43,13 +43,8 @@ contract MorphoVaultV2Adapter is Adapter, CoWSwapConverter, MerklClaimer, IMorph
         address merklDistributor,
         address cowSwapSettlement,
         address morphoVaultFactory,
-        address cowSwapVaultRelayer,
         address morphoAdapterRegistry
-    )
-        Adapter(vaultFactory, adapterFactory)
-        CoWSwapConverter(cowSwapSettlement, cowSwapVaultRelayer)
-        MerklClaimer(merklDistributor)
-    {
+    ) Adapter(vaultFactory, adapterFactory) CoWSwapConverter(cowSwapSettlement) MerklClaimer(merklDistributor) {
         MORPHO_VAULT_FACTORY = morphoVaultFactory;
         MORPHO_ADAPTER_REGISTRY = morphoAdapterRegistry;
     }

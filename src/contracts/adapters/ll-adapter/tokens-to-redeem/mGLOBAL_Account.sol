@@ -16,7 +16,7 @@ contract mGLOBAL_Account is MidasCompAccount, IMidasTokenAccount {
     address internal constant TOKEN_ADDRESS = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x1e0fd66753198c7b8bA64edEe8d41D8628Bf20D7;
 
-    constructor(address factory, address cowSwapSettlement, address cowSwapVaultRelayer)
+    constructor(address factory, address cowSwapSettlement)
         MidasCompAccount(
             address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
             factory,
@@ -24,8 +24,7 @@ contract mGLOBAL_Account is MidasCompAccount, IMidasTokenAccount {
             TOKEN_ADDRESS,
             MAINNET_USDC,
             REDEMPTION_VAULT_ADDRESS,
-            cowSwapSettlement,
-            cowSwapVaultRelayer
+            cowSwapSettlement
         )
     {}
 }

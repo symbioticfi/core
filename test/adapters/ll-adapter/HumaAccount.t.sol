@@ -53,8 +53,7 @@ contract HumaAccountTest is AccountsBase {
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         address redemptionVault = makeAddr("humaRedemptionVault");
-        PST_Account implementation =
-            new PST_Account(address(factory), redemptionVault, cowSwapSettlement, cowSwapVaultRelayer);
+        PST_Account implementation = new PST_Account(address(factory), redemptionVault, cowSwapSettlement);
         ChainlinkOracle oracle = ChainlinkOracle(implementation.ORACLE());
 
         assertEq(implementation.TOKEN_TO_REDEEM(), PST_TOKEN_ADDRESS);

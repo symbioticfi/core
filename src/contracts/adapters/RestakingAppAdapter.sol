@@ -42,9 +42,8 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         address vaultFactory,
         address adapterFactory,
         address cowSwapSettlement,
-        address cowSwapVaultRelayer,
         address networkMiddlewareService
-    ) AppAdapter(vaultFactory, adapterFactory, cowSwapSettlement, cowSwapVaultRelayer, networkMiddlewareService) {}
+    ) AppAdapter(vaultFactory, adapterFactory, cowSwapSettlement, networkMiddlewareService) {}
 
     /* VIEW FUNCTIONS */
 

@@ -676,6 +676,8 @@ contract MockLiquidLaneAccount is MigratableEntity, IAccount {
 
     function setConverters(address[] memory) external pure {}
 
+    function invalidateCovert(bytes calldata) external pure {}
+
     function _initialize(uint64, address, bytes memory data) internal override {
         (vault, adapter) = abi.decode(data, (address, address));
 

@@ -44,13 +44,13 @@ contract MorphoVaultV2AdapterTest is Test {
         vaultFactory.add(address(vault));
         morphoVaultFactory.setVault(address(morphoVault), true);
 
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         MorphoVaultV2Adapter implementation = new MorphoVaultV2Adapter(
             address(vaultFactory),
             address(factory),
             rewards,
             settlement,
             address(morphoVaultFactory),
-            relayer,
             morphoAdapterRegistry
         );
         factory.whitelist(address(implementation));

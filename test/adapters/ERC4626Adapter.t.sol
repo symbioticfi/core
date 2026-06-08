@@ -39,8 +39,8 @@ contract ERC4626AdapterTest is Test {
         erc4626Vault = new ERC4626VaultMock(address(assetToken));
         vaultFactory.add(address(vault));
 
-        ERC4626Adapter implementation =
-            new ERC4626Adapter(address(vaultFactory), address(factory), rewards, settlement, relayer);
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        ERC4626Adapter implementation = new ERC4626Adapter(address(vaultFactory), address(factory), rewards, settlement);
         factory.whitelist(address(implementation));
 
         adapter = _createAdapter(address(erc4626Vault));

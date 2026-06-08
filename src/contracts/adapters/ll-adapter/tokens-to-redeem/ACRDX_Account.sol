@@ -9,8 +9,8 @@ contract ACRDX_Account is CentrifugeAccount {
     address internal constant TOKEN_ADDRESS = 0x9477724Bb54AD5417de8Baff29e59DF3fB4DA74f;
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
 
-    constructor(address oracle, address factory, address cowSwapSettlement, address cowSwapVaultRelayer)
-        CentrifugeAccount(oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, cowSwapSettlement, cowSwapVaultRelayer)
+    constructor(address oracle, address factory, address cowSwapSettlement)
+        CentrifugeAccount(oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, cowSwapSettlement)
     {}
 }
 

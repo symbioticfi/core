@@ -151,32 +151,32 @@ contract MidasTokensToRedeemMainnetTest is Test {
         returns (MidasAccount implementation)
     {
         if (index == 0) {
-            return new mFONE_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+            return new mFONE_Account(address(factory), COW_SWAP_SETTLEMENT);
         }
-        if (index == 1) return new mTBILL_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 2) return new mGLOBAL_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 3) return new mHYPER_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 4) return new mM1USD_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 5) return new mHyperBTC_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 6) return new mRe7YIELD_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 7) return new mHyperETH_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 8) return new mSL_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 9) return new mAPOLLO_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 10) return new mROX_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 11) return new msyrupUSDp_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 12) return new mEVUSD_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 13) return new mEDGE_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 14) return new mMEV_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 15) return new mBASIS_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 16) return new mRe7BTC_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 17) return new mBTC_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 18) return new mevBTC_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 19) return new msyrupUSD_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
-        if (index == 20) return new mFARM_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+        if (index == 1) return new mTBILL_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 2) return new mGLOBAL_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 3) return new mHYPER_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 4) return new mM1USD_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 5) return new mHyperBTC_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 6) return new mRe7YIELD_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 7) return new mHyperETH_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 8) return new mSL_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 9) return new mAPOLLO_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 10) return new mROX_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 11) return new msyrupUSDp_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 12) return new mEVUSD_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 13) return new mEDGE_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 14) return new mMEV_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 15) return new mBASIS_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 16) return new mRe7BTC_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 17) return new mBTC_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 18) return new mevBTC_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 19) return new msyrupUSD_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 20) return new mFARM_Account(address(factory), COW_SWAP_SETTLEMENT);
         if (index == 21) {
-            return new CarryTradeUSDTRYLeverage_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+            return new CarryTradeUSDTRYLeverage_Account(address(factory), COW_SWAP_SETTLEMENT);
         }
-        return new StockMarketTRBasisTrade_Account(address(factory), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER);
+        return new StockMarketTRBasisTrade_Account(address(factory), COW_SWAP_SETTLEMENT);
     }
 
     function _ethereumCompSpec(string memory symbol, uint48 maxWithdrawalDelay)

@@ -65,6 +65,8 @@ contract AppAdapterInvariantHandler is Test {
     address internal network = makeAddr("network");
     address internal networkMiddleware = makeAddr("networkMiddleware");
     address internal operator = makeAddr("operator");
+    address internal relayer = makeAddr("relayer");
+    address internal settlement = makeAddr("settlement");
     address[3] internal actors = [address(0xA11CE), address(0xB0B), address(0xCAFE)];
     uint48 internal duration = 10;
 
@@ -544,14 +546,11 @@ contract AppAdapterInvariantHandler is Test {
             )
         );
 
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         adapterFactory.whitelist(
             address(
                 new AppAdapter(
-                    address(vaultFactory),
-                    address(adapterFactory),
-                    address(0),
-                    address(0),
-                    address(networkMiddlewareService)
+                    address(vaultFactory), address(adapterFactory), settlement, address(networkMiddlewareService)
                 )
             )
         );

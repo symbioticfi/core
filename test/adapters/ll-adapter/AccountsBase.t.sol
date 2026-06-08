@@ -56,8 +56,8 @@ abstract contract AccountsBase is Test {
     uint48 internal constant SAID_TOKEN_COOLDOWN = 6 days;
 
     address internal adapter = makeAddr("adapter");
-    address internal cowSwapSettlement = makeAddr("cowSwapSettlement");
     address internal cowSwapVaultRelayer = makeAddr("cowSwapVaultRelayer");
+    address internal cowSwapSettlement = address(new AccountsCoWSwapSettlementMock(cowSwapVaultRelayer));
     address internal subRedManagement = makeAddr("subRedManagement");
 
     function _deployWstETH(
@@ -74,8 +74,7 @@ abstract contract AccountsBase is Test {
             address(wstETH),
             address(factory),
             address(withdrawalQueue),
-            cowSwapSettlement,
-            cowSwapVaultRelayer
+            cowSwapSettlement
         );
         factory.whitelist(address(implementation));
         account = wstETH_Account(payable(factory.create(1, address(this), _initData(address(asset), address(wstETH)))));
@@ -95,8 +94,7 @@ abstract contract AccountsBase is Test {
             address(mocks.liquidityPool),
             address(mocks.redemptionManager),
             cowSwapSettlement,
-            address(mocks.withdrawRequestNft),
-            cowSwapVaultRelayer
+            address(mocks.withdrawRequestNft)
         );
         factory.whitelist(address(implementation));
         account =
@@ -116,7 +114,7 @@ abstract contract AccountsBase is Test {
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         CentrifugeAccount implementation = new CentrifugeAccount(
-            address(oracle), address(factory), cooldown, address(tokenToRedeem), cowSwapSettlement, cowSwapVaultRelayer
+            address(oracle), address(factory), cooldown, address(tokenToRedeem), cowSwapSettlement
         );
         factory.whitelist(address(implementation));
         account = CentrifugeAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
@@ -127,9 +125,8 @@ abstract contract AccountsBase is Test {
         returns (PRIME_Account account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        PRIME_Account implementation = new PRIME_Account(
-            address(oracle), address(factory), address(prime), cowSwapSettlement, cowSwapVaultRelayer
-        );
+        PRIME_Account implementation =
+            new PRIME_Account(address(oracle), address(factory), address(prime), cowSwapSettlement);
         factory.whitelist(address(implementation));
         account = PRIME_Account(factory.create(1, address(this), _initData(address(asset), address(prime))));
     }
@@ -142,12 +139,7 @@ abstract contract AccountsBase is Test {
     ) internal returns (HumaAccount account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         HumaAccount implementation = new HumaAccount(
-            address(oracle),
-            address(factory),
-            address(tokenToRedeem),
-            address(redemptionVault),
-            cowSwapSettlement,
-            cowSwapVaultRelayer
+            address(oracle), address(factory), address(tokenToRedeem), address(redemptionVault), cowSwapSettlement
         );
         factory.whitelist(address(implementation));
         account = HumaAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
@@ -158,9 +150,8 @@ abstract contract AccountsBase is Test {
         returns (GaibAccount account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        GaibAccount implementation = new GaibAccount(
-            address(oracle), address(factory), cooldown, address(tokenToRedeem), cowSwapSettlement, cowSwapVaultRelayer
-        );
+        GaibAccount implementation =
+            new GaibAccount(address(oracle), address(factory), cooldown, address(tokenToRedeem), cowSwapSettlement);
         factory.whitelist(address(implementation));
         account = GaibAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
@@ -170,9 +161,8 @@ abstract contract AccountsBase is Test {
         returns (ThreeJaneAccount account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        ThreeJaneAccount implementation = new ThreeJaneAccount(
-            address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement, cowSwapVaultRelayer
-        );
+        ThreeJaneAccount implementation =
+            new ThreeJaneAccount(address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement);
         factory.whitelist(address(implementation));
         account = ThreeJaneAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
@@ -182,9 +172,8 @@ abstract contract AccountsBase is Test {
         returns (TheoAccount account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        TheoAccount implementation = new TheoAccount(
-            address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement, cowSwapVaultRelayer
-        );
+        TheoAccount implementation =
+            new TheoAccount(address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement);
         factory.whitelist(address(implementation));
         account = TheoAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
@@ -207,7 +196,6 @@ abstract contract AccountsBase is Test {
             address(tokenToRedeem),
             subRedManagement_,
             cowSwapSettlement,
-            cowSwapVaultRelayer,
             DIGIFT_PENDING_ASSETS_DURATION
         );
         factory.whitelist(address(implementation));
@@ -223,13 +211,7 @@ abstract contract AccountsBase is Test {
     ) internal returns (MakinaAccount account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         MakinaAccount implementation = new MakinaAccount(
-            address(oracle),
-            address(factory),
-            cooldown,
-            address(redeemer),
-            address(tokenToRedeem),
-            cowSwapSettlement,
-            cowSwapVaultRelayer
+            address(oracle), address(factory), cooldown, address(redeemer), address(tokenToRedeem), cowSwapSettlement
         );
         factory.whitelist(address(implementation));
         account = MakinaAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
@@ -938,5 +920,13 @@ contract MockEtherFiWithdrawRequestNFT {
         claimAmount[requestId] = 0;
         (bool success,) = msg.sender.call{value: amount}("");
         require(success);
+    }
+}
+
+contract AccountsCoWSwapSettlementMock {
+    address public vaultRelayer;
+
+    constructor(address vaultRelayer_) {
+        vaultRelayer = vaultRelayer_;
     }
 }

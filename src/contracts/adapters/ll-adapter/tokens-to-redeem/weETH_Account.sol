@@ -15,20 +15,10 @@ contract weETH_Account is EtherFiAccount {
         address liquidityPool,
         address redemptionManager,
         address cowSwapSettlement,
-        address withdrawRequestNft,
-        address cowSwapVaultRelayer
+        address withdrawRequestNft
     )
         EtherFiAccount(
-            eETH,
-            weth,
-            oracle,
-            factory,
-            liquidityPool,
-            weETH,
-            redemptionManager,
-            cowSwapSettlement,
-            withdrawRequestNft,
-            cowSwapVaultRelayer
+            eETH, weth, oracle, factory, liquidityPool, weETH, redemptionManager, cowSwapSettlement, withdrawRequestNft
         )
     {}
 }

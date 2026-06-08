@@ -44,9 +44,8 @@ contract LidoAccount is Account, ILidoAccount {
         address wstETH,
         address factory,
         address withdrawalQueue,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    ) Account(oracle, factory, wstETH, cowSwapSettlement, cowSwapVaultRelayer) {
+        address cowSwapSettlement
+    ) Account(oracle, factory, wstETH, cowSwapSettlement) {
         WITHDRAWAL_QUEUE = withdrawalQueue;
         WSTETH = wstETH;
         STETH = stETH;

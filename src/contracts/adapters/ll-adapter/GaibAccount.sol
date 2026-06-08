@@ -30,14 +30,9 @@ contract GaibAccount is CooldownAccount, IGaibAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the GAIB account implementation.
-    constructor(
-        address oracle,
-        address factory,
-        uint48 cooldown,
-        address tokenToRedeem,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
+    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
+        CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
+    {
         ASSET = IERC4626(tokenToRedeem).asset();
     }
 

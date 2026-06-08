@@ -8,8 +8,8 @@ import {TheoAccount} from "../TheoAccount.sol";
 contract sthUSD_Account is TheoAccount {
     address internal constant TOKEN_ADDRESS = 0xA808Bc9775cb41c52C7842f8b50427fE7A770326;
 
-    constructor(address oracle, address factory, address cowSwapSettlement, address cowSwapVaultRelayer)
-        TheoAccount(oracle, factory, TOKEN_ADDRESS, cowSwapSettlement, cowSwapVaultRelayer)
+    constructor(address oracle, address factory, address cowSwapSettlement)
+        TheoAccount(oracle, factory, TOKEN_ADDRESS, cowSwapSettlement)
     {}
 }
 

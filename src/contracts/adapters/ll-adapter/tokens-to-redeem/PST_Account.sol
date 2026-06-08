@@ -11,14 +11,13 @@ contract PST_Account is HumaAccount {
     address internal constant TOKEN_ADDRESS = 0x22aE3D9a738471f405169Af055d31c687087d4c7;
     uint48 internal constant STALENESS_DURATION = 2 days;
 
-    constructor(address factory, address redemptionVault, address cowSwapSettlement, address cowSwapVaultRelayer)
+    constructor(address factory, address redemptionVault, address cowSwapSettlement)
         HumaAccount(
             address(new ChainlinkOracle([CHAINLINK_FEED_ADDRESS, address(0)], [STALENESS_DURATION, uint48(0)])),
             factory,
             TOKEN_ADDRESS,
             redemptionVault,
-            cowSwapSettlement,
-            cowSwapVaultRelayer
+            cowSwapSettlement
         )
     {}
 }

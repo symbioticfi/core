@@ -12,9 +12,8 @@ contract wstETH_Account is LidoAccount {
         address wstETH,
         address factory,
         address withdrawalQueue,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    ) LidoAccount(stETH, oracle, wstETH, factory, withdrawalQueue, cowSwapSettlement, cowSwapVaultRelayer) {}
+        address cowSwapSettlement
+    ) LidoAccount(stETH, oracle, wstETH, factory, withdrawalQueue, cowSwapSettlement) {}
 }
 
 contract wstETH_AccountFactory is MigratablesFactory {

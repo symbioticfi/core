@@ -16,7 +16,7 @@ contract CarryTradeUSDTRYLeverage_Account is MidasCompAccount, IMidasTokenAccoun
     address internal constant TOKEN_ADDRESS = 0x2bf11d2E04Bc40daa95c24B8b90EC4F5c57Dd326;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0xD980df2A697bfd38279BE1Ee2bc13495c101d5C9;
 
-    constructor(address factory, address cowSwapSettlement, address cowSwapVaultRelayer)
+    constructor(address factory, address cowSwapSettlement)
         MidasCompAccount(
             address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
             factory,
@@ -24,8 +24,7 @@ contract CarryTradeUSDTRYLeverage_Account is MidasCompAccount, IMidasTokenAccoun
             TOKEN_ADDRESS,
             MAINNET_USDC,
             REDEMPTION_VAULT_ADDRESS,
-            cowSwapSettlement,
-            cowSwapVaultRelayer
+            cowSwapSettlement
         )
     {}
 }

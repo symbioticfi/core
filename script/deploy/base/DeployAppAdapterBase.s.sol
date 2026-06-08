@@ -15,7 +15,6 @@ contract DeployAppAdapterBaseScript is Script {
     struct DeployParams {
         address adapterFactoryOwner;
         address cowSwapSettlement;
-        address cowSwapVaultRelayer;
         address networkMiddlewareService;
     }
 
@@ -56,13 +55,7 @@ contract DeployAppAdapterBaseScript is Script {
 
         adapterFactory = address(new AdapterFactory(broadcaster));
         adapterImplementation = address(
-            new AppAdapter(
-                vaultFactory,
-                adapterFactory,
-                params.cowSwapSettlement,
-                params.cowSwapVaultRelayer,
-                params.networkMiddlewareService
-            )
+            new AppAdapter(vaultFactory, adapterFactory, params.cowSwapSettlement, params.networkMiddlewareService)
         );
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);
 
@@ -74,7 +67,6 @@ contract DeployAppAdapterBaseScript is Script {
     function _validateParams(DeployParams memory params) internal pure {
         require(params.adapterFactoryOwner != address(0), "invalid adapter factory owner");
         require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
-        require(params.cowSwapVaultRelayer != address(0), "invalid CoW vault relayer");
         require(params.networkMiddlewareService != address(0), "invalid network middleware service");
     }
 

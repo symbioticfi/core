@@ -50,7 +50,7 @@ contract RestakingAppAdapterTest is Test {
         factory = new AdapterFactory(address(this));
         delegator = new RestakingAppAdapterDelegatorMock();
         networkMiddlewareService = new RestakingAppAdapterNetworkMiddlewareServiceMock();
-        settlement = new RestakingCoWSwapSettlementMock();
+        settlement = new RestakingCoWSwapSettlementMock(relayer);
         baseAsset = new Token("Base Asset");
         restakingToken = new RestakingTokenMock(IERC20(address(baseAsset)));
         vault = new RestakingAppAdapterVaultMock(address(restakingToken), address(delegator));
@@ -61,7 +61,7 @@ contract RestakingAppAdapterTest is Test {
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
         RestakingAppAdapter implementation = new RestakingAppAdapter(
-            address(vaultFactory), address(factory), address(settlement), relayer, address(networkMiddlewareService)
+            address(vaultFactory), address(factory), address(settlement), address(networkMiddlewareService)
         );
         factory.whitelist(address(implementation));
 
@@ -506,7 +506,7 @@ contract RestakingAppAdapterTest is Test {
         return abi.encode(
             ICoWSwapConverter.OrderParams({
                 buyAmount: buyAmount,
-                validTo: uint48(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION),
+                validTo: uint32(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION),
                 appData: bytes32(salt)
             })
         );
@@ -514,9 +514,14 @@ contract RestakingAppAdapterTest is Test {
 }
 
 contract RestakingCoWSwapSettlementMock {
+    address public vaultRelayer;
     bytes32 public domainSeparator = keccak256("DOMAIN");
     bytes public lastOrderUid;
     bool public lastSigned;
+
+    constructor(address vaultRelayer_) {
+        vaultRelayer = vaultRelayer_;
+    }
 
     function setPreSignature(bytes calldata orderUid, bool signed) external {
         lastOrderUid = orderUid;

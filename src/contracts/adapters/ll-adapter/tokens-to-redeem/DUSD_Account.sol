@@ -12,15 +12,14 @@ contract DUSD_Account is MakinaAccount {
     address internal constant TOKEN_ADDRESS = 0x1e33E98aF620F1D563fcD3cfd3C75acE841204ef;
     uint48 internal constant TOKEN_COOLDOWN = 72 minutes;
 
-    constructor(address factory, address cowSwapSettlement, address cowSwapVaultRelayer)
+    constructor(address factory, address cowSwapSettlement)
         MakinaAccount(
             address(new MakinaOracle(SHARE_PRICE_ORACLE_ADDRESS)),
             factory,
             TOKEN_COOLDOWN,
             REDEEMER_ADDRESS,
             TOKEN_ADDRESS,
-            cowSwapSettlement,
-            cowSwapVaultRelayer
+            cowSwapSettlement
         )
     {}
 }

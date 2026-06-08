@@ -25,14 +25,9 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the async redeem account implementation.
-    constructor(
-        address oracle,
-        address factory,
-        uint48 cooldown,
-        address tokenToRedeem,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {}
+    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
+        CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
+    {}
 
     /* INTERNAL FUNCTIONS */
 

@@ -26,7 +26,6 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     address public constant MORPHO_ADAPTER_REGISTRY = 0x3696c5eAe4a7Ffd04Ea163564571E9CD8Ed9364e;
     // CoW Protocol dependencies used by adapter reward converters.
     address public constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
-    address public constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
     // Mainnet Merkl Distributor used by adapter reward claimers.
     address public constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
     // Vault scope for the adapter factories, or zero address for the global whitelist.
@@ -41,7 +40,6 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         address morphoVaultFactory;
         address morphoAdapterRegistry;
         address cowSwapSettlement;
-        address cowSwapVaultRelayer;
         address merklDistributor;
     }
 
@@ -68,7 +66,6 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 morphoVaultFactory: MORPHO_VAULT_FACTORY,
                 morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY,
                 cowSwapSettlement: COW_SWAP_SETTLEMENT,
-                cowSwapVaultRelayer: COW_SWAP_VAULT_RELAYER,
                 merklDistributor: MERKL_DISTRIBUTOR
             })
         );
@@ -90,7 +87,6 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
             morphoVaultFactory: params.morphoVaultFactory,
             morphoAdapterRegistry: params.morphoAdapterRegistry,
             cowSwapSettlement: params.cowSwapSettlement,
-            cowSwapVaultRelayer: params.cowSwapVaultRelayer,
             merklDistributor: params.merklDistributor
         });
 
@@ -142,7 +138,6 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 adapterFactoryOwner: params.adapterFactoryOwner,
                 aavePool: params.aavePool,
                 cowSwapSettlement: params.cowSwapSettlement,
-                cowSwapVaultRelayer: params.cowSwapVaultRelayer,
                 merklDistributor: params.merklDistributor
             })
         );
@@ -160,7 +155,6 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
                 morphoVaultFactory: params.morphoVaultFactory,
                 morphoAdapterRegistry: params.morphoAdapterRegistry,
                 cowSwapSettlement: params.cowSwapSettlement,
-                cowSwapVaultRelayer: params.cowSwapVaultRelayer,
                 merklDistributor: params.merklDistributor
             })
         );

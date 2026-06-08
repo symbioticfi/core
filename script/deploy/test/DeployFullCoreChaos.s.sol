@@ -415,7 +415,6 @@ contract DeployFullCoreChaosScript is Script {
             DeployAppAdapterBaseScript.DeployParams({
                 adapterFactoryOwner: ctx.owner,
                 cowSwapSettlement: address(0xC05E7),
-                cowSwapVaultRelayer: address(0xC0A7),
                 networkMiddlewareService: address(core.networkMiddlewareService)
             })
         )
@@ -454,7 +453,6 @@ contract DeployFullCoreChaosScript is Script {
                 adapterFactoryOwner: ctx.owner,
                 aavePool: aaveMocks.aavePool,
                 cowSwapSettlement: address(0xA11CE),
-                cowSwapVaultRelayer: address(0xA11CE2),
                 merklDistributor: ctx.owner
             })
         )
@@ -485,7 +483,6 @@ contract DeployFullCoreChaosScript is Script {
                 morphoVaultFactory: morphoMocks.morphoVaultFactory,
                 morphoAdapterRegistry: morphoMocks.morphoAdapterRegistry,
                 cowSwapSettlement: address(0xBEEF1),
-                cowSwapVaultRelayer: address(0xBEEF2),
                 merklDistributor: ctx.owner
             })
         )
@@ -567,14 +564,20 @@ contract DeployFullCoreChaosScript is Script {
 
     function _deployMFoneAccountFactory(address owner) internal returns (address factory) {
         factory = address(new mFONE_AccountFactory(owner));
-        mFONE_Account implementation = new mFONE_Account(factory, CHAOS_COW_SETTLEMENT, CHAOS_COW_VAULT_RELAYER);
+        vm.mockCall(
+            CHAOS_COW_SETTLEMENT, abi.encodeWithSignature("vaultRelayer()"), abi.encode(CHAOS_COW_VAULT_RELAYER)
+        );
+        mFONE_Account implementation = new mFONE_Account(factory, CHAOS_COW_SETTLEMENT);
         vm.prank(owner);
         mFONE_AccountFactory(factory).whitelist(address(implementation));
     }
 
     function _deployMGlobalAccountFactory(address owner) internal returns (address factory) {
         factory = address(new mGLOBAL_AccountFactory(owner));
-        mGLOBAL_Account implementation = new mGLOBAL_Account(factory, CHAOS_COW_SETTLEMENT, CHAOS_COW_VAULT_RELAYER);
+        vm.mockCall(
+            CHAOS_COW_SETTLEMENT, abi.encodeWithSignature("vaultRelayer()"), abi.encode(CHAOS_COW_VAULT_RELAYER)
+        );
+        mGLOBAL_Account implementation = new mGLOBAL_Account(factory, CHAOS_COW_SETTLEMENT);
         vm.prank(owner);
         mGLOBAL_AccountFactory(factory).whitelist(address(implementation));
     }
@@ -1158,7 +1161,7 @@ contract DeployFullCoreChaosScript is Script {
         bytes memory order = abi.encode(
             ICoWSwapConverter.OrderParams({
                 buyAmount: amount / 100,
-                validTo: uint48(vm.getBlockTimestamp() + 10 minutes),
+                validTo: uint32(vm.getBlockTimestamp() + 10 minutes),
                 appData: keccak256(abi.encode(salt, "cow"))
             })
         );

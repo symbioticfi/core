@@ -33,9 +33,8 @@ contract HumaAccount is Account, IHumaAccount {
         address factory,
         address tokenToRedeem,
         address redemptionVault,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
+        address cowSwapSettlement
+    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement) {
         REDEMPTION_VAULT = redemptionVault;
     }
 

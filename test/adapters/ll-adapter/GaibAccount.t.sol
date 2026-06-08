@@ -114,7 +114,7 @@ contract GaibAccountTest is AccountsBase {
         vm.mockCall(AID_TOKEN_ADDRESS, abi.encodeWithSignature("decimals()"), abi.encode(uint8(18)));
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        sAID_Account implementation = new sAID_Account(address(factory), cowSwapSettlement, cowSwapVaultRelayer);
+        sAID_Account implementation = new sAID_Account(address(factory), cowSwapSettlement);
         SaidOracle oracle = SaidOracle(implementation.ORACLE());
 
         assertEq(implementation.TOKEN_TO_REDEEM(), SAID_TOKEN_ADDRESS);

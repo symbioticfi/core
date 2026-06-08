@@ -16,7 +16,6 @@ contract MidasAccountMainnetBenchmarkTest is Test {
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant MAINNET_STANDARD_REDEMPTION_VAULT = 0xF6e51d24F4793Ac5e71e0502213a9BBE3A6d4517;
     address internal constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
-    address internal constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
 
     uint256 internal constant FINALIZED_MAINNET_REQUEST_IDS = 20;
     uint256 internal constant REQUEST_AMOUNT = 1e18;
@@ -153,8 +152,7 @@ contract MidasAccountMainnetBenchmarkTest is Test {
             MAINNET_MTBILL,
             MAINNET_USDC,
             MAINNET_STANDARD_REDEMPTION_VAULT,
-            COW_SWAP_SETTLEMENT,
-            COW_SWAP_VAULT_RELAYER
+            COW_SWAP_SETTLEMENT
         );
         factory.whitelist(address(implementation));
         account = MidasNonCompAccountBenchHarness(factory.create(1, address(this), _initData(MAINNET_MTBILL)));
@@ -171,8 +169,7 @@ contract MidasAccountMainnetBenchmarkTest is Test {
             MAINNET_MTBILL,
             MAINNET_USDC,
             MAINNET_STANDARD_REDEMPTION_VAULT,
-            COW_SWAP_SETTLEMENT,
-            COW_SWAP_VAULT_RELAYER
+            COW_SWAP_SETTLEMENT
         );
         factory.whitelist(address(implementation));
         account = MidasCompAccountBenchHarness(factory.create(1, address(this), _initData(MAINNET_MTBILL)));
@@ -218,18 +215,10 @@ contract MidasNonCompAccountBenchHarness is MidasNonCompAccount {
         address tokenToRedeem,
         address redemptionToken,
         address redemptionVault,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
+        address cowSwapSettlement
     )
         MidasNonCompAccount(
-            oracle,
-            factory,
-            cooldown,
-            tokenToRedeem,
-            redemptionToken,
-            redemptionVault,
-            cowSwapSettlement,
-            cowSwapVaultRelayer
+            oracle, factory, cooldown, tokenToRedeem, redemptionToken, redemptionVault, cowSwapSettlement
         )
     {}
 
@@ -258,20 +247,8 @@ contract MidasCompAccountBenchHarness is MidasCompAccount {
         address tokenToRedeem,
         address redemptionToken,
         address redemptionVault,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    )
-        MidasCompAccount(
-            oracle,
-            factory,
-            cooldown,
-            tokenToRedeem,
-            redemptionToken,
-            redemptionVault,
-            cowSwapSettlement,
-            cowSwapVaultRelayer
-        )
-    {}
+        address cowSwapSettlement
+    ) MidasCompAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, redemptionVault, cowSwapSettlement) {}
 
     function requestIdsLength() external view returns (uint256) {
         return requestIds.length;

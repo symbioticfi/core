@@ -16,7 +16,6 @@ contract DeployAaveV3AdapterBaseScript is Script {
         address adapterFactoryOwner;
         address aavePool;
         address cowSwapSettlement;
-        address cowSwapVaultRelayer;
         address merklDistributor;
     }
 
@@ -58,12 +57,7 @@ contract DeployAaveV3AdapterBaseScript is Script {
         adapterFactory = address(new AdapterFactory(broadcaster));
         adapterImplementation = address(
             new AaveV3Adapter(
-                params.aavePool,
-                vaultFactory,
-                adapterFactory,
-                params.merklDistributor,
-                params.cowSwapSettlement,
-                params.cowSwapVaultRelayer
+                params.aavePool, vaultFactory, adapterFactory, params.merklDistributor, params.cowSwapSettlement
             )
         );
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);
@@ -77,7 +71,6 @@ contract DeployAaveV3AdapterBaseScript is Script {
         require(params.adapterFactoryOwner != address(0), "invalid adapter factory owner");
         require(params.aavePool != address(0), "invalid Aave pool");
         require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
-        require(params.cowSwapVaultRelayer != address(0), "invalid CoW vault relayer");
         require(params.merklDistributor != address(0), "invalid Merkl distributor");
     }
 

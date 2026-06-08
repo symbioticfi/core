@@ -53,9 +53,9 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
 
     /* CONSTRUCTOR */
 
-    constructor(address cowSwapSettlement, address cowSwapVaultRelayer) {
+    constructor(address cowSwapSettlement) {
         COW_SWAP_SETTLEMENT = cowSwapSettlement;
-        COW_SWAP_VAULT_RELAYER = cowSwapVaultRelayer;
+        COW_SWAP_VAULT_RELAYER = ICoWSwapSettlement(cowSwapSettlement).vaultRelayer();
     }
 
     /* VIEW FUNCTIONS */
@@ -70,14 +70,17 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         return _getCoWSwapConverterStorage().converters[index];
     }
 
-    /* PUBLIC FUNCTIONS */
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IConverter
     function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data) public virtual override {
-        OrderParams memory params = abi.decode(data, (OrderParams));
+        if (tokenIn == tokenOut) {
+            revert InvalidTokenIn();
+        }
         if (amountIn == 0) {
             revert InvalidSellAmount();
         }
+        OrderParams memory params = abi.decode(data, (OrderParams));
         if (params.buyAmount == 0) {
             revert InvalidBuyAmount();
         }
@@ -135,6 +138,10 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         virtual
         returns (bytes32 requestHash)
     {
+        if (amountIn > IERC20(tokenIn).balanceOf(address(this))) {
+            revert InsufficientBalance();
+        }
+
         requestHash = keccak256(abi.encode(tokenIn, amountIn, tokenOut, data));
 
         CoWSwapConverterStorage storage $ = _getCoWSwapConverterStorage();
@@ -146,11 +153,20 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         emit PrepareConvert(tokenIn, amountIn, tokenOut, data);
     }
 
+    /* PUBLIC FUNCTIONS (OWNER) */
+
     /// @inheritdoc ICoWSwapConverter
     function setConverters(address[] memory newConverters) public onlyOwner {
         _getCoWSwapConverterStorage().converters = newConverters;
 
         emit SetConverters(newConverters);
+    }
+
+    /// @inheritdoc ICoWSwapConverter
+    function invalidateCovert(bytes calldata orderUid) external onlyOwner {
+        ICoWSwapSettlement(COW_SWAP_SETTLEMENT).setPreSignature(orderUid, false);
+
+        emit InvalidateCovert(orderUid);
     }
 
     /* INTERNAL FUNCTIONS */
@@ -197,7 +213,7 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     /// parameters.
     /// @param owner The address of the user who owns this order.
     /// @param validTo The epoch time at which the order will stop being valid.
-    function _packOrderUidParams(bytes memory orderUid, bytes32 orderDigest, address owner, uint48 validTo)
+    function _packOrderUidParams(bytes memory orderUid, bytes32 orderDigest, address owner, uint32 validTo)
         internal
         pure
     {

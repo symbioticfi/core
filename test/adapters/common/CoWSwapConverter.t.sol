@@ -32,7 +32,7 @@ contract CoWSwapConverterTest is Test {
     function setUp() public {
         vm.warp(100);
 
-        settlement = new CoWSwapSettlementMock();
+        settlement = new CoWSwapSettlementMock(relayer);
         tokenIn = new Token("Token In");
         tokenOut = new Token("Token Out");
         vaultFactory = new CoWSwapVaultRegistryMock();
@@ -41,7 +41,7 @@ contract CoWSwapConverterTest is Test {
         vaultFactory.add(address(vault));
 
         CoWSwapConverterHarness implementation =
-            new CoWSwapConverterHarness(address(vaultFactory), address(adapterFactory), address(settlement), relayer);
+            new CoWSwapConverterHarness(address(vaultFactory), address(adapterFactory), address(settlement));
 
         vm.startPrank(owner);
         adapterFactory.whitelist(address(implementation));
@@ -63,6 +63,29 @@ contract CoWSwapConverterTest is Test {
         assertEq(settlement.lastOrderUid().length, 56);
         assertTrue(settlement.lastSigned());
         assertEq(tokenIn.allowance(address(converter), relayer), type(uint256).max);
+    }
+
+    function test_InvalidateCovertClearsOrderPreSignature() public {
+        vm.prank(converterRoleHolder);
+        converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(90, 1));
+
+        bytes memory orderUid = settlement.lastOrderUid();
+
+        vm.prank(owner);
+        converter.invalidateCovert(orderUid);
+
+        assertEq(settlement.lastOrderUid(), orderUid);
+        assertFalse(settlement.lastSigned());
+    }
+
+    function test_InvalidateCovertRevertsForNonOwner() public {
+        vm.prank(converterRoleHolder);
+        converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(90, 1));
+
+        bytes memory orderUid = settlement.lastOrderUid();
+
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, address(this)));
+        converter.invalidateCovert(orderUid);
     }
 
     function test_ConverterCanConvertWithoutPreparedNonce() public {
@@ -104,12 +127,10 @@ contract CoWSwapConverterTest is Test {
         assertEq(tokenIn.allowance(address(converter), relayer), type(uint256).max);
     }
 
-    function test_ConvertAllowsVaultAssetInputAtBaseConverterLevel() public {
+    function test_ConvertRevertsWhenTokensMatch() public {
+        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
         vm.prank(converterRoleHolder);
         converter.convert(address(tokenOut), 100, address(tokenOut), _orderData(90, 1));
-
-        assertEq(settlement.lastOrderUid().length, 56);
-        assertTrue(settlement.lastSigned());
     }
 
     function test_ConvertRevertsForInvalidOrderBounds() public {
@@ -123,7 +144,7 @@ contract CoWSwapConverterTest is Test {
 
         vm.expectRevert(ICoWSwapConverter.ExpiredOrder.selector);
         vm.prank(converterRoleHolder);
-        converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(90, 3, uint48(vm.getBlockTimestamp())));
+        converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(90, 3, uint32(vm.getBlockTimestamp())));
 
         vm.expectRevert(ICoWSwapConverter.TooFarValidTo.selector);
         vm.prank(converterRoleHolder);
@@ -131,7 +152,7 @@ contract CoWSwapConverterTest is Test {
             address(tokenIn),
             100,
             address(tokenOut),
-            _orderData(90, 4, uint48(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION + 1))
+            _orderData(90, 4, uint32(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION + 1))
         );
     }
 
@@ -148,7 +169,7 @@ contract CoWSwapConverterTest is Test {
 
         vm.expectRevert(ICoWSwapConverter.ExpiredOrder.selector);
         vm.prank(caller);
-        converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(90, 3, uint48(vm.getBlockTimestamp())));
+        converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(90, 3, uint32(vm.getBlockTimestamp())));
 
         vm.expectRevert(ICoWSwapConverter.TooFarValidTo.selector);
         vm.prank(caller);
@@ -156,13 +177,13 @@ contract CoWSwapConverterTest is Test {
             address(tokenIn),
             100,
             address(tokenOut),
-            _orderData(90, 4, uint48(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION + 1))
+            _orderData(90, 4, uint32(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION + 1))
         );
     }
 
     function test_PrepareConvertAllowsPublicExecutionAfterDelayIfNonceUnchanged() public {
         address caller = makeAddr("caller");
-        bytes memory data = _orderData(90, 1, uint48(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
+        bytes memory data = _orderData(90, 1, uint32(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
 
         bytes32 requestHash = converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
         uint48 timestamp = converter.executableAt(0, requestHash);
@@ -183,7 +204,7 @@ contract CoWSwapConverterTest is Test {
     }
 
     function test_PrepareConvertRevertsWhenRequestIsAlreadyScheduledOnCurrentNonce() public {
-        bytes memory data = _orderData(90, 1, uint48(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
+        bytes memory data = _orderData(90, 1, uint32(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
 
         converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
 
@@ -191,10 +212,15 @@ contract CoWSwapConverterTest is Test {
         converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
     }
 
+    function test_PrepareConvertRevertsWhenBalanceIsInsufficient() public {
+        vm.expectRevert(ICoWSwapConverter.InsufficientBalance.selector);
+        converter.prepareConvert(address(tokenIn), 101, address(tokenOut), _orderData(90, 1));
+    }
+
     function test_PreparedConvertRevertsWhenTokenOutChanges() public {
         address caller = makeAddr("caller");
         Token otherTokenOut = new Token("Other Token Out");
-        bytes memory data = _orderData(90, 1, uint48(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
+        bytes memory data = _orderData(90, 1, uint32(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
         converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
 
         vm.warp(vm.getBlockTimestamp() + EXECUTION_DELAY);
@@ -205,7 +231,7 @@ contract CoWSwapConverterTest is Test {
 
     function test_PreparedConvertRevertsWhenNonceChanged() public {
         address caller = makeAddr("caller");
-        bytes memory data = _orderData(90, 1, uint48(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
+        bytes memory data = _orderData(90, 1, uint32(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
         converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
 
         vm.prank(converterRoleHolder);
@@ -218,10 +244,10 @@ contract CoWSwapConverterTest is Test {
     }
 
     function _orderData(uint256 buyAmount, uint256 salt) internal view returns (bytes memory) {
-        return _orderData(buyAmount, salt, uint48(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION));
+        return _orderData(buyAmount, salt, uint32(vm.getBlockTimestamp() + MAX_VALID_TO_DURATION));
     }
 
-    function _orderData(uint256 buyAmount, uint256 salt, uint48 validTo) internal pure returns (bytes memory) {
+    function _orderData(uint256 buyAmount, uint256 salt, uint32 validTo) internal pure returns (bytes memory) {
         return
             abi.encode(ICoWSwapConverter.OrderParams({buyAmount: buyAmount, validTo: validTo, appData: bytes32(salt)}));
     }
@@ -237,9 +263,9 @@ contract CoWSwapConverterTest is Test {
 }
 
 contract CoWSwapConverterHarness is Adapter, CoWSwapConverter {
-    constructor(address vaultFactory, address adapterFactory, address settlement, address relayer)
+    constructor(address vaultFactory, address adapterFactory, address settlement)
         Adapter(vaultFactory, adapterFactory)
-        CoWSwapConverter(settlement, relayer)
+        CoWSwapConverter(settlement)
     {}
 
     function totalAssets() public pure override returns (uint256) {
@@ -274,9 +300,14 @@ contract CoWSwapVaultMock {
 }
 
 contract CoWSwapSettlementMock {
+    address public vaultRelayer;
     bytes32 public domainSeparator = keccak256("DOMAIN");
     bytes public lastOrderUid;
     bool public lastSigned;
+
+    constructor(address vaultRelayer_) {
+        vaultRelayer = vaultRelayer_;
+    }
 
     function setPreSignature(bytes calldata orderUid, bool signed) external {
         lastOrderUid = orderUid;

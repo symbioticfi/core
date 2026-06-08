@@ -32,6 +32,7 @@ contract AppAdapterTest is Test {
     address internal curator = makeAddr("curator");
     address internal burner = makeAddr("burner");
     address internal relayer = makeAddr("relayer");
+    address internal settlement = makeAddr("settlement");
     uint48 internal duration = 10;
 
     function setUp() public {
@@ -48,9 +49,9 @@ contract AppAdapterTest is Test {
         subnetwork = network.subnetwork(1);
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
-        AppAdapter implementation = new AppAdapter(
-            address(vaultFactory), address(factory), address(0), relayer, address(networkMiddlewareService)
-        );
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        AppAdapter implementation =
+            new AppAdapter(address(vaultFactory), address(factory), settlement, address(networkMiddlewareService));
         factory.whitelist(address(implementation));
 
         adapter = _createAdapter();
@@ -396,9 +397,9 @@ contract AppAdapterTest is Test {
     }
 
     function test_MigrateRevertsBecauseUnsupported() public {
-        AppAdapter implementation = new AppAdapter(
-            address(vaultFactory), address(factory), address(0), relayer, address(networkMiddlewareService)
-        );
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        AppAdapter implementation =
+            new AppAdapter(address(vaultFactory), address(factory), settlement, address(networkMiddlewareService));
         factory.whitelist(address(implementation));
         uint64 version = factory.lastVersion();
 

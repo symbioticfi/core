@@ -59,8 +59,7 @@ contract ThreeJaneAccountTest is AccountsBase {
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         MockOracle oracle = new MockOracle(1e18);
-        sUSD3_Account account =
-            new sUSD3_Account(address(oracle), address(factory), cowSwapSettlement, cowSwapVaultRelayer);
+        sUSD3_Account account = new sUSD3_Account(address(oracle), address(factory), cowSwapSettlement);
 
         assertEq(account.TOKEN_TO_REDEEM(), SUSD3_TOKEN_ADDRESS);
     }

@@ -38,9 +38,8 @@ contract MakinaAccount is CooldownAccount, IMakinaAccount {
         uint48 cooldown,
         address redeemer,
         address tokenToRedeem,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
+        address cowSwapSettlement
+    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
         REDEEMER = redeemer;
         _accountingToken = IMakinaMachine(IMakinaRedeemer(redeemer).machine()).accountingToken();
     }

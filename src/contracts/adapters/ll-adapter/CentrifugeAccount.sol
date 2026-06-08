@@ -12,12 +12,7 @@ contract CentrifugeAccount is AsyncRedeemAccount, ICentrifugeAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Centrifuge account implementation.
-    constructor(
-        address oracle,
-        address factory,
-        uint48 cooldown,
-        address tokenToRedeem,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    ) AsyncRedeemAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {}
+    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
+        AsyncRedeemAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
+    {}
 }

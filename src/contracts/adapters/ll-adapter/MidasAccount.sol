@@ -37,9 +37,8 @@ abstract contract MidasAccount is CooldownAccount, IMidasAccount {
         address tokenToRedeem,
         address redemptionToken,
         address redemptionVault,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
+        address cowSwapSettlement
+    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
         REDEMPTION_TOKEN = redemptionToken;
         REDEMPTION_VAULT = redemptionVault;
     }
@@ -108,20 +107,8 @@ contract MidasCompAccount is MidasAccount {
         address tokenToRedeem,
         address redemptionToken,
         address redemptionVault,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    )
-        MidasAccount(
-            oracle,
-            factory,
-            cooldown,
-            tokenToRedeem,
-            redemptionToken,
-            redemptionVault,
-            cowSwapSettlement,
-            cowSwapVaultRelayer
-        )
-    {}
+        address cowSwapSettlement
+    ) MidasAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, redemptionVault, cowSwapSettlement) {}
 
     /* INTERNAL FUNCTIONS */
 
@@ -155,20 +142,8 @@ contract MidasNonCompAccount is MidasAccount {
         address tokenToRedeem,
         address redemptionToken,
         address redemptionVault,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    )
-        MidasAccount(
-            oracle,
-            factory,
-            cooldown,
-            tokenToRedeem,
-            redemptionToken,
-            redemptionVault,
-            cowSwapSettlement,
-            cowSwapVaultRelayer
-        )
-    {}
+        address cowSwapSettlement
+    ) MidasAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, redemptionVault, cowSwapSettlement) {}
 
     /* INTERNAL FUNCTIONS */
 

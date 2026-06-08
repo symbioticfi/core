@@ -87,7 +87,7 @@ contract MakinaAccountTest is AccountsBase {
         vm.mockCall(DUSD_SHARE_PRICE_ORACLE_ADDRESS, abi.encodeWithSignature("decimals()"), abi.encode(uint8(18)));
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        DUSD_Account implementation = new DUSD_Account(address(factory), cowSwapSettlement, cowSwapVaultRelayer);
+        DUSD_Account implementation = new DUSD_Account(address(factory), cowSwapSettlement);
         MakinaOracle oracle = MakinaOracle(implementation.ORACLE());
 
         assertEq(implementation.TOKEN_TO_REDEEM(), DUSD_TOKEN_ADDRESS);

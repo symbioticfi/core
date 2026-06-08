@@ -60,8 +60,7 @@ contract LidoAccountTest is AccountsBase {
             address(wstETH),
             address(factory),
             address(new MockLidoWithdrawalQueue(address(wstETH), address(stETH))),
-            cowSwapSettlement,
-            cowSwapVaultRelayer
+            cowSwapSettlement
         );
         factory.whitelist(address(implementation));
 

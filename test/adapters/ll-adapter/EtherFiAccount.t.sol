@@ -141,8 +141,7 @@ contract EtherFiAccountTest is AccountsBase {
             address(mocks.liquidityPool),
             address(mocks.redemptionManager),
             cowSwapSettlement,
-            address(mocks.withdrawRequestNft),
-            cowSwapVaultRelayer
+            address(mocks.withdrawRequestNft)
         );
         factory.whitelist(address(implementation));
 

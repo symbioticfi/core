@@ -15,13 +15,9 @@ contract ThreeJaneAccount is Account, IThreeJaneAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the 3Jane account implementation.
-    constructor(
-        address oracle,
-        address factory,
-        address tokenToRedeem,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {}
+    constructor(address oracle, address factory, address tokenToRedeem, address cowSwapSettlement)
+        Account(oracle, factory, tokenToRedeem, cowSwapSettlement)
+    {}
 
     /* INTERNAL FUNCTIONS */
 

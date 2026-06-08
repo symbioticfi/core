@@ -38,28 +38,22 @@ contract CentrifugeAccountTest is AccountsBase {
         _mockDecimals(DEJAAA_TOKEN_ADDRESS, 18);
 
         assertEq(
-            new JTRSY_Account(address(oracle), address(factory), cowSwapSettlement, cowSwapVaultRelayer)
-                .TOKEN_TO_REDEEM(),
+            new JTRSY_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
             JTRSY_TOKEN_ADDRESS
         );
         assertEq(
-            new JAAA_Account(address(oracle), address(factory), cowSwapSettlement, cowSwapVaultRelayer)
-                .TOKEN_TO_REDEEM(),
-            JAAA_TOKEN_ADDRESS
+            new JAAA_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(), JAAA_TOKEN_ADDRESS
         );
         assertEq(
-            new ACRDX_Account(address(oracle), address(factory), cowSwapSettlement, cowSwapVaultRelayer)
-                .TOKEN_TO_REDEEM(),
+            new ACRDX_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
             ACRDX_TOKEN_ADDRESS
         );
         assertEq(
-            new deJTRSY_Account(address(oracle), address(factory), cowSwapSettlement, cowSwapVaultRelayer)
-                .TOKEN_TO_REDEEM(),
+            new deJTRSY_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
             DEJTRSY_TOKEN_ADDRESS
         );
         assertEq(
-            new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement, cowSwapVaultRelayer)
-                .TOKEN_TO_REDEEM(),
+            new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
             DEJAAA_TOKEN_ADDRESS
         );
     }

@@ -38,13 +38,8 @@ contract AaveV3Adapter is Adapter, CoWSwapConverter, MerklClaimer, IAaveV3Adapte
         address vaultFactory,
         address adapterFactory,
         address merklDistributor,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    )
-        Adapter(vaultFactory, adapterFactory)
-        CoWSwapConverter(cowSwapSettlement, cowSwapVaultRelayer)
-        MerklClaimer(merklDistributor)
-    {
+        address cowSwapSettlement
+    ) Adapter(vaultFactory, adapterFactory) CoWSwapConverter(cowSwapSettlement) MerklClaimer(merklDistributor) {
         AAVE_POOL = aavePool;
     }
 

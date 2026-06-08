@@ -63,6 +63,9 @@ contract PendingWithdrawalQueueHandler is Test {
     address internal constant BURNER = address(0xB);
     address internal constant CURATOR = address(0xC);
 
+    address internal relayer = makeAddr("relayer");
+    address internal settlement = makeAddr("settlement");
+
     Token public collateral;
     VaultV2 public vault;
     UniversalDelegator public delegator;
@@ -328,14 +331,11 @@ contract PendingWithdrawalQueueHandler is Test {
             )
         );
 
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         adapterFactory.whitelist(
             address(
                 new AppAdapter(
-                    address(vaultFactory),
-                    address(adapterFactory),
-                    address(0),
-                    address(0),
-                    address(networkMiddlewareService)
+                    address(vaultFactory), address(adapterFactory), settlement, address(networkMiddlewareService)
                 )
             )
         );

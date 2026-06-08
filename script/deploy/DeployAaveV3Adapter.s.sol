@@ -12,8 +12,6 @@ contract DeployAaveV3AdapterScript is DeployAaveV3AdapterBaseScript {
     address public constant AAVE_POOL = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     // CoW Protocol settlement used by the converter.
     address public constant COW_SWAP_SETTLEMENT = 0x0000000000000000000000000000000000000000;
-    // CoW Protocol vault relayer approved by the converter.
-    address public constant COW_SWAP_VAULT_RELAYER = 0x0000000000000000000000000000000000000000;
     // Mainnet Merkl Distributor used by the reward claimer.
     address public constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
 
@@ -23,7 +21,6 @@ contract DeployAaveV3AdapterScript is DeployAaveV3AdapterBaseScript {
                 adapterFactoryOwner: ADAPTER_FACTORY_OWNER,
                 aavePool: AAVE_POOL,
                 cowSwapSettlement: COW_SWAP_SETTLEMENT,
-                cowSwapVaultRelayer: COW_SWAP_VAULT_RELAYER,
                 merklDistributor: MERKL_DISTRIBUTOR
             })
         );

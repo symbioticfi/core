@@ -27,15 +27,9 @@ contract ERC4626Adapter is Adapter, CoWSwapConverter, MerklClaimer, IERC4626Adap
     /* CONSTRUCTOR */
 
     /// @notice Creates the ERC4626 adapter implementation.
-    constructor(
-        address vaultFactory,
-        address adapterFactory,
-        address merklDistributor,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    )
+    constructor(address vaultFactory, address adapterFactory, address merklDistributor, address cowSwapSettlement)
         Adapter(vaultFactory, adapterFactory)
-        CoWSwapConverter(cowSwapSettlement, cowSwapVaultRelayer)
+        CoWSwapConverter(cowSwapSettlement)
         MerklClaimer(merklDistributor)
     {}
 

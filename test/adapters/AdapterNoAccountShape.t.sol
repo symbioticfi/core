@@ -18,10 +18,12 @@ contract AdapterNoAccountShapeTest is Test {
         address morphoVaultFactory = makeAddr("morphoVaultFactory");
         address morphoAdapterRegistry = makeAddr("morphoAdapterRegistry");
 
-        new AaveV3Adapter(aavePool, vaultFactory, adapterFactory, rewards, settlement, relayer);
-        new ERC4626Adapter(vaultFactory, adapterFactory, rewards, settlement, relayer);
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+
+        new AaveV3Adapter(aavePool, vaultFactory, adapterFactory, rewards, settlement);
+        new ERC4626Adapter(vaultFactory, adapterFactory, rewards, settlement);
         new MorphoVaultV2Adapter(
-            vaultFactory, adapterFactory, rewards, settlement, morphoVaultFactory, relayer, morphoAdapterRegistry
+            vaultFactory, adapterFactory, rewards, settlement, morphoVaultFactory, morphoAdapterRegistry
         );
     }
 }

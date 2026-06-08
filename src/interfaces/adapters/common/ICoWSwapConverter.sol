@@ -40,6 +40,12 @@ interface ICoWSwapSettlement {
      * @return separator Settlement domain separator.
      */
     function domainSeparator() external view returns (bytes32 separator);
+
+    /**
+     * @notice Returns the CoW Protocol vault relayer.
+     * @return relayer The vault relayer address.
+     */
+    function vaultRelayer() external view returns (address relayer);
 }
 
 /**
@@ -63,6 +69,11 @@ interface ICoWSwapConverter is IConverter {
      * @notice Raised when the order is already expired.
      */
     error ExpiredOrder();
+
+    /**
+     * @notice Raised when the converter balance is insufficient.
+     */
+    error InsufficientBalance();
 
     /**
      * @notice Raised when the converter does not hold enough unreserved sell token for the order and fee.
@@ -112,7 +123,7 @@ interface ICoWSwapConverter is IConverter {
         address receiver;
         uint256 sellAmount;
         uint256 buyAmount;
-        uint48 validTo;
+        uint32 validTo;
         bytes32 appData;
         uint256 feeAmount;
         bytes32 kind;
@@ -129,7 +140,7 @@ interface ICoWSwapConverter is IConverter {
      */
     struct OrderParams {
         uint256 buyAmount;
-        uint48 validTo;
+        uint32 validTo;
         bytes32 appData;
     }
 
@@ -182,6 +193,12 @@ interface ICoWSwapConverter is IConverter {
      */
     event SetConverters(address[] converters);
 
+    /**
+     * @notice Emitted when a pre-signed CoW Protocol order is invalidated.
+     * @param orderUid The invalidated order UID.
+     */
+    event InvalidateCovert(bytes orderUid);
+
     /* FUNCTIONS */
 
     /**
@@ -208,6 +225,12 @@ interface ICoWSwapConverter is IConverter {
      * @param converters The authorized converters.
      */
     function setConverters(address[] memory converters) external;
+
+    /**
+     * @notice Clears the pre-signature for a CoW Protocol order UID.
+     * @param orderUid The order UID to invalidate.
+     */
+    function invalidateCovert(bytes calldata orderUid) external;
 
     /**
      * @notice Returns when a prepared conversion request can be executed.

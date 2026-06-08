@@ -55,9 +55,8 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
         address tokenToRedeem,
         address redemptionManager,
         address cowSwapSettlement,
-        address withdrawRequestNft,
-        address cowSwapVaultRelayer
-    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
+        address withdrawRequestNft
+    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement) {
         WITHDRAW_REQUEST_NFT = withdrawRequestNft;
         REDEMPTION_MANAGER = redemptionManager;
         LIQUIDITY_POOL = liquidityPool;

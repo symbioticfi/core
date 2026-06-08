@@ -24,14 +24,9 @@ abstract contract CooldownAccount is Account, ICooldownAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the cooldown account implementation.
-    constructor(
-        address oracle,
-        address factory,
-        uint48 cooldown,
-        address tokenToRedeem,
-        address cowSwapSettlement,
-        address cowSwapVaultRelayer
-    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
+    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
+        Account(oracle, factory, tokenToRedeem, cowSwapSettlement)
+    {
         COOLDOWN = cooldown;
     }
 

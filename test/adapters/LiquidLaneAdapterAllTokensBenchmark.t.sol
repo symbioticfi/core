@@ -276,150 +276,112 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
         if (index == 0) {
-            return IAccount(
-                address(
-                    new ACRDX_Account(makeAddr("ACRDX_ORACLE"), factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)
-                )
-            );
+            return IAccount(address(new ACRDX_Account(makeAddr("ACRDX_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 1) {
-            return IAccount(
-                address(new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER))
-            );
+            return IAccount(address(new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 2) {
-            return IAccount(address(new DUSD_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new DUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 3) {
-            return IAccount(
-                address(new JAAA_Account(makeAddr("JAAA_ORACLE"), factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER))
-            );
+            return IAccount(address(new JAAA_Account(makeAddr("JAAA_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 4) {
-            return IAccount(
-                address(
-                    new JTRSY_Account(makeAddr("JTRSY_ORACLE"), factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)
-                )
-            );
+            return IAccount(address(new JTRSY_Account(makeAddr("JTRSY_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 5) {
-            return IAccount(
-                address(
-                    new PRIME_Account(
-                        makeAddr("PRIME_ORACLE"), factory, PRIME_TOKEN, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER
-                    )
-                )
-            );
+            return
+                IAccount(
+                    address(new PRIME_Account(makeAddr("PRIME_ORACLE"), factory, PRIME_TOKEN, COW_SWAP_SETTLEMENT))
+                );
         }
         if (index == 6) {
-            return IAccount(
-                address(
-                    new PST_Account(
-                        factory, address(new BenchmarkHumaTrancheVault()), COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER
-                    )
-                )
-            );
+            return
+                IAccount(
+                    address(new PST_Account(factory, address(new BenchmarkHumaTrancheVault()), COW_SWAP_SETTLEMENT))
+                );
         }
         if (index == 7) {
-            return IAccount(
-                address(new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER))
-            );
+            return IAccount(address(new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 8) {
-            return IAccount(
-                address(
-                    new deJAAA_Account(makeAddr("deJAAA_ORACLE"), factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)
-                )
-            );
+            return IAccount(address(new deJAAA_Account(makeAddr("deJAAA_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 9) {
-            return IAccount(
-                address(
-                    new deJTRSY_Account(
-                        makeAddr("deJTRSY_ORACLE"), factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER
-                    )
-                )
-            );
+            return IAccount(address(new deJTRSY_Account(makeAddr("deJTRSY_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 10) {
-            return IAccount(address(new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 11) {
-            return IAccount(address(new mBASIS_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mBASIS_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 12) {
-            return IAccount(address(new mBTC_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mBTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 13) {
-            return IAccount(address(new mEDGE_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mEDGE_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 14) {
-            return IAccount(address(new mEVUSD_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mEVUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 15) {
-            return IAccount(address(new mFARM_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mFARM_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 16) {
-            return IAccount(address(new mFONE_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mFONE_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 17) {
-            return IAccount(address(new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 18) {
-            return IAccount(address(new mHYPER_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mHYPER_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 19) {
-            return IAccount(address(new mHyperBTC_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mHyperBTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 20) {
-            return IAccount(address(new mHyperETH_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mHyperETH_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 21) {
-            return IAccount(address(new mM1USD_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mM1USD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 22) {
-            return IAccount(address(new mMEV_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mMEV_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 23) {
-            return IAccount(address(new mROX_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mROX_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 24) {
-            return IAccount(address(new mRe7BTC_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mRe7BTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 25) {
-            return IAccount(address(new mRe7YIELD_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mRe7YIELD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 26) {
-            return IAccount(address(new mSL_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mSL_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 27) {
-            return IAccount(address(new mTBILL_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mTBILL_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 28) {
-            return IAccount(address(new mevBTC_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new mevBTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 29) {
-            return IAccount(address(new msyrupUSD_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new msyrupUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 30) {
-            return IAccount(address(new msyrupUSDp_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new msyrupUSDp_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 31) {
-            return IAccount(address(new sAID_Account(factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)));
+            return IAccount(address(new sAID_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 32) {
-            return IAccount(
-                address(
-                    new sUSD3_Account(makeAddr("sUSD3_ORACLE"), factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)
-                )
-            );
+            return IAccount(address(new sUSD3_Account(makeAddr("sUSD3_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 33) {
-            return IAccount(
-                address(
-                    new sthUSD_Account(makeAddr("sthUSD_ORACLE"), factory, COW_SWAP_SETTLEMENT, COW_SWAP_VAULT_RELAYER)
-                )
-            );
+            return IAccount(address(new sthUSD_Account(makeAddr("sthUSD_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 34) {
             return IAccount(
@@ -433,8 +395,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
                         makeAddr("ETHERFI_LIQUIDITY_POOL"),
                         makeAddr("ETHERFI_REDEMPTION_MANAGER"),
                         COW_SWAP_SETTLEMENT,
-                        makeAddr("ETHERFI_WITHDRAW_REQUEST_NFT"),
-                        COW_SWAP_VAULT_RELAYER
+                        makeAddr("ETHERFI_WITHDRAW_REQUEST_NFT")
                     )
                 )
             );
@@ -442,13 +403,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         return IAccount(
             address(
                 new wstETH_Account(
-                    STETH,
-                    makeAddr("wstETH_ORACLE"),
-                    WSTETH,
-                    factory,
-                    LIDO_WITHDRAWAL_QUEUE,
-                    COW_SWAP_SETTLEMENT,
-                    COW_SWAP_VAULT_RELAYER
+                    STETH, makeAddr("wstETH_ORACLE"), WSTETH, factory, LIDO_WITHDRAWAL_QUEUE, COW_SWAP_SETTLEMENT
                 )
             )
         );

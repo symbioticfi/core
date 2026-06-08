@@ -39,9 +39,8 @@ contract DigiFTAccount is Account, IDigiFTAccount {
         address tokenToRedeem,
         address subRedManagement,
         address cowSwapSettlement,
-        address cowSwapVaultRelayer,
         uint48 pendingAssetsDuration
-    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement, cowSwapVaultRelayer) {
+    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement) {
         SUB_RED_MANAGEMENT = subRedManagement;
         PENDING_ASSETS_DURATION = pendingAssetsDuration;
     }

@@ -9,8 +9,8 @@ contract JAAA_Account is CentrifugeAccount {
     address internal constant TOKEN_ADDRESS = 0x5a0F93D040De44e78F251b03c43be9CF317Dcf64;
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
 
-    constructor(address oracle, address factory, address cowSwapSettlement, address cowSwapVaultRelayer)
-        CentrifugeAccount(oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, cowSwapSettlement, cowSwapVaultRelayer)
+    constructor(address oracle, address factory, address cowSwapSettlement)
+        CentrifugeAccount(oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, cowSwapSettlement)
     {}
 }
 

@@ -59,9 +59,8 @@ contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
         address vaultFactory,
         address adapterFactory,
         address cowSwapSettlement,
-        address cowSwapVaultRelayer,
         address networkMiddlewareService
-    ) Adapter(vaultFactory, adapterFactory) CoWSwapConverter(cowSwapSettlement, cowSwapVaultRelayer) {
+    ) Adapter(vaultFactory, adapterFactory) CoWSwapConverter(cowSwapSettlement) {
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
