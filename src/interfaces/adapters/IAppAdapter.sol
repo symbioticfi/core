@@ -104,12 +104,6 @@ interface IAppAdapter is IAdapter, ICoWSwapConverter {
     /* FUNCTIONS */
 
     /**
-     * @notice Returns the asset managed by the app adapter.
-     * @return asset Asset address.
-     */
-    function asset() external view returns (address asset);
-
-    /**
      * @notice Get the configured burner hook target.
      * @return burner Burner hook target.
      */
@@ -132,6 +126,12 @@ interface IAppAdapter is IAdapter, ICoWSwapConverter {
      * @return subnetwork Full identifier of the subnetwork.
      */
     function subnetwork() external view returns (bytes32 subnetwork);
+
+    /**
+     * @notice Returns the asset managed by the app adapter.
+     * @return asset Asset address.
+     */
+    function asset() external view returns (address asset);
 
     /**
      * @notice Get current slashable stake for the configured pair.
@@ -160,16 +160,16 @@ interface IAppAdapter is IAdapter, ICoWSwapConverter {
     function reward(address token, uint256 amount) external;
 
     /**
-     * @notice Release the configured pair's slashable stake.
-     * @param amount Maximum amount to release.
-     * @dev Only the configured network or its middleware can call this function.
-     */
-    function release(uint256 amount) external;
-
-    /**
      * @notice Slash the configured pair.
      * @param amount Maximum amount to slash.
      * @dev Only the configured network middleware can call this function.
      */
     function slash(uint256 amount) external;
+
+    /**
+     * @notice Release the configured pair's slashable stake.
+     * @param amount Maximum amount to release.
+     * @dev Only the configured network or its middleware can call this function.
+     */
+    function release(uint256 amount) external;
 }

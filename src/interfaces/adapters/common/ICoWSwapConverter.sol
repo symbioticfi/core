@@ -219,31 +219,19 @@ interface ICoWSwapConverter is IConverter {
     function COW_SWAP_VAULT_RELAYER() external view returns (address relayer);
 
     /**
-     * @notice Returns an authorized converter by index.
-     * @param index The converter index.
-     * @return converter The authorized converter.
-     */
-    function converters(uint256 index) external view returns (address converter);
-
-    /**
-     * @notice Replaces the converters that may create orders without the prepared-request delay.
-     * @param converters The authorized converters.
-     */
-    function setConverters(address[] memory converters) external;
-
-    /**
-     * @notice Clears the pre-signature for a CoW Protocol order UID.
-     * @param orderUid The order UID to invalidate.
-     */
-    function invalidateCovert(bytes calldata orderUid) external;
-
-    /**
      * @notice Returns when a prepared conversion request can be executed.
      * @param nonce Nonce bucket for the prepared conversion request.
      * @param requestHash Hash of the prepared conversion request.
      * @return timestamp Time when the request can be executed.
      */
     function executableAt(uint256 nonce, bytes32 requestHash) external view returns (uint48 timestamp);
+
+    /**
+     * @notice Returns an authorized converter by index.
+     * @param index The converter index.
+     * @return converter The authorized converter.
+     */
+    function converters(uint256 index) external view returns (address converter);
 
     /**
      * @notice Prepares a conversion request for delayed permissionless execution.
@@ -256,4 +244,16 @@ interface ICoWSwapConverter is IConverter {
     function prepareConvert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data)
         external
         returns (bytes32 requestHash);
+
+    /**
+     * @notice Replaces the converters that may create orders without the prepared-request delay.
+     * @param converters The authorized converters.
+     */
+    function setConverters(address[] memory converters) external;
+
+    /**
+     * @notice Clears the pre-signature for a CoW Protocol order UID.
+     * @param orderUid The order UID to invalidate.
+     */
+    function invalidateCovert(bytes calldata orderUid) external;
 }

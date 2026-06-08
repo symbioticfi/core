@@ -23,12 +23,6 @@ interface IAccount is ICoWSwapConverter {
     /* FUNCTIONS */
 
     /**
-     * @notice Returns the adapter bound to the account.
-     * @return adapter The adapter address.
-     */
-    function adapter() external view returns (address adapter);
-
-    /**
      * @notice Returns the token submitted through this account.
      * @return tokenToRedeem The token-to-redeem address.
      */
@@ -39,6 +33,12 @@ interface IAccount is ICoWSwapConverter {
      * @return oracle The oracle address.
      */
     function ORACLE() external view returns (address oracle);
+
+    /**
+     * @notice Returns the adapter bound to the account.
+     * @return adapter The adapter address.
+     */
+    function adapter() external view returns (address adapter);
 
     /**
      * @notice Returns the vault bound to the account.

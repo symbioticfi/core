@@ -54,6 +54,12 @@ interface IRestakingAppAdapter is IAppAdapter {
     function underlyingVaults(uint256 index) external view returns (address vault);
 
     /**
+     * @notice Returns whether there are pending slashed withdrawal requests to sync.
+     * @return status Whether there are pending slashed withdrawal requests.
+     */
+    function isUnsyncedSlash() external view returns (bool status);
+
+    /**
      * @notice Synchronizes held base asset rewards into the restaking vault asset.
      */
     function syncReward() external;
@@ -62,10 +68,4 @@ interface IRestakingAppAdapter is IAppAdapter {
      * @notice Synchronizes pending slashed withdrawal requests.
      */
     function syncSlash() external;
-
-    /**
-     * @notice Returns whether there are pending slashed withdrawal requests to sync.
-     * @return status Whether there are pending slashed withdrawal requests.
-     */
-    function isUnsyncedSlash() external view returns (bool status);
 }

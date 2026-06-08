@@ -217,12 +217,6 @@ interface IUniversalDelegator is IMulticallable {
     function adapters(uint256 index) external view returns (address adapter);
 
     /**
-     * @notice Get the number of adapters in the configured route.
-     * @return count Adapter route length.
-     */
-    function getAdaptersLength() external view returns (uint256 count);
-
-    /**
      * @notice Get a pending adapter index.
      * @param index Pending adapter array index.
      * @return pendingIndex Stable one-based adapter index.
@@ -269,6 +263,12 @@ interface IUniversalDelegator is IMulticallable {
      * @return version Delegator version.
      */
     function VERSION() external view returns (uint64 version);
+
+    /**
+     * @notice Get the number of adapters in the configured route.
+     * @return count Adapter route length.
+     */
+    function getAdaptersLength() external view returns (uint256 count);
 
     /**
      * @notice Get total assets managed by all adapters.

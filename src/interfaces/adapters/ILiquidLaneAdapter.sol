@@ -286,6 +286,18 @@ interface ILiquidLaneAdapter is IAdapter {
     /* FUNCTIONS */
 
     /**
+     * @notice Returns the address allowed to pause swaps.
+     * @return pauserAddress The pauser address.
+     */
+    function pauser() external view returns (address pauserAddress);
+
+    /**
+     * @notice Returns the address allowed to unpause swaps.
+     * @return unpauserAddress The unpauser address.
+     */
+    function unpauser() external view returns (address unpauserAddress);
+
+    /**
      * @notice Returns the configured market maker.
      * @return marketMakerAddress The configured market maker.
      */
@@ -298,12 +310,63 @@ interface ILiquidLaneAdapter is IAdapter {
     function marketMakerCanAcquire() external view returns (bool canAcquire);
 
     /**
+     * @notice Returns a configured token-to-redeem by index.
+     * @param index The token index.
+     * @return tokenToRedeem The configured token-to-redeem.
+     */
+    function tokensToRedeem(uint256 index) external view returns (address tokenToRedeem);
+
+    /**
+     * @notice Returns the configured vault-funded asset limit for a token.
+     * @param tokenToRedeem The token-to-redeem address.
+     * @return amount The vault-funded asset limit.
+     */
+    function limit(address tokenToRedeem) external view returns (uint256 amount);
+
+    /**
+     * @notice Returns the configured minimum swap discount for a token.
+     * @param tokenToRedeem The token-to-redeem address.
+     * @return ppm The minimum discount in ppm.
+     */
+    function minDiscount(address tokenToRedeem) external view returns (uint256 ppm);
+
+    /**
+     * @notice Returns the token-in receiver configured by an account.
+     * @param who The account whose receiver is queried.
+     * @return receiverAddress The configured receiver.
+     */
+    function receiver(address who) external view returns (address receiverAddress);
+
+    /**
      * @notice Returns the prefunded acquisition balance for an account and token.
      * @param tokenToRedeem The token-to-redeem address.
      * @param account The account whose acquisition balance is queried.
      * @return amount The acquisition balance.
      */
     function acquireBalance(address tokenToRedeem, address account) external view returns (uint256 amount);
+
+    /**
+     * @notice Returns whether an address is an authorized filler for a market maker.
+     * @param marketMaker The market maker address.
+     * @param filler The filler address.
+     * @return status Whether the filler is authorized.
+     */
+    function isFiller(address marketMaker, address filler) external view returns (bool status);
+
+    /**
+     * @notice Returns whether a signed-swap nonce was already used.
+     * @param tokenToRedeem The token-to-redeem address.
+     * @param nonce The nonce to query.
+     * @return used Whether the nonce was already consumed.
+     */
+    function isUsedNonce(address tokenToRedeem, uint256 nonce) external view returns (bool used);
+
+    /**
+     * @notice Returns the created account for a token-to-redeem.
+     * @param tokenToRedeem The token-to-redeem address.
+     * @return account The account address.
+     */
+    function accounts(address tokenToRedeem) external view returns (address account);
 
     /**
      * @notice Returns the maximum vault-asset output currently available for a token swap.
@@ -334,80 +397,38 @@ interface ILiquidLaneAdapter is IAdapter {
     function getTokensToRedeemLength() external view returns (uint256 length);
 
     /**
-     * @notice Returns a configured token-to-redeem by index.
-     * @param index The token index.
-     * @return tokenToRedeem The configured token-to-redeem.
-     */
-    function tokensToRedeem(uint256 index) external view returns (address tokenToRedeem);
-
-    /**
-     * @notice Returns whether an address is an authorized filler for a market maker.
-     * @param marketMaker The market maker address.
-     * @param filler The filler address.
-     * @return status Whether the filler is authorized.
-     */
-    function isFiller(address marketMaker, address filler) external view returns (bool status);
-
-    /**
-     * @notice Returns the configured minimum swap discount for a token.
-     * @param tokenToRedeem The token-to-redeem address.
-     * @return ppm The minimum discount in ppm.
-     */
-    function minDiscount(address tokenToRedeem) external view returns (uint256 ppm);
-
-    /**
-     * @notice Returns the configured vault-funded asset limit for a token.
-     * @param tokenToRedeem The token-to-redeem address.
-     * @return amount The vault-funded asset limit.
-     */
-    function limit(address tokenToRedeem) external view returns (uint256 amount);
-
-    /**
-     * @notice Returns whether a signed-swap nonce was already used.
-     * @param tokenToRedeem The token-to-redeem address.
-     * @param nonce The nonce to query.
-     * @return used Whether the nonce was already consumed.
-     */
-    function isUsedNonce(address tokenToRedeem, uint256 nonce) external view returns (bool used);
-
-    /**
-     * @notice Returns the created account for a token-to-redeem.
-     * @param tokenToRedeem The token-to-redeem address.
-     * @return account The account address.
-     */
-    function accounts(address tokenToRedeem) external view returns (address account);
-
-    /**
-     * @notice Returns the token-in receiver configured by an account.
-     * @param who The account whose receiver is queried.
-     * @return receiverAddress The configured receiver.
-     */
-    function receiver(address who) external view returns (address receiverAddress);
-
-    /**
-     * @notice Returns the address allowed to pause swaps.
-     * @return pauserAddress The pauser address.
-     */
-    function pauser() external view returns (address pauserAddress);
-
-    /**
-     * @notice Returns the address allowed to unpause swaps.
-     * @return unpauserAddress The unpauser address.
-     */
-    function unpauser() external view returns (address unpauserAddress);
-
-    /**
-     * @notice Prefunds acquisition balances with vault assets.
-     * @param tokenToRedeem The token-to-redeem address.
-     * @param amount The asset amount to deposit.
-     */
-    function depositToAcquire(address tokenToRedeem, uint256 amount) external;
-
-    /**
      * @notice Sets the token-in receiver for the caller.
      * @param newReceiver The receiver address.
      */
     function setReceiver(address newReceiver) external;
+
+    /**
+     * @notice Executes a direct market-maker swap.
+     * @param swap The swap payload.
+     */
+    function swap(Swap calldata swap) external;
+
+    /**
+     * @notice Executes a delegated market-maker swap.
+     * @param signedSwap The signed swap payload.
+     * @param signature The EIP-712 signature.
+     */
+    function swap(SignedSwap calldata signedSwap, bytes calldata signature) external;
+
+    /**
+     * @notice Executes a reusable discount-backed swap.
+     * @param discountSwap The short-lived protocol-authorized discount swap payload.
+     * @param protocolSignature The protocol EIP-712 signature over `discountSwap`.
+     * @param recipient Recipient of the vault-asset output.
+     * @param amountIn Token-to-redeem amount consumed by the swap.
+     * @return amountOut Vault-asset amount paid by the vault.
+     */
+    function swap(
+        DiscountSwap calldata discountSwap,
+        bytes calldata protocolSignature,
+        address recipient,
+        uint256 amountIn
+    ) external returns (uint256 amountOut);
 
     /**
      * @notice Sets filler authorization for the market maker.
@@ -424,18 +445,18 @@ interface ILiquidLaneAdapter is IAdapter {
     function invalidateNonce(address tokenToRedeem, uint256 nonce) external;
 
     /**
+     * @notice Prefunds acquisition balances with vault assets.
+     * @param tokenToRedeem The token-to-redeem address.
+     * @param amount The asset amount to deposit.
+     */
+    function depositToAcquire(address tokenToRedeem, uint256 amount) external;
+
+    /**
      * @notice Withdraws prefunded acquisition balance.
      * @param tokenToRedeem The token-to-redeem address.
      * @param amount The asset amount to withdraw.
      */
     function withdrawToAcquire(address tokenToRedeem, uint256 amount) external;
-
-    /**
-     * @notice Sets the market maker and acquisition permissions.
-     * @param newMarketMaker The new market maker.
-     * @param newCanAcquire Whether the market maker may prefund acquisition balances.
-     */
-    function setMarketMaker(address newMarketMaker, bool newCanAcquire) external;
 
     /**
      * @notice Configures a token-to-redeem and creates its account.
@@ -448,6 +469,13 @@ interface ILiquidLaneAdapter is IAdapter {
      * @param tokenToRedeem The token-to-redeem address.
      */
     function removeTokenToRedeem(address tokenToRedeem) external;
+
+    /**
+     * @notice Sets the market maker and acquisition permissions.
+     * @param newMarketMaker The new market maker.
+     * @param newCanAcquire Whether the market maker may prefund acquisition balances.
+     */
+    function setMarketMaker(address newMarketMaker, bool newCanAcquire) external;
 
     /**
      * @notice Sets the vault-funded asset limit for a token.
@@ -484,32 +512,4 @@ interface ILiquidLaneAdapter is IAdapter {
      * @notice Unpauses swaps.
      */
     function unpause() external;
-
-    /**
-     * @notice Executes a direct market-maker swap.
-     * @param swap The swap payload.
-     */
-    function swap(Swap calldata swap) external;
-
-    /**
-     * @notice Executes a delegated market-maker swap.
-     * @param signedSwap The signed swap payload.
-     * @param signature The EIP-712 signature.
-     */
-    function swap(SignedSwap calldata signedSwap, bytes calldata signature) external;
-
-    /**
-     * @notice Executes a reusable discount-backed swap.
-     * @param discountSwap The short-lived protocol-authorized discount swap payload.
-     * @param protocolSignature The protocol EIP-712 signature over `discountSwap`.
-     * @param recipient Recipient of the vault-asset output.
-     * @param amountIn Token-to-redeem amount consumed by the swap.
-     * @return amountOut Vault-asset amount paid by the vault.
-     */
-    function swap(
-        DiscountSwap calldata discountSwap,
-        bytes calldata protocolSignature,
-        address recipient,
-        uint256 amountIn
-    ) external returns (uint256 amountOut);
 }
