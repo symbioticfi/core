@@ -118,13 +118,10 @@ contract CoWSwapConverterTest is Test {
         converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(90, 1));
     }
 
-    function test_ConvertPresignsOrderWhenBalanceIsInsufficient() public {
+    function test_ConvertRevertsWhenBalanceIsInsufficient() public {
+        vm.expectRevert(ICoWSwapConverter.InvalidSellAmount.selector);
         vm.prank(converterRoleHolder);
         converter.convert(address(tokenIn), 101, address(tokenOut), _orderData(90, 1));
-
-        assertEq(settlement.lastOrderUid().length, 56);
-        assertTrue(settlement.lastSigned());
-        assertEq(tokenIn.allowance(address(converter), relayer), type(uint256).max);
     }
 
     function test_ConvertRevertsWhenTokensMatch() public {

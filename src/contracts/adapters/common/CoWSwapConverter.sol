@@ -77,7 +77,7 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         if (tokenIn == tokenOut) {
             revert InvalidTokenIn();
         }
-        if (amountIn == 0) {
+        if (amountIn == 0 || amountIn > IERC20(tokenIn).balanceOf(address(this))) {
             revert InvalidSellAmount();
         }
         OrderParams memory params = abi.decode(data, (OrderParams));
@@ -174,6 +174,7 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
 
     /* INTERNAL FUNCTIONS */
 
+    /// @dev Returns true if the specified address is a converter.
     function _isConverter(address converter) internal view returns (bool) {
         for (uint256 i; i < _getCoWSwapConverterStorage().converters.length; ++i) {
             if (_getCoWSwapConverterStorage().converters[i] == converter) {
