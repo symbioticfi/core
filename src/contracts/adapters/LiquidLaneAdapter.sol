@@ -290,11 +290,74 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     }
 
     /// @inheritdoc ILiquidLaneAdapter
+    function addTokenToRedeem(address tokenToRedeem) public onlyOwner {
+        if (_isTokenToRedeem[tokenToRedeem]) {
+            revert InvalidTokenToRedeem();
+        }
+        if (tokensToRedeem.length >= MAX_TOKENS_TO_REDEEM) {
+            revert TooManyTokensToRedeem();
+        }
+        if (accounts[tokenToRedeem] == address(0)) {
+            address accountFactory =
+                IAccountRegistry(ACCOUNT_REGISTRY).accountFactories(IERC4626(vault).asset(), tokenToRedeem);
+            accounts[tokenToRedeem] = IMigratablesFactory(accountFactory)
+                .create(IMigratablesFactory(accountFactory).lastVersion(), owner(), abi.encode(vault, address(this)));
+        }
+
+        _isTokenToRedeem[tokenToRedeem] = true;
+        tokensToRedeem.push(tokenToRedeem);
+
+        emit AddTokenToRedeem(tokenToRedeem, accounts[tokenToRedeem]);
+    }
+
+    /// @inheritdoc ILiquidLaneAdapter
+    function removeTokenToRedeem(address tokenToRedeem) public onlyOwner {
+        if (IAccount(accounts[tokenToRedeem]).totalAssets() > 0) {
+            revert AccountHasAssets();
+        }
+
+        for (uint256 i; i < tokensToRedeem.length; ++i) {
+            if (tokenToRedeem == tokensToRedeem[i]) {
+                tokensToRedeem[i] = tokensToRedeem[tokensToRedeem.length - 1];
+                tokensToRedeem.pop();
+                _isTokenToRedeem[tokenToRedeem] = false;
+                limit[tokenToRedeem] = 0;
+
+                emit RemoveTokenToRedeem(tokenToRedeem);
+                return;
+            }
+        }
+        revert InvalidTokenToRedeem();
+    }
+
+    /// @inheritdoc ILiquidLaneAdapter
     function setMarketMaker(address newMarketMaker, bool newCanAcquire) public onlyOwner {
         marketMaker = newMarketMaker;
         marketMakerCanAcquire = newCanAcquire;
 
         emit SetMarketMaker(newMarketMaker, newCanAcquire);
+    }
+
+    /// @inheritdoc ILiquidLaneAdapter
+    function setLimit(address tokenToRedeem, uint256 newLimit) public onlyOwner {
+        if (!_isTokenToRedeem[tokenToRedeem]) {
+            revert InvalidTokenToRedeem();
+        }
+
+        limit[tokenToRedeem] = newLimit;
+
+        emit SetLimit(tokenToRedeem, newLimit);
+    }
+
+    /// @inheritdoc ILiquidLaneAdapter
+    function setMinDiscount(address tokenToRedeem, uint256 newMinDiscount) public onlyOwner {
+        if (newMinDiscount > DISCOUNT_PRECISION) {
+            revert InvalidDiscount();
+        }
+
+        minDiscount[tokenToRedeem] = newMinDiscount;
+
+        emit SetMinDiscount(tokenToRedeem, newMinDiscount);
     }
 
     /// @inheritdoc ILiquidLaneAdapter
@@ -327,71 +390,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         _unpause();
     }
 
-    /// @inheritdoc ILiquidLaneAdapter
-    function addTokenToRedeem(address tokenToRedeem) public onlyOwner {
-        if (_isTokenToRedeem[tokenToRedeem]) {
-            revert InvalidTokenToRedeem();
-        }
-        if (tokensToRedeem.length >= MAX_TOKENS_TO_REDEEM) {
-            revert TooManyTokensToRedeem();
-        }
-        if (accounts[tokenToRedeem] == address(0)) {
-            address accountFactory =
-                IAccountRegistry(ACCOUNT_REGISTRY).accountFactories(IERC4626(vault).asset(), tokenToRedeem);
-            accounts[tokenToRedeem] = IMigratablesFactory(accountFactory)
-                .create(IMigratablesFactory(accountFactory).lastVersion(), owner(), abi.encode(vault, address(this)));
-        }
-
-        _isTokenToRedeem[tokenToRedeem] = true;
-        tokensToRedeem.push(tokenToRedeem);
-
-        emit AddTokenToRedeem(tokenToRedeem, accounts[tokenToRedeem]);
-    }
-
-    /// @inheritdoc ILiquidLaneAdapter
-    function removeTokenToRedeem(address tokenToRedeem) public onlyOwner {
-        if (!_isTokenToRedeem[tokenToRedeem]) {
-            revert InvalidTokenToRedeem();
-        }
-        if (IAccount(accounts[tokenToRedeem]).totalAssets() > 0) {
-            revert AccountHasAssets();
-        }
-
-        for (uint256 i; i < tokensToRedeem.length; ++i) {
-            if (tokenToRedeem == tokensToRedeem[i]) {
-                tokensToRedeem[i] = tokensToRedeem[tokensToRedeem.length - 1];
-                tokensToRedeem.pop();
-                _isTokenToRedeem[tokenToRedeem] = false;
-                limit[tokenToRedeem] = 0;
-
-                emit RemoveTokenToRedeem(tokenToRedeem);
-                return;
-            }
-        }
-        revert InvalidTokenToRedeem();
-    }
-
-    /// @inheritdoc ILiquidLaneAdapter
-    function setLimit(address tokenToRedeem, uint256 newLimit) public onlyOwner {
-        if (!_isTokenToRedeem[tokenToRedeem]) {
-            revert InvalidTokenToRedeem();
-        }
-
-        limit[tokenToRedeem] = newLimit;
-
-        emit SetLimit(tokenToRedeem, newLimit);
-    }
-
-    /// @inheritdoc ILiquidLaneAdapter
-    function setMinDiscount(address tokenToRedeem, uint256 newMinDiscount) public onlyOwner {
-        if (newMinDiscount > DISCOUNT_PRECISION) {
-            revert InvalidDiscount();
-        }
-
-        minDiscount[tokenToRedeem] = newMinDiscount;
-
-        emit SetMinDiscount(tokenToRedeem, newMinDiscount);
-    }
+    /* PUBLIC FUNCTIONS (INTERNAL) */
 
     /// @inheritdoc IAdapter
     function deallocate(uint256) public override(Adapter, IAdapter) onlyDelegator returns (uint256 deallocated) {
