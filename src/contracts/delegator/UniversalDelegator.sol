@@ -109,21 +109,6 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function allocatable(address adapter) public view returns (uint256) {
-        // Calculate delegator limit.
-        uint256 limit = limitOf(adapter);
-
-        // Apply delegator limit.
-        uint256 toAllocate = limit.saturatingSub(IAdapter(adapter).totalAssets());
-
-        // Apply free assets.
-        toAllocate = Math.min(toAllocate, VaultV2(vault).freeAssets());
-
-        // Apply adapter limit.
-        return Math.min(toAllocate, IAdapter(adapter).allocatable());
-    }
-
-    /// @inheritdoc IUniversalDelegator
     function deallocatable() public returns (uint256) {
         (, bytes memory returnDataInternal) = address(this)
             .call(abi.encodeCall(this.staticDelegateCall, (address(this), abi.encodeCall(this.__deallocateAll, ()))));
@@ -491,7 +476,9 @@ contract UniversalDelegator is
 
     /// @dev Allocate vault assets to an adapter.
     function _allocate(address adapter, uint256 assets) internal returns (uint256 allocated) {
-        assets = Math.min(assets, allocatable(adapter));
+        assets = Math.min(assets, limitOf(adapter).saturatingSub(IAdapter(adapter).totalAssets()));
+        assets = Math.min(assets, VaultV2(vault).freeAssets());
+        assets = Math.min(assets, IAdapter(adapter).allocatable());
 
         VaultV2(vault).pull(assets, adapter);
         allocated = IAdapter(adapter).allocate(assets);

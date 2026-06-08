@@ -977,7 +977,6 @@ contract DeployFullCoreChaosScript is Script {
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.shareLimitOf, (set.appAdapter)), "v2-share-limit");
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.absoluteLimitOf, (set.appAdapter)), "v2-abs-limit");
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.limitOf, (set.appAdapter)), "v2-limit-of");
-        _try(vault.delegator, abi.encodeCall(IUniversalDelegator.allocatable, (set.appAdapter)), "v2-allocatable");
         _try(
             vault.delegator,
             abi.encodeCall(IUniversalDelegator.allocate, (set.appAdapter, amount / 4)),

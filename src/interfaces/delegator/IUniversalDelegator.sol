@@ -284,13 +284,6 @@ interface IUniversalDelegator is IMulticallable {
     function limitOf(address adapter) external view returns (uint256 limit);
 
     /**
-     * @notice Get currently allocatable assets for an adapter after limits.
-     * @param adapter Adapter address.
-     * @return assets Allocatable assets.
-     */
-    function allocatable(address adapter) external view returns (uint256 assets);
-
-    /**
      * @notice Simulate the assets that can be deallocated immediately through the configured route.
      * @dev Intentionally non-view because it uses a reverting self-call to roll back adapter state changes.
      * @return assets Simulated deallocated assets.

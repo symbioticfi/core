@@ -252,7 +252,6 @@ contract AppAdapterUniversalDelegatorTest is Test {
         vm.prank(networkMiddleware);
         adapter.slash(40);
 
-        assertEq(delegator.allocatable(address(adapter)), 50);
         assertGt(delegator.limitOf(address(adapter)), adapter.totalAssets());
     }
 

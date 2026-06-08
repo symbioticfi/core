@@ -364,6 +364,13 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(delegator.VERSION(), 2);
     }
 
+    function test_AllocatableSelectorIsUnavailable() public view {
+        (bool success,) = address(delegator)
+            .staticcall(abi.encodeWithSelector(bytes4(keccak256("allocatable(address)")), address(0xBEEF)));
+
+        assertFalse(success);
+    }
+
     function test_AddAdapterRevertsWhenAdapterLimitIsReached() public {
         vm.pauseGasMetering();
         _addAdapters(MAX_ADAPTERS, 0, 0);
@@ -514,6 +521,31 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(vault.pulledAssets(), 70);
         assertEq(vault.lastPushAdapter(), address(source));
         assertEq(vault.lastPullAdapter(), address(target));
+    }
+
+    function test_AllocateExactInlinesDelegatorCapacityAndHonorsAdapterAllocatable() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        vault.mintFreeAssets(70);
+        delegator.setVault(address(vault));
+
+        UniversalDelegatorSweepAdapter target = _newWhitelistedAdapterForVault(address(vault), 0, 0);
+        target.setAllocatable(0);
+        target.setAllocateReturn(70);
+
+        delegator.addAdapterForTest(address(target));
+        delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
+        delegator.setLimits(address(target), type(uint256).max, MAX_SHARE);
+
+        assertEq(target.allocatable(), 0);
+
+        vm.prank(address(target));
+        uint256 allocated = delegator.allocateExact(address(target), 70);
+
+        assertEq(allocated, 0);
+        assertEq(target.lastAllocateAssets(), 0);
+        assertEq(target.totalAssets(), 0);
+        assertEq(vault.pulledAssets(), 0);
     }
 
     function test_AllocateExactReturnsZeroWhenPendingAssetsRemain() public {

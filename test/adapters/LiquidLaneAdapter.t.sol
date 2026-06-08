@@ -240,6 +240,21 @@ contract LiquidLaneAdapterTest is Test {
         assertEq(asset.balanceOf(address(vault)), 0);
     }
 
+    function testGetMaxAssetsReturnsOnlyAcquireBalanceWhenPendingAssetsRemain() public {
+        asset.mint(curator, 25 ether);
+        vm.startPrank(curator);
+        adapter.setReceiver(curatorReceiver);
+        asset.approve(address(adapter), 25 ether);
+        adapter.depositToAcquire(address(tokenToRedeem), 25 ether);
+        vm.stopPrank();
+
+        asset.mint(address(vault), 100 ether);
+        delegator.setPendingAssets(30 ether);
+
+        assertEq(adapter.getMaxAssets(address(tokenToRedeem)), 25 ether);
+        assertEq(delegator.sweepPendingCalls(), 1);
+    }
+
     function testPrefundedAcquisitionDoesNotAllocateVaultAssetsAndPaysReceiver() public {
         address account = adapter.accounts(address(tokenToRedeem));
 
@@ -500,6 +515,10 @@ contract MockLiquidLaneVault {
         return IERC20(asset).balanceOf(address(this));
     }
 
+    function withdrawable() external view returns (uint256) {
+        return IERC20(asset).balanceOf(address(this));
+    }
+
     function pull(uint256 assets, address receiver) external {
         if (msg.sender != delegator) {
             revert();
@@ -519,6 +538,8 @@ contract MockLiquidLaneDelegator {
     address public immutable vault;
     bool public revertDeallocateExact;
     uint256 public allocateExactCalls;
+    uint256 public pendingAssets;
+    uint256 public sweepPendingCalls;
 
     constructor(address vault_) {
         vault = vault_;
@@ -526,6 +547,10 @@ contract MockLiquidLaneDelegator {
 
     function setRevertDeallocateExact(bool newRevertDeallocateExact) external {
         revertDeallocateExact = newRevertDeallocateExact;
+    }
+
+    function setPendingAssets(uint256 newPendingAssets) external {
+        pendingAssets = newPendingAssets;
     }
 
     function allocatable(address) external view returns (uint256) {
@@ -536,7 +561,10 @@ contract MockLiquidLaneDelegator {
         return type(uint256).max;
     }
 
-    function sweepPending() external pure returns (uint256 pendingAssets) {}
+    function sweepPending() external returns (uint256) {
+        ++sweepPendingCalls;
+        return pendingAssets;
+    }
 
     function allocate(address adapter, uint256 assets) external returns (uint256 allocated) {
         MockLiquidLaneVault(vault).pull(assets, adapter);

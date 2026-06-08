@@ -109,22 +109,20 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /// @inheritdoc ILiquidLaneAdapter
     function getMaxAssets(address tokenToRedeem) public returns (uint256 assets) {
+        uint256 acquireAssets = acquireBalance[tokenToRedeem][owner()];
+        if (marketMaker != owner()) {
+            acquireAssets += acquireBalance[tokenToRedeem][marketMaker];
+        }
+        address delegator = IVaultV2(vault).delegator();
+        if (IUniversalDelegator(delegator).sweepPending() > 0) {
+            return acquireAssets;
+        }
         assets = Math.min(
-            IUniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this))
-                .saturatingSub(totalAssets() - freeAssets()),
+            IUniversalDelegator(delegator).limitOf(address(this)).saturatingSub(totalAssets()),
             IVaultV2(vault).withdrawable()
         );
-        assets = Math.min(
-            assets,
-            limit[tokenToRedeem].saturatingSub(
-                IAccount(accounts[tokenToRedeem]).totalAssets()
-                    - IERC20(IERC4626(vault).asset()).balanceOf(accounts[tokenToRedeem])
-            )
-        );
-        assets += acquireBalance[tokenToRedeem][owner()];
-        if (marketMaker != owner()) {
-            assets += acquireBalance[tokenToRedeem][marketMaker];
-        }
+        assets = Math.min(assets, limit[tokenToRedeem].saturatingSub(IAccount(accounts[tokenToRedeem]).totalAssets()));
+        return acquireAssets + assets;
     }
 
     /// @inheritdoc ILiquidLaneAdapter

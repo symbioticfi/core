@@ -7,7 +7,7 @@ import {IAdapter} from "./IAdapter.sol";
 uint256 constant DISCOUNT_PRECISION = 10 ** 6;
 
 /// @dev Maximum number of tokens-to-redeem configurable for the vault.
-uint256 constant MAX_TOKENS_TO_REDEEM = 15;
+uint256 constant MAX_TOKENS_TO_REDEEM = 50;
 
 /// @dev EIP-712 typehash for signed adapter swap legs.
 bytes32 constant SIGNED_SWAP_TYPEHASH = keccak256(
