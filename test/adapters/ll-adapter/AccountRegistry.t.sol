@@ -7,6 +7,8 @@ import {AccountRegistry} from "../../../src/contracts/adapters/ll-adapter/Accoun
 
 import {IAccountRegistry} from "../../../src/interfaces/adapters/ll-adapter/IAccountRegistry.sol";
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
 contract AccountRegistryTest is Test {
     AccountRegistry internal registry;
 
@@ -37,6 +39,11 @@ contract AccountRegistryTest is Test {
         registry.setAccountFactory(address(0), address(0), address(0));
 
         assertEq(registry.accountFactories(address(0), address(0)), address(0));
+    }
+
+    function test_SetAccountFactoryRevertsForNonOwner() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        registry.setAccountFactory(asset, tokenToRedeem, accountFactory);
     }
 
     function test_SetAccountFactoryRevertsIfAlreadySet() public {

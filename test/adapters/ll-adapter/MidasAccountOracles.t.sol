@@ -6,10 +6,16 @@ import {Test} from "forge-std/Test.sol";
 import {MidasCompAccount, MidasNonCompAccount} from "../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {ChainlinkOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ChainlinkOracle.sol";
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
+import {mBTC_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBTC_Account.sol";
+import {mHyperBTC_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHyperBTC_Account.sol";
+import {mHyperETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHyperETH_Account.sol";
+import {mRe7BTC_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mRe7BTC_Account.sol";
+import {mevBTC_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mevBTC_Account.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {IConverter} from "../../../src/interfaces/adapters/common/IConverter.sol";
 import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
+import {IMidasAccount} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
 import {IChainlinkOracle} from "../../../src/interfaces/adapters/ll-adapter/oracles/IChainlinkOracle.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -17,6 +23,17 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract MidasAccountOraclesTest is Test {
     uint256 internal constant MAX_EXPECTED_REQUESTS = 17;
+
+    address internal constant MBTC_TOKEN_ADDRESS = 0x007115416AB6c266329a03B09a8aa39aC2eF7d9d;
+    address internal constant MBTC_REDEMPTION_VAULT_ADDRESS = 0x30d9D1e76869516AEa980390494AaEd45C3EfC1a;
+    address internal constant MHYPERBTC_TOKEN_ADDRESS = 0xC8495EAFf71D3A563b906295fCF2f685b1783085;
+    address internal constant MHYPERBTC_REDEMPTION_VAULT_ADDRESS = 0x16d4f955B0aA1b1570Fe3e9bB2f8c19C407cdb67;
+    address internal constant MHYPERETH_TOKEN_ADDRESS = 0x5a42864b14C0C8241EF5ab62Dae975b163a2E0C1;
+    address internal constant MHYPERETH_REDEMPTION_VAULT_ADDRESS = 0x15f724b35A75F0c28F352b952eA9D1b24e348c57;
+    address internal constant MRE7BTC_TOKEN_ADDRESS = 0x9FB442d6B612a6dcD2acC67bb53771eF1D9F661A;
+    address internal constant MRE7BTC_REDEMPTION_VAULT_ADDRESS = 0x4Fd4DD7171D14e5bD93025ec35374d2b9b4321b0;
+    address internal constant MEVBTC_TOKEN_ADDRESS = 0xb64C014307622eB15046C66fF71D04258F5963DC;
+    address internal constant MEVBTC_REDEMPTION_VAULT_ADDRESS = 0x2d7d5b1706653796602617350571B3F8999B950c;
 
     address internal adapter = makeAddr("adapter");
     address internal oracle = makeAddr("oracle");
@@ -342,6 +359,20 @@ contract MidasAccountOraclesTest is Test {
         assertEq(tokenToRedeem.balanceOf(address(account)), 0);
     }
 
+    function testMidasBtcEthTokenAccountsRejectNonUsdcVaultAsset() public {
+        _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(0, MBTC_TOKEN_ADDRESS, MBTC_REDEMPTION_VAULT_ADDRESS);
+        _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(
+            1, MHYPERBTC_TOKEN_ADDRESS, MHYPERBTC_REDEMPTION_VAULT_ADDRESS
+        );
+        _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(
+            2, MHYPERETH_TOKEN_ADDRESS, MHYPERETH_REDEMPTION_VAULT_ADDRESS
+        );
+        _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(
+            3, MRE7BTC_TOKEN_ADDRESS, MRE7BTC_REDEMPTION_VAULT_ADDRESS
+        );
+        _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(4, MEVBTC_TOKEN_ADDRESS, MEVBTC_REDEMPTION_VAULT_ADDRESS);
+    }
+
     function testConvertRejectsNonAssetTokenOut() public {
         MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
         MockERC20 asset = new MockERC20("Asset", "ASSET");
@@ -466,6 +497,52 @@ contract MidasAccountOraclesTest is Test {
         );
         factory.whitelist(address(implementation));
         account = MidasNonCompAccount(factory.create(1, address(this), _initData(address(tokenToRedeem))));
+    }
+
+    function _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(
+        uint256 index,
+        address tokenToRedeem,
+        address redemptionVault
+    ) internal {
+        vault = address(new MockVault(address(new MockERC20("Wrapped Asset", "wASSET"))));
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        _mockMidasTokenAccountConstructor(tokenToRedeem, redemptionVault);
+        IAccount implementation = _deployMidasBtcEthTokenAccountImplementation(index, address(factory));
+        factory.whitelist(address(implementation));
+        bytes memory data = _initData(tokenToRedeem);
+
+        vm.expectRevert(IMidasAccount.InvalidAsset.selector);
+        factory.create(1, address(this), data);
+    }
+
+    function _deployMidasBtcEthTokenAccountImplementation(uint256 index, address factory)
+        internal
+        returns (IAccount implementation)
+    {
+        if (index == 0) {
+            return IAccount(address(new mBTC_Account(factory, cowSettlement)));
+        }
+        if (index == 1) {
+            return IAccount(address(new mHyperBTC_Account(factory, cowSettlement)));
+        }
+        if (index == 2) {
+            return IAccount(address(new mHyperETH_Account(factory, cowSettlement)));
+        }
+        if (index == 3) {
+            return IAccount(address(new mRe7BTC_Account(factory, cowSettlement)));
+        }
+        return IAccount(address(new mevBTC_Account(factory, cowSettlement)));
+    }
+
+    function _mockMidasTokenAccountConstructor(address tokenToRedeem, address redemptionVault) internal {
+        vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
+        vm.mockCall(tokenToRedeem, abi.encodeWithSignature("decimals()"), abi.encode(uint8(18)));
+        vm.mockCall(
+            redemptionVault,
+            abi.encodeWithSignature("mTokenDataFeed()"),
+            abi.encode(address(new MockMidasDataFeed(1e18)))
+        );
     }
 
     function _initData(address) internal view returns (bytes memory) {

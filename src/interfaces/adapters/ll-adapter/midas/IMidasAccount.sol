@@ -11,6 +11,13 @@ uint8 constant REQUEST_STATUS_PENDING = 0;
  * @notice Interface for Midas liquidity lane accounts.
  */
 interface IMidasAccount is ICooldownAccount {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when the account vault asset is invalid for the configured Midas redemption token.
+     */
+    error InvalidAsset();
+
     /* FUNCTIONS */
 
     /**

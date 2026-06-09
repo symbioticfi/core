@@ -87,8 +87,8 @@ abstract contract MidasAccount is CooldownAccount, IMidasAccount {
     /* INITIALIZATION */
 
     /// @dev Initializes the account for an adapter and vault.
-    function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
-        super._initialize(initialVersion, owner_, data);
+    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal virtual override {
+        super._initialize(initialVersion, initOwner, data);
 
         IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_VAULT, type(uint256).max);
     }

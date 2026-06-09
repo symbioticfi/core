@@ -11,16 +11,16 @@ interface IDigiFTAccount is IAccount {
     /* FUNCTIONS */
 
     /**
+     * @notice Returns how long DigiFT pending assets are counted in valuation.
+     * @return pendingAssetsDuration The pending-assets valuation duration.
+     */
+    function PENDING_ASSETS_DURATION() external view returns (uint48 pendingAssetsDuration);
+
+    /**
      * @notice Returns the DigiFT normal redemption manager.
      * @return subRedManagement The redemption manager address.
      */
     function SUB_RED_MANAGEMENT() external view returns (address subRedManagement);
-
-    /**
-     * @notice Returns how long pending off-chain redemption assets remain counted.
-     * @return duration The pending assets duration.
-     */
-    function PENDING_ASSETS_DURATION() external view returns (uint48 duration);
 
     /**
      * @notice Returns a DigiFT redemption-request subaccount by index.

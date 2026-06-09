@@ -3,7 +3,24 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
+import {IGaibAccount} from "../../../src/interfaces/adapters/ll-adapter/gaib/IGaibAccount.sol";
+
 contract GaibAccountTest is AccountsBase {
+    function testGaibAccountRejectsVaultAssetMismatch() public {
+        MockERC20 asset = new MockERC20("AI Dollar", "AID", 18);
+        MockERC20 wrongAsset = new MockERC20("Wrong USD", "wUSD", 18);
+        MockSaidVault said = new MockSaidVault(asset, 103e16);
+        MockOracle oracle = new MockOracle(103e16);
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        GaibAccount implementation =
+            new GaibAccount(address(oracle), address(factory), 0, address(said), cowSwapSettlement);
+        factory.whitelist(address(implementation));
+        bytes memory data = _initData(address(wrongAsset), address(said));
+
+        vm.expectRevert(IGaibAccount.InvalidAsset.selector);
+        factory.create(1, address(this), data);
+    }
+
     function testGaibAccountUnstakesAndTracksPendingAid() public {
         MockERC20 asset = new MockERC20("AI Dollar", "AID", 18);
         MockSaidVault said = new MockSaidVault(asset, 103e16);

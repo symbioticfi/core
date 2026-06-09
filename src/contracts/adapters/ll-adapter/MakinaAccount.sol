@@ -85,8 +85,11 @@ contract MakinaAccount is CooldownAccount, IMakinaAccount {
     /* INITIALIZATION */
 
     /// @dev Initializes the account for an adapter and vault.
-    function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
-        super._initialize(initialVersion, owner_, data);
+    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
+        super._initialize(initialVersion, initOwner, data);
+        if (_accountingToken != _asset) {
+            revert InvalidAsset();
+        }
         IERC20(TOKEN_TO_REDEEM).forceApprove(REDEEMER, type(uint256).max);
     }
 }

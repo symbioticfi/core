@@ -38,7 +38,7 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
         for (uint256 i; i < requestIds.length; ++i) {
             uint256 requestId = requestIds[i];
             assets += IAsyncRedeemVault(asyncRedeemVault)
-                .previewWithdraw(
+                .convertToAssets(
                     IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestId, address(this))
                         + IAsyncRedeemVault(asyncRedeemVault).claimableRedeemRequest(requestId, address(this))
                 );

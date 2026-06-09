@@ -21,9 +21,10 @@ contract DigiFTAccount is Account, IDigiFTAccount {
     /* IMMUTABLES */
 
     /// @inheritdoc IDigiFTAccount
-    address public immutable SUB_RED_MANAGEMENT;
-    /// @inheritdoc IDigiFTAccount
     uint48 public immutable PENDING_ASSETS_DURATION;
+
+    /// @inheritdoc IDigiFTAccount
+    address public immutable SUB_RED_MANAGEMENT;
 
     /* STATE VARIABLES */
 
@@ -38,11 +39,11 @@ contract DigiFTAccount is Account, IDigiFTAccount {
         address factory,
         address tokenToRedeem,
         address subRedManagement,
-        address cowSwapSettlement,
-        uint48 pendingAssetsDuration
+        uint48 pendingAssetsDuration,
+        address cowSwapSettlement
     ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement) {
-        SUB_RED_MANAGEMENT = subRedManagement;
         PENDING_ASSETS_DURATION = pendingAssetsDuration;
+        SUB_RED_MANAGEMENT = subRedManagement;
     }
 
     /* INTERNAL FUNCTIONS */
@@ -60,7 +61,7 @@ contract DigiFTAccount is Account, IDigiFTAccount {
             uint256 index = i - 1;
 
             IDigiFTSubAccount(subAccounts[index]).sync();
-            if (IDigiFTSubAccount(subAccounts[index]).totalAssets() == 0) {
+            if (IDigiFTSubAccount(subAccounts[index]).isSettled()) {
                 subAccounts[index] = subAccounts[subAccounts.length - 1];
                 subAccounts.pop();
             }
@@ -73,9 +74,9 @@ contract DigiFTAccount is Account, IDigiFTAccount {
                     _asset,
                     address(this),
                     TOKEN_TO_REDEEM,
+                    uint48(block.timestamp) + PENDING_ASSETS_DURATION,
                     _tokenToRedeemToAssets(amount),
-                    SUB_RED_MANAGEMENT,
-                    uint48(block.timestamp + PENDING_ASSETS_DURATION)
+                    SUB_RED_MANAGEMENT
                 )
             );
 
@@ -94,16 +95,16 @@ contract DigiFTSubAccount is IDigiFTSubAccount {
 
     /* IMMUTABLES */
 
-    /// @dev Vault asset expected from DigiFT redemption settlement.
-    address internal immutable ASSET;
-    /// @dev Parent account that owns this subaccount.
-    address internal immutable ACCOUNT;
-    /// @dev DigiFT token submitted for redemption.
-    address internal immutable TOKEN_TO_REDEEM;
+    /// @dev Timestamp after which pending assets are no longer counted for valuation.
+    uint48 internal immutable PENDING_ASSETS_DEADLINE;
     /// @dev DigiFT normal redemption manager.
     address internal immutable SUB_RED_MANAGEMENT;
-    /// @dev Timestamp after which pending assets are no longer counted.
-    uint48 internal immutable PENDING_ASSETS_DEADLINE;
+    /// @dev DigiFT token submitted for redemption.
+    address internal immutable TOKEN_TO_REDEEM;
+    /// @dev Parent account that owns this subaccount.
+    address internal immutable ACCOUNT;
+    /// @dev Vault asset expected from DigiFT redemption settlement.
+    address internal immutable ASSET;
 
     /* STATE VARIABLES */
 
@@ -117,16 +118,16 @@ contract DigiFTSubAccount is IDigiFTSubAccount {
         address asset,
         address account,
         address tokenToRedeem,
-        uint256 pendingAssets_,
-        address subRedManagement,
-        uint48 pendingAssetsDeadline
+        uint48 pendingAssetsDeadline,
+        uint256 pendingAssets,
+        address subRedManagement
     ) {
+        PENDING_ASSETS_DEADLINE = pendingAssetsDeadline;
+        SUB_RED_MANAGEMENT = subRedManagement;
+        TOKEN_TO_REDEEM = tokenToRedeem;
         ASSET = asset;
         ACCOUNT = account;
-        TOKEN_TO_REDEEM = tokenToRedeem;
-        _pendingAssets = pendingAssets_;
-        SUB_RED_MANAGEMENT = subRedManagement;
-        PENDING_ASSETS_DEADLINE = pendingAssetsDeadline;
+        _pendingAssets = pendingAssets;
 
         IERC20(TOKEN_TO_REDEEM).forceApprove(SUB_RED_MANAGEMENT, type(uint256).max);
     }
@@ -150,9 +151,7 @@ contract DigiFTSubAccount is IDigiFTSubAccount {
         }
 
         uint256 assets = IERC20(ASSET).balanceOf(address(this));
-        if (block.timestamp >= PENDING_ASSETS_DEADLINE) {
-            _pendingAssets = 0;
-        } else if (assets > 0) {
+        if (assets > 0) {
             _pendingAssets = _pendingAssets.saturatingSub(assets);
         }
 
@@ -162,6 +161,11 @@ contract DigiFTSubAccount is IDigiFTSubAccount {
     }
 
     /* VIEW FUNCTIONS */
+
+    /// @inheritdoc IDigiFTSubAccount
+    function isSettled() public view returns (bool status) {
+        return _pendingAssets == 0 && IERC20(ASSET).balanceOf(address(this)) == 0;
+    }
 
     /// @inheritdoc IDigiFTSubAccount
     function totalAssets() public view returns (uint256 assets) {

@@ -8,10 +8,8 @@ import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/Cent
 import {DigiFTAccount} from "../../../src/contracts/adapters/ll-adapter/DigiFTAccount.sol";
 import {DUSD_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
 import {GaibAccount} from "../../../src/contracts/adapters/ll-adapter/GaibAccount.sol";
-import {HumaAccount} from "../../../src/contracts/adapters/ll-adapter/HumaAccount.sol";
 import {MakinaAccount} from "../../../src/contracts/adapters/ll-adapter/MakinaAccount.sol";
 import {PRIME_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PRIME_Account.sol";
-import {PST_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PST_Account.sol";
 import {sAID_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sAID_Account.sol";
 import {deJAAA_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJAAA_Account.sol";
 import {deJTRSY_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJTRSY_Account.sol";
@@ -24,6 +22,7 @@ import {ThreeJaneAccount} from "../../../src/contracts/adapters/ll-adapter/Three
 import {weETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {ChainlinkOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ChainlinkOracle.sol";
+import {AsyncRedeemOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/AsyncRedeemOracle.sol";
 import {MakinaOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MakinaOracle.sol";
 import {SaidOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/SaidOracle.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
@@ -35,6 +34,8 @@ import {Vm} from "forge-std/Vm.sol";
 
 abstract contract AccountsBase is Test {
     address internal constant ACRDX_TOKEN_ADDRESS = 0x9477724Bb54AD5417de8Baff29e59DF3fB4DA74f;
+    address internal constant BEQTY_SUB_RED_MANAGEMENT_ADDRESS = 0x3797C46db697c24a983222c335F17Ba28e8c5b69;
+    address internal constant BEQTY_TOKEN_ADDRESS = 0xEaFD6D38f41f882BCFd5fEaABccCc714B983b701;
     address internal constant DEJAAA_TOKEN_ADDRESS = 0xAAA0008C8CF3A7Dca931adaF04336A5D808C82Cc;
     address internal constant DEJTRSY_TOKEN_ADDRESS = 0xA6233014B9b7aaa74f38fa1977ffC7A89642dC72;
     address internal constant DUSD_MACHINE_ADDRESS = 0x6b006870C83b1Cd49E766Ac9209f8d68763Df721;
@@ -43,8 +44,6 @@ abstract contract AccountsBase is Test {
     address internal constant DUSD_TOKEN_ADDRESS = 0x1e33E98aF620F1D563fcD3cfd3C75acE841204ef;
     address internal constant JAAA_TOKEN_ADDRESS = 0x5a0F93D040De44e78F251b03c43be9CF317Dcf64;
     address internal constant JTRSY_TOKEN_ADDRESS = 0x8c213ee79581Ff4984583C6a801e5263418C4b86;
-    address internal constant PST_TOKEN_ADDRESS = 0x22aE3D9a738471f405169Af055d31c687087d4c7;
-    address internal constant PST_CHAINLINK_FEED_ADDRESS = 0x4BE50bE32dB1510240d542f77c5B36Ca0D0965E6;
     address internal constant AID_TOKEN_ADDRESS = 0x18F52B3fb465118731d9e0d276d4Eb3599D57596;
     address internal constant SAID_TOKEN_ADDRESS = 0xB3B3c527BA57cd61648e2EC2F5e006A0B390A9F8;
     address internal constant STHUSD_TOKEN_ADDRESS = 0xA808Bc9775cb41c52C7842f8b50427fE7A770326;
@@ -52,7 +51,6 @@ abstract contract AccountsBase is Test {
     address internal constant USDC_TOKEN_ADDRESS = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     uint48 internal constant DUSD_TOKEN_COOLDOWN = 72 minutes;
     uint48 internal constant DIGIFT_PENDING_ASSETS_DURATION = 1 days;
-    uint48 internal constant PST_STALENESS_DURATION = 2 days;
     uint48 internal constant SAID_TOKEN_COOLDOWN = 6 days;
 
     address internal adapter = makeAddr("adapter");
@@ -70,6 +68,7 @@ abstract contract AccountsBase is Test {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         wstETH_Account implementation = new wstETH_Account(
             address(stETH),
+            address(asset),
             address(oracle),
             address(wstETH),
             address(factory),
@@ -105,44 +104,63 @@ abstract contract AccountsBase is Test {
         internal
         returns (CentrifugeAccount account)
     {
-        account = _deployCentrifuge(tokenToRedeem, asset, oracle, 0);
+        account = _deployCentrifuge(address(tokenToRedeem), asset, oracle, 0);
+    }
+
+    function _deployCentrifuge(MockAsyncRedeemVault tokenToRedeem, MockERC20 asset, AsyncRedeemOracle oracle)
+        internal
+        returns (CentrifugeAccount account)
+    {
+        account = _deployCentrifuge(address(tokenToRedeem), asset, address(oracle), 0);
     }
 
     function _deployCentrifuge(MockAsyncRedeemVault tokenToRedeem, MockERC20 asset, MockOracle oracle, uint48 cooldown)
         internal
         returns (CentrifugeAccount account)
     {
+        account = _deployCentrifuge(address(tokenToRedeem), asset, oracle, cooldown);
+    }
+
+    function _deployCentrifuge(address tokenToRedeem, MockERC20 asset, MockOracle oracle, uint48 cooldown)
+        internal
+        returns (CentrifugeAccount account)
+    {
+        account = _deployCentrifuge(tokenToRedeem, asset, address(oracle), cooldown);
+    }
+
+    function _deployCentrifuge(address tokenToRedeem, MockERC20 asset, address oracle, uint48 cooldown)
+        internal
+        returns (CentrifugeAccount account)
+    {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        CentrifugeAccount implementation = new CentrifugeAccount(
-            address(oracle), address(factory), cooldown, address(tokenToRedeem), cowSwapSettlement
-        );
+        CentrifugeAccount implementation =
+            new CentrifugeAccount(oracle, address(factory), cooldown, tokenToRedeem, cowSwapSettlement);
         factory.whitelist(address(implementation));
-        account = CentrifugeAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
+        account = CentrifugeAccount(factory.create(1, address(this), _initData(address(asset), tokenToRedeem)));
     }
 
     function _deployPrime(MockPrimeToken prime, MockERC20 asset, MockOracle oracle)
         internal
         returns (PRIME_Account account)
     {
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        PRIME_Account implementation =
-            new PRIME_Account(address(oracle), address(factory), address(prime), cowSwapSettlement);
-        factory.whitelist(address(implementation));
-        account = PRIME_Account(factory.create(1, address(this), _initData(address(asset), address(prime))));
+        account = _deployPrime(prime, asset, address(oracle));
     }
 
-    function _deployHuma(
-        MockERC20 tokenToRedeem,
-        MockERC20 asset,
-        MockHumaTrancheVault redemptionVault,
-        MockOracle oracle
-    ) internal returns (HumaAccount account) {
+    function _deployPrime(MockPrimeToken prime, MockERC20 asset, AsyncRedeemOracle oracle)
+        internal
+        returns (PRIME_Account account)
+    {
+        account = _deployPrime(prime, asset, address(oracle));
+    }
+
+    function _deployPrime(MockPrimeToken prime, MockERC20 asset, address oracle)
+        internal
+        returns (PRIME_Account account)
+    {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        HumaAccount implementation = new HumaAccount(
-            address(oracle), address(factory), address(tokenToRedeem), address(redemptionVault), cowSwapSettlement
-        );
+        PRIME_Account implementation = new PRIME_Account(oracle, address(factory), address(prime), cowSwapSettlement);
         factory.whitelist(address(implementation));
-        account = HumaAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
+        account = PRIME_Account(factory.create(1, address(this), _initData(address(asset), address(prime))));
     }
 
     function _deployGaib(MockSaidVault tokenToRedeem, MockERC20 asset, MockOracle oracle, uint48 cooldown)
@@ -195,8 +213,8 @@ abstract contract AccountsBase is Test {
             address(factory),
             address(tokenToRedeem),
             subRedManagement_,
-            cowSwapSettlement,
-            DIGIFT_PENDING_ASSETS_DURATION
+            DIGIFT_PENDING_ASSETS_DURATION,
+            cowSwapSettlement
         );
         factory.whitelist(address(implementation));
         account = DigiFTAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
@@ -225,8 +243,8 @@ abstract contract AccountsBase is Test {
         mocks.weETH = new MockWeETH(address(mocks.eETH));
         mocks.redemptionManager =
             new MockEtherFiRedemptionManager(address(mocks.weETH), address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
-        mocks.liquidityPool = new MockEtherFiLiquidityPool(address(mocks.eETH));
         mocks.withdrawRequestNft = new MockEtherFiWithdrawRequestNFT();
+        mocks.liquidityPool = new MockEtherFiLiquidityPool(address(mocks.eETH), address(mocks.withdrawRequestNft));
     }
 
     function _initData(address asset, address) internal returns (bytes memory) {
@@ -330,6 +348,15 @@ contract MockWstETH is MockERC20 {
 }
 
 contract MockLidoWithdrawalQueue {
+    struct WithdrawalRequestStatus {
+        uint256 amountOfStETH;
+        uint256 amountOfShares;
+        address owner;
+        uint256 timestamp;
+        bool isFinalized;
+        bool isClaimed;
+    }
+
     IERC20 internal immutable _wstETH;
     IERC20 internal immutable _stETH;
 
@@ -341,27 +368,38 @@ contract MockLidoWithdrawalQueue {
     mapping(uint256 requestId => uint256 amount) public requestedWstETH;
     mapping(uint256 requestId => uint256 amount) public requestedStETH;
     mapping(uint256 requestId => uint256 amount) public claimAmount;
+    mapping(uint256 requestId => bool status) public successfulClaim;
+    mapping(uint256 requestId => bool status) public claimed;
+    mapping(uint256 requestId => address owner) public requestOwner;
+    mapping(uint256 requestId => uint256 amount) public statusAmountOfStETH;
 
     constructor(address wstETH_, address stETH_) {
         _wstETH = IERC20(wstETH_);
         _stETH = IERC20(stETH_);
     }
 
-    function requestWithdrawalsWstETH(uint256[] calldata amounts, address) external returns (uint256[] memory ids) {
+    function requestWithdrawalsWstETH(uint256[] calldata amounts, address recipient)
+        external
+        returns (uint256[] memory ids)
+    {
         ids = new uint256[](amounts.length);
         for (uint256 i; i < amounts.length; ++i) {
             _wstETH.transferFrom(msg.sender, address(this), amounts[i]);
             ids[i] = nextRequestId++;
             requestedWstETH[ids[i]] = amounts[i];
+            statusAmountOfStETH[ids[i]] = amounts[i];
+            requestOwner[ids[i]] = recipient;
         }
     }
 
-    function requestWithdrawals(uint256[] calldata amounts, address) external returns (uint256[] memory ids) {
+    function requestWithdrawals(uint256[] calldata amounts, address recipient) external returns (uint256[] memory ids) {
         ids = new uint256[](amounts.length);
         for (uint256 i; i < amounts.length; ++i) {
             _stETH.transferFrom(msg.sender, address(this), amounts[i]);
             ids[i] = nextRequestId++;
             requestedStETH[ids[i]] = amounts[i];
+            statusAmountOfStETH[ids[i]] = amounts[i];
+            requestOwner[ids[i]] = recipient;
         }
     }
 
@@ -369,14 +407,74 @@ contract MockLidoWithdrawalQueue {
         claimAmount[requestId] = amount;
     }
 
+    function setSuccessfulClaim(uint256 requestId, bool status) external {
+        successfulClaim[requestId] = status;
+    }
+
+    function setWithdrawalStatusAmount(uint256 requestId, uint256 amount) external {
+        statusAmountOfStETH[requestId] = amount;
+    }
+
     function claimWithdrawal(uint256 requestId) external {
         uint256 amount = claimAmount[requestId];
-        if (amount == 0) {
+        if (amount == 0 && !successfulClaim[requestId]) {
             revert();
         }
         claimAmount[requestId] = 0;
-        (bool success,) = msg.sender.call{value: amount}("");
-        require(success);
+        successfulClaim[requestId] = false;
+        claimed[requestId] = true;
+        if (amount > 0) {
+            (bool success,) = msg.sender.call{value: amount}("");
+            require(success);
+        }
+    }
+
+    function getWithdrawalStatus(uint256[] calldata requestIds)
+        external
+        view
+        returns (WithdrawalRequestStatus[] memory statuses)
+    {
+        statuses = new WithdrawalRequestStatus[](requestIds.length);
+        for (uint256 i; i < requestIds.length; ++i) {
+            uint256 requestId = requestIds[i];
+            statuses[i] = WithdrawalRequestStatus({
+                amountOfStETH: statusAmountOfStETH[requestId],
+                amountOfShares: statusAmountOfStETH[requestId],
+                owner: requestOwner[requestId],
+                timestamp: 0,
+                isFinalized: claimAmount[requestId] > 0 || successfulClaim[requestId],
+                isClaimed: claimed[requestId]
+            });
+        }
+    }
+
+    function getLastCheckpointIndex() external view returns (uint256 index) {
+        return nextRequestId > 1 ? 1 : 0;
+    }
+
+    function findCheckpointHints(uint256[] calldata requestIds, uint256, uint256)
+        external
+        pure
+        returns (uint256[] memory hints)
+    {
+        hints = new uint256[](requestIds.length);
+        for (uint256 i; i < requestIds.length; ++i) {
+            if (i > 0) {
+                require(requestIds[i - 1] <= requestIds[i], "UNSORTED");
+            }
+            hints[i] = 1;
+        }
+    }
+
+    function getClaimableEther(uint256[] calldata requestIds, uint256[] calldata)
+        external
+        view
+        returns (uint256[] memory amounts)
+    {
+        amounts = new uint256[](requestIds.length);
+        for (uint256 i; i < requestIds.length; ++i) {
+            amounts[i] = claimAmount[requestIds[i]];
+        }
     }
 }
 
@@ -409,6 +507,10 @@ contract MockPrimeToken is MockERC20 {
 
     function asset() external view returns (address) {
         return address(_wylds);
+    }
+
+    function convertToAssets(uint256 shares) external view returns (uint256 assets) {
+        assets = shares * _wyldsPerPrime / 1e6;
     }
 
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
@@ -584,43 +686,6 @@ contract MockSthUSD is MockERC20 {
     }
 }
 
-contract MockHumaTrancheVault {
-    MockERC20 public immutable share;
-    MockERC20 public immutable asset;
-
-    mapping(address account => uint256 assets) public claimableAssets;
-    mapping(address account => uint256 assets) public closureAssets;
-
-    constructor(MockERC20 share_, MockERC20 asset_) {
-        share = share_;
-        asset = asset_;
-    }
-
-    function addRedemptionRequest(uint256 shares) external {
-        IERC20(address(share)).transferFrom(msg.sender, address(this), shares);
-    }
-
-    function fulfill(address account, uint256 assets) external {
-        claimableAssets[account] += assets;
-    }
-
-    function fulfillAfterClosure(address account, uint256 assets) external {
-        closureAssets[account] += assets;
-    }
-
-    function disburse() external {
-        uint256 assets = claimableAssets[msg.sender];
-        claimableAssets[msg.sender] = 0;
-        asset.mint(msg.sender, assets);
-    }
-
-    function withdrawAfterPoolClosure() external {
-        uint256 assets = closureAssets[msg.sender];
-        closureAssets[msg.sender] = 0;
-        asset.mint(msg.sender, assets);
-    }
-}
-
 contract MockSaidVault is MockERC20 {
     MockERC20 public immutable assetToken;
     uint256 public immutable assetsPerShareWithLoss;
@@ -684,6 +749,7 @@ contract MockAsyncRedeemVault is MockERC20 {
     MockERC20 public immutable asset;
     uint256 public immutable assetsPerShare;
     bool public freshRequestIds;
+    bool public revertPreviewWithdraw;
     uint256 public nextRequestId;
 
     mapping(uint256 requestId => mapping(address controller => uint256 shares)) public pending;
@@ -700,11 +766,22 @@ contract MockAsyncRedeemVault is MockERC20 {
         freshRequestIds = status;
     }
 
+    function setNextRequestId(uint256 requestId) external {
+        nextRequestId = requestId;
+    }
+
+    function setRevertPreviewWithdraw(bool status) external {
+        revertPreviewWithdraw = status;
+    }
+
     function convertToAssets(uint256 shares) public view returns (uint256) {
         return shares * assetsPerShare / 10 ** decimals();
     }
 
     function previewWithdraw(uint256 shares) external view returns (uint256 assets) {
+        if (revertPreviewWithdraw) {
+            revert();
+        }
         assets = convertToAssets(shares);
     }
 
@@ -834,6 +911,8 @@ contract MockEtherFiRedemptionManager {
     mapping(address token => uint16 fee) public exitFeeInBps;
     mapping(address token => bool status) public redeemable;
 
+    bool public revertRedeem;
+
     address public lastOutputToken;
     address public lastReceiver;
     uint256 public lastWeETHAmount;
@@ -851,6 +930,10 @@ contract MockEtherFiRedemptionManager {
         redeemable[token] = status;
     }
 
+    function setRevertRedeem(bool status) external {
+        revertRedeem = status;
+    }
+
     function tokenToRedemptionInfo(address token)
         external
         view
@@ -864,6 +947,10 @@ contract MockEtherFiRedemptionManager {
     }
 
     function redeemWeEth(uint256 weETHAmount, address receiver, address outputToken) external {
+        if (revertRedeem) {
+            revert();
+        }
+
         IERC20(weETH).transferFrom(msg.sender, address(this), weETHAmount);
 
         lastWeETHAmount = weETHAmount;
@@ -888,13 +975,20 @@ contract MockEtherFiRedemptionManager {
 
 contract MockEtherFiLiquidityPool {
     IERC20 internal immutable _eETH;
+    MockEtherFiWithdrawRequestNFT internal immutable _withdrawRequestNft;
 
     address public lastRecipient;
     uint256 public lastAmount;
     uint256 public nextRequestId = 1;
+    uint256 public amountForShareRate = 1e18;
 
-    constructor(address eETH_) {
+    constructor(address eETH_, address withdrawRequestNft_) {
         _eETH = IERC20(eETH_);
+        _withdrawRequestNft = MockEtherFiWithdrawRequestNFT(withdrawRequestNft_);
+    }
+
+    function setAmountForShareRate(uint256 rate) external {
+        amountForShareRate = rate;
     }
 
     function requestWithdraw(address recipient, uint256 amount) external returns (uint256 requestId) {
@@ -902,24 +996,55 @@ contract MockEtherFiLiquidityPool {
         lastRecipient = recipient;
         lastAmount = amount;
         requestId = nextRequestId++;
+        _withdrawRequestNft.recordRequest(requestId, uint96(amount), uint96(amount), 0);
+    }
+
+    function amountForShare(uint256 share) external view returns (uint256 amount) {
+        return share * amountForShareRate / 1e18;
     }
 }
 
 contract MockEtherFiWithdrawRequestNFT {
+    struct WithdrawRequest {
+        uint96 amountOfEEth;
+        uint96 shareOfEEth;
+        bool isValid;
+        uint32 feeGwei;
+    }
+
     mapping(uint256 requestId => uint256 amount) public claimAmount;
+    mapping(uint256 requestId => bool status) public successfulClaim;
+    mapping(uint256 requestId => WithdrawRequest request) internal _requests;
+
+    function recordRequest(uint256 requestId, uint96 amountOfEEth, uint96 shareOfEEth, uint32 feeGwei) external {
+        _requests[requestId] =
+            WithdrawRequest({amountOfEEth: amountOfEEth, shareOfEEth: shareOfEEth, isValid: true, feeGwei: feeGwei});
+    }
 
     function setClaimAmount(uint256 claimAmount_) external payable {
         claimAmount[1] = claimAmount_;
     }
 
+    function setClaimSucceeds(uint256 requestId, bool status) external {
+        successfulClaim[requestId] = status;
+    }
+
     function claimWithdraw(uint256 requestId) external {
         uint256 amount = claimAmount[requestId];
-        if (amount == 0) {
+        if (amount == 0 && !successfulClaim[requestId]) {
             revert();
         }
         claimAmount[requestId] = 0;
-        (bool success,) = msg.sender.call{value: amount}("");
-        require(success);
+        successfulClaim[requestId] = false;
+        delete _requests[requestId];
+        if (amount > 0) {
+            (bool success,) = msg.sender.call{value: amount}("");
+            require(success);
+        }
+    }
+
+    function getRequest(uint256 requestId) external view returns (WithdrawRequest memory request) {
+        return _requests[requestId];
     }
 }
 

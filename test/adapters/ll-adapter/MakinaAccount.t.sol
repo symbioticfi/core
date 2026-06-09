@@ -3,7 +3,27 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
+import {IMakinaAccount} from "../../../src/interfaces/adapters/ll-adapter/makina/IMakinaAccount.sol";
+
 contract MakinaAccountTest is AccountsBase {
+    function testMakinaAccountRejectsVaultAssetMismatch() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 tokenToRedeem = new MockERC20("Dialectic USD", "DUSD", 18);
+        MockERC20 wrongAsset = new MockERC20("Wrong USD", "wUSD", 6);
+        MockMakinaMachine machine = new MockMakinaMachine(tokenToRedeem, asset, 1_028_683);
+        MockMakinaRedeemer redeemer = new MockMakinaRedeemer(machine);
+        MockOracle oracle = new MockOracle(1_028_683e12);
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        MakinaAccount implementation = new MakinaAccount(
+            address(oracle), address(factory), 0, address(redeemer), address(tokenToRedeem), cowSwapSettlement
+        );
+        factory.whitelist(address(implementation));
+        bytes memory data = _initData(address(wrongAsset), address(tokenToRedeem));
+
+        vm.expectRevert(IMakinaAccount.InvalidAsset.selector);
+        factory.create(1, address(this), data);
+    }
+
     function testMakinaAccountRequestsAndClaimsRedeemerReceipt() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockERC20 tokenToRedeem = new MockERC20("Dialectic USD", "DUSD", 18);

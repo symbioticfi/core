@@ -27,11 +27,11 @@ contract LidoAccount is Account, ILidoAccount {
     address public immutable WSTETH;
     /// @inheritdoc ILidoAccount
     address public immutable STETH;
+    /// @inheritdoc ILidoAccount
+    address public immutable WETH;
 
     /* STATE VARIABLES */
 
-    /// @inheritdoc ILidoAccount
-    uint256 public pendingAssets;
     /// @inheritdoc ILidoAccount
     uint64[] public requestIds;
 
@@ -40,6 +40,7 @@ contract LidoAccount is Account, ILidoAccount {
     /// @notice Creates the Lido account implementation.
     constructor(
         address stETH,
+        address weth,
         address oracle,
         address wstETH,
         address factory,
@@ -49,33 +50,74 @@ contract LidoAccount is Account, ILidoAccount {
         WITHDRAWAL_QUEUE = withdrawalQueue;
         WSTETH = wstETH;
         STETH = stETH;
+        WETH = weth;
+    }
+
+    /* VIEW FUNCTIONS */
+
+    /// @inheritdoc ILidoAccount
+    function pendingAssets() public view returns (uint256 assets) {
+        uint256 length = requestIds.length;
+        if (length == 0) {
+            return 0;
+        }
+
+        uint256[] memory ids = new uint256[](length);
+        for (uint256 i; i < length; ++i) {
+            uint256 requestId = requestIds[i];
+            uint256 index = i;
+            while (index > 0 && ids[index - 1] > requestId) {
+                ids[index] = ids[index - 1];
+                --index;
+            }
+            ids[index] = requestId;
+        }
+
+        ILidoWithdrawalQueue withdrawalQueue = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE);
+        ILidoWithdrawalQueue.WithdrawalRequestStatus[] memory statuses = withdrawalQueue.getWithdrawalStatus(ids);
+
+        uint256[] memory claimableEther;
+        uint256 lastCheckpointIndex = withdrawalQueue.getLastCheckpointIndex();
+        if (lastCheckpointIndex > 0) {
+            claimableEther = withdrawalQueue.getClaimableEther(
+                ids, withdrawalQueue.findCheckpointHints(ids, 1, lastCheckpointIndex)
+            );
+        }
+
+        for (uint256 i; i < length; ++i) {
+            if (!statuses[i].isClaimed && statuses[i].owner == address(this)) {
+                assets += _redemptionTokenToAssets(
+                    WETH,
+                    statuses[i].isFinalized && lastCheckpointIndex > 0 ? claimableEther[i] : statuses[i].amountOfStETH
+                );
+            }
+        }
     }
 
     /* INTERNAL FUNCTIONS */
 
     /// @dev Returns held stETH value plus pending request value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
-        assets = pendingAssets;
+        assets = pendingAssets();
 
         uint256 stETHBalance = IERC20(STETH).balanceOf(address(this));
         if (stETHBalance > 0) {
-            assets += _tokenToRedeemToAssets(IWstETH(WSTETH).getWstETHByStETH(stETHBalance));
+            assets += _redemptionTokenToAssets(STETH, stETHBalance);
         }
     }
 
     /// @dev Claims finalized withdrawals and submits held wstETH or stETH inventory.
     function _sync() internal override {
         for (uint256 i = requestIds.length; i > 0; --i) {
+            uint256 index = i - 1;
             uint256 ethBalanceBefore = address(this).balance;
-            try ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).claimWithdrawal(requestIds[i - 1]) {
+            try ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).claimWithdrawal(requestIds[index]) {
                 uint256 claimed = address(this).balance - ethBalanceBefore;
                 if (claimed > 0) {
-                    IWETH(_asset).deposit{value: claimed}();
-                    uint256 claimedAssets = claimed.mulDiv(_unit, 1e18);
-                    pendingAssets = pendingAssets > claimedAssets ? pendingAssets - claimedAssets : 0;
-                    requestIds[i - 1] = requestIds[requestIds.length - 1];
-                    requestIds.pop();
+                    IWETH(WETH).deposit{value: claimed}();
                 }
+                requestIds[index] = requestIds[requestIds.length - 1];
+                requestIds.pop();
             } catch {}
         }
 
@@ -84,22 +126,21 @@ contract LidoAccount is Account, ILidoAccount {
         uint256 maxStETHAmount = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).MAX_STETH_WITHDRAWAL_AMOUNT();
         if (amountToRedeem > 0 && IWstETH(WSTETH).getStETHByWstETH(amountToRedeem) >= minStETHAmount) {
             uint256 maxWstETHAmount = IWstETH(WSTETH).getWstETHByStETH(maxStETHAmount);
-            uint256[] memory ids = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE)
-                .requestWithdrawalsWstETH(_splitAmounts(amountToRedeem, maxWstETHAmount), address(this));
+            uint256[] memory amounts = _splitAmounts(amountToRedeem, maxWstETHAmount);
+            uint256[] memory ids =
+                ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).requestWithdrawalsWstETH(amounts, address(this));
             for (uint256 i; i < ids.length; ++i) {
                 requestIds.push(uint64(ids[i]));
             }
-            pendingAssets += _tokenToRedeemToAssets(amountToRedeem);
         }
 
         uint256 stETHBalance = IERC20(STETH).balanceOf(address(this));
         if (stETHBalance >= minStETHAmount) {
-            uint256[] memory ids = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE)
-                .requestWithdrawals(_splitAmounts(stETHBalance, maxStETHAmount), address(this));
+            uint256[] memory amounts = _splitAmounts(stETHBalance, maxStETHAmount);
+            uint256[] memory ids = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).requestWithdrawals(amounts, address(this));
             for (uint256 i; i < ids.length; ++i) {
                 requestIds.push(uint64(ids[i]));
             }
-            pendingAssets += _tokenToRedeemToAssets(IWstETH(WSTETH).getWstETHByStETH(stETHBalance));
         }
     }
 
@@ -115,8 +156,11 @@ contract LidoAccount is Account, ILidoAccount {
     /* INITIALIZATION */
 
     /// @dev Initializes the account for an adapter and vault.
-    function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
-        super._initialize(initialVersion, owner_, data);
+    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
+        super._initialize(initialVersion, initOwner, data);
+        if (_asset != WETH) {
+            revert InvalidAsset();
+        }
 
         IERC20(WSTETH).forceApprove(WITHDRAWAL_QUEUE, type(uint256).max);
         IERC20(STETH).forceApprove(WITHDRAWAL_QUEUE, type(uint256).max);

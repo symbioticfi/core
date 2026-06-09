@@ -2,17 +2,13 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {AggregatorV3Interface} from "../../../../interfaces/adapters/ll-adapter/oracles/AggregatorV3Interface.sol";
+import {ChainlinkPriceFeed} from "./libraries/ChainlinkPriceFeed.sol";
 import {IChainlinkOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/IChainlinkOracle.sol";
 import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
-
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /// @title ChainlinkOracle
 /// @notice Constructor-configured Chainlink oracle returning a token price in `1e18` precision.
 contract ChainlinkOracle is IChainlinkOracle {
-    using Math for uint256;
-
     /* IMMUTABLES */
 
     /// @inheritdoc IChainlinkOracle
@@ -41,30 +37,9 @@ contract ChainlinkOracle is IChainlinkOracle {
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc IOracle
-    function getPrice() public view returns (uint256 price) {
-        price = _getPrice(AGGREGATOR_0, STALENESS_DURATION_0);
-        if (price == 0 || AGGREGATOR_1 == address(0)) {
-            return price;
-        }
-        return price.mulDiv(_getPrice(AGGREGATOR_1, STALENESS_DURATION_1), 1e18);
-    }
-
-    /* INTERNAL FUNCTIONS */
-
-    /// @dev Returns the latest Chainlink answer normalized to 18 decimals, or zero if unavailable/stale.
-    function _getPrice(address aggregator, uint48 stalenessDuration) internal view returns (uint256) {
-        try AggregatorV3Interface(aggregator).latestRoundData() returns (
-            uint80 roundId, int256 answer, uint256, uint256 updatedAt, uint80 answeredInRound
-        ) {
-            if (
-                answer <= 0 || answeredInRound < roundId || updatedAt == 0
-                    || updatedAt + stalenessDuration < block.timestamp
-            ) {
-                return 0;
-            }
-            return uint256(answer).mulDiv(1e18, 10 ** AggregatorV3Interface(aggregator).decimals());
-        } catch {
-            return 0;
-        }
+    function getPrice() public view returns (uint256) {
+        return ChainlinkPriceFeed.getLatestPrice(
+            [AGGREGATOR_0, AGGREGATOR_1], [false, false], [STALENESS_DURATION_0, STALENESS_DURATION_1]
+        );
     }
 }

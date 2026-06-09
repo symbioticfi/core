@@ -14,14 +14,12 @@ import {IWETH} from "../../../interfaces/adapters/ll-adapter/etherfi/IWETH.sol";
 import {IWeETH} from "../../../interfaces/adapters/ll-adapter/etherfi/IWeETH.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title EtherFiAccount
 /// @notice Account for ether.fi weETH redemptions.
 abstract contract EtherFiAccount is Account, IEtherFiAccount {
     using SafeERC20 for IERC20;
-    using Math for uint256;
 
     /* IMMUTABLES */
 
@@ -38,8 +36,6 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
 
     /* STATE VARIABLES */
 
-    /// @inheritdoc IEtherFiAccount
-    uint256 public pendingAssets;
     /// @inheritdoc IEtherFiAccount
     uint64[] public requestIds;
 
@@ -64,19 +60,39 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
         WETH = weth;
     }
 
+    /* VIEW FUNCTIONS */
+
+    /// @inheritdoc IEtherFiAccount
+    function pendingAssets() public view returns (uint256 assets) {
+        for (uint256 i; i < requestIds.length; ++i) {
+            IEtherFiWithdrawRequestNFT.WithdrawRequest memory request =
+                IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).getRequest(requestIds[i]);
+            if (request.isValid) {
+                uint256 requestAssets = request.amountOfEEth;
+                uint256 shareAssets = IEtherFiLiquidityPool(LIQUIDITY_POOL).amountForShare(request.shareOfEEth);
+                uint256 fee = uint256(request.feeGwei) * 1 gwei;
+
+                requestAssets = requestAssets < shareAssets ? requestAssets : shareAssets;
+                if (requestAssets > fee) {
+                    assets += _redemptionTokenToAssets(WETH, requestAssets - fee);
+                }
+            }
+        }
+    }
+
     /* PUBLIC FUNCTIONS */
 
     /// @inheritdoc IEtherFiAccount
     function claimWithdraw(uint256 requestId) public {
         uint256 ethBalanceBefore = address(this).balance;
         IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(requestId);
-        if (_wrapClaimedEth(ethBalanceBefore)) {
-            for (uint256 i; i < requestIds.length; ++i) {
-                if (requestIds[i] == requestId) {
-                    requestIds[i] = requestIds[requestIds.length - 1];
-                    requestIds.pop();
-                    return;
-                }
+        _wrapClaimedEth(ethBalanceBefore);
+
+        for (uint256 i; i < requestIds.length; ++i) {
+            if (requestIds[i] == requestId) {
+                requestIds[i] = requestIds[requestIds.length - 1];
+                requestIds.pop();
+                return;
             }
         }
     }
@@ -85,18 +101,19 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
 
     /// @dev Returns pending request value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
-        assets = pendingAssets;
+        assets = pendingAssets();
     }
 
     /// @dev Uses no-fee instant redemption into WETH when available, otherwise queues a WETH-backed withdrawal.
     function _sync() internal override {
         for (uint256 i = requestIds.length; i > 0; --i) {
+            uint256 index = i - 1;
+            uint64 requestId = requestIds[index];
             uint256 ethBalanceBefore = address(this).balance;
-            try IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(requestIds[i - 1]) {
-                if (_wrapClaimedEth(ethBalanceBefore)) {
-                    requestIds[i - 1] = requestIds[requestIds.length - 1];
-                    requestIds.pop();
-                }
+            try IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(requestId) {
+                _wrapClaimedEth(ethBalanceBefore);
+                requestIds[index] = requestIds[requestIds.length - 1];
+                requestIds.pop();
             } catch {}
         }
 
@@ -114,35 +131,43 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
         ) {
             uint256 ethBalanceBefore = address(this).balance;
             IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_MANAGER, amountToRedeem);
-            IEtherFiRedemptionManager(REDEMPTION_MANAGER).redeemWeEth(amountToRedeem, address(this), outputToken);
+            try IEtherFiRedemptionManager(REDEMPTION_MANAGER).redeemWeEth(amountToRedeem, address(this), outputToken) {
+                uint256 claimed = address(this).balance - ethBalanceBefore;
+                if (claimed > 0) {
+                    IWETH(WETH).deposit{value: claimed}();
+                    return;
+                }
+            } catch {}
 
-            uint256 claimed = address(this).balance - ethBalanceBefore;
-            if (claimed == 0) {
+            amountToRedeem = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+            if (amountToRedeem == 0) {
                 revert InstantRedemptionUnavailable();
             }
-
-            IWETH(WETH).deposit{value: address(this).balance}();
-            return;
         }
 
-        pendingAssets += _tokenToRedeemToAssets(amountToRedeem);
         uint256 eETHAmount = IWeETH(TOKEN_TO_REDEEM).unwrap(amountToRedeem);
         IERC20(EETH).forceApprove(LIQUIDITY_POOL, eETHAmount);
         requestIds.push(uint64(IEtherFiLiquidityPool(LIQUIDITY_POOL).requestWithdraw(address(this), eETHAmount)));
     }
 
     /// @dev Wraps ETH received from queued withdrawal claims into WETH.
-    function _wrapClaimedEth(uint256 ethBalanceBefore) internal returns (bool wrapped) {
+    function _wrapClaimedEth(uint256 ethBalanceBefore) internal {
         uint256 claimed = address(this).balance - ethBalanceBefore;
         if (claimed == 0) {
-            return false;
+            return;
         }
 
-        IWETH(WETH).deposit{value: address(this).balance}();
+        IWETH(WETH).deposit{value: claimed}();
+    }
 
-        uint256 claimedAssets = claimed.mulDiv(_unit, 1e18);
-        pendingAssets = pendingAssets > claimedAssets ? pendingAssets - claimedAssets : 0;
-        wrapped = true;
+    /* INITIALIZATION */
+
+    /// @dev Initializes the account for an adapter and vault.
+    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
+        super._initialize(initialVersion, initOwner, data);
+        if (_asset != WETH) {
+            revert InvalidAsset();
+        }
     }
 
     /* RECEIVE */

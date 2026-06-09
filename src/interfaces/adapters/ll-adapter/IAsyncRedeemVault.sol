@@ -9,18 +9,17 @@ interface IAsyncRedeemVault {
     /* FUNCTIONS */
 
     /**
+     * @notice Returns the vault asset.
+     * @return asset The asset address.
+     */
+    function asset() external view returns (address asset);
+
+    /**
      * @notice Converts shares to assets.
      * @param shares The share amount.
      * @return assets The asset amount.
      */
     function convertToAssets(uint256 shares) external view returns (uint256 assets);
-
-    /**
-     * @notice Previews withdrawn assets for shares.
-     * @param shares The share amount.
-     * @return assets The asset amount.
-     */
-    function previewWithdraw(uint256 shares) external view returns (uint256 assets);
 
     /**
      * @notice Returns pending redemption shares for a request.

@@ -14,7 +14,6 @@ import {DUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-re
 import {JAAA_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JAAA_Account.sol";
 import {JTRSY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JTRSY_Account.sol";
 import {PRIME_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PRIME_Account.sol";
-import {PST_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PST_Account.sol";
 import {
     StockMarketTRBasisTrade_Account
 } from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
@@ -94,7 +93,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     function testCalculatesAllTokenCooldownsAndRequestCounts() public pure {
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
 
-        assertEq(specs.length, 36);
+        assertEq(specs.length, 35);
         assertLe(specs.length, MAX_TOKENS_TO_REDEEM);
 
         uint256 totalMaxAverageRequests;
@@ -105,7 +104,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             assertLe(specs[i].maxAverageRequests, 10, specs[i].symbol);
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 186);
+        assertEq(totalMaxAverageRequests, 179);
     }
 
     function testBenchmarkOnboardsAllTokensToLiquidLaneAdapter() public {
@@ -235,43 +234,42 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     }
 
     function _tokenBenchSpecs() internal pure returns (TokenBenchSpec[] memory specs) {
-        specs = new TokenBenchSpec[](36);
+        specs = new TokenBenchSpec[](35);
         specs[0] = _spec("ACRDX", 1 days);
         specs[1] = _spec("CarryTradeUSDTRYLeverage", 2 days);
         specs[2] = _spec("DUSD", 12 hours);
         specs[3] = _spec("JAAA", 1 days);
         specs[4] = _spec("JTRSY", 1 days);
         specs[5] = _spec("PRIME", 1 days);
-        specs[6] = _spec("PST", 7 days);
-        specs[7] = _spec("StockMarketTRBasisTrade", 2 days);
-        specs[8] = _spec("deJAAA", 1 days);
-        specs[9] = _spec("deJTRSY", 1 days);
-        specs[10] = _spec("mAPOLLO", 3 days);
-        specs[11] = _spec("mBASIS", 7 days);
-        specs[12] = _spec("mBTC", 7 days);
-        specs[13] = _spec("mEDGE", 3 days);
-        specs[14] = _spec("mEVUSD", 3 days);
-        specs[15] = _spec("mFARM", 7 days);
-        specs[16] = _spec("mFONE", 35 days);
-        specs[17] = _spec("mGLOBAL", 65 days);
-        specs[18] = _spec("mHYPER", 3 days);
-        specs[19] = _spec("mHyperBTC", 7 days);
-        specs[20] = _spec("mHyperETH", 7 days);
-        specs[21] = _spec("mM1USD", 17 days);
-        specs[22] = _spec("mMEV", 3 days);
-        specs[23] = _spec("mROX", 3 days);
-        specs[24] = _spec("mRe7BTC", 24 days);
-        specs[25] = _spec("mRe7YIELD", 24 days);
-        specs[26] = _spec("mSL", 3 days);
-        specs[27] = _spec("mTBILL", 3 days);
-        specs[28] = _spec("mevBTC", 7 days);
-        specs[29] = _spec("msyrupUSD", 7 days);
-        specs[30] = _spec("msyrupUSDp", 3 days);
-        specs[31] = _spec("sAID", 62 days);
-        specs[32] = _spec("sUSD3", 30 days);
-        specs[33] = _spec("sthUSD", 7 days);
-        specs[34] = _spec("weETH", 14 days);
-        specs[35] = _spec("wstETH", 5 days);
+        specs[6] = _spec("StockMarketTRBasisTrade", 2 days);
+        specs[7] = _spec("deJAAA", 1 days);
+        specs[8] = _spec("deJTRSY", 1 days);
+        specs[9] = _spec("mAPOLLO", 3 days);
+        specs[10] = _spec("mBASIS", 7 days);
+        specs[11] = _spec("mBTC", 7 days);
+        specs[12] = _spec("mEDGE", 3 days);
+        specs[13] = _spec("mEVUSD", 3 days);
+        specs[14] = _spec("mFARM", 7 days);
+        specs[15] = _spec("mFONE", 35 days);
+        specs[16] = _spec("mGLOBAL", 65 days);
+        specs[17] = _spec("mHYPER", 3 days);
+        specs[18] = _spec("mHyperBTC", 7 days);
+        specs[19] = _spec("mHyperETH", 7 days);
+        specs[20] = _spec("mM1USD", 17 days);
+        specs[21] = _spec("mMEV", 3 days);
+        specs[22] = _spec("mROX", 3 days);
+        specs[23] = _spec("mRe7BTC", 24 days);
+        specs[24] = _spec("mRe7YIELD", 24 days);
+        specs[25] = _spec("mSL", 3 days);
+        specs[26] = _spec("mTBILL", 3 days);
+        specs[27] = _spec("mevBTC", 7 days);
+        specs[28] = _spec("msyrupUSD", 7 days);
+        specs[29] = _spec("msyrupUSDp", 3 days);
+        specs[30] = _spec("sAID", 62 days);
+        specs[31] = _spec("sUSD3", 30 days);
+        specs[32] = _spec("sthUSD", 7 days);
+        specs[33] = _spec("weETH", 14 days);
+        specs[34] = _spec("wstETH", 5 days);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
@@ -297,93 +295,87 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
                 );
         }
         if (index == 6) {
-            return
-                IAccount(
-                    address(new PST_Account(factory, address(new BenchmarkHumaTrancheVault()), COW_SWAP_SETTLEMENT))
-                );
-        }
-        if (index == 7) {
             return IAccount(address(new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 8) {
+        if (index == 7) {
             return IAccount(address(new deJAAA_Account(makeAddr("deJAAA_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 9) {
+        if (index == 8) {
             return IAccount(address(new deJTRSY_Account(makeAddr("deJTRSY_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 10) {
+        if (index == 9) {
             return IAccount(address(new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 11) {
+        if (index == 10) {
             return IAccount(address(new mBASIS_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 12) {
+        if (index == 11) {
             return IAccount(address(new mBTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 13) {
+        if (index == 12) {
             return IAccount(address(new mEDGE_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 14) {
+        if (index == 13) {
             return IAccount(address(new mEVUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 15) {
+        if (index == 14) {
             return IAccount(address(new mFARM_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 16) {
+        if (index == 15) {
             return IAccount(address(new mFONE_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 17) {
+        if (index == 16) {
             return IAccount(address(new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 18) {
+        if (index == 17) {
             return IAccount(address(new mHYPER_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 19) {
+        if (index == 18) {
             return IAccount(address(new mHyperBTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 20) {
+        if (index == 19) {
             return IAccount(address(new mHyperETH_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 21) {
+        if (index == 20) {
             return IAccount(address(new mM1USD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 22) {
+        if (index == 21) {
             return IAccount(address(new mMEV_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 23) {
+        if (index == 22) {
             return IAccount(address(new mROX_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 24) {
+        if (index == 23) {
             return IAccount(address(new mRe7BTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 25) {
+        if (index == 24) {
             return IAccount(address(new mRe7YIELD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 26) {
+        if (index == 25) {
             return IAccount(address(new mSL_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 27) {
+        if (index == 26) {
             return IAccount(address(new mTBILL_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 28) {
+        if (index == 27) {
             return IAccount(address(new mevBTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 29) {
+        if (index == 28) {
             return IAccount(address(new msyrupUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 30) {
+        if (index == 29) {
             return IAccount(address(new msyrupUSDp_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 31) {
+        if (index == 30) {
             return IAccount(address(new sAID_Account(factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 32) {
+        if (index == 31) {
             return IAccount(address(new sUSD3_Account(makeAddr("sUSD3_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 33) {
+        if (index == 32) {
             return IAccount(address(new sthUSD_Account(makeAddr("sthUSD_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 34) {
+        if (index == 33) {
             return IAccount(
                 address(
                     new weETH_Account(
@@ -403,7 +395,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         return IAccount(
             address(
                 new wstETH_Account(
-                    STETH, makeAddr("wstETH_ORACLE"), WSTETH, factory, LIDO_WITHDRAWAL_QUEUE, COW_SWAP_SETTLEMENT
+                    STETH, WETH, makeAddr("wstETH_ORACLE"), WSTETH, factory, LIDO_WITHDRAWAL_QUEUE, COW_SWAP_SETTLEMENT
                 )
             )
         );
@@ -468,12 +460,4 @@ contract BenchmarkLiquidLaneVault {
     function freeAssets() external view returns (uint256) {
         return IERC20(asset).balanceOf(address(this));
     }
-}
-
-contract BenchmarkHumaTrancheVault {
-    function addRedemptionRequest(uint256) external {}
-
-    function disburse() external {}
-
-    function withdrawAfterPoolClosure() external {}
 }

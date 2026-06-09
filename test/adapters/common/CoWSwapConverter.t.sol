@@ -65,27 +65,27 @@ contract CoWSwapConverterTest is Test {
         assertEq(tokenIn.allowance(address(converter), relayer), type(uint256).max);
     }
 
-    function test_InvalidateCovertClearsOrderPreSignature() public {
+    function test_InvalidateConvertClearsOrderPreSignature() public {
         vm.prank(converterRoleHolder);
         converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(90, 1));
 
         bytes memory orderUid = settlement.lastOrderUid();
 
         vm.prank(converterRoleHolder);
-        converter.invalidateCovert(orderUid);
+        converter.invalidateConvert(orderUid);
 
         assertEq(settlement.lastOrderUid(), orderUid);
         assertFalse(settlement.lastSigned());
     }
 
-    function test_InvalidateCovertRevertsForNonConverter() public {
+    function test_InvalidateConvertRevertsForNonConverter() public {
         vm.prank(converterRoleHolder);
         converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(90, 1));
 
         bytes memory orderUid = settlement.lastOrderUid();
 
         vm.expectRevert(ICoWSwapConverter.InvalidCaller.selector);
-        converter.invalidateCovert(orderUid);
+        converter.invalidateConvert(orderUid);
     }
 
     function test_ConverterCanConvertWithoutPreparedNonce() public {

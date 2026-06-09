@@ -68,6 +68,16 @@ contract GaibAccount is CooldownAccount, IGaibAccount {
         IERC20(TOKEN_TO_REDEEM).safeTransfer(subAccount, amount);
         IGaibSubAccount(subAccount).requestRedeem(amount);
     }
+
+    /* INITIALIZATION */
+
+    /// @dev Initializes the account for an adapter and vault.
+    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
+        super._initialize(initialVersion, initOwner, data);
+        if (ASSET != _asset) {
+            revert InvalidAsset();
+        }
+    }
 }
 
 /// @title GaibSubAccount

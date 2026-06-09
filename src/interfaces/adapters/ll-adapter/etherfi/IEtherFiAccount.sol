@@ -15,6 +15,11 @@ interface IEtherFiAccount is IAccount {
      */
     error InstantRedemptionUnavailable();
 
+    /**
+     * @notice Raised when the vault asset is not WETH.
+     */
+    error InvalidAsset();
+
     /* FUNCTIONS */
 
     /**

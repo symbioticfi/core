@@ -8,6 +8,13 @@ import {ICooldownAccount} from "../ICooldownAccount.sol";
  * @notice Interface for GAIB liquidity lane accounts.
  */
 interface IGaibAccount is ICooldownAccount {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when the GAIB unstake asset is not the vault asset.
+     */
+    error InvalidAsset();
+
     /* FUNCTIONS */
 
     /**

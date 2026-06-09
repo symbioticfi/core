@@ -125,12 +125,13 @@ contract LiquidLaneAdapterTest is Test {
         adapter.setLimit(address(tokenToRedeem), type(uint256).max);
     }
 
-    function testRemoveTokenToRedeemRevertsForUnknownToken() public {
-        MockERC20 otherTokenToRedeem = new MockERC20("Other Token To Redeem", "OTTR");
+    function testRemoveTokenToRedeemRevertsForRemovedToken() public {
+        vm.startPrank(curator);
+        adapter.removeTokenToRedeem(address(tokenToRedeem));
 
-        vm.prank(curator);
         vm.expectRevert(ILiquidLaneAdapter.InvalidTokenToRedeem.selector);
-        adapter.removeTokenToRedeem(address(otherTokenToRedeem));
+        adapter.removeTokenToRedeem(address(tokenToRedeem));
+        vm.stopPrank();
     }
 
     function testInitializeSetsPauserAndUnpauserFromParams() public view {
@@ -676,7 +677,7 @@ contract MockLiquidLaneAccount is MigratableEntity, IAccount {
 
     function setConverters(address[] memory) external pure {}
 
-    function invalidateCovert(bytes calldata) external pure {}
+    function invalidateConvert(bytes calldata) external pure {}
 
     function _initialize(uint64, address, bytes memory data) internal override {
         (vault, adapter) = abi.decode(data, (address, address));

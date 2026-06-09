@@ -58,4 +58,14 @@ contract ThreeJaneAccount is Account, IThreeJaneAccount {
             IThreeJaneSUSD3(TOKEN_TO_REDEEM).startCooldown(shares);
         }
     }
+
+    /* INITIALIZATION */
+
+    /// @dev Initializes the account for an adapter and vault.
+    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
+        super._initialize(initialVersion, initOwner, data);
+        if (IThreeJaneSUSD3(TOKEN_TO_REDEEM).asset() != _asset) {
+            revert InvalidAsset();
+        }
+    }
 }

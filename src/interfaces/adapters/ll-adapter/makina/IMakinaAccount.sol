@@ -8,6 +8,13 @@ import {ICooldownAccount} from "../ICooldownAccount.sol";
  * @notice Interface for Makina liquidity lane accounts.
  */
 interface IMakinaAccount is ICooldownAccount {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when the Makina accounting token is not the vault asset.
+     */
+    error InvalidAsset();
+
     /* FUNCTIONS */
 
     /**

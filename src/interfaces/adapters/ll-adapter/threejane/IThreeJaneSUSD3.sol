@@ -9,6 +9,12 @@ interface IThreeJaneSUSD3 {
     /* FUNCTIONS */
 
     /**
+     * @notice Returns the withdrawal asset.
+     * @return asset The asset address.
+     */
+    function asset() external view returns (address asset);
+
+    /**
      * @notice Returns the asset amount available for withdrawal by a user.
      * @param user The withdrawal owner.
      * @return assets The withdrawable USD3 amount.

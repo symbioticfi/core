@@ -26,6 +26,12 @@ interface IDigiFTSubAccount {
     function sync() external;
 
     /**
+     * @notice Returns whether the request has no pending or held settlement assets.
+     * @return status True if the request is settled.
+     */
+    function isSettled() external view returns (bool status);
+
+    /**
      * @notice Returns the subaccount's pending and held vault-asset value.
      * @return assets The pending and held vault-asset value.
      */

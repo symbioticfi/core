@@ -7,4 +7,11 @@ import {IAccount} from "../IAccount.sol";
  * @title ITheoAccount
  * @notice Interface for Theo liquidity lane accounts.
  */
-interface ITheoAccount is IAccount {}
+interface ITheoAccount is IAccount {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when the Theo redemption asset is not the vault asset.
+     */
+    error InvalidAsset();
+}

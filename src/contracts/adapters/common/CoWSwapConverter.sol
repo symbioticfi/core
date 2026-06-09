@@ -163,13 +163,13 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     }
 
     /// @inheritdoc ICoWSwapConverter
-    function invalidateCovert(bytes calldata orderUid) external {
+    function invalidateConvert(bytes calldata orderUid) external {
         if (!_isConverter(msg.sender)) {
             revert InvalidCaller();
         }
         ICoWSwapSettlement(COW_SWAP_SETTLEMENT).setPreSignature(orderUid, false);
 
-        emit InvalidateCovert(orderUid);
+        emit InvalidateConvert(orderUid);
     }
 
     /* INTERNAL FUNCTIONS */

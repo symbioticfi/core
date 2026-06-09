@@ -202,7 +202,7 @@ interface ICoWSwapConverter is IConverter {
      * @notice Emitted when a pre-signed CoW Protocol order is invalidated.
      * @param orderUid The invalidated order UID.
      */
-    event InvalidateCovert(bytes orderUid);
+    event InvalidateConvert(bytes orderUid);
 
     /* FUNCTIONS */
 
@@ -255,5 +255,5 @@ interface ICoWSwapConverter is IConverter {
      * @notice Clears the pre-signature for a CoW Protocol order UID.
      * @param orderUid The order UID to invalidate.
      */
-    function invalidateCovert(bytes calldata orderUid) external;
+    function invalidateConvert(bytes calldata orderUid) external;
 }

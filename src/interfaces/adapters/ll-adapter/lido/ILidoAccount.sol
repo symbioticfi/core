@@ -8,6 +8,13 @@ import {IAccount} from "../IAccount.sol";
  * @notice Interface for Lido liquidity lane accounts.
  */
 interface ILidoAccount is IAccount {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when the vault asset is not WETH.
+     */
+    error InvalidAsset();
+
     /* FUNCTIONS */
 
     /**
@@ -27,6 +34,12 @@ interface ILidoAccount is IAccount {
      * @return stETH The stETH token address.
      */
     function STETH() external view returns (address stETH);
+
+    /**
+     * @notice Returns the WETH token address.
+     * @return weth The WETH token address.
+     */
+    function WETH() external view returns (address weth);
 
     /**
      * @notice Returns pending requested-withdrawal value in vault assets.

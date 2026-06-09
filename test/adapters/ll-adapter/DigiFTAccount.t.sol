@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
+import {bEQTY_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/bEQTY_Account.sol";
 import {IDigiFTSubAccount} from "../../../src/interfaces/adapters/ll-adapter/digift/IDigiFTSubAccount.sol";
 
 contract DigiFTAccountTest is AccountsBase {
@@ -78,7 +79,7 @@ contract DigiFTAccountTest is AccountsBase {
         account.subAccounts(0);
     }
 
-    function testDigiFTAccountStopsCountingStalePendingAssets() public {
+    function testDigiFTAccountExpiresPendingValuationButKeepsSubAccountUntilSettled() public {
         MockERC20 tokenToRedeem = new MockERC20("DigiFT Money Market Fund Token", "DMMF01", 18);
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockOracle oracle = new MockOracle(1e18);
@@ -100,12 +101,22 @@ contract DigiFTAccountTest is AccountsBase {
         vm.warp(vm.getBlockTimestamp() + DIGIFT_PENDING_ASSETS_DURATION);
 
         assertEq(IDigiFTSubAccount(subAccount).totalAssets(), 0);
+        assertFalse(IDigiFTSubAccount(subAccount).isSettled());
         assertEq(account.totalAssets(), 20e6);
 
         account.sync();
 
         assertEq(asset.balanceOf(address(account)), 20e6);
+        assertEq(account.subAccounts(0), subAccount);
         assertEq(account.totalAssets(), 20e6);
+
+        asset.mint(address(mockSubRedManagement), 30e6);
+        mockSubRedManagement.settle(asset, subAccount, 30e6);
+        account.sync();
+
+        assertEq(asset.balanceOf(address(account)), 50e6);
+        assertTrue(IDigiFTSubAccount(subAccount).isSettled());
+        assertEq(account.totalAssets(), 50e6);
 
         vm.expectRevert();
         account.subAccounts(0);
@@ -125,6 +136,18 @@ contract DigiFTAccountTest is AccountsBase {
 
         vm.expectRevert(IDigiFTSubAccount.NotAccount.selector);
         IDigiFTSubAccount(subAccount).sync();
+    }
+
+    function testBEQTYAccountHardcodesMainnetTokenAndSubRedManagement() public {
+        _mockDecimals(BEQTY_TOKEN_ADDRESS, 18);
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        MockOracle oracle = new MockOracle(1e18);
+        bEQTY_Account account = new bEQTY_Account(address(oracle), address(factory), cowSwapSettlement);
+
+        assertEq(account.TOKEN_TO_REDEEM(), BEQTY_TOKEN_ADDRESS);
+        assertEq(account.SUB_RED_MANAGEMENT(), BEQTY_SUB_RED_MANAGEMENT_ADDRESS);
+        assertEq(account.PENDING_ASSETS_DURATION(), 1 days);
     }
 }
 

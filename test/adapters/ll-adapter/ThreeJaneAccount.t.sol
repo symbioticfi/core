@@ -3,7 +3,24 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
+import {IThreeJaneAccount} from "../../../src/interfaces/adapters/ll-adapter/threejane/IThreeJaneAccount.sol";
+
 contract ThreeJaneAccountTest is AccountsBase {
+    function testThreeJaneAccountRejectsVaultAssetMismatch() public {
+        MockERC20 asset = new MockERC20("3Jane USD3", "USD3", 6);
+        MockERC20 wrongAsset = new MockERC20("Wrong USD", "wUSD", 6);
+        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(asset, 1_001_000, 1 days, 2 days);
+        MockOracle oracle = new MockOracle(1_001_000_000_000_000_000);
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        ThreeJaneAccount implementation =
+            new ThreeJaneAccount(address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement);
+        factory.whitelist(address(implementation));
+        bytes memory data = _initData(address(wrongAsset), address(tokenToRedeem));
+
+        vm.expectRevert(IThreeJaneAccount.InvalidAsset.selector);
+        factory.create(1, address(this), data);
+    }
+
     function testThreeJaneAccountStartsCooldownAndWithdrawsUSD3() public {
         MockERC20 asset = new MockERC20("3Jane USD3", "USD3", 6);
         MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(asset, 1_001_000, 1 days, 2 days);

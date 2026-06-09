@@ -3,7 +3,24 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
+import {IEtherFiAccount} from "../../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
+
 contract EtherFiAccountTest is AccountsBase {
+    function testWeETHAccountPrunesSuccessfulZeroClaim() public {
+        LstMocks memory mocks = _lstMocks();
+        MockOracle oracle = new MockOracle(1e18);
+        weETH_Account account = _deployWeETH(mocks, mocks.weth, oracle);
+
+        mocks.weETH.mint(address(account), 6 ether);
+        account.sync();
+
+        mocks.withdrawRequestNft.setClaimSucceeds(1, true);
+        account.sync();
+
+        vm.expectRevert();
+        account.requestIds(0);
+    }
+
     function testWeETHAccountQueuesWithdrawalWhenInstantWETHIsUnavailable() public {
         LstMocks memory mocks = _lstMocks();
         MockOracle oracle = new MockOracle(1e18);
@@ -42,6 +59,46 @@ contract EtherFiAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 9 ether);
     }
 
+    function testWeETHAccountInstantRedeemWrapsOnlyClaimedEth() public {
+        LstMocks memory mocks = _lstMocks();
+        MockOracle oracle = new MockOracle(1e18);
+        weETH_Account account = _deployWeETH(mocks, mocks.weth, oracle);
+        address ethAddress = mocks.redemptionManager.ETH_ADDRESS();
+
+        mocks.weETH.mint(address(account), 9 ether);
+        vm.deal(address(account), 1 ether);
+        mocks.redemptionManager.setExitFee(ethAddress, 0);
+        mocks.redemptionManager.setRedeemable(ethAddress, true);
+        vm.deal(address(mocks.redemptionManager), 9 ether);
+
+        account.sync();
+
+        assertEq(mocks.weth.balanceOf(address(account)), 9 ether);
+        assertEq(address(account).balance, 1 ether);
+        assertEq(account.totalAssets(), 9 ether);
+    }
+
+    function testWeETHAccountQueuesWithdrawalWhenInstantRedeemReverts() public {
+        LstMocks memory mocks = _lstMocks();
+        MockOracle oracle = new MockOracle(1e18);
+        weETH_Account account = _deployWeETH(mocks, mocks.weth, oracle);
+        address ethAddress = mocks.redemptionManager.ETH_ADDRESS();
+
+        mocks.weETH.mint(address(account), 4 ether);
+        mocks.redemptionManager.setExitFee(ethAddress, 0);
+        mocks.redemptionManager.setRedeemable(ethAddress, true);
+        mocks.redemptionManager.setRevertRedeem(true);
+
+        account.sync();
+
+        assertEq(mocks.eETH.balanceOf(address(mocks.liquidityPool)), 4 ether);
+        assertEq(mocks.liquidityPool.lastRecipient(), address(account));
+        assertEq(mocks.liquidityPool.lastAmount(), 4 ether);
+        assertEq(mocks.redemptionManager.lastWeETHAmount(), 0);
+        assertEq(account.pendingAssets(), 4 ether);
+        assertEq(account.totalAssets(), 4 ether);
+    }
+
     function testWeETHAccountQueuesWithdrawalAndClaimWrapsIntoWETH() public {
         LstMocks memory mocks = _lstMocks();
         MockOracle oracle = new MockOracle(1e18);
@@ -64,6 +121,59 @@ contract EtherFiAccountTest is AccountsBase {
         assertEq(address(account).balance, 0);
         assertEq(account.pendingAssets(), 0);
         assertEq(account.totalAssets(), 15 ether);
+    }
+
+    function testWeETHAccountQueuedClaimWrapsOnlyClaimedEth() public {
+        LstMocks memory mocks = _lstMocks();
+        MockOracle oracle = new MockOracle(1e18);
+        weETH_Account account = _deployWeETH(mocks, mocks.weth, oracle);
+
+        mocks.weETH.mint(address(account), 6 ether);
+        account.sync();
+
+        vm.deal(address(account), 1 ether);
+        mocks.withdrawRequestNft.setClaimAmount{value: 6 ether}(6 ether);
+        account.claimWithdraw(1);
+
+        assertEq(mocks.weth.balanceOf(address(account)), 6 ether);
+        assertEq(address(account).balance, 1 ether);
+        assertEq(account.pendingAssets(), 0);
+        assertEq(account.totalAssets(), 6 ether);
+    }
+
+    function testWeETHAccountReconcilesPendingRequestWhenOracleDiffersFromClaim() public {
+        LstMocks memory mocks = _lstMocks();
+        MockOracle oracle = new MockOracle(2e18);
+        weETH_Account account = _deployWeETH(mocks, mocks.weth, oracle);
+
+        mocks.weETH.mint(address(account), 6 ether);
+        account.sync();
+
+        assertEq(account.pendingAssets(), 6 ether);
+        assertEq(account.totalAssets(), 6 ether);
+
+        mocks.withdrawRequestNft.setClaimAmount{value: 6 ether}(6 ether);
+        account.sync();
+
+        assertEq(mocks.weth.balanceOf(address(account)), 6 ether);
+        assertEq(account.pendingAssets(), 0);
+        assertEq(account.totalAssets(), 6 ether);
+    }
+
+    function testWeETHAccountDerivesPendingAssetsFromRequestData() public {
+        LstMocks memory mocks = _lstMocks();
+        MockOracle oracle = new MockOracle(1e18);
+        weETH_Account account = _deployWeETH(mocks, mocks.weth, oracle);
+
+        mocks.weETH.mint(address(account), 6 ether);
+        account.sync();
+
+        assertEq(account.pendingAssets(), 6 ether);
+
+        mocks.liquidityPool.setAmountForShareRate(0.5e18);
+
+        assertEq(account.pendingAssets(), 3 ether);
+        assertEq(account.totalAssets(), 3 ether);
     }
 
     function testWeETHAccountSyncClaimsQueuedWithdrawal() public {
@@ -114,7 +224,7 @@ contract EtherFiAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 4 ether);
     }
 
-    function testWeETHAccountQueuedWithdrawalRevertsWhenOracleReturnsZero() public {
+    function testWeETHAccountQueuesWithdrawalWhenOracleReturnsZero() public {
         LstMocks memory mocks = _lstMocks();
         MockOracle oracle = new MockOracle(0);
         weETH_Account account = _deployWeETH(mocks, mocks.weth, oracle);
@@ -123,11 +233,16 @@ contract EtherFiAccountTest is AccountsBase {
         mocks.redemptionManager.setExitFee(mocks.redemptionManager.ETH_ADDRESS(), 0);
         mocks.redemptionManager.setRedeemable(mocks.redemptionManager.ETH_ADDRESS(), false);
 
-        vm.expectRevert();
         account.sync();
+
+        assertEq(mocks.eETH.balanceOf(address(mocks.liquidityPool)), 4 ether);
+        assertEq(mocks.liquidityPool.lastRecipient(), address(account));
+        assertEq(mocks.liquidityPool.lastAmount(), 4 ether);
+        assertEq(account.pendingAssets(), 4 ether);
+        assertEq(account.totalAssets(), 4 ether);
     }
 
-    function testWeETHAccountInitializesWithoutLocalVaultAssetGuard() public {
+    function testWeETHAccountRejectsNonWETHVaultAsset() public {
         LstMocks memory mocks = _lstMocks();
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockOracle oracle = new MockOracle(1e18);
@@ -145,9 +260,9 @@ contract EtherFiAccountTest is AccountsBase {
         );
         factory.whitelist(address(implementation));
 
-        weETH_Account account =
-            weETH_Account(payable(factory.create(1, address(this), _initData(address(asset), address(mocks.weETH)))));
+        bytes memory data = _initData(address(asset), address(mocks.weETH));
 
-        assertEq(MockVault(account.vault()).asset(), address(asset));
+        vm.expectRevert(IEtherFiAccount.InvalidAsset.selector);
+        factory.create(1, address(this), data);
     }
 }

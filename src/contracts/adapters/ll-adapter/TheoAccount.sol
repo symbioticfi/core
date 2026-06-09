@@ -43,4 +43,14 @@ contract TheoAccount is Account, ITheoAccount {
             ISthUSD(TOKEN_TO_REDEEM).initiateRedeem(shares, address(this));
         }
     }
+
+    /* INITIALIZATION */
+
+    /// @dev Initializes the account for an adapter and vault.
+    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
+        super._initialize(initialVersion, initOwner, data);
+        if (ISthUSD(TOKEN_TO_REDEEM).asset() != _asset) {
+            revert InvalidAsset();
+        }
+    }
 }
