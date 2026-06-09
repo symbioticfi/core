@@ -195,19 +195,28 @@ contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
     /// @dev Requests delayed deallocation debt accounting.
     function _requestDeallocate(uint256 amount) internal virtual override {
         uint256 curSlashable = _slashable();
+        uint256 targetSlashable = totalAssets().saturatingSub(amount);
 
-        // Reset stake, debt, and slashed when the debt was reduced enough.
-        if (
-            Math.min(IUniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this)), totalAssets())
-                    .saturatingSub(amount) >= curSlashable
-        ) {
+        // Reset stake, debt, and slashed when the deallocation fits within the free (non-slashable) assets.
+        if (targetSlashable >= curSlashable) {
+            uint256 limit = IUniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this));
+            if (limit >= curSlashable && limit < targetSlashable) {
+                targetSlashable = limit;
+            }
+
             _stakePos.push(uint48(block.timestamp), uint208(_stakes.length));
-            _stakes.push().initialStake = curSlashable;
+            _stakes.push().initialStake = targetSlashable;
         } else {
             Stake storage curStake = _stakes[_stakePos.latest()];
+
+            // Keep post-maturity slashable equal to the assets left after this request:
+            // debt = (initialStake - slashed) - (totalAssets - amount).
+            uint256 targetDebt =
+                curStake.initialStake.saturatingSub(curStake.slashed.latest()).saturatingSub(targetSlashable);
+
             // Keep increasing debt when the request grows.
-            if (curStake.debt.latest() < amount) {
-                curStake.debt.push(uint48(block.timestamp) + duration, amount);
+            if (curStake.debt.latest() < targetDebt) {
+                curStake.debt.push(uint48(block.timestamp) + duration, targetDebt);
             }
             // Keep existing debt when the request shrinks but cannot release the amount yet.
         }

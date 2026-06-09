@@ -198,6 +198,73 @@ contract AppAdapterTest is Test {
         assertEq(assetToken.balanceOf(address(vault)), vaultBalanceBefore + 80);
     }
 
+    function test_RequestDeallocateKeepsRemainingAssetsSlashableWhenLimitIsLower() public {
+        _allocate(100);
+        delegator.setLimit(30);
+
+        delegator.requestDeallocate(address(adapter), 60);
+        vm.warp(vm.getBlockTimestamp() + duration);
+
+        assertEq(adapter.slashable(), 40);
+        assertEq(adapter.freeAssets(), 60);
+        assertEq(delegator.deallocate(address(adapter), 1), 60);
+        assertEq(adapter.totalAssets(), 40);
+    }
+
+    function test_RequestDeallocateDecreaseCapsRestakedAssetsAtLimit() public {
+        _allocate(100);
+        delegator.setLimit(30);
+
+        delegator.requestDeallocate(address(adapter), 80);
+        vm.warp(vm.getBlockTimestamp() + duration);
+
+        assertEq(adapter.slashable(), 20);
+
+        delegator.requestDeallocate(address(adapter), 60);
+
+        assertEq(adapter.slashable(), 30);
+        assertEq(adapter.freeAssets(), 70);
+        assertEq(delegator.deallocate(address(adapter), 1), 70);
+        assertEq(adapter.totalAssets(), 30);
+    }
+
+    function test_RequestDeallocateDecreaseCapsRestakedAssetsWhenLimitEqualsSlashable() public {
+        _allocate(100);
+        delegator.setLimit(20);
+
+        delegator.requestDeallocate(address(adapter), 80);
+        vm.warp(vm.getBlockTimestamp() + duration);
+
+        assertEq(adapter.slashable(), 20);
+
+        delegator.requestDeallocate(address(adapter), 60);
+
+        assertEq(adapter.slashable(), 20);
+        assertEq(adapter.freeAssets(), 80);
+        assertEq(delegator.deallocate(address(adapter), 1), 80);
+        assertEq(adapter.totalAssets(), 20);
+    }
+
+    function test_RequestDeallocateAddsDebtAfterPreviousDebtSettledAndAssetsLeft() public {
+        _allocate(100);
+
+        delegator.requestDeallocate(address(adapter), 60);
+        vm.warp(vm.getBlockTimestamp() + duration);
+
+        assertEq(delegator.deallocate(address(adapter), 60), 60);
+        assertEq(adapter.totalAssets(), 40);
+        assertEq(adapter.slashable(), 40);
+        assertEq(adapter.freeAssets(), 0);
+
+        delegator.requestDeallocate(address(adapter), 40);
+        vm.warp(vm.getBlockTimestamp() + duration);
+
+        assertEq(adapter.slashable(), 0);
+        assertEq(adapter.freeAssets(), 40);
+        assertEq(delegator.deallocate(address(adapter), 40), 40);
+        assertEq(adapter.totalAssets(), 0);
+    }
+
     function test_SyncClosesPendingByRestoringStake() public {
         _allocate(100);
 

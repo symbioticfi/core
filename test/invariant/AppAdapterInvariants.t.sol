@@ -11,7 +11,7 @@ contract AppAdapterInvariantsTest is Test {
     function setUp() public {
         handler = new AppAdapterInvariantHandler();
 
-        bytes4[] memory selectors = new bytes4[](26);
+        bytes4[] memory selectors = new bytes4[](27);
         selectors[0] = AppAdapterInvariantHandler.deposit.selector;
         selectors[1] = AppAdapterInvariantHandler.mint.selector;
         selectors[2] = AppAdapterInvariantHandler.withdraw.selector;
@@ -38,6 +38,7 @@ contract AppAdapterInvariantsTest is Test {
         selectors[23] = AppAdapterInvariantHandler.quoteWithdrawable.selector;
         selectors[24] = AppAdapterInvariantHandler.warp.selector;
         selectors[25] = AppAdapterInvariantHandler.warpToBoundary.selector;
+        selectors[26] = AppAdapterInvariantHandler.limitReductionWithdrawalPressure.selector;
 
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
         targetContract(address(handler));
@@ -61,5 +62,13 @@ contract AppAdapterInvariantsTest is Test {
 
     function invariant_QueueAccountingMatchesLiquidity() public view {
         handler.assertQueueInvariant();
+    }
+
+    function invariant_LimitChangesCannotPermanentlyLockPendingAppAdapterFunds() public view {
+        handler.assertLimitLockInvariant();
+    }
+
+    function invariant_AllocationDoesNotMoveAppAdapterAboveLimit() public view {
+        handler.assertAllocationLimitInvariant();
     }
 }

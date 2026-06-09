@@ -81,6 +81,9 @@ contract AppAdapterInvariantHandler is Test {
     bool internal crossTimeViolated;
     bool internal historyViolated;
     bool internal emptyQueuePendingRouteViolated;
+    bool internal limitChanged;
+    bool internal limitLockViolated;
+    bool internal allocationLimitViolated;
 
     constructor() {
         _initialize();
@@ -93,6 +96,7 @@ contract AppAdapterInvariantHandler is Test {
     function deposit(uint256 actorSeed, uint256 assets) external {
         address actor = _actor(actorSeed);
         assets = bound(assets, 1, 1000 ether);
+        uint256 adapterAssetsBefore = adapter.totalAssets();
 
         deal(address(assetToken), actor, assets);
         vm.startPrank(actor);
@@ -100,6 +104,7 @@ contract AppAdapterInvariantHandler is Test {
         try vault.deposit(assets, actor) {} catch {}
         vm.stopPrank();
 
+        _checkAllocationLimit(adapterAssetsBefore);
         _afterAction(false);
     }
 
@@ -107,6 +112,7 @@ contract AppAdapterInvariantHandler is Test {
         address actor = _actor(actorSeed);
         shares = bound(shares, 1, 1000 ether);
         uint256 assets = vault.previewMint(shares);
+        uint256 adapterAssetsBefore = adapter.totalAssets();
 
         deal(address(assetToken), actor, assets);
         vm.startPrank(actor);
@@ -114,6 +120,7 @@ contract AppAdapterInvariantHandler is Test {
         try vault.mint(shares, actor) {} catch {}
         vm.stopPrank();
 
+        _checkAllocationLimit(adapterAssetsBefore);
         _afterAction(false);
     }
 
@@ -178,6 +185,7 @@ contract AppAdapterInvariantHandler is Test {
 
     function allocate(uint256 mode, uint256 assets) external {
         assets = bound(assets, 0, vault.freeAssets() + 1000 ether);
+        uint256 adapterAssetsBefore = adapter.totalAssets();
         mode %= 2;
         if (mode == 0) {
             try delegator.allocate(address(adapter), assets) {} catch {}
@@ -185,6 +193,7 @@ contract AppAdapterInvariantHandler is Test {
             try delegator.allocateAll(assets) {} catch {}
         }
 
+        _checkAllocationLimit(adapterAssetsBefore);
         _afterAction(false);
     }
 
@@ -220,6 +229,45 @@ contract AppAdapterInvariantHandler is Test {
 
     function requestRedeemForReceiver(uint256 actorSeed, uint256 receiverSeed, uint256 shares) external {
         _requestRedeem(_actor(actorSeed), _actor(receiverSeed), shares);
+    }
+
+    function limitReductionWithdrawalPressure(
+        uint256 actorSeed,
+        uint256 assetsSeed,
+        uint256 limitSeed,
+        uint256 sharesSeed
+    ) external {
+        address actor = _actor(actorSeed);
+        uint256 assets = bound(assetsSeed, 2, 1000 ether);
+
+        deal(address(assetToken), actor, assets);
+        vm.startPrank(actor);
+        assetToken.approve(address(vault), assets);
+        try vault.deposit(assets, actor) {} catch {}
+        vm.stopPrank();
+
+        try delegator.allocate(address(adapter), type(uint256).max) {} catch {}
+
+        uint256 adapterAssets = adapter.totalAssets();
+        if (adapterAssets > 0) {
+            uint256 limit = bound(limitSeed, 0, adapterAssets - 1);
+            try delegator.setLimits(address(adapter), limit, MAX_SHARE) {
+                limitChanged = true;
+            } catch {}
+        }
+
+        uint256 balance = vault.balanceOf(actor);
+        if (balance > 1) {
+            uint256 shares = bound(sharesSeed, 1, balance - 1);
+            vm.startPrank(actor);
+            vault.approve(address(queue), shares);
+            try queue.requestRedeem(shares, actor) returns (uint256 tokenId) {
+                requestTokenIds.push(tokenId);
+            } catch {}
+            vm.stopPrank();
+        }
+
+        _afterAction(false);
     }
 
     function _requestRedeem(address actor, address receiver, uint256 shares) internal {
@@ -267,7 +315,9 @@ contract AppAdapterInvariantHandler is Test {
     function setLimits(uint256 assets, uint256 share) external {
         assets = bound(assets, 0, adapter.totalAssets() + 1000 ether);
         share = bound(share, 0, MAX_SHARE);
-        try delegator.setLimits(address(adapter), assets, share) {} catch {}
+        try delegator.setLimits(address(adapter), assets, share) {
+            limitChanged = true;
+        } catch {}
 
         _afterAction(false);
     }
@@ -276,7 +326,9 @@ contract AppAdapterInvariantHandler is Test {
         assets = bound(assets, 0, adapter.totalAssets() + 1000 ether);
         share = bound(share, 0, MAX_SHARE);
         vm.prank(address(adapter));
-        try delegator.decreaseLimits(assets, share) {} catch {}
+        try delegator.decreaseLimits(assets, share) {
+            limitChanged = true;
+        } catch {}
 
         _afterAction(false);
     }
@@ -420,6 +472,14 @@ contract AppAdapterInvariantHandler is Test {
         assertEq(queue.pendingShares(), queue.totalRequested() - queue.totalFilled());
     }
 
+    function assertLimitLockInvariant() external view {
+        assertFalse(limitLockViolated);
+    }
+
+    function assertAllocationLimitInvariant() external view {
+        assertFalse(allocationLimitViolated);
+    }
+
     function _afterAction(bool slashAction) internal {
         uint256 currentTimestamp = vm.getBlockTimestamp();
         uint256 currentStake = adapter.stake();
@@ -434,6 +494,7 @@ contract AppAdapterInvariantHandler is Test {
         _rememberHistory(uint48(currentTimestamp), currentStake);
         _checkObservations();
         _checkQueuePendingRoute();
+        _checkLimitLockRecovery();
         if (!slashAction) {
             _rememberObservation(uint48(currentTimestamp));
         }
@@ -499,6 +560,61 @@ contract AppAdapterInvariantHandler is Test {
         try delegator.adaptersWithPending(0) returns (uint16) {
             emptyQueuePendingRouteViolated = true;
         } catch {}
+    }
+
+    function _checkLimitLockRecovery() internal {
+        if (limitLockViolated || !limitChanged || queue.pendingAssets() == 0 || adapter.totalAssets() == 0) {
+            return;
+        }
+
+        uint256 snapshotId = vm.snapshotState();
+        bool canRecover = _canRecoverPendingWithoutLimitIncrease();
+        bool reverted = vm.revertToState(snapshotId);
+
+        if (!reverted || !canRecover) {
+            limitLockViolated = true;
+        }
+    }
+
+    function _canRecoverPendingWithoutLimitIncrease() internal returns (bool) {
+        try delegator.sweepPending() {} catch {}
+
+        for (uint256 i; i < 6; ++i) {
+            if (queue.pendingAssets() == 0 || adapter.totalAssets() == 0) {
+                return true;
+            }
+
+            uint256 adapterAssetsBefore = adapter.totalAssets();
+
+            vm.warp(vm.getBlockTimestamp() + duration);
+            try delegator.sweepPending() {} catch {}
+            try queue.fill() {} catch {}
+
+            if (queue.pendingAssets() == 0 || adapter.totalAssets() == 0) {
+                return true;
+            }
+            if (adapter.totalAssets() >= adapterAssetsBefore) {
+                return false;
+            }
+        }
+
+        return queue.pendingAssets() == 0 || adapter.totalAssets() == 0;
+    }
+
+    function _checkAllocationLimit(uint256 adapterAssetsBefore) internal {
+        if (allocationLimitViolated) {
+            return;
+        }
+
+        uint256 limit = delegator.limitOf(address(adapter));
+        uint256 adapterAssetsAfter = adapter.totalAssets();
+        if (adapterAssetsBefore >= limit) {
+            if (adapterAssetsAfter > adapterAssetsBefore) {
+                allocationLimitViolated = true;
+            }
+        } else if (adapterAssetsAfter > limit) {
+            allocationLimitViolated = true;
+        }
     }
 
     function _actor(uint256 seed) internal view returns (address) {

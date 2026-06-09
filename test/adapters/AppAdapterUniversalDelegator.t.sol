@@ -296,6 +296,39 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(assetToken.balanceOf(alice), aliceBalanceBefore + claimableAssets);
     }
 
+    function test_LimitReductionDoesNotLockSequentialQueuedWithdrawalsWithoutLimitIncrease() public {
+        WithdrawalQueue queue = WithdrawalQueue(vault.withdrawalQueue());
+
+        delegator.setLimits(address(adapter), 30, MAX_SHARE);
+
+        vault.approve(address(queue), 60);
+        queue.requestRedeem(60, address(this));
+
+        vm.warp(vm.getBlockTimestamp() + duration);
+        delegator.sweepPending();
+
+        assertEq(queue.pendingShares(), 0);
+        assertEq(adapter.totalAssets(), 40);
+        assertEq(adapter.slashable(), 40);
+        assertEq(delegator.limitOf(address(adapter)), 30);
+
+        vault.approve(address(queue), 40);
+        uint256 secondTokenId = queue.requestRedeem(40, address(this));
+
+        assertEq(queue.pendingShares(), 40);
+
+        vm.warp(vm.getBlockTimestamp() + duration);
+        delegator.sweepPending();
+
+        assertEq(queue.pendingShares(), 0);
+        assertEq(adapter.totalAssets(), 0);
+
+        (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(secondTokenId);
+
+        assertEq(claimableShares, 40);
+        assertEq(claimableAssets, 40);
+    }
+
     function test_DirectFillUsesVaultWithdrawableDeallocatableAndReturnsExactTuple() public {
         (WithdrawalQueue queue, uint256 tokenId, uint256 shares) = _requestAllocatedWithdrawal(1000);
         uint256 queueBalanceBefore = assetToken.balanceOf(address(queue));
