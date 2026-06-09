@@ -48,7 +48,7 @@ interface IWithdrawalQueue is IMigratableEntity, IERC721Metadata, IMulticallable
      * @param shares Vault shares requested for withdrawal.
      * @param tokenId Withdrawal NFT id.
      */
-    event RequestWithdraw(address indexed requester, address indexed receiver, uint256 shares, uint256 indexed tokenId);
+    event RequestRedeem(address indexed requester, address indexed receiver, uint256 shares, uint256 indexed tokenId);
 
     /**
      * @notice Emitted when a withdrawal request is claimed.

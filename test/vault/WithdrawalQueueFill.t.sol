@@ -258,12 +258,14 @@ contract WithdrawalQueueFillTest is Test {
         WithdrawalQueue(queue).multicall(calls);
     }
 
-    function test_RequestWithdrawNotifiesDelegatorAndFillRedeemsPendingShares() public {
+    function test_RequestRedeemNotifiesDelegatorAndFillRedeemsPendingShares() public {
         WithdrawalQueueFillToken(collateral).mint(vault, 100);
         WithdrawalQueueFillVault(vault).mintShares(alice, 100, 100);
 
         vm.startPrank(alice);
         WithdrawalQueueFillVault(vault).approve(queue, 100);
+        vm.expectEmit(true, true, true, true, queue);
+        emit IWithdrawalQueue.RequestRedeem(alice, alice, 100, 0);
         WithdrawalQueue(queue).requestRedeem(100, alice);
         vm.stopPrank();
 
