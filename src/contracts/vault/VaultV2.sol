@@ -298,12 +298,24 @@ contract VaultV2 is
     /// @inheritdoc ERC4626Upgradeable
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
         accrueInterest();
+        // Fulfill withdrawal queue requests before allowing to do an instant redeem.
+        // msg.sender check - to avoid recursion.
+        if (withdrawalQueue != msg.sender) {
+            if (UniversalDelegator(delegator).sweepPending() > 0) {
+                revert PendingWithdrawalQueue();
+            }
+        }
         return super.withdraw(assets, receiver, owner);
     }
 
     /// @inheritdoc ERC4626Upgradeable
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
         accrueInterest();
+        if (withdrawalQueue != msg.sender) {
+            if (UniversalDelegator(delegator).sweepPending() > 0) {
+                revert PendingWithdrawalQueue();
+            }
+        }
         return super.redeem(shares, receiver, owner);
     }
 
@@ -312,13 +324,6 @@ contract VaultV2 is
         internal
         override
     {
-        // Fulfill withdrawal queue requests before allowing to do an instant redeem.
-        // msg.sender check - to avoid recursion.
-        if (withdrawalQueue != msg.sender) {
-            if (UniversalDelegator(delegator).sweepPending() > 0) {
-                revert PendingWithdrawalQueue();
-            }
-        }
         uint256 toWithdraw = assets.saturatingSub(freeAssets());
         if (toWithdraw > 0) {
             UniversalDelegator(delegator).onWithdraw(toWithdraw);

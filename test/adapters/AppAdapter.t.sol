@@ -228,6 +228,34 @@ contract AppAdapterTest is Test {
         assertEq(adapter.totalAssets(), 30);
     }
 
+    function testFuzz_RequestDeallocateDecreaseCapsRestakedAssetsAtLimit(
+        uint256 totalSeed,
+        uint256 limitSeed,
+        uint256 firstSeed,
+        uint256 secondSeed
+    ) public {
+        uint256 total = bound(totalSeed, 3, 1_000_000);
+        uint256 limit = bound(limitSeed, 1, total - 2);
+        uint256 first = bound(firstSeed, total - limit + 1, total);
+        uint256 second = bound(secondSeed, 1, total - limit - 1);
+
+        _allocate(total);
+        delegator.setLimit(limit);
+
+        delegator.requestDeallocate(address(adapter), first);
+        vm.warp(vm.getBlockTimestamp() + duration);
+
+        assertLt(adapter.slashable(), limit);
+
+        delegator.requestDeallocate(address(adapter), second);
+
+        assertEq(adapter.slashable(), limit);
+        assertEq(adapter.freeAssets(), adapter.totalAssets() - limit);
+        assertLe(adapter.slashable(), delegator.limitOf(address(adapter)));
+        assertEq(delegator.deallocate(address(adapter), 1), total - limit);
+        assertEq(adapter.totalAssets(), limit);
+    }
+
     function test_RequestDeallocateDecreaseCapsRestakedAssetsWhenLimitEqualsSlashable() public {
         _allocate(100);
         delegator.setLimit(20);

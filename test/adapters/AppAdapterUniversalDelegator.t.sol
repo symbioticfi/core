@@ -269,6 +269,52 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(adapter.totalAssets(), adapterAssetsBefore - adapterFreeAssetsBefore);
     }
 
+    function testFuzz_CumulativeDebtSmallerSecondForceDeallocate(uint256 firstSeed, uint256 secondSeed) public {
+        uint256 total = adapter.totalAssets();
+        uint256 first = bound(firstSeed, 1, total - 1);
+        uint256 remaining = total - first;
+        uint256 second = bound(secondSeed, 1, _min(first, remaining));
+
+        delegator.forceDeallocate(address(adapter), first);
+        vm.warp(vm.getBlockTimestamp() + duration);
+
+        assertEq(delegator.deallocate(address(adapter), 1), first);
+        assertEq(adapter.totalAssets(), remaining);
+        assertEq(adapter.slashable(), remaining);
+        assertEq(adapter.freeAssets(), 0);
+
+        delegator.forceDeallocate(address(adapter), second);
+        vm.warp(vm.getBlockTimestamp() + duration);
+
+        assertEq(adapter.slashable(), remaining - second);
+        assertEq(adapter.freeAssets(), second);
+        assertEq(delegator.deallocate(address(adapter), 1), second);
+        assertEq(adapter.totalAssets(), remaining - second);
+    }
+
+    function testFuzz_CumulativeDebtLargerSecondForceDeallocate(uint256 firstSeed, uint256 secondSeed) public {
+        uint256 total = adapter.totalAssets();
+        uint256 first = bound(firstSeed, 1, (total - 1) / 2);
+        uint256 second = bound(secondSeed, first + 1, total - first);
+        uint256 remaining = total - first;
+
+        delegator.forceDeallocate(address(adapter), first);
+        vm.warp(vm.getBlockTimestamp() + duration);
+
+        assertEq(delegator.deallocate(address(adapter), 1), first);
+        assertEq(adapter.totalAssets(), remaining);
+        assertEq(adapter.slashable(), remaining);
+        assertEq(adapter.freeAssets(), 0);
+
+        delegator.forceDeallocate(address(adapter), second);
+        vm.warp(vm.getBlockTimestamp() + duration);
+
+        assertEq(adapter.slashable(), total - first - second);
+        assertEq(adapter.freeAssets(), second);
+        assertEq(delegator.deallocate(address(adapter), 1), second);
+        assertEq(adapter.totalAssets(), total - first - second);
+    }
+
     function test_SweepPendingFillsQueuedWithdrawalAfterDelayedAppAdapterDebt() public {
         address alice = address(0xA11CE);
         (WithdrawalQueue queue, uint256 tokenId, uint256 shares) = _requestAllocatedWithdrawal(1000);
@@ -310,7 +356,9 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(queue.pendingShares(), 0);
         assertEq(adapter.totalAssets(), 40);
         assertEq(adapter.slashable(), 40);
+        assertEq(adapter.freeAssets(), 0);
         assertEq(delegator.limitOf(address(adapter)), 30);
+        assertLt(delegator.limitOf(address(adapter)), adapter.totalAssets());
 
         vault.approve(address(queue), 40);
         uint256 secondTokenId = queue.requestRedeem(40, address(this));
@@ -327,6 +375,103 @@ contract AppAdapterUniversalDelegatorTest is Test {
 
         assertEq(claimableShares, 40);
         assertEq(claimableAssets, 40);
+    }
+
+    function testFuzz_ResetPreservesRemainingSlashableAboveLimit(uint256 firstSeed, uint256 limitSeed) public {
+        WithdrawalQueue queue = WithdrawalQueue(vault.withdrawalQueue());
+        uint256 total = adapter.totalAssets();
+        uint256 first = bound(firstSeed, 1, total - 1);
+        uint256 remaining = total - first;
+        uint256 limit = bound(limitSeed, 0, remaining - 1);
+
+        delegator.setLimits(address(adapter), limit, MAX_SHARE);
+
+        vault.approve(address(queue), first);
+        queue.requestRedeem(first, address(this));
+
+        vm.warp(vm.getBlockTimestamp() + duration);
+        delegator.sweepPending();
+
+        assertEq(queue.pendingShares(), 0);
+        assertEq(adapter.totalAssets(), remaining);
+        assertEq(adapter.slashable(), remaining);
+        assertEq(adapter.freeAssets(), 0);
+        assertLt(delegator.limitOf(address(adapter)), adapter.totalAssets());
+    }
+
+    function testFuzz_AllocationDeltaNeverExceedsLimitHeadroom(
+        uint256 limitSeed,
+        uint256 freeAssetsSeed,
+        uint256 amountSeed,
+        uint8 mode
+    ) public {
+        uint256 limit = bound(limitSeed, 0, 200);
+        uint256 freeAssets = bound(freeAssetsSeed, 1, 100);
+
+        delegator.setLimits(address(adapter), limit, MAX_SHARE);
+        _setAutoAllocateAdapter();
+        assetToken.transfer(address(vault), freeAssets);
+
+        uint256 adapterAssetsBefore = adapter.totalAssets();
+        uint256 headroom = _headroom(delegator.limitOf(address(adapter)), adapterAssetsBefore);
+        uint256 amount = bound(amountSeed, 0, freeAssets + 100);
+
+        mode %= 3;
+        if (mode == 0) {
+            delegator.allocate(address(adapter), amount);
+        } else if (mode == 1) {
+            delegator.allocateAll(amount);
+        } else {
+            delegator.allocateExact(address(adapter), amount);
+        }
+
+        uint256 adapterAssetsAfter = adapter.totalAssets();
+        uint256 increase = adapterAssetsAfter > adapterAssetsBefore ? adapterAssetsAfter - adapterAssetsBefore : 0;
+        assertLe(increase, headroom);
+    }
+
+    function testFuzz_SequentialTailDrainsWithoutLimitIncrease(uint256 firstSeed, uint256 secondSeed, uint256 limitSeed)
+        public
+    {
+        WithdrawalQueue queue = WithdrawalQueue(vault.withdrawalQueue());
+        uint256 total = adapter.totalAssets();
+        uint256 first = bound(firstSeed, 1, total - 1);
+        uint256 remaining = total - first;
+        uint256 second = bound(secondSeed, 1, remaining);
+        uint256 limit = bound(limitSeed, 0, remaining - 1);
+
+        delegator.setLimits(address(adapter), limit, MAX_SHARE);
+
+        vault.approve(address(queue), first);
+        queue.requestRedeem(first, address(this));
+
+        vm.warp(vm.getBlockTimestamp() + duration);
+        delegator.sweepPending();
+
+        assertEq(queue.pendingShares(), 0);
+        assertEq(adapter.totalAssets(), remaining);
+        assertEq(adapter.slashable(), remaining);
+        assertEq(adapter.freeAssets(), 0);
+        assertLt(delegator.limitOf(address(adapter)), adapter.totalAssets());
+
+        uint256 absoluteLimitBefore = delegator.absoluteLimitOf(address(adapter));
+        uint256 shareLimitBefore = delegator.shareLimitOf(address(adapter));
+
+        vault.approve(address(queue), second);
+        uint256 secondTokenId = queue.requestRedeem(second, address(this));
+
+        vm.warp(vm.getBlockTimestamp() + duration);
+        delegator.sweepPending();
+
+        assertEq(delegator.absoluteLimitOf(address(adapter)), absoluteLimitBefore);
+        assertEq(delegator.shareLimitOf(address(adapter)), shareLimitBefore);
+        assertEq(queue.pendingShares(), 0);
+        assertEq(adapter.totalAssets(), remaining - second);
+
+        (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(secondTokenId);
+
+        assertEq(claimableShares, second);
+        assertEq(claimableAssets, second);
     }
 
     function test_DirectFillUsesVaultWithdrawableDeallocatableAndReturnsExactTuple() public {
@@ -354,6 +499,37 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(assetToken.balanceOf(address(0xA11CE)), aliceBalanceBefore + assetsFilled);
     }
 
+    function test_WithdrawSweepsPendingBeforeComputingSharesToBurn() public {
+        WithdrawalQueue queue = _preparePendingQueueWithYield();
+
+        uint256 sharesBefore = vault.balanceOf(address(this));
+        uint256 withdrawAssets = 15;
+        uint256 expectedShares = _previewWithdrawAfterExplicitSweep(withdrawAssets);
+        uint256 receiverBalanceBefore = assetToken.balanceOf(address(this));
+
+        uint256 burnedShares = vault.withdraw(withdrawAssets, address(this), address(this));
+
+        assertEq(queue.pendingShares(), 0);
+        assertEq(burnedShares, expectedShares);
+        assertEq(vault.balanceOf(address(this)), sharesBefore - expectedShares);
+        assertEq(assetToken.balanceOf(address(this)), receiverBalanceBefore + withdrawAssets);
+    }
+
+    function test_RedeemSweepsPendingBeforeComputingAssetsToReturn() public {
+        WithdrawalQueue queue = _preparePendingQueueWithYield();
+
+        uint256 shares = 7;
+        uint256 expectedAssets = _previewRedeemAfterExplicitSweep(shares);
+        uint256 receiverBalanceBefore = assetToken.balanceOf(address(this));
+
+        uint256 redeemedAssets = vault.redeem(shares, address(this), address(this));
+
+        assertEq(queue.pendingShares(), 0);
+        assertEq(redeemedAssets, expectedAssets);
+        assertEq(vault.balanceOf(address(this)), 100 - shares);
+        assertEq(assetToken.balanceOf(address(this)), receiverBalanceBefore + expectedAssets);
+    }
+
     function _requestAllocatedWithdrawal(uint256 assets)
         internal
         returns (WithdrawalQueue queue, uint256 tokenId, uint256 shares)
@@ -377,6 +553,42 @@ contract AppAdapterUniversalDelegatorTest is Test {
         vault.approve(address(queue), shares);
         tokenId = queue.requestRedeem(shares, alice);
         vm.stopPrank();
+    }
+
+    function _setAutoAllocateAdapter() internal {
+        address[] memory autoAllocateAdapters = new address[](1);
+        autoAllocateAdapters[0] = address(adapter);
+        delegator.setAutoAllocateAdapters(autoAllocateAdapters);
+    }
+
+    function _headroom(uint256 limit, uint256 assets) internal pure returns (uint256) {
+        return limit > assets ? limit - assets : 0;
+    }
+
+    function _min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    function _preparePendingQueueWithYield() internal returns (WithdrawalQueue queue) {
+        (queue,,) = _requestAllocatedWithdrawal(100);
+        assetToken.transfer(address(vault), 229);
+
+        assertGt(queue.pendingShares(), 0);
+        assertEq(vault.balanceOf(address(this)), 100);
+    }
+
+    function _previewWithdrawAfterExplicitSweep(uint256 assets) internal returns (uint256 shares) {
+        uint256 snapshotId = vm.snapshotState();
+        delegator.sweepPending();
+        shares = vault.previewWithdraw(assets);
+        assertTrue(vm.revertToState(snapshotId));
+    }
+
+    function _previewRedeemAfterExplicitSweep(uint256 shares) internal returns (uint256 assets) {
+        uint256 snapshotId = vm.snapshotState();
+        delegator.sweepPending();
+        assets = vault.previewRedeem(shares);
+        assertTrue(vm.revertToState(snapshotId));
     }
 
     function _createVault() internal returns (VaultV2) {
