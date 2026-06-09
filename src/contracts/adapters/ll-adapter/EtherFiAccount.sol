@@ -97,6 +97,11 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
         }
     }
 
+    /// @inheritdoc IEtherFiAccount
+    function onERC721Received(address, address, uint256, bytes calldata) public pure returns (bytes4) {
+        return IEtherFiAccount.onERC721Received.selector;
+    }
+
     /* INTERNAL FUNCTIONS */
 
     /// @dev Returns pending request value in vault assets.

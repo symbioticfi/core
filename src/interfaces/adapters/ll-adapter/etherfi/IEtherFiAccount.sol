@@ -72,6 +72,12 @@ interface IEtherFiAccount is IAccount {
     function claimWithdraw(uint256 requestId) external;
 
     /**
+     * @notice Accepts ether.fi withdrawal request NFTs.
+     * @return selector The ERC721 receiver selector.
+     */
+    function onERC721Received(address, address, uint256, bytes calldata) external returns (bytes4 selector);
+
+    /**
      * @notice Receives ETH from ether.fi withdrawal claims.
      */
     receive() external payable;

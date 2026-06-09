@@ -17,6 +17,7 @@ import {PRIME_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-r
 import {
     StockMarketTRBasisTrade_Account
 } from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
+import {deCRDX_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deCRDX_Account.sol";
 import {deJAAA_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJAAA_Account.sol";
 import {deJTRSY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJTRSY_Account.sol";
 import {mAPOLLO_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mAPOLLO_Account.sol";
@@ -93,7 +94,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     function testCalculatesAllTokenCooldownsAndRequestCounts() public pure {
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
 
-        assertEq(specs.length, 35);
+        assertEq(specs.length, 36);
         assertLe(specs.length, MAX_TOKENS_TO_REDEEM);
 
         uint256 totalMaxAverageRequests;
@@ -104,7 +105,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             assertLe(specs[i].maxAverageRequests, 10, specs[i].symbol);
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 179);
+        assertEq(totalMaxAverageRequests, 180);
     }
 
     function testBenchmarkOnboardsAllTokensToLiquidLaneAdapter() public {
@@ -234,7 +235,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     }
 
     function _tokenBenchSpecs() internal pure returns (TokenBenchSpec[] memory specs) {
-        specs = new TokenBenchSpec[](35);
+        specs = new TokenBenchSpec[](36);
         specs[0] = _spec("ACRDX", 1 days);
         specs[1] = _spec("CarryTradeUSDTRYLeverage", 2 days);
         specs[2] = _spec("DUSD", 12 hours);
@@ -270,6 +271,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         specs[32] = _spec("sthUSD", 7 days);
         specs[33] = _spec("weETH", 14 days);
         specs[34] = _spec("wstETH", 5 days);
+        specs[35] = _spec("deCRDX", 1 days);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
@@ -392,13 +394,22 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
                 )
             );
         }
-        return IAccount(
-            address(
-                new wstETH_Account(
-                    STETH, WETH, makeAddr("wstETH_ORACLE"), WSTETH, factory, LIDO_WITHDRAWAL_QUEUE, COW_SWAP_SETTLEMENT
+        if (index == 34) {
+            return IAccount(
+                address(
+                    new wstETH_Account(
+                        STETH,
+                        WETH,
+                        makeAddr("wstETH_ORACLE"),
+                        WSTETH,
+                        factory,
+                        LIDO_WITHDRAWAL_QUEUE,
+                        COW_SWAP_SETTLEMENT
+                    )
                 )
-            )
-        );
+            );
+        }
+        return IAccount(address(new deCRDX_Account(makeAddr("deCRDX_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
     }
 
     function _spec(string memory symbol, uint48 maxDelay) internal pure returns (TokenBenchSpec memory spec) {

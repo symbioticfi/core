@@ -34,6 +34,7 @@ contract CentrifugeAccountTest is AccountsBase {
         _mockDecimals(JTRSY_TOKEN_ADDRESS, 18);
         _mockDecimals(JAAA_TOKEN_ADDRESS, 18);
         _mockDecimals(ACRDX_TOKEN_ADDRESS, 18);
+        _mockDecimals(DECRDX_TOKEN_ADDRESS, 18);
         _mockDecimals(DEJTRSY_TOKEN_ADDRESS, 18);
         _mockDecimals(DEJAAA_TOKEN_ADDRESS, 18);
 
@@ -47,6 +48,10 @@ contract CentrifugeAccountTest is AccountsBase {
         assertEq(
             new ACRDX_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
             ACRDX_TOKEN_ADDRESS
+        );
+        assertEq(
+            new deCRDX_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            DECRDX_TOKEN_ADDRESS
         );
         assertEq(
             new deJTRSY_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
