@@ -4,6 +4,10 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 
 import {ACRDX_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
+import {ACRED_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRED_Account.sol";
+import {
+    AA_FalconX_Account
+} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/AA_FalconX_Account.sol";
 import {
     CarryTradeUSDTRYLeverage_Account
 } from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/CarryTradeUSDTRYLeverage_Account.sol";
@@ -42,8 +46,11 @@ import {
     msyrupUSDp_Account
 } from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/msyrupUSDp_Account.sol";
 import {sAID_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sAID_Account.sol";
+import {sUSN_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSN_Account.sol";
 import {sUSD3_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSD3_Account.sol";
 import {sthUSD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sthUSD_Account.sol";
+import {USCC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USCC_Account.sol";
+import {USD3_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USD3_Account.sol";
 import {weETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {AsyncRedeemOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/AsyncRedeemOracle.sol";
@@ -73,6 +80,20 @@ import {
     REQUEST_STATUS_PENDING
 } from "../../../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
 import {IMidasRedemptionVault} from "../../../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
+import {INoonAccount} from "../../../../src/interfaces/adapters/ll-adapter/noon/INoonAccount.sol";
+import {INoonWithdrawalHandler} from "../../../../src/interfaces/adapters/ll-adapter/noon/INoonWithdrawalHandler.sol";
+import {IParetoAccount} from "../../../../src/interfaces/adapters/ll-adapter/pareto/IParetoAccount.sol";
+import {IParetoCDO} from "../../../../src/interfaces/adapters/ll-adapter/pareto/IParetoCDO.sol";
+import {ISecuritizeAccount} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeAccount.sol";
+import {
+    ISecuritizeSubAccount
+} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeSubAccount.sol";
+import {ISecuritizeToken} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeToken.sol";
+import {ISuperstateAccount} from "../../../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol";
+import {
+    ISuperstateSubAccount
+} from "../../../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateSubAccount.sol";
+import {ISuperstateToken} from "../../../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateToken.sol";
 import {ISthUSD} from "../../../../src/interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
 import {IThreeJaneSUSD3} from "../../../../src/interfaces/adapters/ll-adapter/threejane/IThreeJaneSUSD3.sol";
 
@@ -87,6 +108,8 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     address internal constant ACRDX = 0x9477724Bb54AD5417de8Baff29e59DF3fB4DA74f;
+    address internal constant ACRED = 0x17418038ecF73BA4026c4f428547BF099706F27B;
+    address internal constant AA_FALCONX = 0xC26A6Fa2C37b38E549a4a1807543801Db684f99C;
     address internal constant BEQTY = 0xEaFD6D38f41f882BCFd5fEaABccCc714B983b701;
     address internal constant CARRY_TRADE_USD_TRY_LEVERAGE = 0x2bf11d2E04Bc40daa95c24B8b90EC4F5c57Dd326;
     address internal constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
@@ -122,13 +145,18 @@ contract TokensToRedeemMainnetTest is Test {
     address internal constant MTBILL = 0xDD629E5241CbC5919847783e6C96B2De4754e438;
     address internal constant MSYRUPUSD = 0x20226607b4fa64228ABf3072Ce561d6257683464;
     address internal constant MSYRUPUSDP = 0x2fE058CcF29f123f9dd2aEC0418AA66a877d8E50;
+    address internal constant NOON_WITHDRAWAL_HANDLER = 0x0DaBc0D9B270c9B0C4C77AaCeAa712b56D0F9178;
+    address internal constant PARETO_FALCONX_CDO = 0x433D5B175148dA32Ffe1e1A37a939E1b7e79be4d;
     address internal constant PRIME = 0x19ebb35279A16207Ec4ba82799CC64715065F7F6;
     address internal constant SAID = 0xB3B3c527BA57cd61648e2EC2F5e006A0B390A9F8;
     address internal constant STOCK_MARKET_TR_BASIS_TRADE = 0x827Ce7E8e35861D9Ac7fE002755767b695A5594a;
     address internal constant STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
     address internal constant STHUSD = 0xA808Bc9775cb41c52C7842f8b50427fE7A770326;
+    address internal constant S_USN = 0xE24a3DC889621612422A64E6388927901608B91D;
     address internal constant SUSD3 = 0xf689555121e529Ff0463e191F9Bd9d1E496164a7;
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address internal constant USCC = 0x14d60E7FDC0D71d8611742720E4C50E7a974020c;
+    address internal constant USD3 = 0x056B269Eb1f75477a8666ae8C7fE01b64dD55eCc;
     address internal constant WEETH = 0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee;
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address internal constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
@@ -146,7 +174,7 @@ contract TokensToRedeemMainnetTest is Test {
         vm.createSelectFork(mainnetRpcUrl);
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 37);
+        assertEq(specs.length, 42);
 
         for (uint256 i; i < specs.length; ++i) {
             _assertTokenAccount(i, specs[i]);
@@ -158,7 +186,7 @@ contract TokensToRedeemMainnetTest is Test {
         vm.createSelectFork(mainnetRpcUrl);
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 37);
+        assertEq(specs.length, 42);
 
         for (uint256 i; i < specs.length; ++i) {
             _assertRedemptionSequence(i, specs[i]);
@@ -215,7 +243,7 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _tokenSpecs() internal pure returns (TokenSpec[] memory specs) {
-        specs = new TokenSpec[](37);
+        specs = new TokenSpec[](42);
         specs[0] = TokenSpec("ACRDX", ACRDX);
         specs[1] = TokenSpec("CarryTradeUSDTRYLeverage", CARRY_TRADE_USD_TRY_LEVERAGE);
         specs[2] = TokenSpec("DUSD", DUSD);
@@ -253,6 +281,11 @@ contract TokensToRedeemMainnetTest is Test {
         specs[34] = TokenSpec("sthUSD", STHUSD);
         specs[35] = TokenSpec("weETH", WEETH);
         specs[36] = TokenSpec("wstETH", WSTETH);
+        specs[37] = TokenSpec("AA_FalconXUSDC", AA_FALCONX);
+        specs[38] = TokenSpec("ACRED", ACRED);
+        specs[39] = TokenSpec("sUSN", S_USN);
+        specs[40] = TokenSpec("USCC", USCC);
+        specs[41] = TokenSpec("USD3", USD3);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
@@ -314,23 +347,38 @@ contract TokensToRedeemMainnetTest is Test {
                 ETHERFI_WITHDRAW_REQUEST_NFT
             );
         }
-        return new wstETH_Account(
-            STETH,
-            WETH,
-            address(new MainnetConstantOracle()),
-            WSTETH,
-            factory,
-            LIDO_WITHDRAWAL_QUEUE,
-            COW_SWAP_SETTLEMENT
-        );
+        if (index == 36) {
+            return new wstETH_Account(
+                STETH,
+                WETH,
+                address(new MainnetConstantOracle()),
+                WSTETH,
+                factory,
+                LIDO_WITHDRAWAL_QUEUE,
+                COW_SWAP_SETTLEMENT
+            );
+        }
+        if (index == 37) {
+            return new AA_FalconX_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+        }
+        if (index == 38) return new ACRED_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+        if (index == 39) return new sUSN_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+        if (index == 40) return new USCC_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+        return new USD3_Account(factory, COW_SWAP_SETTLEMENT);
     }
 
     function _assetFor(uint256 index, address token) internal view returns (address) {
-        if (_isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7) {
+        if (
+            _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 37 || index == 38
+                || index == 40
+        ) {
             return USDC;
         }
         if (index == 5) {
             return IERC4626(IERC4626(token).asset()).asset();
+        }
+        if (index == 39) {
+            return INoonWithdrawalHandler(NOON_WITHDRAWAL_HANDLER).usn();
         }
         if (index == 35 || index == 36) {
             return WETH;
@@ -349,7 +397,7 @@ contract TokensToRedeemMainnetTest is Test {
     function _isKnownMainnetSyncRestricted(uint256 index) internal pure returns (bool) {
         return _isCentrifuge(index) || index == 2 || index == 5 || index == 7 || index == 12 || index == 13
             || index == 16 || index == 17 || index == 18 || index == 20 || index == 21 || index == 25 || index == 27
-            || index == 29 || index == 30;
+            || index == 29 || index == 30 || index == 37 || index == 38 || index == 39 || index == 40 || index == 41;
     }
 
     function _assertKnownMainnetSyncRestriction(
@@ -437,6 +485,34 @@ contract TokensToRedeemMainnetTest is Test {
             _expectEtherFiRedemptionSequenceCall(account, amount);
             return;
         }
+        if (index == 37) {
+            vm.expectCall(
+                IParetoAccount(address(account)).IDLE_CDO(),
+                abi.encodeWithSelector(IParetoCDO.requestWithdraw.selector, amount, token)
+            );
+            return;
+        }
+        if (index == 38) {
+            vm.expectCall(token, abi.encodeWithSelector(ISecuritizeToken.burn.selector));
+            return;
+        }
+        if (index == 39) {
+            vm.expectCall(
+                token,
+                abi.encodeWithSelector(IERC4626.redeem.selector, amount, NOON_WITHDRAWAL_HANDLER, address(account))
+            );
+            return;
+        }
+        if (index == 40) {
+            vm.expectCall(token, abi.encodeWithSelector(ISuperstateToken.offchainRedeem.selector));
+            return;
+        }
+        if (index == 41) {
+            vm.expectCall(
+                token, abi.encodeWithSelector(IERC4626.redeem.selector, amount, address(account), address(account))
+            );
+            return;
+        }
 
         vm.expectCall(
             ILidoAccount(payable(address(account))).WITHDRAWAL_QUEUE(),
@@ -515,6 +591,26 @@ contract TokensToRedeemMainnetTest is Test {
         }
         if (index == 35) {
             _assertEtherFiRedemption(account, asset, symbol);
+            return;
+        }
+        if (index == 37) {
+            _assertParetoRedemption(account, symbol);
+            return;
+        }
+        if (index == 38) {
+            _assertSecuritizeRedemption(account, symbol);
+            return;
+        }
+        if (index == 39) {
+            _assertNoonRedemption(account, symbol);
+            return;
+        }
+        if (index == 40) {
+            _assertSuperstateRedemption(account, symbol);
+            return;
+        }
+        if (index == 41) {
+            _assertERC4626Redemption(account, asset, symbol);
             return;
         }
 
@@ -604,6 +700,41 @@ contract TokensToRedeemMainnetTest is Test {
 
         assertTrue(request.isValid, symbol);
         assertGt(IEtherFiAccount(payable(address(account))).pendingAssets(), 0, symbol);
+        assertGt(account.totalAssets(), 0, symbol);
+    }
+
+    function _assertParetoRedemption(IAccount account, string memory symbol) internal view {
+        assertGt(IERC20(IParetoAccount(address(account)).RECEIPT_TOKEN()).balanceOf(address(account)), 0, symbol);
+        assertGt(account.totalAssets(), 0, symbol);
+    }
+
+    function _assertSecuritizeRedemption(IAccount account, string memory symbol) internal view {
+        address subAccount = ISecuritizeAccount(address(account)).subAccounts(0);
+        assertGt(subAccount.code.length, 0, symbol);
+        assertGt(ISecuritizeSubAccount(subAccount).totalAssets(), 0, symbol);
+        assertGt(account.totalAssets(), 0, symbol);
+    }
+
+    function _assertNoonRedemption(IAccount account, string memory symbol) internal view {
+        uint256 requestId = INoonAccount(address(account)).requestIds(0);
+        INoonWithdrawalHandler.WithdrawalRequest memory request = INoonWithdrawalHandler(
+                INoonAccount(address(account)).WITHDRAWAL_HANDLER()
+            ).getWithdrawalRequest(address(account), requestId);
+
+        assertFalse(request.claimed, symbol);
+        assertGt(request.amount, 0, symbol);
+        assertGt(account.totalAssets(), 0, symbol);
+    }
+
+    function _assertSuperstateRedemption(IAccount account, string memory symbol) internal view {
+        address subAccount = ISuperstateAccount(address(account)).subAccounts(0);
+        assertGt(subAccount.code.length, 0, symbol);
+        assertGt(ISuperstateSubAccount(subAccount).totalAssets(), 0, symbol);
+        assertGt(account.totalAssets(), 0, symbol);
+    }
+
+    function _assertERC4626Redemption(IAccount account, address asset, string memory symbol) internal view {
+        assertGt(IERC20(asset).balanceOf(address(account)), 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
 

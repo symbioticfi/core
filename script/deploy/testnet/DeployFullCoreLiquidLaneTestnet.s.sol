@@ -8,15 +8,22 @@ import {DeployV2BaseScript} from "../base/DeployV2Base.s.sol";
 import {Logs} from "../../utils/Logs.sol";
 import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
+import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
+import {AaveV3Adapter} from "../../../src/contracts/adapters/AaveV3Adapter.sol";
 import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
+import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
 import {LiquidLaneAdapter} from "../../../src/contracts/adapters/LiquidLaneAdapter.sol";
+import {MorphoVaultV2Adapter} from "../../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
 import {AccountRegistry} from "../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
 import {MidasCompAccount, MidasNonCompAccount} from "../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 
 import {IAdapterRegistry} from "../../../src/interfaces/IAdapterRegistry.sol";
+import {IAaveV3Adapter} from "../../../src/interfaces/adapters/IAaveV3Adapter.sol";
+import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
 import {ILiquidLaneAdapter} from "../../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
+import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IMidasRedemptionVault} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 import {
     IUniversalDelegator,
@@ -24,6 +31,14 @@ import {
     UNIVERSAL_DELEGATOR_TYPE
 } from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
+import {
+    MockAaveAToken,
+    MockAavePool,
+    MockAavePoolAddressesProvider,
+    MockAavePoolDataProvider,
+    MockMorphoVaultFactory,
+    MockMorphoVaultHarness
+} from "../../../test/mocks/HoodiScenarioProtocolMocks.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -39,6 +54,7 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         address owner;
         address marketMaker;
         address cowSwapSettlement;
+        address cowSwapVaultRelayer;
         address usdc;
         address aUsd;
         address mFone;
@@ -62,6 +78,11 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         address mGlobalDataFeed;
         address mFoneRedemptionVault;
         address mGlobalRedemptionVault;
+    }
+
+    struct CowSwapDeployments {
+        address settlement;
+        address vaultRelayer;
     }
 
     struct AccountDeployments {
@@ -89,13 +110,43 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         address aUsdMGlobalAccount;
     }
 
+    struct FullAdapterDeployments {
+        address appAdapterFactory;
+        address appAdapterImplementation;
+        address burnerRouterFactory;
+        address mockSwapRouter;
+        address usdcBurner;
+        address aUsdBurner;
+        address usdcAppAdapter;
+        address aUsdAppAdapter;
+        address aaveAdapterFactory;
+        address aaveAdapterImplementation;
+        address mockAavePool;
+        address mockAaveProvider;
+        address mockAaveDataProvider;
+        address mockAaveUsdcAToken;
+        address mockAaveAusdAToken;
+        address usdcAaveAdapter;
+        address aUsdAaveAdapter;
+        address morphoAdapterFactory;
+        address morphoAdapterImplementation;
+        address mockMorphoVaultFactory;
+        address mockMorphoAdapterRegistry;
+        address mockMorphoVaultUsdc;
+        address mockMorphoVaultAusd;
+        address usdcMorphoAdapter;
+        address aUsdMorphoAdapter;
+    }
+
     struct DeploymentData {
         SymbioticCoreConstants.Core core;
         DeployV2BaseScript.DeploymentData v2;
         TokenDeployments tokens;
         RedemptionDeployments redemptions;
+        CowSwapDeployments cowSwap;
         AccountDeployments accounts;
         LiquidLaneDeployments liquidLane;
+        FullAdapterDeployments fullAdapters;
         uint256 liquidLaneLimit;
         uint256 minDiscount;
     }
@@ -106,7 +157,8 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
             DeployParams({
                 owner: owner,
                 marketMaker: vm.envOr("TESTNET_MARKET_MAKER", owner),
-                cowSwapSettlement: vm.envOr("TESTNET_COW_SWAP_SETTLEMENT", address(0xC05E7)),
+                cowSwapSettlement: vm.envOr("TESTNET_COW_SWAP_SETTLEMENT", address(0)),
+                cowSwapVaultRelayer: vm.envOr("TESTNET_COW_SWAP_VAULT_RELAYER", address(0)),
                 usdc: vm.envOr("TESTNET_USDC", address(0)),
                 aUsd: vm.envOr("TESTNET_AUSD", address(0)),
                 mFone: vm.envOr("TESTNET_MFONE", address(0)),
@@ -129,8 +181,10 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         _startBroadcast();
         data.tokens = _deployOrUseTokens(params);
         data.redemptions = _deployOrUseRedemptions(params, data.tokens);
-        data.accounts = _deployAccounts(params, data.tokens, data.redemptions);
+        data.cowSwap = _deployOrUseCowSwap(params);
+        data.accounts = _deployAccounts(params, data.tokens, data.redemptions, data.cowSwap.settlement);
         data.liquidLane = _deployLiquidLane(data.core, data.v2, params, data.tokens, data.accounts);
+        data.fullAdapters = _deployFullAdapters(data.core, data.v2, params, data.tokens, data.cowSwap, data.liquidLane);
         data.liquidLaneLimit = params.liquidLaneLimit;
         data.minDiscount = params.minDiscount;
         _mintMocks(params, data.tokens);
@@ -142,7 +196,6 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
     function _validateParams(DeployParams memory params) internal view {
         require(params.owner != address(0), "invalid owner");
         require(params.marketMaker != address(0), "invalid market maker");
-        require(params.cowSwapSettlement != address(0), "invalid cow settlement");
         require(params.minDiscount <= 1_000_000, "invalid min discount");
     }
 
@@ -186,10 +239,24 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
             address(IMidasRedemptionVault(redemptions.mGlobalRedemptionVault).mTokenDataFeed());
     }
 
+    function _deployOrUseCowSwap(DeployParams memory params) internal returns (CowSwapDeployments memory cowSwap) {
+        if (params.cowSwapSettlement != address(0)) {
+            cowSwap.settlement = params.cowSwapSettlement;
+            cowSwap.vaultRelayer = TestnetCowSwapSettlementMock(cowSwap.settlement).vaultRelayer();
+            return cowSwap;
+        }
+
+        cowSwap.vaultRelayer = params.cowSwapVaultRelayer == address(0)
+            ? address(new TestnetCowSwapVaultRelayerMock())
+            : params.cowSwapVaultRelayer;
+        cowSwap.settlement = address(new TestnetCowSwapSettlementMock(cowSwap.vaultRelayer));
+    }
+
     function _deployAccounts(
         DeployParams memory params,
         TokenDeployments memory tokens,
-        RedemptionDeployments memory redemptions
+        RedemptionDeployments memory redemptions,
+        address cowSwapSettlement
     ) internal returns (AccountDeployments memory accounts) {
         accounts.accountRegistry = address(new AccountRegistry(params.owner));
         accounts.mFoneOracle = address(new MidasOracle(redemptions.mFoneDataFeed));
@@ -205,7 +272,7 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
                 tokens.mFone,
                 tokens.usdc,
                 redemptions.mFoneRedemptionVault,
-                params.cowSwapSettlement
+                cowSwapSettlement
             )
         );
         accounts.mGlobalAccountImplementation = address(
@@ -216,7 +283,7 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
                 tokens.mGlobal,
                 tokens.usdc,
                 redemptions.mGlobalRedemptionVault,
-                params.cowSwapSettlement
+                cowSwapSettlement
             )
         );
 
@@ -290,6 +357,227 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         ILiquidLaneAdapter(adapter).setMinDiscount(tokens.mFone, params.minDiscount);
         ILiquidLaneAdapter(adapter).setMinDiscount(tokens.mGlobal, params.minDiscount);
         ILiquidLaneAdapter(adapter).setMarketMaker(params.marketMaker, true);
+    }
+
+    function _deployFullAdapters(
+        SymbioticCoreConstants.Core memory core,
+        DeployV2BaseScript.DeploymentData memory v2,
+        DeployParams memory params,
+        TokenDeployments memory tokens,
+        CowSwapDeployments memory cowSwap,
+        LiquidLaneDeployments memory liquidLane
+    ) internal returns (FullAdapterDeployments memory fullAdapters) {
+        _deployAppStack(core, v2, params, tokens, cowSwap.settlement, liquidLane, fullAdapters);
+        _deployAaveStack(core, v2, params, tokens, cowSwap.settlement, liquidLane, fullAdapters);
+        _deployMorphoStack(core, v2, params, tokens, cowSwap.settlement, liquidLane, fullAdapters);
+    }
+
+    function _deployAppStack(
+        SymbioticCoreConstants.Core memory core,
+        DeployV2BaseScript.DeploymentData memory v2,
+        DeployParams memory params,
+        TokenDeployments memory tokens,
+        address cowSwapSettlement,
+        LiquidLaneDeployments memory liquidLane,
+        FullAdapterDeployments memory fullAdapters
+    ) internal {
+        fullAdapters.burnerRouterFactory = address(new TestnetBurnerRouterFactoryMock());
+        fullAdapters.mockSwapRouter = address(new TestnetSwapRouterMock());
+        fullAdapters.usdcBurner =
+            _createBurner(fullAdapters.burnerRouterFactory, params.owner, tokens.usdc, params.owner);
+        fullAdapters.aUsdBurner =
+            _createBurner(fullAdapters.burnerRouterFactory, params.owner, tokens.aUsd, params.owner);
+
+        fullAdapters.appAdapterFactory = address(new AdapterFactory(params.owner));
+        fullAdapters.appAdapterImplementation = address(
+            new AppAdapter(
+                address(core.vaultFactory),
+                fullAdapters.appAdapterFactory,
+                cowSwapSettlement,
+                address(core.networkMiddlewareService)
+            )
+        );
+        AdapterFactory(fullAdapters.appAdapterFactory).whitelist(fullAdapters.appAdapterImplementation);
+
+        fullAdapters.usdcAppAdapter =
+            _createAppAdapter(fullAdapters.appAdapterFactory, params, liquidLane.usdcVault, fullAdapters.usdcBurner, 1);
+        _attachAdapter(v2, params, liquidLane.usdcVault, liquidLane.usdcDelegator, fullAdapters.usdcAppAdapter);
+        fullAdapters.aUsdAppAdapter =
+            _createAppAdapter(fullAdapters.appAdapterFactory, params, liquidLane.aUsdVault, fullAdapters.aUsdBurner, 2);
+        _attachAdapter(v2, params, liquidLane.aUsdVault, liquidLane.aUsdDelegator, fullAdapters.aUsdAppAdapter);
+    }
+
+    function _deployAaveStack(
+        SymbioticCoreConstants.Core memory core,
+        DeployV2BaseScript.DeploymentData memory v2,
+        DeployParams memory params,
+        TokenDeployments memory tokens,
+        address cowSwapSettlement,
+        LiquidLaneDeployments memory liquidLane,
+        FullAdapterDeployments memory fullAdapters
+    ) internal {
+        fullAdapters.mockAaveUsdcAToken = address(new MockAaveAToken(tokens.usdc));
+        fullAdapters.mockAaveAusdAToken = address(new MockAaveAToken(tokens.aUsd));
+        fullAdapters.mockAaveProvider = address(new MockAavePoolAddressesProvider());
+        fullAdapters.mockAaveDataProvider = address(new MockAavePoolDataProvider());
+        fullAdapters.mockAavePool =
+            address(new MockAavePool(tokens.usdc, fullAdapters.mockAaveUsdcAToken, fullAdapters.mockAaveProvider));
+        MockAavePool(fullAdapters.mockAavePool).setReserveToken(tokens.aUsd, fullAdapters.mockAaveAusdAToken);
+        MockAaveAToken(fullAdapters.mockAaveUsdcAToken).setPool(fullAdapters.mockAavePool);
+        MockAaveAToken(fullAdapters.mockAaveAusdAToken).setPool(fullAdapters.mockAavePool);
+        MockAavePoolAddressesProvider(fullAdapters.mockAaveProvider).setPool(fullAdapters.mockAavePool);
+        MockAavePoolAddressesProvider(fullAdapters.mockAaveProvider)
+            .setPoolDataProvider(fullAdapters.mockAaveDataProvider);
+        MockAavePoolDataProvider(fullAdapters.mockAaveDataProvider)
+            .setReserveToken(tokens.usdc, fullAdapters.mockAaveUsdcAToken);
+        MockAavePoolDataProvider(fullAdapters.mockAaveDataProvider)
+            .setReserveToken(tokens.aUsd, fullAdapters.mockAaveAusdAToken);
+
+        fullAdapters.aaveAdapterFactory = address(new AdapterFactory(params.owner));
+        fullAdapters.aaveAdapterImplementation = address(
+            new AaveV3Adapter(
+                fullAdapters.mockAavePool,
+                address(core.vaultFactory),
+                fullAdapters.aaveAdapterFactory,
+                params.owner,
+                cowSwapSettlement
+            )
+        );
+        AdapterFactory(fullAdapters.aaveAdapterFactory).whitelist(fullAdapters.aaveAdapterImplementation);
+
+        fullAdapters.usdcAaveAdapter =
+            _createAaveAdapter(fullAdapters.aaveAdapterFactory, params.owner, liquidLane.usdcVault);
+        _attachAdapter(v2, params, liquidLane.usdcVault, liquidLane.usdcDelegator, fullAdapters.usdcAaveAdapter);
+        fullAdapters.aUsdAaveAdapter =
+            _createAaveAdapter(fullAdapters.aaveAdapterFactory, params.owner, liquidLane.aUsdVault);
+        _attachAdapter(v2, params, liquidLane.aUsdVault, liquidLane.aUsdDelegator, fullAdapters.aUsdAaveAdapter);
+    }
+
+    function _deployMorphoStack(
+        SymbioticCoreConstants.Core memory core,
+        DeployV2BaseScript.DeploymentData memory v2,
+        DeployParams memory params,
+        TokenDeployments memory tokens,
+        address cowSwapSettlement,
+        LiquidLaneDeployments memory liquidLane,
+        FullAdapterDeployments memory fullAdapters
+    ) internal {
+        fullAdapters.mockMorphoAdapterRegistry = address(new AdapterRegistry(params.owner));
+        fullAdapters.mockMorphoVaultFactory = address(new MockMorphoVaultFactory());
+        fullAdapters.mockMorphoVaultUsdc =
+            address(new MockMorphoVaultHarness(tokens.usdc, fullAdapters.mockMorphoAdapterRegistry));
+        fullAdapters.mockMorphoVaultAusd =
+            address(new MockMorphoVaultHarness(tokens.aUsd, fullAdapters.mockMorphoAdapterRegistry));
+        MockMorphoVaultFactory(fullAdapters.mockMorphoVaultFactory).setVault(fullAdapters.mockMorphoVaultUsdc, true);
+        MockMorphoVaultFactory(fullAdapters.mockMorphoVaultFactory).setVault(fullAdapters.mockMorphoVaultAusd, true);
+
+        fullAdapters.morphoAdapterFactory = address(new AdapterFactory(params.owner));
+        fullAdapters.morphoAdapterImplementation = address(
+            new MorphoVaultV2Adapter(
+                address(core.vaultFactory),
+                fullAdapters.morphoAdapterFactory,
+                params.owner,
+                cowSwapSettlement,
+                fullAdapters.mockMorphoVaultFactory,
+                fullAdapters.mockMorphoAdapterRegistry
+            )
+        );
+        AdapterFactory(fullAdapters.morphoAdapterFactory).whitelist(fullAdapters.morphoAdapterImplementation);
+
+        fullAdapters.usdcMorphoAdapter = _createMorphoAdapter(
+            fullAdapters.morphoAdapterFactory, params.owner, liquidLane.usdcVault, fullAdapters.mockMorphoVaultUsdc
+        );
+        _attachAdapter(v2, params, liquidLane.usdcVault, liquidLane.usdcDelegator, fullAdapters.usdcMorphoAdapter);
+        fullAdapters.aUsdMorphoAdapter = _createMorphoAdapter(
+            fullAdapters.morphoAdapterFactory, params.owner, liquidLane.aUsdVault, fullAdapters.mockMorphoVaultAusd
+        );
+        _attachAdapter(v2, params, liquidLane.aUsdVault, liquidLane.aUsdDelegator, fullAdapters.aUsdMorphoAdapter);
+    }
+
+    function _createBurner(address burnerRouterFactory, address owner, address collateral, address globalReceiver)
+        internal
+        returns (address)
+    {
+        TestnetBurnerRouterFactoryMock.NetworkReceiver[] memory networkReceivers =
+            new TestnetBurnerRouterFactoryMock.NetworkReceiver[](0);
+        TestnetBurnerRouterFactoryMock.OperatorNetworkReceiver[] memory operatorNetworkReceivers =
+            new TestnetBurnerRouterFactoryMock.OperatorNetworkReceiver[](0);
+        return TestnetBurnerRouterFactoryMock(burnerRouterFactory)
+            .create(
+                TestnetBurnerRouterFactoryMock.InitParams({
+                owner: owner,
+                collateral: collateral,
+                delay: 0,
+                globalReceiver: globalReceiver,
+                networkReceivers: networkReceivers,
+                operatorNetworkReceivers: operatorNetworkReceivers
+            })
+            );
+    }
+
+    function _createAppAdapter(
+        address factory,
+        DeployParams memory params,
+        address vault,
+        address burner,
+        uint96 subnetworkId
+    ) internal returns (address) {
+        address[] memory converters = new address[](0);
+        return AdapterFactory(factory)
+            .create(
+                1,
+                params.owner,
+                abi.encode(
+                    vault,
+                    abi.encode(
+                        IAppAdapter.InitParams({
+                        burner: burner,
+                        duration: 1 days,
+                        operator: params.marketMaker,
+                        converters: converters,
+                        subnetwork: _testnetSubnetwork(params.owner, subnetworkId)
+                    })
+                    )
+                )
+            );
+    }
+
+    function _createAaveAdapter(address factory, address owner, address vault) internal returns (address) {
+        address[] memory converters = new address[](0);
+        return AdapterFactory(factory)
+            .create(1, owner, abi.encode(vault, abi.encode(IAaveV3Adapter.InitParams({converters: converters}))));
+    }
+
+    function _createMorphoAdapter(address factory, address owner, address vault, address morphoVault)
+        internal
+        returns (address)
+    {
+        address[] memory converters = new address[](0);
+        return AdapterFactory(factory)
+            .create(
+                1,
+                owner,
+                abi.encode(
+                    vault,
+                    abi.encode(IMorphoVaultV2Adapter.InitParams({morphoVault: morphoVault, converters: converters}))
+                )
+            );
+    }
+
+    function _attachAdapter(
+        DeployV2BaseScript.DeploymentData memory v2,
+        DeployParams memory params,
+        address vault,
+        address delegator,
+        address adapter
+    ) internal {
+        IAdapterRegistry(address(v2.adapterRegistry)).setWhitelistedStatus(vault, adapter, true);
+        IUniversalDelegator(delegator).addAdapter(adapter);
+        IUniversalDelegator(delegator).setLimits(adapter, params.liquidLaneLimit, MAX_SHARE);
+    }
+
+    function _testnetSubnetwork(address network, uint96 identifier) internal pure returns (bytes32) {
+        return bytes32(uint256(uint160(network)) << 96 | identifier);
     }
 
     function _vaultParams(DeployParams memory params, address asset, string memory name, string memory symbol)
@@ -392,6 +680,8 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         Logs.log(string.concat("mGLOBAL data feed: ", vm.toString(data.redemptions.mGlobalDataFeed)));
         Logs.log(string.concat("mFONE redemption vault: ", vm.toString(data.redemptions.mFoneRedemptionVault)));
         Logs.log(string.concat("mGLOBAL redemption vault: ", vm.toString(data.redemptions.mGlobalRedemptionVault)));
+        Logs.log(string.concat("CowSwap settlement: ", vm.toString(data.cowSwap.settlement)));
+        Logs.log(string.concat("CowSwap vault relayer: ", vm.toString(data.cowSwap.vaultRelayer)));
         Logs.log(string.concat("AccountRegistry: ", vm.toString(data.accounts.accountRegistry)));
         Logs.log(string.concat("mFONE oracle: ", vm.toString(data.accounts.mFoneOracle)));
         Logs.log(string.concat("mGLOBAL oracle: ", vm.toString(data.accounts.mGlobalOracle)));
@@ -415,6 +705,39 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         Logs.log(string.concat("aUSD LiquidLane adapter: ", vm.toString(data.liquidLane.aUsdAdapter)));
         Logs.log(string.concat("aUSD mFONE account: ", vm.toString(data.liquidLane.aUsdMFoneAccount)));
         Logs.log(string.concat("aUSD mGLOBAL account: ", vm.toString(data.liquidLane.aUsdMGlobalAccount)));
+        Logs.log(string.concat("App adapter factory: ", vm.toString(data.fullAdapters.appAdapterFactory)));
+        Logs.log(string.concat("App adapter implementation: ", vm.toString(data.fullAdapters.appAdapterImplementation)));
+        Logs.log(string.concat("Burner router factory: ", vm.toString(data.fullAdapters.burnerRouterFactory)));
+        Logs.log(string.concat("Mock swap router: ", vm.toString(data.fullAdapters.mockSwapRouter)));
+        Logs.log(string.concat("USDC burner router: ", vm.toString(data.fullAdapters.usdcBurner)));
+        Logs.log(string.concat("aUSD burner router: ", vm.toString(data.fullAdapters.aUsdBurner)));
+        Logs.log(string.concat("USDC App adapter: ", vm.toString(data.fullAdapters.usdcAppAdapter)));
+        Logs.log(string.concat("aUSD App adapter: ", vm.toString(data.fullAdapters.aUsdAppAdapter)));
+        Logs.log(string.concat("AaveV3 adapter factory: ", vm.toString(data.fullAdapters.aaveAdapterFactory)));
+        Logs.log(
+            string.concat("AaveV3 adapter implementation: ", vm.toString(data.fullAdapters.aaveAdapterImplementation))
+        );
+        Logs.log(string.concat("Mock Aave pool: ", vm.toString(data.fullAdapters.mockAavePool)));
+        Logs.log(string.concat("Mock Aave provider: ", vm.toString(data.fullAdapters.mockAaveProvider)));
+        Logs.log(string.concat("Mock Aave data provider: ", vm.toString(data.fullAdapters.mockAaveDataProvider)));
+        Logs.log(string.concat("Mock Aave USDC aToken: ", vm.toString(data.fullAdapters.mockAaveUsdcAToken)));
+        Logs.log(string.concat("Mock Aave aUSD aToken: ", vm.toString(data.fullAdapters.mockAaveAusdAToken)));
+        Logs.log(string.concat("USDC AaveV3 adapter: ", vm.toString(data.fullAdapters.usdcAaveAdapter)));
+        Logs.log(string.concat("aUSD AaveV3 adapter: ", vm.toString(data.fullAdapters.aUsdAaveAdapter)));
+        Logs.log(string.concat("MorphoVaultV2 adapter factory: ", vm.toString(data.fullAdapters.morphoAdapterFactory)));
+        Logs.log(
+            string.concat(
+                "MorphoVaultV2 adapter implementation: ", vm.toString(data.fullAdapters.morphoAdapterImplementation)
+            )
+        );
+        Logs.log(string.concat("Mock Morpho vault factory: ", vm.toString(data.fullAdapters.mockMorphoVaultFactory)));
+        Logs.log(
+            string.concat("Mock Morpho adapter registry: ", vm.toString(data.fullAdapters.mockMorphoAdapterRegistry))
+        );
+        Logs.log(string.concat("Mock Morpho USDC vault: ", vm.toString(data.fullAdapters.mockMorphoVaultUsdc)));
+        Logs.log(string.concat("Mock Morpho aUSD vault: ", vm.toString(data.fullAdapters.mockMorphoVaultAusd)));
+        Logs.log(string.concat("USDC MorphoVaultV2 adapter: ", vm.toString(data.fullAdapters.usdcMorphoAdapter)));
+        Logs.log(string.concat("aUSD MorphoVaultV2 adapter: ", vm.toString(data.fullAdapters.aUsdMorphoAdapter)));
     }
 
     function _broadcast() internal view virtual returns (bool) {
@@ -506,6 +829,102 @@ contract DeployFullCoreLiquidLaneTestnetV2Script is DeployV2BaseScript {
 
     function _core() internal view override returns (SymbioticCoreConstants.Core memory) {
         return _localCore;
+    }
+}
+
+contract TestnetCowSwapVaultRelayerMock {}
+
+contract TestnetCowSwapSettlementMock {
+    address public immutable vaultRelayer;
+    bytes32 public immutable domainSeparator = keccak256("TESTNET_COW_SWAP_DOMAIN");
+    bytes public lastOrderUid;
+    bool public lastSigned;
+
+    constructor(address vaultRelayer_) {
+        vaultRelayer = vaultRelayer_;
+    }
+
+    function setPreSignature(bytes calldata orderUid, bool signed) external {
+        lastOrderUid = orderUid;
+        lastSigned = signed;
+    }
+}
+
+contract TestnetBurnerRouterFactoryMock {
+    struct NetworkReceiver {
+        address network;
+        address receiver;
+    }
+
+    struct OperatorNetworkReceiver {
+        address network;
+        address operator;
+        address receiver;
+    }
+
+    struct InitParams {
+        address owner;
+        address collateral;
+        uint48 delay;
+        address globalReceiver;
+        NetworkReceiver[] networkReceivers;
+        OperatorNetworkReceiver[] operatorNetworkReceivers;
+    }
+
+    event AddEntity(address indexed entity);
+
+    address[] internal _entities;
+
+    function totalEntities() external view returns (uint256) {
+        return _entities.length;
+    }
+
+    function entity(uint256 index) external view returns (address) {
+        return _entities[index];
+    }
+
+    function create(InitParams calldata params) external returns (address router) {
+        router =
+            address(new TestnetBurnerRouterMock(params.owner, params.collateral, params.delay, params.globalReceiver));
+        _entities.push(router);
+
+        emit AddEntity(router);
+    }
+}
+
+contract TestnetBurnerRouterMock {
+    address public immutable owner;
+    address public immutable collateral;
+    uint48 public immutable delay;
+    address public immutable globalReceiver;
+
+    uint256 public slashCalls;
+    bytes32 public lastSubnetwork;
+    address public lastOperator;
+    uint256 public lastAmount;
+    uint48 public lastCaptureTimestamp;
+
+    constructor(address owner_, address collateral_, uint48 delay_, address globalReceiver_) {
+        owner = owner_;
+        collateral = collateral_;
+        delay = delay_;
+        globalReceiver = globalReceiver_;
+    }
+
+    function onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp) external {
+        ++slashCalls;
+        lastSubnetwork = subnetwork;
+        lastOperator = operator;
+        lastAmount = amount;
+        lastCaptureTimestamp = captureTimestamp;
+    }
+}
+
+contract TestnetSwapRouterMock {
+    mapping(address tokenIn => mapping(address tokenOut => uint256 rate)) public rates;
+
+    function setRate(address tokenIn, address tokenOut, uint256 rate) external {
+        rates[tokenIn][tokenOut] = rate;
     }
 }
 
