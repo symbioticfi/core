@@ -38,6 +38,25 @@ contract DigiFTAccount is SettlementAccount, IDigiFTAccount {
     function _createSubAccount() internal override returns (address subAccount) {
         return address(new DigiFTSubAccount(_asset, address(this), TOKEN_TO_REDEEM, SUB_RED_MANAGEMENT));
     }
+
+    /// @dev Additionally guards the legacy layout: pre-settlement-family DigiFTAccount extended
+    ///      `Account` directly, so its `subAccounts` array length lived at slot 15 — the slot the
+    ///      current layout reinterprets as `lastRequestTimestamp` (via `CooldownAccount`). This hook
+    ///      runs exactly once per upgrade on the old implementation's storage, before the new layout
+    ///      writes anything, so a nonzero slot 15 at that moment means legacy in-flight subaccounts
+    ///      (which the new layout would strand at slot 16) — refuse to migrate. Note this is
+    ///      conservative: after the first request under the current layout, slot 15 holds a nonzero
+    ///      `lastRequestTimestamp` and later migrations are blocked as well.
+    function _migrate(uint64 oldVersion, uint64 newVersion, bytes calldata data) internal override {
+        uint256 legacySubAccountsLength;
+        assembly {
+            legacySubAccountsLength := sload(15)
+        }
+        if (legacySubAccountsLength != 0) {
+            revert MigrationWithLiveSubAccounts();
+        }
+        super._migrate(oldVersion, newVersion, data);
+    }
 }
 
 /// @title DigiFTSubAccount

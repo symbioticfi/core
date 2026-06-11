@@ -919,6 +919,8 @@ Note on overrides: `CooldownAccount` declares `_finalizeRequests`/`_requestRedee
 
 ### Task 4: Rewrite `SuperstateAccount` + `SecuritizeAccount`; update USCC/ACRED token files; update tests
 
+> **AMENDED:** the committed `ACRED_Account.sol` uses `TOKEN_INITIAL_CUTOFF = 1_785_542_400` (2026-08-01 00:00:00 UTC — the day *after* the 07/31 feeder deadline, so deadline-day requests fall in the closing cohort) and `TOKEN_VALUATION_DELAY = 4 days` (pricing date relative to the 08-01 anchor; deadline-day cohort inclusion preserved). This supersedes the `INITIAL_CUTOFF = 1_785_456_000` / `VALUATION_DELAY = 5 days` values in the inline code blocks below.
+
 **Files:**
 - Rewrite: `src/contracts/adapters/ll-adapter/SuperstateAccount.sol`
 - Rewrite: `src/contracts/adapters/ll-adapter/SecuritizeAccount.sol`

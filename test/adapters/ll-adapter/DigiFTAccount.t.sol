@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import "./AccountsBase.t.sol";
 
 import {bEQTY_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/bEQTY_Account.sol";
+import {ISettlementAccount} from "../../../src/interfaces/adapters/ll-adapter/ISettlementAccount.sol";
 import {ISettlementSubAccount} from "../../../src/interfaces/adapters/ll-adapter/ISettlementSubAccount.sol";
 
 contract DigiFTAccountTest is AccountsBase {
@@ -207,6 +208,53 @@ contract DigiFTAccountTest is AccountsBase {
 
         vm.expectRevert(ISettlementSubAccount.NotAccount.selector);
         ISettlementSubAccount(subAccount).requestRedeem();
+    }
+
+    function testDigiFTMigrationGuardsLegacySubAccountsSlot() public {
+        MockERC20 tokenToRedeem = new MockERC20("DigiFT Money Market Fund Token", "DMMF01", 18);
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockPriceDataOracle oracle = new MockPriceDataOracle(1e18);
+        MockDigiFTSubRedManagement mockSubRedManagement = new MockDigiFTSubRedManagement();
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        factory.whitelist(
+            address(
+                new DigiFTAccount(
+                    address(oracle),
+                    address(factory),
+                    address(tokenToRedeem),
+                    address(mockSubRedManagement),
+                    DIGIFT_SETTLEMENT_DURATION,
+                    cowSwapSettlement
+                )
+            )
+        );
+        DigiFTAccount account =
+            DigiFTAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
+        factory.whitelist(
+            address(
+                new DigiFTAccount(
+                    address(oracle),
+                    address(factory),
+                    address(tokenToRedeem),
+                    address(mockSubRedManagement),
+                    DIGIFT_SETTLEMENT_DURATION,
+                    cowSwapSettlement
+                )
+            )
+        );
+
+        // simulate a legacy (pre-settlement-family) instance whose subAccounts array length lived at
+        // raw slot 15: a nonzero value there means in-flight legacy subaccounts -> migration refused
+        vm.store(address(account), bytes32(uint256(15)), bytes32(uint256(1)));
+        vm.expectRevert(ISettlementAccount.MigrationWithLiveSubAccounts.selector);
+        factory.migrate(address(account), 2, "");
+
+        // empty legacy pipeline (slot 15 zero) and no tracked subaccounts: migration succeeds
+        vm.store(address(account), bytes32(uint256(15)), bytes32(uint256(0)));
+        factory.migrate(address(account), 2, "");
+
+        assertEq(account.version(), 2);
     }
 
     function testBEQTYAccountHardcodesMainnetTokenAndSubRedManagement() public {

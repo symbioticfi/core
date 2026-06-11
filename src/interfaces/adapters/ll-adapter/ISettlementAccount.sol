@@ -9,6 +9,23 @@ import {ICutoffPricer} from "./ICutoffPricer.sol";
  * @notice Interface for liquidity lane accounts settling redemptions through request-holder subaccounts.
  */
 interface ISettlementAccount is ICooldownAccount, ICutoffPricer {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when migrating an account that still tracks live subaccounts.
+     */
+    error MigrationWithLiveSubAccounts();
+
+    /**
+     * @notice Raised when rescuing a subaccount that is still tracked for settlement.
+     */
+    error SubAccountTracked();
+
+    /**
+     * @notice Raised when rescuing an address never created as a subaccount of this account.
+     */
+    error UnknownSubAccount();
+
     /* EVENTS */
 
     /**
@@ -42,9 +59,23 @@ interface ISettlementAccount is ICooldownAccount, ICutoffPricer {
     function receivedValues(uint256 key) external view returns (uint256 assets);
 
     /**
+     * @notice Returns whether an address was ever created as a subaccount of this account.
+     * @param subAccount The address to check.
+     * @return created Whether the address is a subaccount created by this account.
+     */
+    function isSubAccount(address subAccount) external view returns (bool created);
+
+    /**
      * @notice Updates the cutoff schedule. Only callable by the owner.
      * @param nextCutoff The next cutoff timestamp (0 for rolling mode).
      * @param period The cutoff period (0 for rolling mode).
      */
     function setCutoffSchedule(uint48 nextCutoff, uint48 period) external;
+
+    /**
+     * @notice Sweeps a late settlement that arrived on an already-released subaccount. Permissionless:
+     *         swept funds become plain account balance, so there is nothing to grief.
+     * @param subAccount The released subaccount to sweep.
+     */
+    function rescueSubAccount(address subAccount) external;
 }

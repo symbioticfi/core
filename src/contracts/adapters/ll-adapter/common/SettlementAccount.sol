@@ -37,6 +37,8 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
     address[] public subAccounts;
     /// @inheritdoc ISettlementAccount
     mapping(uint256 key => uint256 assets) public receivedValues;
+    /// @inheritdoc ISettlementAccount
+    mapping(address subAccount => bool created) public isSubAccount;
 
     /* CONSTRUCTOR */
 
@@ -61,6 +63,21 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
     /// @inheritdoc ISettlementAccount
     function setCutoffSchedule(uint48 nextCutoff, uint48 period) public onlyOwner {
         _setCutoffSchedule(nextCutoff, period);
+    }
+
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+
+    /// @inheritdoc ISettlementAccount
+    function rescueSubAccount(address subAccount) external nonReentrant {
+        if (!isSubAccount[subAccount]) {
+            revert UnknownSubAccount();
+        }
+        for (uint256 i; i < subAccounts.length; ++i) {
+            if (subAccounts[i] == subAccount) {
+                revert SubAccountTracked();
+            }
+        }
+        ISettlementSubAccount(subAccount).sync();
     }
 
     /* INTERNAL FUNCTIONS */
@@ -140,6 +157,7 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
         uint256 amount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         address subAccount = _createSubAccount();
 
+        isSubAccount[subAccount] = true;
         subAccounts.push(subAccount);
         _registerPending(uint160(subAccount), amount);
         IERC20(TOKEN_TO_REDEEM).safeTransfer(subAccount, amount);
@@ -165,6 +183,18 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
     function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal virtual override {
         super._initialize(initialVersion, initOwner, data);
         __CutoffPricer_init();
+    }
+
+    /// @dev Blocks migration while subaccounts are still tracked: a live pipeline cannot be assumed
+    ///      ABI- or storage-compatible across implementations (legacy subaccounts had a void `sync()`,
+    ///      and legacy layouts stored the subaccount array at a different slot), so migration is only
+    ///      safe from an empty pipeline. Migrated instances must also have their cutoff schedule set via
+    ///      `setCutoffSchedule`, since `__CutoffPricer_init` only runs on fresh initialization.
+    function _migrate(uint64 oldVersion, uint64 newVersion, bytes calldata data) internal virtual override {
+        if (subAccounts.length != 0) {
+            revert MigrationWithLiveSubAccounts();
+        }
+        super._migrate(oldVersion, newVersion, data);
     }
 }
 

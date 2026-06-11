@@ -356,6 +356,93 @@ contract ProviderAccountsTest is AccountsBase {
         assertEq(account.totalAssets(), 11e6); // live value of the swept tokens only
     }
 
+    function testSettlementAccountMigrationRevertsWithLiveSubAccountsAndSucceedsWhenEmpty() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockSuperstateToken uscc = new MockSuperstateToken();
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        factory.whitelist(
+            address(
+                new SuperstateAccount(
+                    address(oracle),
+                    address(factory),
+                    TOKEN_COOLDOWN,
+                    address(uscc),
+                    SETTLEMENT_DURATION,
+                    cowSwapSettlement
+                )
+            )
+        );
+        SuperstateAccount account =
+            SuperstateAccount(factory.create(1, address(this), _initData(address(usdc), address(uscc))));
+        factory.whitelist(
+            address(
+                new SuperstateAccount(
+                    address(oracle),
+                    address(factory),
+                    TOKEN_COOLDOWN,
+                    address(uscc),
+                    SETTLEMENT_DURATION,
+                    cowSwapSettlement
+                )
+            )
+        );
+
+        // a live (in-flight) subaccount blocks migration
+        uscc.mint(address(account), 1e6);
+        account.sync();
+        address subAccount = account.subAccounts(0);
+
+        vm.expectRevert(ISettlementAccount.MigrationWithLiveSubAccounts.selector);
+        factory.migrate(address(account), 2, "");
+
+        // full settlement releases the subaccount: migration succeeds from an empty pipeline
+        account.sync(); // freezes the cohort rate at 11e18
+        usdc.mint(subAccount, 11e6);
+        account.sync();
+
+        factory.migrate(address(account), 2, "");
+
+        assertEq(account.version(), 2);
+        assertEq(account.totalAssets(), 11e6);
+    }
+
+    function testSettlementAccountRescueSweepsLateSettlementOnReleasedSubAccount() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockSuperstateToken uscc = new MockSuperstateToken();
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+        SuperstateAccount account = _deploySuperstate(uscc, usdc, oracle);
+
+        uscc.mint(address(account), 1e6);
+        account.sync();
+        address subAccount = account.subAccounts(0);
+
+        // a tracked subaccount is swept by sync, never by rescue
+        vm.expectRevert(ISettlementAccount.SubAccountTracked.selector);
+        account.rescueSubAccount(subAccount);
+
+        // an address never created as a subaccount cannot be rescued
+        vm.expectRevert(ISettlementAccount.UnknownSubAccount.selector);
+        account.rescueSubAccount(makeAddr("stranger"));
+
+        // full settlement releases the subaccount
+        account.sync(); // freezes the cohort rate at 11e18
+        usdc.mint(subAccount, 11e6);
+        account.sync();
+        vm.expectRevert();
+        account.subAccounts(0);
+
+        // a late settlement lands on the released subaccount: permissionless rescue sweeps it
+        usdc.mint(subAccount, 5e5);
+        vm.prank(makeAddr("rescuer"));
+        account.rescueSubAccount(subAccount);
+
+        assertEq(usdc.balanceOf(subAccount), 0);
+        assertEq(usdc.balanceOf(address(account)), 11e6 + 5e5);
+        assertEq(account.totalAssets(), 11e6 + 5e5);
+    }
+
     function testSecuritizeFreezesCohortRateAfterPricingDate() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockERC20 acred = new MockERC20("Apollo Diversified Credit Securitize Fund", "ACRED", 6);
