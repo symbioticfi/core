@@ -22,7 +22,11 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 ///      settlements and post-write-off late settlements stay sweepable. Write-off only zeroes valuation,
 ///      not the stored frozen value, so written-off frozen subaccounts still release on full coverage;
 ///      never-frozen written-off subaccounts have no frozen rate to define coverage and stay tracked
-///      indefinitely (valued at zero, swept each sync), keeping any late settlement recoverable.
+///      indefinitely (valued at zero, swept each sync), keeping any late settlement recoverable. A
+///      frozen subaccount whose cumulative receipts stay below the frozen cohort value (e.g. settlement
+///      NAV slightly under the frozen print) is likewise retained indefinitely; anyone can top up the
+///      shortfall by transferring assets to the subaccount, which triggers release (the top-up itself
+///      sweeps to the vault).
 abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlementAccount {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -93,6 +97,8 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
     ///      that any dust donation would otherwise satisfy, stranding late real settlements). Write-off
     ///      keeps the stored frozen value, so written-off frozen entries still release on full coverage,
     ///      while never-frozen written-off entries stay tracked (valued at zero, swept each sync).
+    ///      Coverage is only evaluated for frozen entries, so sweeping a subaccount's asset settlement
+    ///      never depends on the live oracle.
     function _finalizeRequests() internal override {
         for (uint256 i = subAccounts.length; i > 0; --i) {
             uint256 index = i - 1;
@@ -111,14 +117,20 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
             }
             if (sweptValue > 0) {
                 receivedValues[key] += sweptValue;
+
+                emit SweepSubAccount(subAccount, sweptAssets, sweptTokenAmount);
             }
 
-            (uint256 value,) = _cohortValue(key);
-            if (receivedValues[key] >= value && _isFrozen(key)) {
-                _clearPending(key);
-                delete receivedValues[key];
-                subAccounts[index] = subAccounts[subAccounts.length - 1];
-                subAccounts.pop();
+            if (_isFrozen(key)) {
+                (uint256 value,) = _cohortValue(key);
+                if (receivedValues[key] >= value) {
+                    _clearPending(key);
+                    delete receivedValues[key];
+                    subAccounts[index] = subAccounts[subAccounts.length - 1];
+                    subAccounts.pop();
+
+                    emit ReleaseSubAccount(subAccount);
+                }
             }
         }
     }

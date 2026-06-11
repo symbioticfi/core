@@ -153,6 +153,9 @@ Cohort boundary uses the start-of-day (UTC) of the deadline date — mis-assigni
 2. **mGLOBAL 7% refund leg**: refunded out-of-band "at the next monthly price update" — confirm destination address; it is not counted until received.
 3. mGLOBAL cutoff day (26th) is unpublished — treat as ops parameter, monitor first real cohort.
 4. Retired/paused Midas tokens (mFARM, mBTC, msyrupUSD, mevBTC) — keep or remove their accounts (out of scope here).
+5. **Monitoring**: alert if settlement assets arrive on the *parent* account without a matching subaccount credit — a config-drift direct-pay would double-count the unfilled portion (parent holdings plus the still-open receivable) until write-off and leave a permanently retained subaccount.
+6. **Compliance runbook**: sub-account addresses are deterministic (CREATE from the account's nonce, which only advances on success) — precompute and pre-whitelist the next sub address with Securitize/Superstate before each tender window. A blocked notice transfer reverts sync atomically (tokens stay on the parent, valuation unaffected) but also blocks convert/doSwap for that token until whitelisting completes.
+7. **Superstate**: the real `offchainRedeem` enforces allowlist, pausability, and minimum amounts (the mock idealizes these); below-minimum redemptions risk burned-without-settlement — cooldown batching mitigates; confirm minimums with Superstate ops.
 
 ## 8. Future-proofing (proposal only, not implemented now)
 

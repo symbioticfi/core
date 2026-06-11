@@ -9,6 +9,22 @@ import {ICutoffPricer} from "./ICutoffPricer.sol";
  * @notice Interface for liquidity lane accounts settling redemptions through request-holder subaccounts.
  */
 interface ISettlementAccount is ICooldownAccount, ICutoffPricer {
+    /* EVENTS */
+
+    /**
+     * @notice Emitted when a subaccount sweep credits settlement value.
+     * @param subAccount The swept subaccount.
+     * @param assets The vault-asset amount swept.
+     * @param tokenAmount The token-to-redeem amount swept.
+     */
+    event SweepSubAccount(address indexed subAccount, uint256 assets, uint256 tokenAmount);
+
+    /**
+     * @notice Emitted when a value-covered subaccount is released.
+     * @param subAccount The released subaccount.
+     */
+    event ReleaseSubAccount(address indexed subAccount);
+
     /* FUNCTIONS */
 
     /**

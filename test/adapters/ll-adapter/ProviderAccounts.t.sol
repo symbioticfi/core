@@ -8,6 +8,7 @@ import {ParetoAccount} from "../../../src/contracts/adapters/ll-adapter/ParetoAc
 import {SecuritizeAccount} from "../../../src/contracts/adapters/ll-adapter/SecuritizeAccount.sol";
 import {SuperstateAccount} from "../../../src/contracts/adapters/ll-adapter/SuperstateAccount.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
+import {ISettlementAccount} from "../../../src/interfaces/adapters/ll-adapter/ISettlementAccount.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -203,6 +204,32 @@ contract ProviderAccountsTest is AccountsBase {
         account.subAccounts(0);
     }
 
+    function testSuperstateSweepAndReleaseEmitEvents() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockSuperstateToken uscc = new MockSuperstateToken();
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+        SuperstateAccount account = _deploySuperstate(uscc, usdc, oracle);
+
+        uscc.mint(address(account), 1e6);
+        account.sync();
+        address subAccount = account.subAccounts(0);
+        account.sync(); // freezes the cohort rate at 11e18 (cohort value 11e6)
+
+        // partial tranche: the sweep is credited, no release
+        usdc.mint(subAccount, 6_600_000);
+        vm.expectEmit(true, true, true, true, address(account));
+        emit ISettlementAccount.SweepSubAccount(subAccount, 6_600_000, 0);
+        account.sync();
+
+        // closing tranche: the sweep is credited and the value-covered subaccount is released
+        usdc.mint(subAccount, 4_400_000);
+        vm.expectEmit(true, true, true, true, address(account));
+        emit ISettlementAccount.SweepSubAccount(subAccount, 4_400_000, 0);
+        vm.expectEmit(true, true, true, true, address(account));
+        emit ISettlementAccount.ReleaseSubAccount(subAccount);
+        account.sync();
+    }
+
     function testSecuritizeTransfersNoticeToRedemptionWallet() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockERC20 acred = new MockERC20("Apollo Diversified Credit Securitize Fund", "ACRED", 6);
@@ -257,6 +284,76 @@ contract ProviderAccountsTest is AccountsBase {
         assertEq(acred.balanceOf(address(account)), 0);
         assertEq(acred.balanceOf(redemptionWallet), 1_650_000);
         assertEq(account.totalAssets(), 11e6);
+    }
+
+    function testSecuritizeRemintBelowFrozenRateRetainsSubAccount() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 acred = new MockERC20("Apollo Diversified Credit Securitize Fund", "ACRED", 6);
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+        SecuritizeAccount account = _deploySecuritize(acred, usdc, oracle);
+        address keeper = makeAddr("keeper");
+
+        acred.mint(address(account), 1e6);
+        account.sync();
+        address subAccount = account.subAccounts(0);
+        account.sync(); // freezes the cohort rate at 11e18 (cohort value 11e6)
+
+        // settlement: 35% repurchased in USDC, 65% re-minted, with the live rate now 10% below frozen
+        oracle.setPriceData(9.9e18, uint48(vm.getBlockTimestamp()));
+        usdc.mint(subAccount, 3_850_000);
+        acred.mint(subAccount, 650_000);
+
+        vm.prank(keeper);
+        account.sync();
+
+        // credited at the live rate: 3_850_000 + 650_000 * 9.9 = 10_285_000 < 11e6 -> retained
+        assertEq(account.subAccounts(0), subAccount);
+        assertEq(account.receivedValues(uint160(subAccount)), 10_285_000);
+        assertEq(usdc.balanceOf(address(account)), 3_850_000);
+        assertEq(acred.balanceOf(address(account)), 650_000);
+        // holdings (3_850_000 USDC + 650_000 ACRED live = 6_435_000) + remaining receivable 715_000
+        assertEq(account.totalAssets(), 11e6);
+
+        // anyone topping up the shortfall to the subaccount triggers release on the next sync
+        usdc.mint(subAccount, 715_000);
+        vm.prank(keeper);
+        account.sync();
+
+        assertEq(usdc.balanceOf(address(account)), 4_565_000);
+        assertEq(account.totalAssets(), 11e6);
+        vm.expectRevert();
+        account.subAccounts(0);
+    }
+
+    function testSecuritizeRemintAfterWriteOffIsSweptAndRetained() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 acred = new MockERC20("Apollo Diversified Credit Securitize Fund", "ACRED", 6);
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+        // settlement duration below the cooldown so the post-write-off sweep does not re-tender
+        SecuritizeAccount account = _deploySecuritize(acred, usdc, oracle, 0, 0, 0, 12 hours);
+        address keeper = makeAddr("keeper");
+
+        // register after the oracle's last print so the cohort rate can never freeze
+        vm.warp(vm.getBlockTimestamp() + 1);
+        acred.mint(address(account), 1e6);
+        account.sync();
+        address subAccount = account.subAccounts(0);
+
+        // oracle never prints at/after the pricing date: written off without ever freezing
+        vm.warp(vm.getBlockTimestamp() + 12 hours);
+        assertEq(account.totalAssets(), 0);
+
+        // the full notice is re-minted to the subaccount after the write-off
+        acred.mint(subAccount, 1e6);
+        vm.prank(keeper);
+        account.sync();
+
+        // tokens swept to the parent as live inventory; a never-frozen entry is never released
+        assertEq(acred.balanceOf(address(account)), 1e6);
+        assertEq(acred.balanceOf(subAccount), 0);
+        assertEq(account.subAccounts(0), subAccount);
+        assertEq(account.receivedValues(uint160(subAccount)), 11e6);
+        assertEq(account.totalAssets(), 11e6); // live value of the swept tokens only
     }
 
     function testSecuritizeFreezesCohortRateAfterPricingDate() public {
