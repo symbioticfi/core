@@ -9,6 +9,7 @@ import {IMakinaMachine} from "../../../interfaces/adapters/ll-adapter/makina/IMa
 import {IMakinaRedeemer} from "../../../interfaces/adapters/ll-adapter/makina/IMakinaRedeemer.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title MakinaAccount
@@ -42,6 +43,13 @@ contract MakinaAccount is CooldownAccount, IMakinaAccount {
     ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
         REDEEMER = redeemer;
         _accountingToken = IMakinaMachine(IMakinaRedeemer(redeemer).machine()).accountingToken();
+    }
+
+    /* PUBLIC FUNCTIONS */
+
+    /// @inheritdoc IMakinaAccount
+    function onERC721Received(address, address, uint256, bytes calldata) public pure returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     /* INTERNAL FUNCTIONS */

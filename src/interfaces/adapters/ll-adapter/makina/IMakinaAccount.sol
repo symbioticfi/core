@@ -29,4 +29,10 @@ interface IMakinaAccount is ICooldownAccount {
      * @return requestId The redemption receipt id.
      */
     function requestIds(uint256 index) external view returns (uint64 requestId);
+
+    /**
+     * @notice Accepts Makina redemption receipt NFTs.
+     * @return selector The ERC721 receiver selector.
+     */
+    function onERC721Received(address, address, uint256, bytes calldata) external returns (bytes4 selector);
 }

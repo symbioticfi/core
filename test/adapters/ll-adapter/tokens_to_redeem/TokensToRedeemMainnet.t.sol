@@ -50,7 +50,6 @@ import {sUSN_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens
 import {sUSD3_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSD3_Account.sol";
 import {sthUSD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sthUSD_Account.sol";
 import {USCC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USCC_Account.sol";
-import {USD3_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USD3_Account.sol";
 import {weETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {AsyncRedeemOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/AsyncRedeemOracle.sol";
@@ -69,6 +68,8 @@ import {
     IEtherFiWithdrawRequestNFT
 } from "../../../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiWithdrawRequestNFT.sol";
 import {IWeETH} from "../../../../src/interfaces/adapters/ll-adapter/etherfi/IWeETH.sol";
+import {IFigureAccount} from "../../../../src/interfaces/adapters/ll-adapter/figure/IFigureAccount.sol";
+import {IFigureYieldVault} from "../../../../src/interfaces/adapters/ll-adapter/figure/IFigureYieldVault.sol";
 import {IGaibAccount} from "../../../../src/interfaces/adapters/ll-adapter/gaib/IGaibAccount.sol";
 import {ISaid} from "../../../../src/interfaces/adapters/ll-adapter/gaib/ISaid.sol";
 import {ILidoAccount} from "../../../../src/interfaces/adapters/ll-adapter/lido/ILidoAccount.sol";
@@ -156,7 +157,6 @@ contract TokensToRedeemMainnetTest is Test {
     address internal constant SUSD3 = 0xf689555121e529Ff0463e191F9Bd9d1E496164a7;
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant USCC = 0x14d60E7FDC0D71d8611742720E4C50E7a974020c;
-    address internal constant USD3 = 0x056B269Eb1f75477a8666ae8C7fE01b64dD55eCc;
     address internal constant WEETH = 0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee;
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address internal constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
@@ -243,7 +243,7 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _tokenSpecs() internal pure returns (TokenSpec[] memory specs) {
-        specs = new TokenSpec[](42);
+        specs = new TokenSpec[](41);
         specs[0] = TokenSpec("ACRDX", ACRDX);
         specs[1] = TokenSpec("CarryTradeUSDTRYLeverage", CARRY_TRADE_USD_TRY_LEVERAGE);
         specs[2] = TokenSpec("DUSD", DUSD);
@@ -285,7 +285,6 @@ contract TokensToRedeemMainnetTest is Test {
         specs[38] = TokenSpec("ACRED", ACRED);
         specs[39] = TokenSpec("sUSN", S_USN);
         specs[40] = TokenSpec("USCC", USCC);
-        specs[41] = TokenSpec("USD3", USD3);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
@@ -364,7 +363,7 @@ contract TokensToRedeemMainnetTest is Test {
         if (index == 38) return new ACRED_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 39) return new sUSN_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 40) return new USCC_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
-        return new USD3_Account(factory, COW_SWAP_SETTLEMENT);
+        revert();
     }
 
     function _assetFor(uint256 index, address token) internal view returns (address) {
@@ -397,7 +396,7 @@ contract TokensToRedeemMainnetTest is Test {
     function _isKnownMainnetSyncRestricted(uint256 index) internal pure returns (bool) {
         return _isCentrifuge(index) || index == 2 || index == 5 || index == 7 || index == 12 || index == 13
             || index == 16 || index == 17 || index == 18 || index == 20 || index == 21 || index == 25 || index == 27
-            || index == 29 || index == 30 || index == 37 || index == 38 || index == 39 || index == 40 || index == 41;
+            || index == 29 || index == 30 || index == 37 || index == 38 || index == 39 || index == 40;
     }
 
     function _assertKnownMainnetSyncRestriction(
@@ -507,13 +506,6 @@ contract TokensToRedeemMainnetTest is Test {
             vm.expectCall(token, abi.encodeWithSelector(ISuperstateToken.offchainRedeem.selector));
             return;
         }
-        if (index == 41) {
-            vm.expectCall(
-                token, abi.encodeWithSelector(IERC4626.redeem.selector, amount, address(account), address(account))
-            );
-            return;
-        }
-
         vm.expectCall(
             ILidoAccount(payable(address(account))).WITHDRAWAL_QUEUE(),
             abi.encodeWithSelector(ILidoWithdrawalQueue.requestWithdrawalsWstETH.selector)
@@ -609,11 +601,6 @@ contract TokensToRedeemMainnetTest is Test {
             _assertSuperstateRedemption(account, symbol);
             return;
         }
-        if (index == 41) {
-            _assertERC4626Redemption(account, asset, symbol);
-            return;
-        }
-
         _assertLidoRedemption(account, symbol);
     }
 
@@ -647,9 +634,9 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _assertFigureRedemption(IAccount account, address token, string memory symbol) internal view {
-        address asyncRedeemVault = IERC4626(token).asset();
-        uint256 requestId = IAsyncRedeemAccount(address(account)).requestIds(0);
-        assertGt(IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestId, address(account)), 0, symbol);
+        (uint256 shares,,) = IFigureYieldVault(IERC4626(token).asset()).pendingRedemptions(address(account));
+        assertGt(shares, 0, symbol);
+        assertGt(IFigureAccount(address(account)).pendingAssets(), 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
 
@@ -730,11 +717,6 @@ contract TokensToRedeemMainnetTest is Test {
         address subAccount = ISuperstateAccount(address(account)).subAccounts(0);
         assertGt(subAccount.code.length, 0, symbol);
         assertGt(ISuperstateSubAccount(subAccount).totalAssets(), 0, symbol);
-        assertGt(account.totalAssets(), 0, symbol);
-    }
-
-    function _assertERC4626Redemption(IAccount account, address asset, string memory symbol) internal view {
-        assertGt(IERC20(asset).balanceOf(address(account)), 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
 

@@ -34,7 +34,7 @@ contract FigureAccountTest is AccountsBase {
         assertEq(wylds.balanceOf(address(wylds)), 125e6);
         assertEq(account.totalAssets(), 125e6);
 
-        wylds.fulfill(0, address(account), 125e6);
+        wylds.completeFigureRedeem(address(account));
         account.sync();
 
         assertEq(asset.balanceOf(address(account)), 125e6);

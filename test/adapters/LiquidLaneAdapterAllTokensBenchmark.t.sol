@@ -51,7 +51,6 @@ import {sUSN_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-re
 import {sUSD3_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSD3_Account.sol";
 import {sthUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sthUSD_Account.sol";
 import {USCC_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USCC_Account.sol";
-import {USD3_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USD3_Account.sol";
 import {weETH_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {MigratablesFactory} from "../../src/contracts/common/MigratablesFactory.sol";
@@ -59,7 +58,23 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
 import {ILiquidLaneAdapter, MAX_TOKENS_TO_REDEEM} from "../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IAccount} from "../../src/interfaces/adapters/ll-adapter/IAccount.sol";
+import {IAsyncRedeemAccount} from "../../src/interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
+import {IDigiFTAccount} from "../../src/interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol";
+import {IEtherFiAccount} from "../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
+import {IFigureAccount} from "../../src/interfaces/adapters/ll-adapter/figure/IFigureAccount.sol";
+import {IGaibAccount} from "../../src/interfaces/adapters/ll-adapter/gaib/IGaibAccount.sol";
+import {ILidoAccount} from "../../src/interfaces/adapters/ll-adapter/lido/ILidoAccount.sol";
+import {IMakinaAccount} from "../../src/interfaces/adapters/ll-adapter/makina/IMakinaAccount.sol";
+import {IMidasAccount} from "../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
+import {IMidasRedemptionVault} from "../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
+import {INoonAccount} from "../../src/interfaces/adapters/ll-adapter/noon/INoonAccount.sol";
+import {IParetoAccount} from "../../src/interfaces/adapters/ll-adapter/pareto/IParetoAccount.sol";
+import {ISecuritizeAccount} from "../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeAccount.sol";
+import {ISuperstateAccount} from "../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol";
+import {ISthUSD} from "../../src/interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
+import {IThreeJaneSUSD3} from "../../src/interfaces/adapters/ll-adapter/threejane/IThreeJaneSUSD3.sol";
 import {IUniversalDelegator, MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IMakinaRedeemer} from "../../src/interfaces/adapters/ll-adapter/makina/IMakinaRedeemer.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -80,6 +95,14 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     address internal constant STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
     address internal constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
     address internal constant LIDO_WITHDRAWAL_QUEUE = 0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1;
+    address internal constant ETHERFI_LIQUIDITY_POOL = 0x308861A430be4cce5502d0A12724771Fc6DaF216;
+    address internal constant ETHERFI_REDEMPTION_MANAGER = 0xE3F384Dc7002547Dd240AC1Ad69a430CCE1e292d;
+    address internal constant ETHERFI_WITHDRAW_REQUEST_NFT = 0x7d5706f6ef3F89B3951E23e557CDFBC3239D4E2c;
+    address internal constant CENTRIFUGE_HOOK_WARD_1 = 0x7Ed48C31f2fdC40d37407cBaBf0870B2b688368f;
+    address internal constant CENTRIFUGE_HOOK_WARD_2 = 0xEC3582fcDc34078a4B7a8c75a5a3AE46f48525aB;
+    address internal constant MIDAS_ACCESS_CONTROL_ADMIN = 0xd4195CF4df289a4748C1A7B6dDBE770e27bA1227;
+    address internal constant MIDAS_GREENLIST_ADMIN = 0xb5CcD8dC8082467849eE008d4242f7b3b569EF05;
+    uint256 internal constant SUPERSTATE_BENCHMARK_ENTITY_ID = 2_026_061_101;
 
     address internal curator = makeAddr("curator");
     address internal pauser = makeAddr("pauser");
@@ -119,7 +142,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     function testCalculatesAllTokenCooldownsAndRequestCounts() public pure {
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
 
-        assertEq(specs.length, 42);
+        assertEq(specs.length, 41);
         assertLe(specs.length, MAX_TOKENS_TO_REDEEM);
 
         uint256 totalMaxAverageRequests;
@@ -173,13 +196,40 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
 
         assertEq(benches.length, specs.length);
         for (uint256 i; i < benches.length; ++i) {
+            uint256 targetRequests = _seedTarget(i, specs[i]);
             assertGt(benches[i].totalAssetsGas, 0, specs[i].symbol);
             assertGt(benches[i].syncGas, 0, specs[i].symbol);
-            assertLe(benches[i].seededRequests, specs[i].maxAverageRequests, specs[i].symbol);
+            assertEq(benches[i].seededRequests, targetRequests, specs[i].symbol);
         }
 
         assertGt(aggregateBench.adapterTotalAssetsGas, 0);
         assertGt(aggregateBench.delegatorTotalAssetsGas, 0);
+    }
+
+    function testSeedsMaxRealRequestsForEachAccount() public {
+        string memory rpcUrl = vm.envOr("ETH_RPC_URL", string(""));
+        _skipWithoutRpc(rpcUrl, "ETH_RPC_URL is required for exact max-request seeding benchmark");
+
+        vm.pauseGasMetering();
+        vm.createSelectFork(rpcUrl);
+        _setUpAdapter();
+
+        TokenBenchSpec[] memory specs = _tokenBenchSpecs();
+        address[] memory tokens = _registerTokenFactories(specs);
+
+        _onboardTokens(tokens);
+
+        for (uint256 i; i < specs.length; ++i) {
+            address account = adapter.accounts(tokens[i]);
+            uint256 seededRequests = _seedRequests(i, specs[i], tokens[i], account);
+            uint256 targetRequests = _seedTarget(i, specs[i]);
+
+            emit log_named_string("token", specs[i].symbol);
+            emit log_named_uint("target requests", targetRequests);
+            emit log_named_uint("seeded requests", seededRequests);
+
+            assertEq(seededRequests, targetRequests, specs[i].symbol);
+        }
     }
 
     function _setUpAdapter() internal {
@@ -291,20 +341,28 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             address account = adapter.accounts(tokens[i]);
             assertGt(account.code.length, 0, specs[i].symbol);
 
-            uint256 seededRequests = _seedRequests(specs[i], tokens[i], account);
+            uint256 seededRequests = _seedRequests(i, specs[i], tokens[i], account);
 
-            vm.resumeGasMetering();
-            uint256 gasBefore = gasleft();
-            (bool totalAssetsSuccess, bytes memory totalAssetsData) =
-                account.staticcall(abi.encodeWithSelector(IAccount.totalAssets.selector));
-            uint256 totalAssetsGas = gasBefore - gasleft();
+            uint256 totalAssetsGas;
+            uint256 syncGas;
+            uint256 assets;
+            bool syncSuccess;
+            bool totalAssetsSuccess;
 
-            gasBefore = gasleft();
-            (bool syncSuccess,) = account.call(abi.encodeWithSelector(IAccount.sync.selector));
-            uint256 syncGas = gasBefore - gasleft();
-            vm.pauseGasMetering();
+            {
+                vm.resumeGasMetering();
+                uint256 gasBefore = gasleft();
+                (bool success, bytes memory data) =
+                    account.staticcall(abi.encodeWithSelector(IAccount.totalAssets.selector));
+                totalAssetsGas = gasBefore - gasleft();
+                totalAssetsSuccess = success;
+                assets = success ? abi.decode(data, (uint256)) : 0;
 
-            uint256 assets = totalAssetsSuccess ? abi.decode(totalAssetsData, (uint256)) : 0;
+                gasBefore = gasleft();
+                (syncSuccess,) = account.call(abi.encodeWithSelector(IAccount.sync.selector));
+                syncGas = gasBefore - gasleft();
+                vm.pauseGasMetering();
+            }
 
             benches[i] = AccountGasBench({
                 totalAssetsGas: totalAssetsGas,
@@ -318,7 +376,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
 
             emit log_named_string("token", specs[i].symbol);
             emit log_named_address("account", account);
-            emit log_named_uint("target requests", specs[i].maxAverageRequests);
+            emit log_named_uint("target requests", _seedTarget(i, specs[i]));
             emit log_named_uint("seeded requests", seededRequests);
             emit log_named_uint("totalAssets", assets);
             emit log_named_uint("totalAssets success", totalAssetsSuccess ? 1 : 0);
@@ -358,30 +416,496 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         emit log_named_uint("delegator totalAssets gas", delegatorTotalAssetsGas);
     }
 
-    function _seedRequests(TokenBenchSpec memory spec, address token, address account)
+    function _seedRequests(uint256 index, TokenBenchSpec memory spec, address token, address account)
         internal
         returns (uint256 seeded)
     {
-        for (uint256 i; i < spec.maxAverageRequests; ++i) {
-            deal(token, account, _requestAmount(token));
+        uint256 targetRequests = _seedTarget(index, spec);
+        uint256 requestsBefore = _requestUnits(index, token, account);
+        for (uint256 i; seeded < targetRequests && i < targetRequests; ++i) {
+            _fundRequest(index, token, account);
 
             vm.prank(curator);
-            (bool success,) = account.call(abi.encodeWithSelector(IAccount.sync.selector));
+            (bool success, bytes memory reason) = account.call(abi.encodeWithSelector(IAccount.sync.selector));
             if (!success) {
+                emit log_named_bytes("sync revert", reason);
+                emit log_named_uint("token balance", IERC20(token).balanceOf(account));
                 deal(token, account, 0);
                 return seeded;
             }
 
-            ++seeded;
+            uint256 requestsAfter = _requestUnits(index, token, account);
+            if (requestsAfter <= requestsBefore) {
+                return seeded;
+            }
+
+            seeded += requestsAfter - requestsBefore;
+            requestsBefore = requestsAfter;
         }
     }
 
-    function _requestAmount(address token) internal view returns (uint256) {
-        return 10 ** IERC20Metadata(token).decimals();
+    function _seedTarget(uint256 index, TokenBenchSpec memory spec) internal pure returns (uint256) {
+        if (index == 33 || index == 34 || index == 37) {
+            return 1;
+        }
+        return spec.maxAverageRequests;
+    }
+
+    function _fundRequest(uint256 index, address token, address account) internal {
+        uint256 amount = _requestAmount(index, token);
+        if (_isCentrifuge(index)) {
+            _permissionCentrifugeMember(token, account);
+            _dealCentrifugeShare(token, account, amount);
+            return;
+        }
+        if (_isMidas(index)) {
+            _configureMidasRequestPath(index, token, account);
+        }
+        if (index == 2) {
+            _whitelistMakinaRedeemer(account);
+        }
+        if (index == 7) {
+            _permissionDigiFTTransfer(token, account);
+        }
+        if (index == 37) {
+            _configureParetoRequestPath(account);
+        }
+        if (index == 38) {
+            _fundSecuritizeRequest(token, account, amount);
+            return;
+        }
+        if (index == 40) {
+            _fundSuperstateRequest(token, account, amount);
+            return;
+        }
+        if (index != 35 && index != 36 && _tryMintERC4626Shares(token, account, amount)) {
+            return;
+        }
+
+        deal(token, account, amount);
+    }
+
+    function _whitelistMakinaRedeemer(address account) internal {
+        address redeemer = IMakinaAccount(account).REDEEMER();
+        if (!IMakinaWhitelist(redeemer).isWhitelistEnabled() || IMakinaWhitelist(redeemer).isWhitelistedUser(account)) {
+            return;
+        }
+
+        address[] memory users = new address[](1);
+        users[0] = account;
+        vm.prank(IMakinaMachineGovernance(IMakinaRedeemer(redeemer).machine()).riskManager());
+        IMakinaWhitelist(redeemer).setWhitelistedUsers(users, true);
+    }
+
+    function _dealCentrifugeShare(address token, address account, uint256 amount) internal {
+        vm.record();
+        IERC20(token).balanceOf(account);
+        (bytes32[] memory reads,) = vm.accesses(token);
+
+        bytes32 balanceSlot = reads[0];
+        bytes32 packedBalance = vm.load(token, balanceSlot);
+        vm.store(token, balanceSlot, bytes32((uint256(packedBalance) & ~uint256(type(uint128).max)) | amount));
+    }
+
+    function _permissionCentrifugeMember(address token, address account) internal {
+        address hook = ICentrifugeShareToken(token).hook();
+        bytes memory callData =
+            abi.encodeWithSelector(ICentrifugeTransferHook.updateMember.selector, token, account, type(uint64).max);
+
+        vm.prank(CENTRIFUGE_HOOK_WARD_1);
+        (bool success, bytes memory reason) = hook.call(callData);
+        if (success) {
+            return;
+        }
+
+        vm.prank(CENTRIFUGE_HOOK_WARD_2);
+        (success, reason) = hook.call(callData);
+        if (!success) {
+            emit log_named_bytes("centrifuge permission revert", reason);
+        }
+    }
+
+    function _configureMidasRequestPath(uint256 index, address token, address account) internal {
+        address asset = _assetFor(index, token);
+        address redemptionVault = IMidasAccount(account).REDEMPTION_VAULT();
+        address accessControl = IMidasVaultAdmin(redemptionVault).accessControl();
+
+        if (IMidasVaultAdmin(redemptionVault).greenlistEnabled()) {
+            bytes32 greenlistedRole = IMidasVaultAdmin(redemptionVault).greenlistedRole();
+            _grantMidasRole(accessControl, greenlistedRole, account);
+        }
+
+        bytes32 pauseAdminRole = IMidasVaultAdmin(redemptionVault).pauseAdminRole();
+        if (IMidasVaultAdmin(redemptionVault).paused()) {
+            _grantMidasRole(accessControl, pauseAdminRole, curator);
+
+            vm.prank(curator);
+            IMidasVaultAdmin(redemptionVault).unpause();
+        }
+
+        bytes4 redeemRequestSelector = IMidasRedemptionVault.redeemRequest.selector;
+        if (IMidasVaultAdmin(redemptionVault).fnPaused(redeemRequestSelector)) {
+            _grantMidasRole(accessControl, pauseAdminRole, curator);
+
+            vm.prank(curator);
+            IMidasVaultAdmin(redemptionVault).unpauseFn(redeemRequestSelector);
+        }
+
+        address mTokenDataFeed = IMidasVaultAdmin(redemptionVault).mTokenDataFeed();
+        _stabilizeMidasDataFeed(mTokenDataFeed);
+
+        (address dataFeed, uint256 fee, uint256 allowance, bool stable) =
+            IMidasRedemptionVault(redemptionVault).tokensConfig(asset);
+        if (dataFeed > address(0)) {
+            if (stable && dataFeed != mTokenDataFeed) {
+                bytes32 vaultRole = IMidasVaultAdmin(redemptionVault).vaultRole();
+                _grantMidasRole(accessControl, vaultRole, curator);
+
+                vm.startPrank(curator, curator);
+                IMidasVaultAdmin(redemptionVault).removePaymentToken(asset);
+                IMidasVaultAdmin(redemptionVault).addPaymentToken(asset, mTokenDataFeed, fee, allowance, stable);
+                vm.stopPrank();
+
+                dataFeed = mTokenDataFeed;
+            }
+
+            _stabilizeMidasDataFeed(dataFeed);
+            return;
+        }
+
+        bytes32 vaultRole = IMidasVaultAdmin(redemptionVault).vaultRole();
+        _grantMidasRole(accessControl, vaultRole, curator);
+
+        vm.startPrank(curator, curator);
+        IMidasVaultAdmin(redemptionVault).addPaymentToken(asset, mTokenDataFeed, 0, type(uint256).max, true);
+        vm.stopPrank();
+    }
+
+    function _stabilizeMidasDataFeed(address dataFeed) internal {
+        (bool success,) = dataFeed.staticcall(abi.encodeWithSelector(IMidasDataFeed.getDataInBase18.selector));
+        if (success) {
+            return;
+        }
+
+        (,,, uint256 updatedAt,) = IChainlinkAggregatorV3(IMidasDataFeed(dataFeed).aggregator()).latestRoundData();
+        vm.warp(updatedAt + IMidasDataFeed(dataFeed).healthyDiff() / 2);
+    }
+
+    function _grantMidasRole(address accessControl, bytes32 role, address account) internal {
+        if (IMidasAccessControl(accessControl).hasRole(role, account)) {
+            return;
+        }
+
+        bytes32 adminRole = IMidasAccessControl(accessControl).getRoleAdmin(role);
+        address admin = MIDAS_ACCESS_CONTROL_ADMIN;
+        if (!IMidasAccessControl(accessControl).hasRole(adminRole, admin)) {
+            admin = MIDAS_GREENLIST_ADMIN;
+        }
+        assertTrue(IMidasAccessControl(accessControl).hasRole(adminRole, admin));
+
+        vm.prank(admin);
+        IMidasAccessControl(accessControl).grantRole(role, account);
+    }
+
+    function _permissionDigiFTTransfer(address token, address account) internal {
+        address management = IDigiFTSecurityToken(token).management();
+        address subAccount = vm.computeCreateAddress(account, vm.getNonce(account));
+
+        _storeObservedBool(
+            management, abi.encodeWithSelector(IDigiFTManagement.isWhiteContract.selector, account), true
+        );
+        _storeObservedBool(
+            management, abi.encodeWithSelector(IDigiFTManagement.isWhiteInvestor.selector, subAccount), true
+        );
+    }
+
+    function _storeObservedBool(address target, bytes memory callData, bool value) internal {
+        vm.record();
+        (bool success,) = target.staticcall(callData);
+        assertTrue(success);
+        (bytes32[] memory reads,) = vm.accesses(target);
+
+        assertGt(reads.length, 0);
+        vm.store(target, reads[reads.length - 1], bytes32(uint256(value ? 1 : 0)));
+    }
+
+    function _configureParetoRequestPath(address account) internal {
+        address idleCdo = IParetoAccount(account).IDLE_CDO();
+        address owner = IOwnable(idleCdo).owner();
+
+        vm.prank(owner);
+        IParetoEpochVault(idleCdo).restoreOperations();
+
+        if (!IParetoEpochVault(idleCdo).isWalletAllowed(account)) {
+            vm.prank(owner);
+            IParetoEpochVault(idleCdo).setKeyringParams(address(0), 0, true);
+        }
+    }
+
+    function _fundSecuritizeRequest(address token, address account, uint256 amount) internal {
+        address registry = IDSServiceConsumer(token).getDSService(4);
+        address trustService = IDSServiceConsumer(token).getDSService(1);
+        address owner = IOwnable(registry).owner();
+        address nextSubAccount = vm.computeCreateAddress(account, vm.getNonce(account));
+        string memory investorId = "liquid-lane-benchmark";
+
+        if (!IDSRegistryService(registry).isInvestor(investorId)) {
+            vm.prank(owner);
+            IDSRegistryService(registry).registerInvestor(investorId, "");
+        }
+
+        _registerSecuritizeWallet(registry, owner, account, investorId);
+        _registerSecuritizeWallet(registry, owner, nextSubAccount, investorId);
+
+        vm.prank(owner);
+        IDSTrustService(trustService).setRole(nextSubAccount, 8);
+
+        vm.prank(owner);
+        IDSecuritizeToken(token).issueTokens(account, amount);
+    }
+
+    function _registerSecuritizeWallet(address registry, address owner, address wallet, string memory investorId)
+        internal
+    {
+        if (IDSRegistryService(registry).isWallet(wallet)) {
+            return;
+        }
+
+        vm.prank(owner);
+        IDSRegistryService(registry).addWallet(wallet, investorId);
+    }
+
+    function _fundSuperstateRequest(address token, address account, uint256 amount) internal {
+        address allowlist = ISuperstateLiveToken(token).allowlistV2();
+        address subAccount = vm.computeCreateAddress(account, vm.getNonce(account));
+
+        _allowSuperstateAddress(allowlist, account);
+        _allowSuperstateAddress(allowlist, subAccount);
+
+        vm.prank(IOwnable(token).owner());
+        ISuperstateLiveToken(token).mint(account, amount);
+    }
+
+    function _allowSuperstateAddress(address allowlist, address account) internal {
+        if (ISuperstateAllowlist(allowlist).addressEntityIds(account) == SUPERSTATE_BENCHMARK_ENTITY_ID) {
+            return;
+        }
+
+        address owner = IOwnable(allowlist).owner();
+        if (ISuperstateAllowlist(allowlist).isEntityAllowedForPrivateInstrument(SUPERSTATE_BENCHMARK_ENTITY_ID, "USCC"))
+        {
+            vm.prank(owner);
+            ISuperstateAllowlist(allowlist).setEntityIdForAddress(SUPERSTATE_BENCHMARK_ENTITY_ID, account);
+            return;
+        }
+
+        string[] memory fundSymbols = new string[](1);
+        bool[] memory permissions = new bool[](1);
+        address[] memory accounts = new address[](1);
+
+        accounts[0] = account;
+        fundSymbols[0] = "USCC";
+        permissions[0] = true;
+
+        vm.prank(owner);
+        ISuperstateAllowlist(allowlist)
+            .setEntityPermissionsAndAddresses(SUPERSTATE_BENCHMARK_ENTITY_ID, accounts, fundSymbols, permissions);
+    }
+
+    function _tryMintERC4626Shares(address token, address account, uint256 shares) internal returns (bool) {
+        try IERC4626(token).asset() returns (address asset) {
+            if (asset == address(0) || asset.code.length == 0) {
+                return false;
+            }
+
+            uint256 assets;
+            try IERC4626(token).previewMint(shares) returns (uint256 previewAssets) {
+                assets = previewAssets;
+            } catch {
+                return false;
+            }
+            if (assets == 0) {
+                return false;
+            }
+
+            deal(asset, account, IERC20(asset).balanceOf(account) + assets);
+            vm.prank(account);
+            (bool approveSuccess,) = asset.call(abi.encodeWithSelector(IERC20.approve.selector, token, assets));
+            if (!approveSuccess) {
+                return false;
+            }
+
+            vm.prank(account);
+            (bool mintSuccess,) = token.call(abi.encodeWithSelector(IERC4626.mint.selector, shares, account));
+            return mintSuccess;
+        } catch {
+            return false;
+        }
+    }
+
+    function _requestAmount(uint256 index, address token) internal view returns (uint256) {
+        if (index == 35 || index == 36) {
+            return 1 ether;
+        }
+
+        uint256 unit = 10 ** IERC20Metadata(token).decimals();
+        if (_isMidas(index) || _isCentrifuge(index) || index == 2 || index == 5 || index == 37 || index == 39) {
+            return 100 * unit;
+        }
+
+        return unit;
+    }
+
+    function _requestUnits(uint256 index, address token, address account) internal view returns (uint256) {
+        if (_isMidas(index)) {
+            return _midasRequestIdsLength(account);
+        }
+        if (_isCentrifuge(index)) {
+            return _asyncRequestIdsLength(account);
+        }
+        if (index == 5) {
+            return IFigureAccount(account).pendingAssets() > 0 ? 1 : 0;
+        }
+        if (index == 2) {
+            return _makinaRequestIdsLength(account);
+        }
+        if (index == 7) {
+            return _digiFTSubAccountsLength(account);
+        }
+        if (index == 32) {
+            return _gaibSubAccountsLength(account);
+        }
+        if (index == 33) {
+            (,, uint256 shares) = IThreeJaneSUSD3(token).getCooldownStatus(account);
+            return shares > 0 ? 1 : 0;
+        }
+        if (index == 34) {
+            (, uint256 shares,) = ISthUSD(token).currentRedeemRequest(account);
+            return shares > 0 ? 1 : 0;
+        }
+        if (index == 35) {
+            return _etherFiRequestIdsLength(account);
+        }
+        if (index == 36) {
+            return _lidoRequestIdsLength(account);
+        }
+        if (index == 37) {
+            return IERC20(IParetoAccount(account).RECEIPT_TOKEN()).balanceOf(account) > 0 ? 1 : 0;
+        }
+        if (index == 38) {
+            return _securitizeSubAccountsLength(account);
+        }
+        if (index == 39) {
+            return _noonRequestIdsLength(account);
+        }
+        if (index == 40) {
+            return _superstateSubAccountsLength(account);
+        }
+        return 0;
+    }
+
+    function _midasRequestIdsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try IMidasAccount(account).requestIds(length) returns (uint64) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _asyncRequestIdsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try IAsyncRedeemAccount(account).requestIds(length) returns (uint64) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _makinaRequestIdsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try IMakinaAccount(account).requestIds(length) returns (uint64) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _etherFiRequestIdsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try IEtherFiAccount(payable(account)).requestIds(length) returns (uint64) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _lidoRequestIdsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try ILidoAccount(payable(account)).requestIds(length) returns (uint64) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _noonRequestIdsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try INoonAccount(account).requestIds(length) returns (uint256) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _digiFTSubAccountsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try IDigiFTAccount(account).subAccounts(length) returns (address) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _gaibSubAccountsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try IGaibAccount(account).subAccounts(length) returns (address) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _securitizeSubAccountsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try ISecuritizeAccount(account).subAccounts(length) returns (address) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _superstateSubAccountsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try ISuperstateAccount(account).subAccounts(length) returns (address) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
     }
 
     function _tokenBenchSpecs() internal pure returns (TokenBenchSpec[] memory specs) {
-        specs = new TokenBenchSpec[](42);
+        specs = new TokenBenchSpec[](41);
         specs[0] = _spec("ACRDX", 1 days);
         specs[1] = _spec("CarryTradeUSDTRYLeverage", 2 days);
         specs[2] = _spec("DUSD", 12 hours);
@@ -423,7 +947,6 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         specs[38] = _spec("ACRED", 90 days);
         specs[39] = _spec("sUSN", 7 days);
         specs[40] = _spec("USCC", 3 days);
-        specs[41] = _spec("USD3", 0);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
@@ -541,10 +1064,10 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
                         WEETH,
                         _oracle(),
                         factory,
-                        makeAddr("ETHERFI_LIQUIDITY_POOL"),
-                        makeAddr("ETHERFI_REDEMPTION_MANAGER"),
+                        ETHERFI_LIQUIDITY_POOL,
+                        ETHERFI_REDEMPTION_MANAGER,
                         COW_SWAP_SETTLEMENT,
-                        makeAddr("ETHERFI_WITHDRAW_REQUEST_NFT")
+                        ETHERFI_WITHDRAW_REQUEST_NFT
                     )
                 )
             );
@@ -570,7 +1093,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         if (index == 40) {
             return IAccount(address(new USCC_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
-        return IAccount(address(new USD3_Account(factory, COW_SWAP_SETTLEMENT)));
+        revert();
     }
 
     function _spec(string memory symbol, uint48 maxDelay) internal pure returns (TokenBenchSpec memory spec) {
@@ -654,4 +1177,141 @@ contract BenchmarkConstantOracle {
     function getPrice() external pure returns (uint256) {
         return 1e18;
     }
+}
+
+interface ICentrifugeShareToken {
+    function hook() external view returns (address);
+}
+
+interface ICentrifugeTransferHook {
+    function updateMember(address token, address user, uint64 validUntil) external;
+}
+
+interface IDigiFTSecurityToken {
+    function management() external view returns (address);
+}
+
+interface IDigiFTManagement {
+    function isWhiteContract(address contractAddress) external view returns (bool);
+
+    function isWhiteInvestor(address investor) external view returns (bool);
+}
+
+interface IParetoEpochVault {
+    function isWalletAllowed(address user) external view returns (bool);
+
+    function restoreOperations() external;
+
+    function setKeyringParams(address keyring, uint256 policyId, bool keyringAllowWithdraw) external;
+}
+
+interface IOwnable {
+    function owner() external view returns (address);
+}
+
+interface IDSServiceConsumer {
+    function getDSService(uint256 serviceId) external view returns (address);
+}
+
+interface IDSRegistryService {
+    function addWallet(address wallet, string calldata investorId) external returns (bool);
+
+    function isInvestor(string calldata investorId) external view returns (bool);
+
+    function isWallet(address wallet) external view returns (bool);
+
+    function registerInvestor(string calldata investorId, string calldata collisionHash) external returns (bool);
+}
+
+interface IDSecuritizeToken {
+    function issueTokens(address account, uint256 amount) external returns (bool);
+}
+
+interface IDSTrustService {
+    function setRole(address account, uint8 role) external returns (bool);
+}
+
+interface ISuperstateLiveToken {
+    function allowlistV2() external view returns (address);
+
+    function mint(address account, uint256 amount) external;
+}
+
+interface ISuperstateAllowlist {
+    function addressEntityIds(address account) external view returns (uint256);
+
+    function isEntityAllowedForPrivateInstrument(uint256 entityId, string calldata instrument)
+        external
+        view
+        returns (bool);
+
+    function setEntityIdForAddress(uint256 entityId, address account) external;
+
+    function setEntityPermissionsAndAddresses(
+        uint256 entityId,
+        address[] calldata accounts,
+        string[] calldata fundSymbols,
+        bool[] calldata permissions
+    ) external;
+}
+
+interface IMidasAccessControl {
+    function getRoleAdmin(bytes32 role) external view returns (bytes32);
+
+    function hasRole(bytes32 role, address account) external view returns (bool);
+
+    function grantRole(bytes32 role, address account) external;
+}
+
+interface IMidasDataFeed {
+    function aggregator() external view returns (address);
+
+    function getDataInBase18() external view returns (uint256);
+
+    function healthyDiff() external view returns (uint256);
+}
+
+interface IMidasVaultAdmin {
+    function accessControl() external view returns (address);
+
+    function addPaymentToken(address token, address dataFeed, uint256 tokenFee, uint256 allowance, bool stable) external;
+
+    function fnPaused(bytes4 selector) external view returns (bool);
+
+    function greenlistEnabled() external view returns (bool);
+
+    function greenlistedRole() external view returns (bytes32);
+
+    function mTokenDataFeed() external view returns (address);
+
+    function pauseAdminRole() external view returns (bytes32);
+
+    function paused() external view returns (bool);
+
+    function removePaymentToken(address token) external;
+
+    function unpause() external;
+
+    function unpauseFn(bytes4 selector) external;
+
+    function vaultRole() external view returns (bytes32);
+}
+
+interface IChainlinkAggregatorV3 {
+    function latestRoundData()
+        external
+        view
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
+}
+
+interface IMakinaMachineGovernance {
+    function riskManager() external view returns (address);
+}
+
+interface IMakinaWhitelist {
+    function isWhitelistEnabled() external view returns (bool);
+
+    function isWhitelistedUser(address user) external view returns (bool);
+
+    function setWhitelistedUsers(address[] calldata users, bool whitelisted) external;
 }

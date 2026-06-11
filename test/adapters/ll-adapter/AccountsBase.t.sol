@@ -757,6 +757,14 @@ contract MockAsyncRedeemVault is MockERC20 {
     mapping(uint256 requestId => mapping(address controller => uint256 shares)) public pending;
     mapping(uint256 requestId => mapping(address controller => uint256 shares)) public claimable;
 
+    struct PendingRedemption {
+        uint256 shares;
+        uint256 assets;
+        uint256 timestamp;
+    }
+
+    mapping(address user => PendingRedemption redemption) public pendingRedemptions;
+
     constructor(string memory name_, string memory symbol_, uint8 decimals_, MockERC20 asset_, uint256 assetsPerShare_)
         MockERC20(name_, symbol_, decimals_)
     {
@@ -799,6 +807,15 @@ contract MockAsyncRedeemVault is MockERC20 {
         pending[requestId][controller] += shares;
     }
 
+    function requestRedeem(uint256 shares) external {
+        if (pendingRedemptions[msg.sender].shares > 0) {
+            revert();
+        }
+        _transfer(msg.sender, address(this), shares);
+        pendingRedemptions[msg.sender] =
+            PendingRedemption({shares: shares, assets: convertToAssets(shares), timestamp: block.timestamp});
+    }
+
     function pendingRedeemRequest(uint256 requestId, address controller) external view returns (uint256 shares) {
         return pending[requestId][controller];
     }
@@ -816,6 +833,13 @@ contract MockAsyncRedeemVault is MockERC20 {
         claimable[0][controller] -= shares;
         assets = convertToAssets(shares);
         asset.mint(receiver, assets);
+    }
+
+    function completeFigureRedeem(address user) external {
+        PendingRedemption memory redemption = pendingRedemptions[user];
+        delete pendingRedemptions[user];
+        _burn(address(this), redemption.shares);
+        asset.mint(user, redemption.assets);
     }
 }
 

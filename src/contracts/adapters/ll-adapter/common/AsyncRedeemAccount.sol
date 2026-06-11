@@ -6,6 +6,7 @@ import {CooldownAccount} from "./CooldownAccount.sol";
 
 import {IAsyncRedeemAccount} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
 import {IAsyncRedeemVault} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
+import {IERC7575Share} from "../../../../interfaces/adapters/ll-adapter/IERC7575Share.sol";
 
 import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -70,7 +71,7 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
     function _requestRedeem() internal virtual override {
         address asyncRedeemVault = _asyncRedeemVault();
         uint256 requestId = IAsyncRedeemVault(asyncRedeemVault)
-            .requestRedeem(IERC20(asyncRedeemVault).balanceOf(address(this)), address(this), address(this));
+            .requestRedeem(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), address(this), address(this));
         if (!_requestIdExists.get(requestId)) {
             _requestIdExists.set(requestId);
             requestIds.push(uint64(requestId));
@@ -79,6 +80,10 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
 
     /// @dev Returns the ERC-7540 async redeem vault.
     function _asyncRedeemVault() internal view virtual returns (address) {
+        try IERC7575Share(TOKEN_TO_REDEEM).vault(_asset) returns (address asyncRedeemVault) {
+            return asyncRedeemVault == address(0) ? TOKEN_TO_REDEEM : asyncRedeemVault;
+        } catch {}
+
         return TOKEN_TO_REDEEM;
     }
 }

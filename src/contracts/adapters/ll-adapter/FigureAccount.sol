@@ -2,17 +2,17 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {AsyncRedeemAccount} from "./common/AsyncRedeemAccount.sol";
+import {CooldownAccount} from "./common/CooldownAccount.sol";
 
-import {IAsyncRedeemVault} from "../../../interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
 import {IFigureAccount} from "../../../interfaces/adapters/ll-adapter/figure/IFigureAccount.sol";
+import {IFigureYieldVault} from "../../../interfaces/adapters/ll-adapter/figure/IFigureYieldVault.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 /// @title FigureAccount
 /// @notice Account for Figure/Hastra PRIME redemptions through wYLDS.
-contract FigureAccount is AsyncRedeemAccount, IFigureAccount {
+contract FigureAccount is CooldownAccount, IFigureAccount {
     /* IMMUTABLES */
 
     /// @dev wYLDS async redeem vault.
@@ -22,33 +22,51 @@ contract FigureAccount is AsyncRedeemAccount, IFigureAccount {
 
     /// @notice Creates the Figure account implementation.
     constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
-        AsyncRedeemAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
+        CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
     {
         ASYNC_REDEEM_VAULT = IERC4626(TOKEN_TO_REDEEM).asset();
+    }
+
+    /* VIEW FUNCTIONS */
+
+    /// @inheritdoc IFigureAccount
+    function pendingAssets() public view returns (uint256 assets) {
+        (, assets,) = IFigureYieldVault(ASYNC_REDEEM_VAULT).pendingRedemptions(address(this));
+        assets = _redemptionTokenToAssets(IFigureYieldVault(ASYNC_REDEEM_VAULT).asset(), assets);
     }
 
     /* INTERNAL FUNCTIONS */
 
     /// @dev Values held PRIME by converting it to wYLDS before valuing wYLDS.
     function _tokenToRedeemToAssets(uint256 amount) internal view override returns (uint256) {
-        return IAsyncRedeemVault(ASYNC_REDEEM_VAULT).convertToAssets(IERC4626(TOKEN_TO_REDEEM).convertToAssets(amount));
+        return IFigureYieldVault(ASYNC_REDEEM_VAULT).convertToAssets(IERC4626(TOKEN_TO_REDEEM).convertToAssets(amount));
     }
 
     /// @dev Returns held wYLDS value plus pending async redemption request value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
-        address asyncRedeemVault = _asyncRedeemVault();
-        return super._totalAssets()
-            + IAsyncRedeemVault(asyncRedeemVault).convertToAssets(IERC20(asyncRedeemVault).balanceOf(address(this)));
+        return pendingAssets()
+            + IFigureYieldVault(ASYNC_REDEEM_VAULT)
+                .convertToAssets(IERC20(ASYNC_REDEEM_VAULT).balanceOf(address(this)));
     }
 
-    /// @dev Redeems PRIME into wYLDS and submits held wYLDS for async redemption.
+    /// @dev Figure redemptions are finalized offchain by the yield vault admin.
+    function _finalizeRequests() internal override {}
+
+    /// @dev Submits held PRIME or wYLDS to the Figure yield vault redemption flow.
     function _requestRedeem() internal override {
-        IERC4626(TOKEN_TO_REDEEM).redeem(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), address(this), address(this));
-        super._requestRedeem();
-    }
+        (uint256 pendingShares,,) = IFigureYieldVault(ASYNC_REDEEM_VAULT).pendingRedemptions(address(this));
+        if (pendingShares > 0) {
+            return;
+        }
 
-    /// @dev Returns wYLDS as the ERC-7540 async redeem vault.
-    function _asyncRedeemVault() internal view override returns (address) {
-        return ASYNC_REDEEM_VAULT;
+        uint256 primeBalance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        if (primeBalance > 0) {
+            IERC4626(TOKEN_TO_REDEEM).redeem(primeBalance, address(this), address(this));
+        }
+
+        uint256 balance = IERC20(ASYNC_REDEEM_VAULT).balanceOf(address(this));
+        if (balance > 0) {
+            IFigureYieldVault(ASYNC_REDEEM_VAULT).requestRedeem(balance);
+        }
     }
 }
