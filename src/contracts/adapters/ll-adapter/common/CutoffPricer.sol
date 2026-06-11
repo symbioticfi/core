@@ -8,9 +8,13 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /// @title CutoffPricer
 /// @notice Mixin pricing pending redemptions against issuer cutoff cohorts.
-/// @dev Pending value tracks the live oracle until the cohort pricing date, then freezes at the first
-///      oracle price published at/after that date, and is written off after the settlement duration.
+/// @dev Pending value tracks the live oracle until the cohort pricing date, then freezes at the oracle's
+///      current price on the first freeze attempt where the oracle's update timestamp is at/after that
+///      date (assumes sync is called at least once between the cohort pricing date and the next oracle
+///      print for exact cohort pricing), and is written off after the settlement duration.
 ///      A zero schedule (rolling mode) assigns each registration its own cohort at registration time.
+/// @dev State lives in ERC-7201 namespaced storage so hosts inheriting this mixin mid-hierarchy keep
+///      their existing storage layouts stable across upgrades.
 abstract contract CutoffPricer is ICutoffPricer {
     using SafeCast for uint256;
 
@@ -26,15 +30,26 @@ abstract contract CutoffPricer is ICutoffPricer {
     /// @dev Initial cutoff period applied on initialization (0 for rolling mode).
     uint48 internal immutable INITIAL_CUTOFF_PERIOD;
 
-    /* STATE VARIABLES */
+    /* STORAGE */
 
-    /// @inheritdoc ICutoffPricer
-    uint48 public cutoff;
-    /// @inheritdoc ICutoffPricer
-    uint48 public cutoffPeriod;
+    /// @custom:storage-location erc7201:symbiotic.storage.CutoffPricer
+    struct CutoffPricerStorage {
+        uint48 cutoff;
+        uint48 cutoffPeriod;
+        mapping(uint256 key => PendingCohort pendingCohort) pendingCohorts;
+    }
 
-    /// @inheritdoc ICutoffPricer
-    mapping(uint256 key => PendingCohort pendingCohort) public pendingCohorts;
+    // keccak256(abi.encode(uint256(keccak256("symbiotic.storage.CutoffPricer")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant CutoffPricerStorageLocation =
+        0x4518cbb92b10961ca7d51fda8b65765d00e8d5eed47c33a9abb9d7b0bf30f100;
+
+    /// @dev Returns cutoff pricer storage at the ERC-7201 namespace.
+    function _getCutoffPricerStorage() private pure returns (CutoffPricerStorage storage $) {
+        bytes32 location = CutoffPricerStorageLocation;
+        assembly {
+            $.slot := location
+        }
+    }
 
     /* CONSTRUCTOR */
 
@@ -50,12 +65,35 @@ abstract contract CutoffPricer is ICutoffPricer {
         SETTLEMENT_DURATION = settlementDuration;
     }
 
+    /* VIEW FUNCTIONS */
+
+    /// @inheritdoc ICutoffPricer
+    function cutoff() public view returns (uint48 nextCutoff) {
+        return _getCutoffPricerStorage().cutoff;
+    }
+
+    /// @inheritdoc ICutoffPricer
+    function cutoffPeriod() public view returns (uint48 period) {
+        return _getCutoffPricerStorage().cutoffPeriod;
+    }
+
+    /// @inheritdoc ICutoffPricer
+    function pendingCohorts(uint256 key)
+        public
+        view
+        returns (uint128 amount, uint128 frozenRate, uint48 cutoffTimestamp)
+    {
+        PendingCohort storage pendingCohort = _getCutoffPricerStorage().pendingCohorts[key];
+        return (pendingCohort.amount, pendingCohort.frozenRate, pendingCohort.cutoffTimestamp);
+    }
+
     /* INTERNAL FUNCTIONS */
 
     /// @dev Applies the constructor schedule to state. Call once from the host's initializer.
     function __CutoffPricer_init() internal {
-        cutoff = INITIAL_CUTOFF;
-        cutoffPeriod = INITIAL_CUTOFF_PERIOD;
+        CutoffPricerStorage storage $ = _getCutoffPricerStorage();
+        $.cutoff = INITIAL_CUTOFF;
+        $.cutoffPeriod = INITIAL_CUTOFF_PERIOD;
     }
 
     /// @dev Updates the cutoff schedule. Hosts expose this behind their owner check.
@@ -64,26 +102,35 @@ abstract contract CutoffPricer is ICutoffPricer {
             revert InvalidCutoffSchedule();
         }
 
-        cutoff = nextCutoff;
-        cutoffPeriod = period;
+        CutoffPricerStorage storage $ = _getCutoffPricerStorage();
+        $.cutoff = nextCutoff;
+        $.cutoffPeriod = period;
 
         emit SetCutoffSchedule(nextCutoff, period);
     }
 
     /// @dev Tracks a pending redemption under the current cohort.
+    /// @dev Overwrites any existing entry for `key`; hosts must guarantee key uniqueness across live entries.
     function _registerPending(uint256 key, uint256 amount) internal {
-        pendingCohorts[key] = PendingCohort({amount: amount.toUint128(), frozenRate: 0, cutoffTimestamp: _rollCutoff()});
+        _getCutoffPricerStorage().pendingCohorts[key] =
+            PendingCohort({amount: amount.toUint128(), frozenRate: 0, cutoffTimestamp: _rollCutoff()});
     }
 
-    /// @dev Freezes the cohort rate once the pricing date passed and the oracle published at/after it.
+    /// @dev Freezes the cohort rate at the oracle's current price once the pricing date passed and the
+    ///      oracle's update timestamp is at/after it. Captures whatever print is live at the first such
+    ///      attempt, so sync must run at least once between the pricing date and the next oracle print
+    ///      for exact cohort pricing. Skipped once the entry is written off.
     function _tryFreezePending(uint256 key) internal {
-        PendingCohort storage pendingCohort = pendingCohorts[key];
+        PendingCohort storage pendingCohort = _getCutoffPricerStorage().pendingCohorts[key];
         if (pendingCohort.amount == 0 || pendingCohort.frozenRate != 0) {
             return;
         }
 
         uint256 pricingTimestamp = pendingCohort.cutoffTimestamp + VALUATION_DELAY;
         if (block.timestamp < pricingTimestamp) {
+            return;
+        }
+        if (block.timestamp >= pricingTimestamp + SETTLEMENT_DURATION) {
             return;
         }
 
@@ -97,12 +144,12 @@ abstract contract CutoffPricer is ICutoffPricer {
 
     /// @dev Stops tracking a pending redemption.
     function _clearPending(uint256 key) internal {
-        delete pendingCohorts[key];
+        delete _getCutoffPricerStorage().pendingCohorts[key];
     }
 
     /// @dev Returns the pending redemption value: live until frozen, frozen until written off.
     function _pendingValue(uint256 key) internal view returns (uint256 assets) {
-        PendingCohort storage pendingCohort = pendingCohorts[key];
+        PendingCohort storage pendingCohort = _getCutoffPricerStorage().pendingCohorts[key];
         uint256 amount = pendingCohort.amount;
         if (amount == 0) {
             return 0;
@@ -125,15 +172,16 @@ abstract contract CutoffPricer is ICutoffPricer {
 
     /// @dev Rolls the stored cutoff to the first cutoff at/after the current time and returns it.
     function _rollCutoff() internal returns (uint48 currentCutoff) {
-        currentCutoff = cutoff;
+        CutoffPricerStorage storage $ = _getCutoffPricerStorage();
+        currentCutoff = $.cutoff;
         if (currentCutoff == 0) {
             return uint48(block.timestamp);
         }
 
         if (block.timestamp > currentCutoff) {
-            uint256 period = cutoffPeriod;
+            uint256 period = $.cutoffPeriod;
             currentCutoff = (currentCutoff + ((block.timestamp - currentCutoff - 1) / period + 1) * period).toUint48();
-            cutoff = currentCutoff;
+            $.cutoff = currentCutoff;
         }
     }
 

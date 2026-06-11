@@ -30,7 +30,7 @@ interface ICutoffPricer {
     /**
      * @notice Emitted when a pending cohort's rate is frozen.
      * @param key The pending redemption key.
-     * @param rate The frozen rate in 1e18 precision.
+     * @param rate The frozen rate in the host's oracle rate precision.
      */
     event FreezePendingCohort(uint256 indexed key, uint256 rate);
 
@@ -39,7 +39,9 @@ interface ICutoffPricer {
     /**
      * @notice Pending redemption tracked against a cutoff cohort.
      * @param amount The token-to-redeem amount pending.
-     * @param frozenRate The cohort rate captured at/after the pricing date (0 until frozen).
+     * @param frozenRate The oracle price captured on the first freeze attempt at/after the pricing date
+     *        (0 until frozen). Assumes sync is called at least once between the cohort pricing date and
+     *        the next oracle print for exact cohort pricing.
      * @param cutoffTimestamp The cohort cutoff timestamp assigned at registration.
      */
     struct PendingCohort {

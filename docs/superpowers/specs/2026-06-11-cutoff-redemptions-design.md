@@ -139,6 +139,8 @@ Cohort boundary uses the start-of-day (UTC) of the deadline date — mis-assigni
 - **Zero fill / suspension**: receivable written off after `SETTLEMENT_DURATION` (NAV dips conservatively); the sub stays tracked and any late settlement is still swept (NAV recovers on arrival) — same liveness semantics as today.
 - **Multiple requests per window**: allowed (cooldown-throttled); all cohort-mates freeze at the same rate and settle in the same batch.
 - **Owner schedule maintenance**: `setCutoffSchedule` only affects *future* cohort assignment; existing entries keep their assigned cutoff.
+- **Keeper liveness**: the freeze captures the oracle's *live* print at the first post-pricing sync — for monthly-print tokens a missed month means the *next* print is captured instead of the cohort's. Ops should sync each cohort shortly after its pricing date (at least once before the next oracle print) for exact cohort pricing.
+- **Namespaced storage**: `CutoffPricer` keeps its state in ERC-7201 namespaced storage, so migrating existing deployed accounts to `SettlementAccount`-based implementations keeps `subAccounts` slots stable. Migrated instances additionally need their cutoff schedule set via `setCutoffSchedule`, since `__CutoffPricer_init` only runs on fresh initialization.
 
 ## 6. Testing
 

@@ -167,4 +167,125 @@ contract CutoffPricerTest is Test {
         vm.expectRevert(ICutoffPricer.InvalidCutoffPrice.selector);
         pricer.pendingValue(1);
     }
+
+    function testFrozenEntryIsWrittenOffAfterSettlementDuration() public {
+        pricer.registerPending(1, 100e18);
+        uint48 pricingTime = CUTOFF + VALUATION_DELAY;
+
+        vm.warp(pricingTime + 1);
+        pricer.setPriceData(1.3e18, pricingTime + 1);
+        pricer.tryFreezePending(1);
+        (, uint128 frozenRate,) = pricer.pendingCohorts(1);
+        assertEq(frozenRate, 1.3e18);
+
+        vm.warp(pricingTime + SETTLEMENT_DURATION);
+        assertEq(pricer.pendingValue(1), 0);
+    }
+
+    function testScheduleChangeKeepsExistingEntries() public {
+        pricer.registerPending(1, 100e18);
+        (,, uint48 cutoffTimestampBefore) = pricer.pendingCohorts(1);
+        assertEq(cutoffTimestampBefore, CUTOFF);
+
+        pricer.setCutoffSchedule(CUTOFF + 100 days, 91 days);
+
+        (,, uint48 cutoffTimestampAfter) = pricer.pendingCohorts(1);
+        assertEq(cutoffTimestampAfter, CUTOFF);
+
+        // entry still prices and freezes per the original cohort
+        uint48 pricingTime = CUTOFF + VALUATION_DELAY;
+        vm.warp(pricingTime + 1);
+        pricer.setPriceData(1.4e18, pricingTime);
+        pricer.tryFreezePending(1);
+        (, uint128 frozenRate,) = pricer.pendingCohorts(1);
+        assertEq(frozenRate, 1.4e18);
+        assertEq(pricer.pendingValue(1), 140e18);
+    }
+
+    function testFrozenEntrySurvivesZeroOracle() public {
+        pricer.registerPending(1, 100e18);
+        uint48 pricingTime = CUTOFF + VALUATION_DELAY;
+
+        vm.warp(pricingTime + 1);
+        pricer.setPriceData(1.5e18, pricingTime + 1);
+        pricer.tryFreezePending(1);
+
+        pricer.setPriceData(0, uint48(block.timestamp));
+        assertEq(pricer.pendingValue(1), 150e18);
+    }
+
+    function testZeroPriceSkipsFreeze() public {
+        pricer.registerPending(1, 100e18);
+        uint48 pricingTime = CUTOFF + VALUATION_DELAY;
+
+        vm.warp(pricingTime + 1);
+        pricer.setPriceData(0, pricingTime + 1);
+        pricer.tryFreezePending(1);
+        (, uint128 frozenRate,) = pricer.pendingCohorts(1);
+        assertEq(frozenRate, 0);
+
+        // entry still values live once a nonzero price is restored
+        pricer.setPriceData(1.6e18, uint48(block.timestamp));
+        assertEq(pricer.pendingValue(1), 160e18);
+    }
+
+    function testRollingModeFreezesAtFirstPrintAfterRequest() public {
+        CutoffPricerHarness rolling = new CutoffPricerHarness(0, 0, 0, 3 days);
+        uint48 registrationTime = uint48(block.timestamp);
+
+        rolling.registerPending(1, 100e18);
+        (,, uint48 cutoffTimestamp) = rolling.pendingCohorts(1);
+        assertEq(cutoffTimestamp, registrationTime);
+
+        // stale oracle print (updatedAt < registration time): no freeze
+        rolling.setPriceData(1.1e18, registrationTime - 1);
+        rolling.tryFreezePending(1);
+        (, uint128 frozenRate,) = rolling.pendingCohorts(1);
+        assertEq(frozenRate, 0);
+
+        // first print at/after registration: frozen at that rate
+        rolling.setPriceData(1.2e18, registrationTime);
+        rolling.tryFreezePending(1);
+        (, frozenRate,) = rolling.pendingCohorts(1);
+        assertEq(frozenRate, 1.2e18);
+
+        // later price moves no longer affect value
+        rolling.setPriceData(2e18, uint48(block.timestamp));
+        assertEq(rolling.pendingValue(1), 120e18);
+    }
+
+    function testFreezeBoundaryExactlyAtPricingTime() public {
+        pricer.registerPending(1, 100e18);
+        uint48 pricingTime = CUTOFF + VALUATION_DELAY;
+
+        vm.warp(pricingTime);
+        pricer.setPriceData(1.7e18, pricingTime);
+        pricer.tryFreezePending(1);
+        (, uint128 frozenRate,) = pricer.pendingCohorts(1);
+        assertEq(frozenRate, 1.7e18);
+    }
+
+    function testFreezeSkippedAfterWriteOff() public {
+        pricer.registerPending(1, 100e18);
+        uint48 pricingTime = CUTOFF + VALUATION_DELAY;
+
+        vm.warp(pricingTime + SETTLEMENT_DURATION);
+        pricer.setPriceData(1.8e18, uint48(block.timestamp));
+        pricer.tryFreezePending(1);
+        (, uint128 frozenRate,) = pricer.pendingCohorts(1);
+        assertEq(frozenRate, 0);
+        assertEq(pricer.pendingValue(1), 0);
+    }
+
+    function testFreezeEmitsEvent() public {
+        pricer.registerPending(1, 100e18);
+        uint48 pricingTime = CUTOFF + VALUATION_DELAY;
+
+        vm.warp(pricingTime + 1);
+        pricer.setPriceData(1.9e18, pricingTime + 1);
+
+        vm.expectEmit(true, false, false, true, address(pricer));
+        emit ICutoffPricer.FreezePendingCohort(1, 1.9e18);
+        pricer.tryFreezePending(1);
+    }
 }
