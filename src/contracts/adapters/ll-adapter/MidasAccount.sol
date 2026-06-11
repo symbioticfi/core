@@ -194,12 +194,15 @@ contract MidasCutoffAccount is MidasAccount, CutoffPricer {
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Submits inventory to the Midas redemption vault and registers the request's cohort.
+    /// @dev Submits inventory to the Midas redemption vault and registers the request's cohort
+    ///      with the vault-stored net-of-fee amount, which defines the payout.
     ///      Midas request ids are vault-global and monotonically increasing, so cohort keys are unique.
     function _requestRedeem() internal override {
-        uint256 amount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         super._requestRedeem();
-        _registerPending(requestIds[requestIds.length - 1], amount);
+
+        uint64 requestId = requestIds[requestIds.length - 1];
+        (,,, uint256 amountMToken,,) = IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestId);
+        _registerPending(requestId, amountMToken);
     }
 
     /// @dev Freezes cohort rates and clears Midas redemption requests that are no longer pending.
@@ -221,10 +224,17 @@ contract MidasCutoffAccount is MidasAccount, CutoffPricer {
         }
     }
 
-    /// @dev Returns pending request value priced by cutoff cohorts.
+    /// @dev Returns pending request value priced by cutoff cohorts. Fulfilled-but-unsynced requests are
+    ///      skipped: Midas pays the assets and marks the request processed atomically, and the stale
+    ///      cohort entry is only cleared on the next sync.
     function _pendingAssets() internal view override returns (uint256 assets) {
         for (uint256 i; i < requestIds.length; ++i) {
-            assets += _pendingValue(requestIds[i]);
+            uint64 requestId = requestIds[i];
+            (,, uint8 status,,,) = IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestId);
+            if (status != REQUEST_STATUS_PENDING) {
+                continue;
+            }
+            assets += _pendingValue(requestId);
         }
     }
 

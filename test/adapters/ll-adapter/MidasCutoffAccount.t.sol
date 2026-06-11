@@ -151,6 +151,47 @@ contract MidasCutoffAccountTest is Test {
         assertEq(account.cutoffPeriod(), 91 days);
     }
 
+    function testFulfilledRequestNotDoubleCountedBeforeSync() public {
+        mGlobal.mint(address(account), 100e18);
+        account.sync();
+
+        // freeze the cohort at 0.94
+        uint256 pricingTime = uint256(CUTOFF) + VALUATION_DELAY;
+        vm.warp(pricingTime + 1);
+        aggregator.setRound(0.94e8, pricingTime + 1);
+        account.sync();
+        (, uint128 frozenRate,) = account.pendingCohorts(0);
+        assertEq(frozenRate, 0.94e18);
+        assertEq(account.totalAssets(), 94e6);
+
+        // Midas pays the USDC and marks the request processed atomically; before the next sync the
+        // stale frozen cohort must not be counted on top of the received assets
+        redemptionVault.process(0);
+        usdc.mint(address(account), 94e6);
+        assertEq(account.totalAssets(), 94e6);
+
+        // sync clears the request id and the cohort entry without changing the value
+        account.sync();
+        vm.expectRevert();
+        account.requestIds(0);
+        (uint128 amount,,) = account.pendingCohorts(0);
+        assertEq(amount, 0);
+        assertEq(account.totalAssets(), 94e6);
+    }
+
+    function testRegistersVaultStoredNetAmount() public {
+        redemptionVault.setFeeBps(100); // 1% redemption fee
+        mGlobal.mint(address(account), 100e18);
+        account.sync();
+
+        // the vault stores the net-of-fee amount, which defines the payout and thus the cohort value
+        (,,, uint256 amountMToken,,) = redemptionVault.redeemRequests(0);
+        assertEq(amountMToken, 99e18);
+        (uint128 amount,,) = account.pendingCohorts(0);
+        assertEq(amount, 99e18);
+        assertEq(account.totalAssets(), 92.07e6);
+    }
+
     function testCanceledRequestReturnsTokensAndClearsCohort() public {
         mGlobal.mint(address(account), 100e18);
         account.sync();
@@ -253,6 +294,7 @@ contract MockMidasRedemptionVault {
     address public immutable tokenToRedeem;
     address public immutable mTokenDataFeed;
     uint256 public currentRequestId;
+    uint256 public feeBps;
 
     mapping(address token => TokenConfig config) internal _tokensConfig;
     mapping(uint256 requestId => Request request) internal _requests;
@@ -264,6 +306,10 @@ contract MockMidasRedemptionVault {
 
     function setTokenConfig(address token, address dataFeed) public {
         _tokensConfig[token] = TokenConfig({dataFeed: dataFeed, fee: 0, allowance: 0, stable: true});
+    }
+
+    function setFeeBps(uint256 feeBps_) public {
+        feeBps = feeBps_;
     }
 
     function tokensConfig(address token)
@@ -282,7 +328,7 @@ contract MockMidasRedemptionVault {
             sender: msg.sender,
             tokenOut: tokenOut,
             status: PENDING,
-            amountMToken: amountMTokenIn,
+            amountMToken: amountMTokenIn - (amountMTokenIn * feeBps) / 10_000,
             mTokenRate: MockMidasDataFeed(mTokenDataFeed).getDataInBase18(),
             tokenOutRate: 1e18
         });

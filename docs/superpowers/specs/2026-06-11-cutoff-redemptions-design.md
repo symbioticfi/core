@@ -38,7 +38,7 @@ Additionally, re-research of every Account surfaced correctness deltas (§2) and
 ```
 Account
 └── CooldownAccount
-    ├── AsyncRedeemAccount            (made concrete; CentrifugeAccount deleted)
+    ├── AsyncRedeemAccount            (stays abstract; CentrifugeAccount deleted, token accounts extend it directly)
     ├── MidasAccount (Comp/NonComp)
     │   └── MidasCutoffAccount  (NEW)         + CutoffPricer
     └── SettlementAccount       (NEW, common/) + CutoffPricer
@@ -106,9 +106,9 @@ Issuer shims (each ~25–40 lines, sub subclass in the same file):
 ### 3.4 `MidasCutoffAccount` (new, issuer-level, ~60 lines)
 
 `is MidasAccount, CutoffPricer` (no diamond — the mixin is standalone):
-- `_requestRedeem()`: read balance, `super._requestRedeem()`, `_registerPending(lastRequestId, amount)`.
+- `_requestRedeem()`: `super._requestRedeem()`, then read back the vault-stored net-of-fee `amountMToken` for the new request id and `_registerPending(requestId, amountMToken)` — the net amount is what the vault pays out, not the pre-submit gross balance.
 - `_finalizeRequests()`: per tracked id — `_tryFreeze(id)`; clear `pendingCohorts` alongside the existing processed-id removal (loop implemented locally instead of `super` to clear both in one pass).
-- `_pendingAssets()`: `Σ _pendingValue(id)` (replaces the Comp loop for this account type).
+- `_pendingAssets()`: `Σ _pendingValue(id)` over requests still `REQUEST_STATUS_PENDING` (replaces the Comp loop for this account type). The status filter matters: Midas `approveRequest` pays the assets and marks the request processed atomically, while the cohort entry is only cleared on the next sync — without the filter `totalAssets()` would count both the received assets and the stale frozen cohort in that window.
 
 `mGLOBAL_Account` switches base `MidasCompAccount` → `MidasCutoffAccount` and supplies schedule constants. All other Midas tokens stay on Comp/NonComp.
 
@@ -117,15 +117,15 @@ Issuer shims (each ~25–40 lines, sub subclass in the same file):
 1. **DigiFT bEQTY**: `TOKEN_PENDING_ASSETS_DURATION` 1 day → 7 days (becomes `SETTLEMENT_DURATION`).
 2. **MakinaAccount**: store the request-time asset quote per request id; pre-finalization valuation = `min(live, quote)`; clear on finalize/claim.
 3. **AsyncRedeemAccount**: value the claimable leg via the vault's `maxWithdraw(address(this))` (fulfillment-price-frozen) once per vault, keeping live `convertToAssets` only for the pending leg; add `maxWithdraw` to `IAsyncRedeemVault`.
-4. **AsyncRedeemAccount made concrete**; `CentrifugeAccount` (pure passthrough) deleted; Centrifuge token accounts extend `AsyncRedeemAccount` directly (keep `ICentrifugeAccount` marker on the token contracts if desired).
+4. **AsyncRedeemAccount stays abstract**; `CentrifugeAccount` (pure passthrough) deleted; Centrifuge token accounts extend `AsyncRedeemAccount` directly (keep `ICentrifugeAccount` marker on the token contracts if desired).
 
 ## 4. Initial parameters
 
 | | ACRED | mGLOBAL | USCC | bEQTY |
 |---|---|---|---|---|
-| Cutoff anchor | 2026-07-31 00:00 UTC | 2026-06-26 00:00 UTC (ops-unverified day; owner-adjustable) | rolling (0) | rolling (0) |
+| Cutoff anchor | 2026-08-01 00:00 UTC (day after the 07/31 feeder deadline) | 2026-06-26 00:00 UTC (ops-unverified day; owner-adjustable) | rolling (0) | rolling (0) |
 | Period | 91 days (owner-corrected per calendar) | 30 days (owner-corrected per calendar) | — | — |
-| VALUATION_DELAY | 5 days (underlying pricing date) | 5 days (cohort month-end) | 0 | 0 |
+| VALUATION_DELAY | 4 days (underlying pricing date) | 5 days (cohort month-end) | 0 | 0 |
 | SETTLEMENT_DURATION | 30 days (observed 12–20 + margin) | 45 days (pricing → payment ≈ 32 d + margin; total ≤ 65 d from request) | 3 days (unchanged) | 7 days (was 1) |
 | COOLDOWN (throttle) | 9 days (unchanged) | 6 days (unchanged) | 12 h | 0 |
 
