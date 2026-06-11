@@ -84,9 +84,13 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
         return value.saturatingSub(receivedValues[key]);
     }
 
-    /// @dev Freezes cohort rates, sweeps subaccounts, and clears value-covered ones. A subaccount is only
-    ///      cleared once its cohort rate is frozen (or the entry is written off), so pre-freeze rate drift
-    ///      cannot release it early while later settlement tranches are still inbound.
+    /// @dev Freezes cohort rates, sweeps subaccounts, and clears value-covered ones. A subaccount is
+    ///      released when its received value covers the cohort value and either (a) the cohort rate is
+    ///      frozen, so pre-freeze rate drift cannot release it early while later settlement tranches are
+    ///      still inbound, or (b) the entry is written off and at least one settlement was received — a
+    ///      written-off never-frozen entry has a zero cohort value (the oracle may be dead), so without
+    ///      the nonzero-receipt requirement it would be released unpaid and late settlements would no
+    ///      longer be sweepable.
     function _finalizeRequests() internal override {
         for (uint256 i = subAccounts.length; i > 0; --i) {
             uint256 index = i - 1;
@@ -98,6 +102,9 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
             (uint256 sweptAssets, uint256 sweptTokenAmount) = ISettlementSubAccount(subAccount).sync();
             uint256 sweptValue = sweptAssets;
             if (sweptTokenAmount > 0) {
+                // Re-minted tokens are credited at the live sweep-time rate; if it differs from the
+                // frozen cohort rate the remaining receivable is off by the (bounded) rate drift on the
+                // re-minted portion, and any phantom remainder self-heals at write-off.
                 sweptValue += _tokenToRedeemToAssets(sweptTokenAmount);
             }
             if (sweptValue > 0) {
@@ -105,7 +112,7 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
             }
 
             (uint256 value, bool writtenOff) = _cohortValue(key);
-            if (receivedValues[key] >= value && (writtenOff || _isFrozen(key))) {
+            if (receivedValues[key] >= value && (_isFrozen(key) || (writtenOff && receivedValues[key] > 0))) {
                 _clearPending(key);
                 delete receivedValues[key];
                 subAccounts[index] = subAccounts[subAccounts.length - 1];

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {AccountsBase, MockERC20, MockOracle} from "./AccountsBase.t.sol";
+import {AccountsBase, MockERC20, MockOracle, MockPriceDataOracle} from "./AccountsBase.t.sol";
 
 import {NoonAccount} from "../../../src/contracts/adapters/ll-adapter/NoonAccount.sol";
 import {ParetoAccount} from "../../../src/contracts/adapters/ll-adapter/ParetoAccount.sol";
@@ -13,7 +13,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract ProviderAccountsTest is AccountsBase {
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
-    uint48 internal constant PENDING_ASSETS_DURATION = 3 days;
+    uint48 internal constant SETTLEMENT_DURATION = 3 days;
+
+    address internal redemptionWallet = makeAddr("redemptionWallet");
 
     function testNoonRequestsAndClaimsThroughWithdrawalHandler() public {
         MockERC20 usn = new MockERC20("USN", "USN", 18);
@@ -61,10 +63,11 @@ contract ProviderAccountsTest is AccountsBase {
         assertEq(account.totalAssets(), 22e5);
     }
 
-    function testSuperstateBurnsInSubAccountAndSweepsSettlement() public {
+    function testSuperstateBurnsRequestsFreezeAndSweepsSettlement() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockSuperstateToken uscc = new MockSuperstateToken();
-        SuperstateAccount account = _deploySuperstate(uscc, usdc);
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+        SuperstateAccount account = _deploySuperstate(uscc, usdc, oracle);
 
         uscc.mint(address(account), 1e6);
 
@@ -75,6 +78,42 @@ contract ProviderAccountsTest is AccountsBase {
         assertEq(uscc.redeemed(subAccount), 1e6);
         assertEq(account.totalAssets(), 11e6);
 
+        // pending value tracks the live oracle until the cohort rate freezes
+        oracle.setPriceData(12e18, uint48(vm.getBlockTimestamp()));
+        assertEq(account.totalAssets(), 12e6);
+
+        // oracle print at/after the request time freezes the rate on the next sync
+        account.sync();
+        oracle.setPriceData(20e18, uint48(vm.getBlockTimestamp()));
+        assertEq(account.totalAssets(), 12e6);
+
+        // settlement covering the frozen cohort value is swept and releases the subaccount
+        usdc.mint(subAccount, 12e6);
+        account.sync();
+
+        assertEq(usdc.balanceOf(address(account)), 12e6);
+        assertEq(account.totalAssets(), 12e6);
+        vm.expectRevert();
+        account.subAccounts(0);
+    }
+
+    function testSuperstateWriteOffKeepsSubAccountTrackedForLateSettlement() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockSuperstateToken uscc = new MockSuperstateToken();
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+        SuperstateAccount account = _deploySuperstate(uscc, usdc, oracle);
+
+        uscc.mint(address(account), 1e6);
+        account.sync();
+        address subAccount = account.subAccounts(0);
+        account.sync(); // freezes the cohort rate at 11e18
+
+        // no settlement: the receivable is written off but the subaccount stays tracked
+        vm.warp(vm.getBlockTimestamp() + SETTLEMENT_DURATION);
+        assertEq(account.totalAssets(), 0);
+        assertEq(account.subAccounts(0), subAccount);
+
+        // a late settlement is still sweepable and restores the value
         usdc.mint(subAccount, 11e6);
         account.sync();
 
@@ -84,10 +123,59 @@ contract ProviderAccountsTest is AccountsBase {
         account.subAccounts(0);
     }
 
-    function testSecuritizeBurnsInSubAccountAndExpiresPendingValue() public {
+    function testSuperstateDustDonationDoesNotReleaseSubAccount() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockSecuritizeToken acred = new MockSecuritizeToken();
-        SecuritizeAccount account = _deploySecuritize(acred, usdc);
+        MockSuperstateToken uscc = new MockSuperstateToken();
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+        SuperstateAccount account = _deploySuperstate(uscc, usdc, oracle);
+
+        uscc.mint(address(account), 1e6);
+        account.sync();
+        address subAccount = account.subAccounts(0);
+
+        // 1 wei donation pre-settlement only reduces the remaining receivable one-for-one
+        usdc.mint(subAccount, 1);
+        account.sync();
+
+        assertEq(account.subAccounts(0), subAccount);
+        assertEq(account.receivedValues(uint160(subAccount)), 1);
+        assertEq(account.totalAssets(), 11e6);
+    }
+
+    function testSuperstateTranchedSettlementReleasesOnFullCoverage() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockSuperstateToken uscc = new MockSuperstateToken();
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+        SuperstateAccount account = _deploySuperstate(uscc, usdc, oracle);
+
+        uscc.mint(address(account), 1e6);
+        account.sync();
+        address subAccount = account.subAccounts(0);
+        account.sync(); // freezes the cohort rate at 11e18 (cohort value 11e6)
+
+        // first tranche (60%): swept but the subaccount is retained
+        usdc.mint(subAccount, 6_600_000);
+        account.sync();
+
+        assertEq(account.subAccounts(0), subAccount);
+        assertEq(usdc.balanceOf(address(account)), 6_600_000);
+        assertEq(account.totalAssets(), 11e6);
+
+        // second tranche (40%): coverage met, subaccount released
+        usdc.mint(subAccount, 4_400_000);
+        account.sync();
+
+        assertEq(usdc.balanceOf(address(account)), 11e6);
+        assertEq(account.totalAssets(), 11e6);
+        vm.expectRevert();
+        account.subAccounts(0);
+    }
+
+    function testSecuritizeTransfersNoticeToRedemptionWallet() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 acred = new MockERC20("Apollo Diversified Credit Securitize Fund", "ACRED", 6);
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+        SecuritizeAccount account = _deploySecuritize(acred, usdc, oracle);
 
         acred.mint(address(account), 1e6);
 
@@ -95,11 +183,77 @@ contract ProviderAccountsTest is AccountsBase {
 
         address subAccount = account.subAccounts(0);
         assertEq(acred.balanceOf(address(account)), 0);
-        assertEq(acred.burned(subAccount), 1e6);
+        assertEq(acred.balanceOf(subAccount), 0);
+        assertEq(acred.balanceOf(redemptionWallet), 1e6); // plain transfer notice, no burn
+        assertEq(account.totalAssets(), 11e6); // pending valued live
+    }
+
+    function testSecuritizeSweepsPartialFillRemint() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 acred = new MockERC20("Apollo Diversified Credit Securitize Fund", "ACRED", 6);
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+        SecuritizeAccount account = _deploySecuritize(acred, usdc, oracle);
+        address keeper = makeAddr("keeper");
+
+        acred.mint(address(account), 1e6);
+        account.sync();
+        address subAccount = account.subAccounts(0);
+        account.sync(); // freezes the cohort rate at 11e18 (cohort value 11e6)
+
+        // quarterly settlement: 35% repurchased in USDC, 65% re-minted as ACRED
+        usdc.mint(subAccount, 3_850_000);
+        acred.mint(subAccount, 650_000);
         assertEq(account.totalAssets(), 11e6);
 
-        vm.warp(vm.getBlockTimestamp() + PENDING_ASSETS_DURATION);
+        vm.prank(keeper);
+        account.sync();
 
+        // both legs swept to the parent; coverage met at the live rate -> subaccount released
+        assertEq(usdc.balanceOf(address(account)), 3_850_000);
+        assertEq(acred.balanceOf(address(account)), 650_000);
+        assertEq(account.totalAssets(), 11e6);
+        vm.expectRevert();
+        account.subAccounts(0);
+
+        // post-cooldown sync re-tenders the re-minted tokens into a new subaccount
+        vm.warp(vm.getBlockTimestamp() + TOKEN_COOLDOWN);
+        vm.prank(keeper);
+        account.sync();
+
+        address newSubAccount = account.subAccounts(0);
+        assertNotEq(newSubAccount, subAccount);
+        assertEq(acred.balanceOf(address(account)), 0);
+        assertEq(acred.balanceOf(redemptionWallet), 1_650_000);
+        assertEq(account.totalAssets(), 11e6);
+    }
+
+    function testSecuritizeFreezesCohortRateAfterPricingDate() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 acred = new MockERC20("Apollo Diversified Credit Securitize Fund", "ACRED", 6);
+        MockPriceDataOracle oracle = new MockPriceDataOracle(1e18);
+        uint48 cutoff = uint48(vm.getBlockTimestamp()) + 10 days;
+        SecuritizeAccount account = _deploySecuritize(acred, usdc, oracle, cutoff, 91 days, 5 days, 30 days);
+
+        acred.mint(address(account), 1e6);
+
+        account.sync();
+
+        address subAccount = account.subAccounts(0);
+        (,, uint48 cohortCutoff) = account.pendingCohorts(uint160(subAccount));
+        assertEq(cohortCutoff, cutoff);
+        assertEq(account.totalAssets(), 1e6);
+
+        // first oracle print at/after the pricing date freezes the cohort rate
+        uint48 pricingTime = cutoff + 5 days;
+        vm.warp(pricingTime + 1);
+        oracle.setPriceData(1.2e18, pricingTime + 1);
+        account.sync();
+
+        oracle.setPriceData(2e18, uint48(vm.getBlockTimestamp()));
+        assertEq(account.totalAssets(), 1_200_000);
+
+        // unsettled past the settlement duration: written off
+        vm.warp(pricingTime + 30 days);
         assertEq(account.totalAssets(), 0);
     }
 
@@ -137,31 +291,45 @@ contract ProviderAccountsTest is AccountsBase {
         account = ParetoAccount(factory.create(1, address(this), _initData(address(asset), address(tranche))));
     }
 
-    function _deploySuperstate(MockSuperstateToken uscc, MockERC20 asset) internal returns (SuperstateAccount account) {
+    function _deploySuperstate(MockSuperstateToken uscc, MockERC20 asset, MockPriceDataOracle oracle)
+        internal
+        returns (SuperstateAccount account)
+    {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         SuperstateAccount implementation = new SuperstateAccount(
-            address(new MockOracle(11e18)),
-            address(factory),
-            TOKEN_COOLDOWN,
-            address(uscc),
-            PENDING_ASSETS_DURATION,
-            cowSwapSettlement
+            address(oracle), address(factory), TOKEN_COOLDOWN, address(uscc), SETTLEMENT_DURATION, cowSwapSettlement
         );
         factory.whitelist(address(implementation));
         account = SuperstateAccount(factory.create(1, address(this), _initData(address(asset), address(uscc))));
     }
 
-    function _deploySecuritize(MockSecuritizeToken acred, MockERC20 asset)
+    function _deploySecuritize(MockERC20 acred, MockERC20 asset, MockPriceDataOracle oracle)
         internal
         returns (SecuritizeAccount account)
     {
+        account = _deploySecuritize(acred, asset, oracle, 0, 0, 0, SETTLEMENT_DURATION);
+    }
+
+    function _deploySecuritize(
+        MockERC20 acred,
+        MockERC20 asset,
+        MockPriceDataOracle oracle,
+        uint48 initialCutoff,
+        uint48 initialCutoffPeriod,
+        uint48 valuationDelay,
+        uint48 settlementDuration
+    ) internal returns (SecuritizeAccount account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         SecuritizeAccount implementation = new SecuritizeAccount(
-            address(new MockOracle(11e18)),
+            address(oracle),
             address(factory),
             TOKEN_COOLDOWN,
             address(acred),
-            PENDING_ASSETS_DURATION,
+            redemptionWallet,
+            initialCutoff,
+            initialCutoffPeriod,
+            valuationDelay,
+            settlementDuration,
             cowSwapSettlement
         );
         factory.whitelist(address(implementation));
@@ -300,17 +468,5 @@ contract MockSuperstateToken is MockERC20 {
     function offchainRedeem(uint256 amount) external {
         _burn(msg.sender, amount);
         redeemed[msg.sender] += amount;
-    }
-}
-
-contract MockSecuritizeToken is MockERC20 {
-    mapping(address account => uint256 amount) public burned;
-
-    constructor() MockERC20("Apollo Diversified Credit Securitize Fund", "ACRED", 6) {}
-
-    function burn(address account, uint256 amount, string calldata) external {
-        require(account == msg.sender);
-        _burn(account, amount);
-        burned[account] += amount;
     }
 }

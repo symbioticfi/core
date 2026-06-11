@@ -8,12 +8,10 @@ import {SuperstateAccount} from "../SuperstateAccount.sol";
 contract USCC_Account is SuperstateAccount {
     address internal constant TOKEN_ADDRESS = 0x14d60E7FDC0D71d8611742720E4C50E7a974020c;
     uint48 internal constant TOKEN_COOLDOWN = 12 hours;
-    uint48 internal constant TOKEN_PENDING_ASSETS_DURATION = 3 days;
+    uint48 internal constant TOKEN_SETTLEMENT_DURATION = 3 days;
 
     constructor(address oracle, address factory, address cowSwapSettlement)
-        SuperstateAccount(
-            oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, TOKEN_PENDING_ASSETS_DURATION, cowSwapSettlement
-        )
+        SuperstateAccount(oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, TOKEN_SETTLEMENT_DURATION, cowSwapSettlement)
     {}
 }
 

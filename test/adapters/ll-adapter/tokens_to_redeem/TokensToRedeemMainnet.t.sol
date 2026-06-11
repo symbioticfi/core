@@ -86,14 +86,7 @@ import {INoonWithdrawalHandler} from "../../../../src/interfaces/adapters/ll-ada
 import {IParetoAccount} from "../../../../src/interfaces/adapters/ll-adapter/pareto/IParetoAccount.sol";
 import {IParetoCDO} from "../../../../src/interfaces/adapters/ll-adapter/pareto/IParetoCDO.sol";
 import {ISecuritizeAccount} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeAccount.sol";
-import {
-    ISecuritizeSubAccount
-} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeSubAccount.sol";
-import {ISecuritizeToken} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeToken.sol";
 import {ISuperstateAccount} from "../../../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol";
-import {
-    ISuperstateSubAccount
-} from "../../../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateSubAccount.sol";
 import {ISuperstateToken} from "../../../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateToken.sol";
 import {ISthUSD} from "../../../../src/interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
 import {IThreeJaneSUSD3} from "../../../../src/interfaces/adapters/ll-adapter/threejane/IThreeJaneSUSD3.sol";
@@ -492,7 +485,10 @@ contract TokensToRedeemMainnetTest is Test {
             return;
         }
         if (index == 38) {
-            vm.expectCall(token, abi.encodeWithSelector(ISecuritizeToken.burn.selector));
+            // redemption notice is an ERC-20 transfer to the Securitize redemption wallet
+            vm.expectCall(
+                token, abi.encodeWithSelector(IERC20.transfer.selector, 0xbb543C77436645C8b95B64eEc39E3C0d48D4842b)
+            );
             return;
         }
         if (index == 39) {
@@ -698,7 +694,6 @@ contract TokensToRedeemMainnetTest is Test {
     function _assertSecuritizeRedemption(IAccount account, string memory symbol) internal view {
         address subAccount = ISecuritizeAccount(address(account)).subAccounts(0);
         assertGt(subAccount.code.length, 0, symbol);
-        assertGt(ISecuritizeSubAccount(subAccount).totalAssets(), 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
 
@@ -716,7 +711,6 @@ contract TokensToRedeemMainnetTest is Test {
     function _assertSuperstateRedemption(IAccount account, string memory symbol) internal view {
         address subAccount = ISuperstateAccount(address(account)).subAccounts(0);
         assertGt(subAccount.code.length, 0, symbol);
-        assertGt(ISuperstateSubAccount(subAccount).totalAssets(), 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
 

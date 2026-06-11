@@ -159,6 +159,8 @@ abstract contract CutoffPricer is ICutoffPricer {
     }
 
     /// @dev Returns the cohort value at the frozen (or live) rate, and whether the entry is written off.
+    ///      Entries that are written off without ever freezing report a zero value without reading the
+    ///      live oracle, so a dead oracle can never brick accounting for already-written-off cohorts.
     function _cohortValue(uint256 key) internal view returns (uint256 value, bool writtenOff) {
         PendingCohort storage pendingCohort = _getCutoffPricerStorage().pendingCohorts[key];
         uint256 amount = pendingCohort.amount;
@@ -170,6 +172,9 @@ abstract contract CutoffPricer is ICutoffPricer {
 
         uint256 rate = pendingCohort.frozenRate;
         if (rate == 0) {
+            if (writtenOff) {
+                return (0, true);
+            }
             (rate,) = _cutoffPriceData();
             if (rate == 0) {
                 revert InvalidCutoffPrice();

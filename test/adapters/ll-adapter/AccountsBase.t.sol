@@ -289,6 +289,29 @@ contract MockOracle {
     }
 }
 
+contract MockPriceDataOracle {
+    uint256 public price;
+    uint48 public updatedAt;
+
+    constructor(uint256 price_) {
+        price = price_;
+        updatedAt = uint48(block.timestamp);
+    }
+
+    function setPriceData(uint256 price_, uint48 updatedAt_) external {
+        price = price_;
+        updatedAt = updatedAt_;
+    }
+
+    function getPrice() external view returns (uint256) {
+        return price;
+    }
+
+    function getPriceData() external view returns (uint256, uint48) {
+        return (price, updatedAt);
+    }
+}
+
 contract MockVault {
     address public immutable asset;
 

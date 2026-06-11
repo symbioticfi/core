@@ -298,6 +298,18 @@ contract CutoffPricerTest is Test {
         assertEq(pricer.pendingValue(1), 0);
     }
 
+    function testWrittenOffNeverFrozenEntrySkipsOracleRead() public {
+        pricer.registerPending(1, 100e18);
+
+        vm.warp(CUTOFF + VALUATION_DELAY + SETTLEMENT_DURATION);
+        pricer.setPriceData(0, uint48(block.timestamp)); // dead oracle must not be read, let alone revert
+
+        (uint256 value, bool writtenOff) = pricer.cohortValue(1);
+        assertEq(value, 0);
+        assertTrue(writtenOff);
+        assertEq(pricer.pendingValue(1), 0);
+    }
+
     function testCohortValueEmptyEntry() public view {
         (uint256 value, bool writtenOff) = pricer.cohortValue(42);
         assertEq(value, 0);
