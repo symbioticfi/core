@@ -5,11 +5,16 @@ import {Test} from "forge-std/Test.sol";
 
 import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../src/contracts/adapters/LiquidLaneAdapter.sol";
+import {AdapterRegistry} from "../../src/contracts/AdapterRegistry.sol";
 import {AccountRegistry} from "../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
 import {ACRDX_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
+import {ACRED_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRED_Account.sol";
+import {AA_FalconX_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/AA_FalconX_Account.sol";
+import {bEQTY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/bEQTY_Account.sol";
 import {
     CarryTradeUSDTRYLeverage_Account
 } from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/CarryTradeUSDTRYLeverage_Account.sol";
+import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
 import {DUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
 import {JAAA_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JAAA_Account.sol";
 import {JTRSY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JTRSY_Account.sol";
@@ -42,16 +47,23 @@ import {mevBTC_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-
 import {msyrupUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/msyrupUSD_Account.sol";
 import {msyrupUSDp_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/msyrupUSDp_Account.sol";
 import {sAID_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sAID_Account.sol";
+import {sUSN_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSN_Account.sol";
 import {sUSD3_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSD3_Account.sol";
 import {sthUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sthUSD_Account.sol";
+import {USCC_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USCC_Account.sol";
+import {USD3_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USD3_Account.sol";
 import {weETH_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {MigratablesFactory} from "../../src/contracts/common/MigratablesFactory.sol";
 import {Registry} from "../../src/contracts/common/Registry.sol";
+import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
 import {ILiquidLaneAdapter, MAX_TOKENS_TO_REDEEM} from "../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IAccount} from "../../src/interfaces/adapters/ll-adapter/IAccount.sol";
+import {IUniversalDelegator, MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
@@ -75,8 +87,11 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
 
     BenchmarkVaultRegistry internal vaultFactory;
     AdapterFactory internal adapterFactory;
+    AdapterRegistry internal adapterRegistry;
     AccountRegistry internal accountRegistry;
+    DelegatorFactory internal delegatorFactory;
     BenchmarkLiquidLaneVault internal vault;
+    UniversalDelegator internal delegator;
     LiquidLaneAdapter internal adapter;
 
     struct TokenBenchSpec {
@@ -89,23 +104,34 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     struct AccountGasBench {
         uint256 totalAssetsGas;
         uint256 syncGas;
+        uint256 seededRequests;
+        bool syncSuccess;
+        bool totalAssetsSuccess;
+    }
+
+    struct AggregateGasBench {
+        uint256 adapterTotalAssetsGas;
+        uint256 delegatorTotalAssetsGas;
+        bool adapterTotalAssetsSuccess;
+        bool delegatorTotalAssetsSuccess;
     }
 
     function testCalculatesAllTokenCooldownsAndRequestCounts() public pure {
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
 
-        assertEq(specs.length, 36);
+        assertEq(specs.length, 42);
         assertLe(specs.length, MAX_TOKENS_TO_REDEEM);
 
         uint256 totalMaxAverageRequests;
         for (uint256 i; i < specs.length; ++i) {
-            uint48 expectedCooldown = _cooldown(specs[i].maxDelay);
+            uint48 expectedCooldown = _cooldown(specs[i].symbol, specs[i].maxDelay);
             assertEq(specs[i].cooldown, expectedCooldown, specs[i].symbol);
-            assertEq(specs[i].maxAverageRequests, uint256(specs[i].maxDelay).ceilDiv(expectedCooldown), specs[i].symbol);
-            assertLe(specs[i].maxAverageRequests, 10, specs[i].symbol);
+            assertEq(
+                specs[i].maxAverageRequests, _maxAverageRequests(specs[i].maxDelay, expectedCooldown), specs[i].symbol
+            );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 180);
+        assertEq(totalMaxAverageRequests, 259);
     }
 
     function testBenchmarkOnboardsAllTokensToLiquidLaneAdapter() public {
@@ -119,16 +145,12 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
         address[] memory tokens = _registerTokenFactories(specs);
 
-        vm.startPrank(curator);
         vm.resumeGasMetering();
         uint256 gasBefore = gasleft();
-        for (uint256 i; i < tokens.length; ++i) {
-            adapter.addTokenToRedeem(tokens[i]);
-        }
+        _onboardTokens(tokens);
         uint256 onboardingGas = gasBefore - gasleft();
 
         vm.pauseGasMetering();
-        vm.stopPrank();
         assertEq(adapter.getTokensToRedeemLength(), specs.length);
         _logBench(specs, onboardingGas);
     }
@@ -144,19 +166,20 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
         address[] memory tokens = _registerTokenFactories(specs);
 
-        vm.startPrank(curator);
-        for (uint256 i; i < tokens.length; ++i) {
-            adapter.addTokenToRedeem(tokens[i]);
-        }
-        vm.stopPrank();
+        _onboardTokens(tokens);
 
         AccountGasBench[] memory benches = _benchmarkAccountGas(specs, tokens);
+        AggregateGasBench memory aggregateBench = _benchmarkAggregateGas();
 
         assertEq(benches.length, specs.length);
         for (uint256 i; i < benches.length; ++i) {
             assertGt(benches[i].totalAssetsGas, 0, specs[i].symbol);
             assertGt(benches[i].syncGas, 0, specs[i].symbol);
+            assertLe(benches[i].seededRequests, specs[i].maxAverageRequests, specs[i].symbol);
         }
+
+        assertGt(aggregateBench.adapterTotalAssetsGas, 0);
+        assertGt(aggregateBench.delegatorTotalAssetsGas, 0);
     }
 
     function _setUpAdapter() internal {
@@ -165,17 +188,39 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         vaultFactory.add(address(vault));
 
         adapterFactory = new AdapterFactory(curator);
+        adapterRegistry = new AdapterRegistry(curator);
         accountRegistry = new AccountRegistry(curator);
+        delegatorFactory = new DelegatorFactory(curator);
 
         LiquidLaneAdapter implementation =
             new LiquidLaneAdapter(address(vaultFactory), address(adapterFactory), address(accountRegistry));
+        UniversalDelegator delegatorImplementation =
+            new UniversalDelegator(0, address(vaultFactory), address(adapterRegistry), address(delegatorFactory));
 
         vm.startPrank(curator);
         adapterFactory.whitelist(address(implementation));
+        delegatorFactory.whitelist(address(delegatorImplementation));
 
         ILiquidLaneAdapter.InitParams memory params =
             ILiquidLaneAdapter.InitParams({pauser: pauser, unpauser: unpauser});
         adapter = LiquidLaneAdapter(adapterFactory.create(1, curator, abi.encode(address(vault), abi.encode(params))));
+
+        IUniversalDelegator.InitParams memory delegatorParams = IUniversalDelegator.InitParams({
+            allocateRoleHolder: curator,
+            deallocateRoleHolder: curator,
+            addAdapterRoleHolder: curator,
+            swapAdaptersRoleHolder: curator,
+            defaultAdminRoleHolder: curator,
+            removeAdapterRoleHolder: curator,
+            setAdapterLimitsRoleHolder: curator,
+            setAutoAllocateAdaptersRoleHolder: curator
+        });
+        delegator =
+            UniversalDelegator(delegatorFactory.create(0, abi.encode(address(vault), abi.encode(delegatorParams))));
+        vault.setDelegator(address(delegator));
+        adapterRegistry.setWhitelistedStatus(address(vault), address(adapter), true);
+        delegator.addAdapter(address(adapter));
+        delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE);
         vm.stopPrank();
     }
 
@@ -187,12 +232,50 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             MigratablesFactory accountFactory = new MigratablesFactory(curator);
             IAccount implementation = _deployImplementation(i, address(accountFactory));
             address token = implementation.TOKEN_TO_REDEEM();
+            address asset = _assetFor(i, token);
 
             accountFactory.whitelist(address(implementation));
-            accountRegistry.setAccountFactory(MAINNET_USDC, token, address(accountFactory));
+            accountRegistry.setAccountFactory(asset, token, address(accountFactory));
             tokens[i] = token;
         }
         vm.stopPrank();
+    }
+
+    function _onboardTokens(address[] memory tokens) internal {
+        vm.startPrank(curator);
+        for (uint256 i; i < tokens.length; ++i) {
+            _mockVaultAsset(_assetFor(i, tokens[i]));
+            adapter.addTokenToRedeem(tokens[i]);
+        }
+        vm.stopPrank();
+    }
+
+    function _assetFor(uint256 index, address token) internal view returns (address) {
+        if (
+            _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 37 || index == 38
+                || index == 40
+        ) {
+            return MAINNET_USDC;
+        }
+        if (index == 5) {
+            return IERC4626(IERC4626(token).asset()).asset();
+        }
+        if (index == 35 || index == 36) {
+            return WETH;
+        }
+        return IERC4626(token).asset();
+    }
+
+    function _isMidas(uint256 index) internal pure returns (bool) {
+        return index == 1 || index == 6 || (index >= 11 && index <= 31);
+    }
+
+    function _isCentrifuge(uint256 index) internal pure returns (bool) {
+        return index == 0 || index == 3 || index == 4 || (index >= 8 && index <= 10);
+    }
+
+    function _mockVaultAsset(address asset) internal {
+        vm.mockCall(address(vault), abi.encodeWithSelector(IERC4626.asset.selector), abi.encode(asset));
     }
 
     function _benchmarkAccountGas(TokenBenchSpec[] memory specs, address[] memory tokens)
@@ -208,24 +291,39 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             address account = adapter.accounts(tokens[i]);
             assertGt(account.code.length, 0, specs[i].symbol);
 
+            uint256 seededRequests = _seedRequests(specs[i], tokens[i], account);
+
             vm.resumeGasMetering();
             uint256 gasBefore = gasleft();
-            uint256 assets = IAccount(account).totalAssets();
+            (bool totalAssetsSuccess, bytes memory totalAssetsData) =
+                account.staticcall(abi.encodeWithSelector(IAccount.totalAssets.selector));
             uint256 totalAssetsGas = gasBefore - gasleft();
 
             gasBefore = gasleft();
-            IAccount(account).sync();
+            (bool syncSuccess,) = account.call(abi.encodeWithSelector(IAccount.sync.selector));
             uint256 syncGas = gasBefore - gasleft();
             vm.pauseGasMetering();
 
-            benches[i] = AccountGasBench({totalAssetsGas: totalAssetsGas, syncGas: syncGas});
+            uint256 assets = totalAssetsSuccess ? abi.decode(totalAssetsData, (uint256)) : 0;
+
+            benches[i] = AccountGasBench({
+                totalAssetsGas: totalAssetsGas,
+                syncGas: syncGas,
+                seededRequests: seededRequests,
+                syncSuccess: syncSuccess,
+                totalAssetsSuccess: totalAssetsSuccess
+            });
             totalTotalAssetsGas += totalAssetsGas;
             totalSyncGas += syncGas;
 
             emit log_named_string("token", specs[i].symbol);
             emit log_named_address("account", account);
+            emit log_named_uint("target requests", specs[i].maxAverageRequests);
+            emit log_named_uint("seeded requests", seededRequests);
             emit log_named_uint("totalAssets", assets);
+            emit log_named_uint("totalAssets success", totalAssetsSuccess ? 1 : 0);
             emit log_named_uint("totalAssets gas", totalAssetsGas);
+            emit log_named_uint("sync success", syncSuccess ? 1 : 0);
             emit log_named_uint("sync gas", syncGas);
         }
 
@@ -234,8 +332,56 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         emit log_named_uint("total sync gas", totalSyncGas);
     }
 
+    function _benchmarkAggregateGas() internal returns (AggregateGasBench memory bench) {
+        vm.resumeGasMetering();
+        uint256 gasBefore = gasleft();
+        (bool adapterTotalAssetsSuccess,) =
+            address(adapter).staticcall(abi.encodeWithSelector(LiquidLaneAdapter.totalAssets.selector));
+        uint256 adapterTotalAssetsGas = gasBefore - gasleft();
+
+        gasBefore = gasleft();
+        (bool delegatorTotalAssetsSuccess,) =
+            address(delegator).staticcall(abi.encodeWithSelector(UniversalDelegator.totalAssets.selector));
+        uint256 delegatorTotalAssetsGas = gasBefore - gasleft();
+        vm.pauseGasMetering();
+
+        bench = AggregateGasBench({
+            adapterTotalAssetsGas: adapterTotalAssetsGas,
+            delegatorTotalAssetsGas: delegatorTotalAssetsGas,
+            adapterTotalAssetsSuccess: adapterTotalAssetsSuccess,
+            delegatorTotalAssetsSuccess: delegatorTotalAssetsSuccess
+        });
+
+        emit log_named_uint("adapter totalAssets success", adapterTotalAssetsSuccess ? 1 : 0);
+        emit log_named_uint("adapter totalAssets gas", adapterTotalAssetsGas);
+        emit log_named_uint("delegator totalAssets success", delegatorTotalAssetsSuccess ? 1 : 0);
+        emit log_named_uint("delegator totalAssets gas", delegatorTotalAssetsGas);
+    }
+
+    function _seedRequests(TokenBenchSpec memory spec, address token, address account)
+        internal
+        returns (uint256 seeded)
+    {
+        for (uint256 i; i < spec.maxAverageRequests; ++i) {
+            deal(token, account, _requestAmount(token));
+
+            vm.prank(curator);
+            (bool success,) = account.call(abi.encodeWithSelector(IAccount.sync.selector));
+            if (!success) {
+                deal(token, account, 0);
+                return seeded;
+            }
+
+            ++seeded;
+        }
+    }
+
+    function _requestAmount(address token) internal view returns (uint256) {
+        return 10 ** IERC20Metadata(token).decimals();
+    }
+
     function _tokenBenchSpecs() internal pure returns (TokenBenchSpec[] memory specs) {
-        specs = new TokenBenchSpec[](36);
+        specs = new TokenBenchSpec[](42);
         specs[0] = _spec("ACRDX", 1 days);
         specs[1] = _spec("CarryTradeUSDTRYLeverage", 2 days);
         specs[2] = _spec("DUSD", 12 hours);
@@ -243,40 +389,46 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         specs[4] = _spec("JTRSY", 1 days);
         specs[5] = _spec("PRIME", 1 days);
         specs[6] = _spec("StockMarketTRBasisTrade", 2 days);
-        specs[7] = _spec("deJAAA", 1 days);
-        specs[8] = _spec("deJTRSY", 1 days);
-        specs[9] = _spec("mAPOLLO", 3 days);
-        specs[10] = _spec("mBASIS", 7 days);
-        specs[11] = _spec("mBTC", 7 days);
-        specs[12] = _spec("mEDGE", 3 days);
-        specs[13] = _spec("mEVUSD", 3 days);
-        specs[14] = _spec("mFARM", 7 days);
-        specs[15] = _spec("mFONE", 35 days);
-        specs[16] = _spec("mGLOBAL", 65 days);
-        specs[17] = _spec("mHYPER", 3 days);
-        specs[18] = _spec("mHyperBTC", 7 days);
-        specs[19] = _spec("mHyperETH", 7 days);
-        specs[20] = _spec("mM1USD", 17 days);
-        specs[21] = _spec("mMEV", 3 days);
-        specs[22] = _spec("mROX", 3 days);
-        specs[23] = _spec("mRe7BTC", 24 days);
-        specs[24] = _spec("mRe7YIELD", 24 days);
-        specs[25] = _spec("mSL", 3 days);
-        specs[26] = _spec("mTBILL", 3 days);
-        specs[27] = _spec("mevBTC", 7 days);
-        specs[28] = _spec("msyrupUSD", 7 days);
-        specs[29] = _spec("msyrupUSDp", 3 days);
-        specs[30] = _spec("sAID", 62 days);
-        specs[31] = _spec("sUSD3", 30 days);
-        specs[32] = _spec("sthUSD", 7 days);
-        specs[33] = _spec("weETH", 14 days);
-        specs[34] = _spec("wstETH", 5 days);
-        specs[35] = _spec("deCRDX", 1 days);
+        specs[7] = _spec("bEQTY", 1 days);
+        specs[8] = _spec("deCRDX", 1 days);
+        specs[9] = _spec("deJAAA", 1 days);
+        specs[10] = _spec("deJTRSY", 1 days);
+        specs[11] = _spec("mAPOLLO", 3 days);
+        specs[12] = _spec("mBASIS", 7 days);
+        specs[13] = _spec("mBTC", 7 days);
+        specs[14] = _spec("mEDGE", 3 days);
+        specs[15] = _spec("mEVUSD", 3 days);
+        specs[16] = _spec("mFARM", 7 days);
+        specs[17] = _spec("mFONE", 35 days);
+        specs[18] = _spec("mGLOBAL", 65 days);
+        specs[19] = _spec("mHYPER", 3 days);
+        specs[20] = _spec("mHyperBTC", 7 days);
+        specs[21] = _spec("mHyperETH", 7 days);
+        specs[22] = _spec("mM1USD", 17 days);
+        specs[23] = _spec("mMEV", 3 days);
+        specs[24] = _spec("mROX", 3 days);
+        specs[25] = _spec("mRe7BTC", 24 days);
+        specs[26] = _spec("mRe7YIELD", 24 days);
+        specs[27] = _spec("mSL", 3 days);
+        specs[28] = _spec("mTBILL", 3 days);
+        specs[29] = _spec("mevBTC", 7 days);
+        specs[30] = _spec("msyrupUSD", 7 days);
+        specs[31] = _spec("msyrupUSDp", 3 days);
+        specs[32] = _spec("sAID", 62 days);
+        specs[33] = _spec("sUSD3", 30 days);
+        specs[34] = _spec("sthUSD", 7 days);
+        specs[35] = _spec("weETH", 14 days);
+        specs[36] = _spec("wstETH", 5 days);
+        specs[37] = _spec("AA_FalconXUSDC", 30 days);
+        specs[38] = _spec("ACRED", 90 days);
+        specs[39] = _spec("sUSN", 7 days);
+        specs[40] = _spec("USCC", 3 days);
+        specs[41] = _spec("USD3", 0);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
         if (index == 0) {
-            return IAccount(address(new ACRDX_Account(makeAddr("ACRDX_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new ACRDX_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 1) {
             return IAccount(address(new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT)));
@@ -285,106 +437,109 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             return IAccount(address(new DUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 3) {
-            return IAccount(address(new JAAA_Account(makeAddr("JAAA_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new JAAA_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 4) {
-            return IAccount(address(new JTRSY_Account(makeAddr("JTRSY_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new JTRSY_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 5) {
-            return
-                IAccount(
-                    address(new PRIME_Account(makeAddr("PRIME_ORACLE"), factory, PRIME_TOKEN, COW_SWAP_SETTLEMENT))
-                );
+            return IAccount(address(new PRIME_Account(_oracle(), factory, PRIME_TOKEN, COW_SWAP_SETTLEMENT)));
         }
         if (index == 6) {
             return IAccount(address(new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 7) {
-            return IAccount(address(new deJAAA_Account(makeAddr("deJAAA_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new bEQTY_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 8) {
-            return IAccount(address(new deJTRSY_Account(makeAddr("deJTRSY_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new deCRDX_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 9) {
-            return IAccount(address(new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new deJAAA_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 10) {
-            return IAccount(address(new mBASIS_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new deJTRSY_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 11) {
-            return IAccount(address(new mBTC_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 12) {
-            return IAccount(address(new mEDGE_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mBASIS_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 13) {
-            return IAccount(address(new mEVUSD_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mBTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 14) {
-            return IAccount(address(new mFARM_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mEDGE_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 15) {
-            return IAccount(address(new mFONE_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mEVUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 16) {
-            return IAccount(address(new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mFARM_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 17) {
-            return IAccount(address(new mHYPER_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mFONE_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 18) {
-            return IAccount(address(new mHyperBTC_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 19) {
-            return IAccount(address(new mHyperETH_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mHYPER_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 20) {
-            return IAccount(address(new mM1USD_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mHyperBTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 21) {
-            return IAccount(address(new mMEV_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mHyperETH_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 22) {
-            return IAccount(address(new mROX_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mM1USD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 23) {
-            return IAccount(address(new mRe7BTC_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mMEV_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 24) {
-            return IAccount(address(new mRe7YIELD_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mROX_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 25) {
-            return IAccount(address(new mSL_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mRe7BTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 26) {
-            return IAccount(address(new mTBILL_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mRe7YIELD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 27) {
-            return IAccount(address(new mevBTC_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mSL_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 28) {
-            return IAccount(address(new msyrupUSD_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mTBILL_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 29) {
-            return IAccount(address(new msyrupUSDp_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mevBTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 30) {
-            return IAccount(address(new sAID_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new msyrupUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 31) {
-            return IAccount(address(new sUSD3_Account(makeAddr("sUSD3_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new msyrupUSDp_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 32) {
-            return IAccount(address(new sthUSD_Account(makeAddr("sthUSD_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new sAID_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 33) {
+            return IAccount(address(new sUSD3_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 34) {
+            return IAccount(address(new sthUSD_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 35) {
             return IAccount(
                 address(
                     new weETH_Account(
                         EETH,
                         WETH,
                         WEETH,
-                        makeAddr("weETH_ORACLE"),
+                        _oracle(),
                         factory,
                         makeAddr("ETHERFI_LIQUIDITY_POOL"),
                         makeAddr("ETHERFI_REDEMPTION_MANAGER"),
@@ -394,37 +549,55 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
                 )
             );
         }
-        if (index == 34) {
+        if (index == 36) {
             return IAccount(
                 address(
                     new wstETH_Account(
-                        STETH,
-                        WETH,
-                        makeAddr("wstETH_ORACLE"),
-                        WSTETH,
-                        factory,
-                        LIDO_WITHDRAWAL_QUEUE,
-                        COW_SWAP_SETTLEMENT
+                        STETH, WETH, _oracle(), WSTETH, factory, LIDO_WITHDRAWAL_QUEUE, COW_SWAP_SETTLEMENT
                     )
                 )
             );
         }
-        return IAccount(address(new deCRDX_Account(makeAddr("deCRDX_ORACLE"), factory, COW_SWAP_SETTLEMENT)));
+        if (index == 37) {
+            return IAccount(address(new AA_FalconX_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 38) {
+            return IAccount(address(new ACRED_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 39) {
+            return IAccount(address(new sUSN_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 40) {
+            return IAccount(address(new USCC_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+        }
+        return IAccount(address(new USD3_Account(factory, COW_SWAP_SETTLEMENT)));
     }
 
     function _spec(string memory symbol, uint48 maxDelay) internal pure returns (TokenBenchSpec memory spec) {
-        uint48 cooldown = _cooldown(maxDelay);
+        uint48 cooldown = _cooldown(symbol, maxDelay);
         spec = TokenBenchSpec({
             symbol: symbol,
             maxDelay: maxDelay,
             cooldown: cooldown,
-            maxAverageRequests: uint256(maxDelay).ceilDiv(cooldown)
+            maxAverageRequests: _maxAverageRequests(maxDelay, cooldown)
         });
     }
 
-    function _cooldown(uint48 maxDelay) internal pure returns (uint48) {
+    function _cooldown(string memory symbol, uint48 maxDelay) internal pure returns (uint48) {
+        if (keccak256(bytes(symbol)) == keccak256("mFONE") || keccak256(bytes(symbol)) == keccak256("mGLOBAL")) {
+            return 36 hours;
+        }
+
         uint48 cooldown = maxDelay / 10;
         return cooldown < 1 days ? uint48(1 days) : cooldown;
+    }
+
+    function _maxAverageRequests(uint48 maxDelay, uint48 cooldown) internal pure returns (uint256) {
+        return maxDelay == 0 ? 0 : uint256(maxDelay).ceilDiv(cooldown);
+    }
+
+    function _oracle() internal returns (address) {
+        return address(new BenchmarkConstantOracle());
     }
 
     function _logBench(TokenBenchSpec[] memory specs, uint256 onboardingGas) internal {
@@ -470,5 +643,15 @@ contract BenchmarkLiquidLaneVault {
 
     function freeAssets() external view returns (uint256) {
         return IERC20(asset).balanceOf(address(this));
+    }
+
+    function version() external pure returns (uint64) {
+        return 3;
+    }
+}
+
+contract BenchmarkConstantOracle {
+    function getPrice() external pure returns (uint256) {
+        return 1e18;
     }
 }
