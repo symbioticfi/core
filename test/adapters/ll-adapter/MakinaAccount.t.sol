@@ -80,6 +80,39 @@ contract MakinaAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 2e6);
     }
 
+    function testMakinaPendingRequestValueIsCappedAtRequestTimeQuote() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 tokenToRedeem = new MockERC20("Dialectic USD", "DUSD", 18);
+        MockMakinaMachine machine = new MockMakinaMachine(tokenToRedeem, asset, 1e6);
+        MockMakinaRedeemer redeemer = new MockMakinaRedeemer(machine);
+        MockOracle oracle = new MockOracle(1e18);
+        MakinaAccount account = _deployMakina(tokenToRedeem, asset, redeemer, oracle, 0);
+
+        tokenToRedeem.mint(address(account), 2 ether);
+        account.sync();
+
+        assertEq(account.requestQuotes(1), 2e6);
+        assertEq(account.totalAssets(), 2e6);
+
+        // 1) price rises 1.5x: pending value stays capped at the request-time quote
+        oracle.setPrice(1.5e18);
+        assertEq(account.totalAssets(), 2e6);
+
+        // 2) price falls to 0.5x: pending value follows the live (lower) value
+        oracle.setPrice(0.5e18);
+        assertEq(account.totalAssets(), 1e6);
+
+        // finalized claimable amount is fixed by the redeemer and is not capped by the quote
+        redeemer.finalize(1, 2_500_000);
+        assertEq(account.totalAssets(), 2_500_000);
+
+        account.sync();
+
+        assertEq(account.requestQuotes(1), 0);
+        assertEq(asset.balanceOf(address(account)), 2_500_000);
+        assertEq(account.totalAssets(), 2_500_000);
+    }
+
     function testMakinaAccountDoesNotExposeTotalRequests() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockERC20 tokenToRedeem = new MockERC20("Dialectic USD", "DUSD", 18);

@@ -30,6 +30,9 @@ contract MakinaAccount is CooldownAccount, IMakinaAccount {
     /// @inheritdoc IMakinaAccount
     uint64[] public requestIds;
 
+    /// @inheritdoc IMakinaAccount
+    mapping(uint64 requestId => uint256 assets) public requestQuotes;
+
     /* CONSTRUCTOR */
 
     /// @notice Creates the Makina account implementation.
@@ -62,7 +65,9 @@ contract MakinaAccount is CooldownAccount, IMakinaAccount {
                 assets += _redemptionTokenToAssets(_accountingToken, claimableAssets);
             } catch {
                 try IMakinaRedeemer(REDEEMER).getShares(requestId) returns (uint256 shares) {
-                    assets += _tokenToRedeemToAssets(shares);
+                    uint256 quote = requestQuotes[uint64(requestId)];
+                    uint256 live = _tokenToRedeemToAssets(shares);
+                    assets += quote == 0 || live < quote ? live : quote;
                 } catch {}
             }
         }
@@ -74,20 +79,20 @@ contract MakinaAccount is CooldownAccount, IMakinaAccount {
             uint256 index = i - 1;
 
             try IMakinaRedeemer(REDEEMER).claimAssets(requestIds[index]) returns (uint256) {
+                delete requestQuotes[requestIds[index]];
                 requestIds[index] = requestIds[requestIds.length - 1];
                 requestIds.pop();
             } catch {}
         }
     }
 
-    /// @dev Submits held token-to-redeem balance to the Makina redeemer.
+    /// @dev Submits held token-to-redeem balance to the Makina redeemer and quotes its current value.
     function _requestRedeem() internal override {
-        requestIds.push(
-            uint64(
-                IMakinaRedeemer(REDEEMER)
-                    .requestRedeem(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), address(this), 0)
-            )
-        );
+        uint256 amount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        uint64 requestId = uint64(IMakinaRedeemer(REDEEMER).requestRedeem(amount, address(this), 0));
+
+        requestIds.push(requestId);
+        requestQuotes[requestId] = _tokenToRedeemToAssets(amount);
     }
 
     /* INITIALIZATION */

@@ -31,6 +31,13 @@ interface IMakinaAccount is ICooldownAccount {
     function requestIds(uint256 index) external view returns (uint64 requestId);
 
     /**
+     * @notice Returns the request-time vault-asset quote capping a pending request's value.
+     * @param requestId The redemption receipt id.
+     * @return assets The quoted vault-asset value (0 for requests created before quoting).
+     */
+    function requestQuotes(uint64 requestId) external view returns (uint256 assets);
+
+    /**
      * @notice Accepts Makina redemption receipt NFTs.
      * @return selector The ERC721 receiver selector.
      */
