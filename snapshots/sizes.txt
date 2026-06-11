@@ -1,4 +1,503 @@
-No files changed, compilation skipped
+Compiling 1 files with Solc 0.8.35
+Solc 0.8.35 finished in 7.61s
+Compiler run successful with warnings:
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1343:9:
+     |
+1343 |         string calldata error
+     |         ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1357:9:
+     |
+1357 |         string calldata error
+     |         ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1365:79:
+     |
+1365 |     function assertApproxEqAbs(uint256 left, uint256 right, uint256 maxDelta, string calldata error) external pure;
+     |                                                                               ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1372:77:
+     |
+1372 |     function assertApproxEqAbs(int256 left, int256 right, uint256 maxDelta, string calldata error) external pure;
+     |                                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1389:9:
+     |
+1389 |         string calldata error
+     |         ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1407:9:
+     |
+1407 |         string calldata error
+     |         ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1417:86:
+     |
+1417 |     function assertApproxEqRel(uint256 left, uint256 right, uint256 maxPercentDelta, string calldata error)
+     |                                                                                      ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1428:84:
+     |
+1428 |     function assertApproxEqRel(int256 left, int256 right, uint256 maxPercentDelta, string calldata error) external pure;
+     |                                                                                    ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1435:77:
+     |
+1435 |     function assertEqDecimal(uint256 left, uint256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1442:75:
+     |
+1442 |     function assertEqDecimal(int256 left, int256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                           ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1448:46:
+     |
+1448 |     function assertEq(bool left, bool right, string calldata error) external pure;
+     |                                              ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1454:68:
+     |
+1454 |     function assertEq(string calldata left, string calldata right, string calldata error) external pure;
+     |                                                                    ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1460:66:
+     |
+1460 |     function assertEq(bytes calldata left, bytes calldata right, string calldata error) external pure;
+     |                                                                  ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1466:68:
+     |
+1466 |     function assertEq(bool[] calldata left, bool[] calldata right, string calldata error) external pure;
+     |                                                                    ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1472:74:
+     |
+1472 |     function assertEq(uint256[] calldata left, uint256[] calldata right, string calldata error) external pure;
+     |                                                                          ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1478:72:
+     |
+1478 |     function assertEq(int256[] calldata left, int256[] calldata right, string calldata error) external pure;
+     |                                                                        ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1487:74:
+     |
+1487 |     function assertEq(address[] calldata left, address[] calldata right, string calldata error) external pure;
+     |                                                                          ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1493:74:
+     |
+1493 |     function assertEq(bytes32[] calldata left, bytes32[] calldata right, string calldata error) external pure;
+     |                                                                          ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1499:72:
+     |
+1499 |     function assertEq(string[] calldata left, string[] calldata right, string calldata error) external pure;
+     |                                                                        ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1505:70:
+     |
+1505 |     function assertEq(bytes[] calldata left, bytes[] calldata right, string calldata error) external pure;
+     |                                                                      ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1508:52:
+     |
+1508 |     function assertEq(uint256 left, uint256 right, string calldata error) external pure;
+     |                                                    ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1514:50:
+     |
+1514 |     function assertEq(int256 left, int256 right, string calldata error) external pure;
+     |                                                  ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1520:52:
+     |
+1520 |     function assertEq(address left, address right, string calldata error) external pure;
+     |                                                    ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1526:52:
+     |
+1526 |     function assertEq(bytes32 left, bytes32 right, string calldata error) external pure;
+     |                                                    ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1532:42:
+     |
+1532 |     function assertFalse(bool condition, string calldata error) external pure;
+     |                                          ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1540:77:
+     |
+1540 |     function assertGeDecimal(uint256 left, uint256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1548:75:
+     |
+1548 |     function assertGeDecimal(int256 left, int256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                           ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1555:52:
+     |
+1555 |     function assertGe(uint256 left, uint256 right, string calldata error) external pure;
+     |                                                    ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1562:50:
+     |
+1562 |     function assertGe(int256 left, int256 right, string calldata error) external pure;
+     |                                                  ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1570:77:
+     |
+1570 |     function assertGtDecimal(uint256 left, uint256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1578:75:
+     |
+1578 |     function assertGtDecimal(int256 left, int256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                           ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1585:52:
+     |
+1585 |     function assertGt(uint256 left, uint256 right, string calldata error) external pure;
+     |                                                    ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1592:50:
+     |
+1592 |     function assertGt(int256 left, int256 right, string calldata error) external pure;
+     |                                                  ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1600:77:
+     |
+1600 |     function assertLeDecimal(uint256 left, uint256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1608:75:
+     |
+1608 |     function assertLeDecimal(int256 left, int256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                           ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1615:52:
+     |
+1615 |     function assertLe(uint256 left, uint256 right, string calldata error) external pure;
+     |                                                    ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1622:50:
+     |
+1622 |     function assertLe(int256 left, int256 right, string calldata error) external pure;
+     |                                                  ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1630:77:
+     |
+1630 |     function assertLtDecimal(uint256 left, uint256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1638:75:
+     |
+1638 |     function assertLtDecimal(int256 left, int256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                           ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1645:52:
+     |
+1645 |     function assertLt(uint256 left, uint256 right, string calldata error) external pure;
+     |                                                    ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1652:50:
+     |
+1652 |     function assertLt(int256 left, int256 right, string calldata error) external pure;
+     |                                                  ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1659:80:
+     |
+1659 |     function assertNotEqDecimal(uint256 left, uint256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                                ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1666:78:
+     |
+1666 |     function assertNotEqDecimal(int256 left, int256 right, uint256 decimals, string calldata error) external pure;
+     |                                                                              ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1672:49:
+     |
+1672 |     function assertNotEq(bool left, bool right, string calldata error) external pure;
+     |                                                 ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1678:71:
+     |
+1678 |     function assertNotEq(string calldata left, string calldata right, string calldata error) external pure;
+     |                                                                       ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1684:69:
+     |
+1684 |     function assertNotEq(bytes calldata left, bytes calldata right, string calldata error) external pure;
+     |                                                                     ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1690:71:
+     |
+1690 |     function assertNotEq(bool[] calldata left, bool[] calldata right, string calldata error) external pure;
+     |                                                                       ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1696:77:
+     |
+1696 |     function assertNotEq(uint256[] calldata left, uint256[] calldata right, string calldata error) external pure;
+     |                                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1702:75:
+     |
+1702 |     function assertNotEq(int256[] calldata left, int256[] calldata right, string calldata error) external pure;
+     |                                                                           ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1711:77:
+     |
+1711 |     function assertNotEq(address[] calldata left, address[] calldata right, string calldata error) external pure;
+     |                                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1717:77:
+     |
+1717 |     function assertNotEq(bytes32[] calldata left, bytes32[] calldata right, string calldata error) external pure;
+     |                                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1723:75:
+     |
+1723 |     function assertNotEq(string[] calldata left, string[] calldata right, string calldata error) external pure;
+     |                                                                           ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1729:73:
+     |
+1729 |     function assertNotEq(bytes[] calldata left, bytes[] calldata right, string calldata error) external pure;
+     |                                                                         ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1732:55:
+     |
+1732 |     function assertNotEq(uint256 left, uint256 right, string calldata error) external pure;
+     |                                                       ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1738:53:
+     |
+1738 |     function assertNotEq(int256 left, int256 right, string calldata error) external pure;
+     |                                                     ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1744:55:
+     |
+1744 |     function assertNotEq(address left, address right, string calldata error) external pure;
+     |                                                       ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1750:55:
+     |
+1750 |     function assertNotEq(bytes32 left, bytes32 right, string calldata error) external pure;
+     |                                                       ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+    --> lib/forge-std/src/Vm.sol:1756:41:
+     |
+1756 |     function assertTrue(bool condition, string calldata error) external pure;
+     |                                         ^^^^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol:125:29:
+    |
+125 |         (address recovered, RecoverError error, bytes32 errorArg) = tryRecover(hash, signature);
+    |                             ^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol:134:29:
+    |
+134 |         (address recovered, RecoverError error, bytes32 errorArg) = tryRecoverCalldata(hash, signature);
+    |                             ^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol:161:29:
+    |
+161 |         (address recovered, RecoverError error, bytes32 errorArg) = tryRecover(hash, r, vs);
+    |                             ^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol:203:29:
+    |
+203 |         (address recovered, RecoverError error, bytes32 errorArg) = tryRecover(hash, v, r, s);
+    |                             ^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "error" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol:273:26:
+    |
+273 |     function _throwError(RecoverError error, bytes32 errorArg) private pure {
+    |                          ^^^^^^^^^^^^^^^^^^
+
+Warning (6335): "at" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/structs/Checkpoints.sol:126:5:
+    |
+126 |     function at(Trace256 storage self, uint32 pos) internal view returns (Checkpoint256 memory) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (6335): "at" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/structs/Checkpoints.sol:329:5:
+    |
+329 |     function at(Trace224 storage self, uint32 pos) internal view returns (Checkpoint224 memory) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (6335): "at" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/structs/Checkpoints.sol:532:5:
+    |
+532 |     function at(Trace208 storage self, uint32 pos) internal view returns (Checkpoint208 memory) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (6335): "at" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/structs/Checkpoints.sol:735:5:
+    |
+735 |     function at(Trace160 storage self, uint32 pos) internal view returns (Checkpoint160 memory) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (6335): "at" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol:263:5:
+    |
+263 |     function at(Bytes32Set storage set, uint256 index) internal view returns (bytes32) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (6335): "at" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol:365:5:
+    |
+365 |     function at(AddressSet storage set, uint256 index) internal view returns (address) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (6335): "at" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol:467:5:
+    |
+467 |     function at(UintSet storage set, uint256 index) internal view returns (uint256) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (6335): "at" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol:613:5:
+    |
+613 |     function at(StringSet storage set, uint256 index) internal view returns (string memory) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (6335): "at" will be promoted to keyword in the future and will not be allowed as an identifier anymore.
+   --> lib/openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol:755:5:
+    |
+755 |     function at(BytesSet storage set, uint256 index) internal view returns (bytes memory) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (2519): This declaration shadows an existing declaration.
+   --> src/contracts/adapters/LiquidLaneAdapter.sol:163:19:
+    |
+163 |     function swap(Swap calldata swap) public {
+    |                   ^^^^^^^^^^^^^^^^^^
+Note: The shadowed declaration is here:
+   --> src/contracts/adapters/LiquidLaneAdapter.sol:163:5:
+    |
+163 |     function swap(Swap calldata swap) public {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+Note: The shadowed declaration is here:
+   --> src/contracts/adapters/LiquidLaneAdapter.sol:169:5:
+    |
+169 |     function swap(SignedSwap calldata signedSwap, bytes calldata signature) public {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+Note: The shadowed declaration is here:
+   --> src/contracts/adapters/LiquidLaneAdapter.sol:199:5:
+    |
+199 |     function swap(
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (2519): This declaration shadows an existing declaration.
+   --> src/contracts/adapters/LiquidLaneAdapter.sol:457:20:
+    |
+457 |     function _swap(Swap memory swap) internal whenNotPaused {
+    |                    ^^^^^^^^^^^^^^^^
+Note: The shadowed declaration is here:
+   --> src/contracts/adapters/LiquidLaneAdapter.sol:163:5:
+    |
+163 |     function swap(Swap calldata swap) public {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+Note: The shadowed declaration is here:
+   --> src/contracts/adapters/LiquidLaneAdapter.sol:169:5:
+    |
+169 |     function swap(SignedSwap calldata signedSwap, bytes calldata signature) public {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+Note: The shadowed declaration is here:
+   --> src/contracts/adapters/LiquidLaneAdapter.sol:199:5:
+    |
+199 |     function swap(
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (3628): This contract has a payable fallback function, but no receive ether function. Consider adding a receive ether function.
+  --> src/contracts/common/MigratableEntityProxy.sol:12:1:
+   |
+12 | contract MigratableEntityProxy is ERC1967Proxy, IMigratableEntityProxy {
+   | ^ (Relevant source part starts here and spans across multiple lines).
+Note: The payable fallback function is defined here.
+  --> lib/openzeppelin-contracts/contracts/proxy/Proxy.sol:66:5:
+   |
+66 |     fallback() external payable virtual {
+   |     ^ (Relevant source part starts here and spans across multiple lines).
+
+Warning (5740): Unreachable code.
+  --> lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol:72:9:
+   |
+72 |         _nonReentrantAfter();
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+Warning (5740): Unreachable code.
+   --> lib/openzeppelin-contracts/contracts/proxy/utils/Initializable.sol:162:9:
+    |
+162 |         $._initializing = false;
+    |         ^ (Relevant source part starts here and spans across multiple lines).
+
 
 ╭-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------╮
 | Contract                                                                                  | Runtime Size (B) | Initcode Size (B) | Runtime Margin (B) | Initcode Margin (B) |
@@ -169,6 +668,8 @@ No files changed, compilation skipped
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | HintsHarness                                                                              | 1,647            | 1,704             | 22,929             | 47,448              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| InfiniFiAccount                                                                           | 12,998           | 14,597            | 11,578             | 34,555              |
+|-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | JAAA_Account                                                                              | 10,643           | 11,920            | 13,933             | 37,232              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | JAAA_AccountFactory                                                                       | 5,106            | 5,346             | 19,470             | 43,806              |
@@ -263,6 +764,8 @@ No files changed, compilation skipped
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | MockERC20 (test/adapters/ll-adapter/AccountsBase.t.sol)                                   | 1,840            | 2,568             | 22,736             | 46,584              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockERC20 (test/adapters/ll-adapter/InfiniFiAccount.t.sol)                                | 1,840            | 2,568             | 22,736             | 46,584              |
+|-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | MockERC20 (test/adapters/ll-adapter/MidasAccountOracles.t.sol)                            | 1,806            | 2,493             | 22,770             | 46,659              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | MockERC20 (test/adapters/ll-adapter/MidasCutoffAccount.t.sol)                             | 1,840            | 2,568             | 22,736             | 46,584              |
@@ -278,6 +781,12 @@ No files changed, compilation skipped
 | MockEtherFiWithdrawRequestNFT                                                             | 1,189            | 1,217             | 23,387             | 47,935              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | MockHoodiTokenUpgradeable                                                                 | 3,165            | 3,193             | 21,411             | 45,959              |
+|-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockInfiniFiGateway                                                                       | 1,844            | 2,147             | 22,732             | 47,005              |
+|-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockInfiniFiRedeemController                                                              | 3,623            | 3,863             | 20,953             | 45,289              |
+|-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockInfiniFiUnwindingModule                                                               | 957              | 1,083             | 23,619             | 48,069              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | MockLidoWithdrawalQueue                                                                   | 4,006            | 4,178             | 20,570             | 44,974              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
@@ -323,7 +832,9 @@ No files changed, compilation skipped
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | MockNoonWithdrawalHandler                                                                 | 1,257            | 1,455             | 23,319             | 47,697              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
-| MockOracle                                                                                | 124              | 204               | 24,452             | 48,948              |
+| MockOracle (test/adapters/ll-adapter/AccountsBase.t.sol)                                  | 124              | 204               | 24,452             | 48,948              |
+|-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockOracle (test/adapters/ll-adapter/InfiniFiAccount.t.sol)                               | 124              | 204               | 24,452             | 48,948              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | MockParetoCDO                                                                             | 1,470            | 1,729             | 23,106             | 47,423              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
@@ -356,6 +867,8 @@ No files changed, compilation skipped
 | MockVault (test/adapters/AdapterFactory.t.sol)                                            | 121              | 244               | 24,455             | 48,908              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | MockVault (test/adapters/ll-adapter/AccountsBase.t.sol)                                   | 121              | 244               | 24,455             | 48,908              |
+|-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| MockVault (test/adapters/ll-adapter/InfiniFiAccount.t.sol)                                | 121              | 244               | 24,455             | 48,908              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | MockVault (test/adapters/ll-adapter/MidasAccountOracles.t.sol)                            | 100              | 230               | 24,476             | 48,922              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
@@ -648,6 +1161,14 @@ No files changed, compilation skipped
 | deJTRSY_Account                                                                           | 10,643           | 11,920            | 13,933             | 37,232              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | deJTRSY_AccountFactory                                                                    | 5,106            | 5,346             | 19,470             | 43,806              |
+|-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| liUSD13w_Account                                                                          | 12,998           | 16,665            | 11,578             | 32,487              |
+|-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| liUSD13w_AccountFactory                                                                   | 5,106            | 5,346             | 19,470             | 43,806              |
+|-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| liUSD4w_Account                                                                           | 12,998           | 16,665            | 11,578             | 32,487              |
+|-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
+| liUSD4w_AccountFactory                                                                    | 5,106            | 5,346             | 19,470             | 43,806              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|
 | mAPOLLO_Account                                                                           | 10,929           | 13,410            | 13,647             | 35,742              |
 |-------------------------------------------------------------------------------------------+------------------+-------------------+--------------------+---------------------|

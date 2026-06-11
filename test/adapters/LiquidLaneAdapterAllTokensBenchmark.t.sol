@@ -2,10 +2,13 @@
 pragma solidity ^0.8.28;
 
 /// @dev Mainnet-fork benchmark: requires `ETH_RPC_URL` (skipped otherwise; only the pure spec
-///      test runs without it). Last updated for the cutoff-based redemptions change: the local
-///      constant oracle now exposes `getPriceData()` (required by the ACRED/USCC/bEQTY
-///      settlement accounts), and the bEQTY/mGLOBAL/ACRED wait durations model the new
-///      cohort/settlement timelines. Re-run on fork after any change to those accounts.
+///      test runs without it). Last updated for the infiniFi locked iUSD change: liUSD-4w/13w
+///      seed one unwinding position per second (positions are keyed by the block timestamp), and
+///      their wait durations model the next-epoch start plus 4/13 weekly unwinding epochs.
+///      Previously updated for the cutoff-based redemptions change: the local constant oracle
+///      now exposes `getPriceData()` (required by the ACRED/USCC/bEQTY settlement accounts), and
+///      the bEQTY/mGLOBAL/ACRED wait durations model the new cohort/settlement timelines.
+///      Re-run on fork after any change to those accounts.
 import {Test} from "forge-std/Test.sol";
 
 import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
@@ -30,6 +33,8 @@ import {
 import {deCRDX_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deCRDX_Account.sol";
 import {deJAAA_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJAAA_Account.sol";
 import {deJTRSY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJTRSY_Account.sol";
+import {liUSD13w_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/liUSD13w_Account.sol";
+import {liUSD4w_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/liUSD4w_Account.sol";
 import {mAPOLLO_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mAPOLLO_Account.sol";
 import {mBASIS_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBASIS_Account.sol";
 import {mBTC_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBTC_Account.sol";
@@ -68,6 +73,7 @@ import {IDigiFTAccount} from "../../src/interfaces/adapters/ll-adapter/digift/ID
 import {IEtherFiAccount} from "../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
 import {IFigureAccount} from "../../src/interfaces/adapters/ll-adapter/figure/IFigureAccount.sol";
 import {IGaibAccount} from "../../src/interfaces/adapters/ll-adapter/gaib/IGaibAccount.sol";
+import {IInfiniFiAccount} from "../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiAccount.sol";
 import {ILidoAccount} from "../../src/interfaces/adapters/ll-adapter/lido/ILidoAccount.sol";
 import {IMakinaAccount} from "../../src/interfaces/adapters/ll-adapter/makina/IMakinaAccount.sol";
 import {IMidasAccount} from "../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
@@ -147,7 +153,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     function testCalculatesAllTokenCooldownsAndRequestCounts() public pure {
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
 
-        assertEq(specs.length, 41);
+        assertEq(specs.length, 43);
         assertLe(specs.length, MAX_TOKENS_TO_REDEEM);
 
         uint256 totalMaxAverageRequests;
@@ -159,7 +165,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 275);
+        assertEq(totalMaxAverageRequests, 295);
     }
 
     function testBenchmarkOnboardsAllTokensToLiquidLaneAdapter() public {
@@ -308,7 +314,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     function _assetFor(uint256 index, address token) internal view returns (address) {
         if (
             _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 37 || index == 38
-                || index == 40
+                || index == 40 || _isInfiniFi(index)
         ) {
             return MAINNET_USDC;
         }
@@ -327,6 +333,10 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
 
     function _isCentrifuge(uint256 index) internal pure returns (bool) {
         return index == 0 || index == 3 || index == 4 || (index >= 8 && index <= 10);
+    }
+
+    function _isInfiniFi(uint256 index) internal pure returns (bool) {
+        return index == 41 || index == 42;
     }
 
     function _mockVaultAsset(address asset) internal {
@@ -481,6 +491,13 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         }
         if (index == 40) {
             _fundSuperstateRequest(token, account, amount);
+            return;
+        }
+        if (_isInfiniFi(index)) {
+            // infiniFi unwinding positions are keyed by keccak(account, block.timestamp), so each
+            // seeded request needs its own second
+            vm.warp(vm.getBlockTimestamp() + 1);
+            deal(token, account, amount);
             return;
         }
         if (index != 35 && index != 36 && _tryMintERC4626Shares(token, account, amount)) {
@@ -806,6 +823,9 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         if (index == 40) {
             return _superstateSubAccountsLength(account);
         }
+        if (_isInfiniFi(index)) {
+            return _infiniFiUnwindingTimestampsLength(account);
+        }
         return 0;
     }
 
@@ -852,6 +872,16 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     function _lidoRequestIdsLength(address account) internal view returns (uint256 length) {
         while (true) {
             try ILidoAccount(payable(account)).requestIds(length) returns (uint64) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _infiniFiUnwindingTimestampsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try IInfiniFiAccount(account).unwindingTimestamps(length) returns (uint48) {
                 ++length;
             } catch {
                 return length;
@@ -910,7 +940,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     }
 
     function _tokenBenchSpecs() internal pure returns (TokenBenchSpec[] memory specs) {
-        specs = new TokenBenchSpec[](41);
+        specs = new TokenBenchSpec[](43);
         specs[0] = _spec("ACRDX", 1 days);
         specs[1] = _spec("CarryTradeUSDTRYLeverage", 2 days);
         specs[2] = _spec("DUSD", 12 hours);
@@ -955,6 +985,10 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         specs[38] = _spec("ACRED", 125 days);
         specs[39] = _spec("sUSN", 7 days);
         specs[40] = _spec("USCC", 3 days);
+        // liUSD positions unwind from the next weekly epoch for N epochs: 4w worst case is 35 days
+        // wall clock and 13w is 98 days, plus a small margin for withdrawal processing.
+        specs[41] = _spec("liUSD-4w", 36 days);
+        specs[42] = _spec("liUSD-13w", 100 days);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
@@ -1100,6 +1134,12 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         }
         if (index == 40) {
             return IAccount(address(new USCC_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 41) {
+            return IAccount(address(new liUSD4w_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 42) {
+            return IAccount(address(new liUSD13w_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         revert();
     }

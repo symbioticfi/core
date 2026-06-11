@@ -2,9 +2,11 @@
 pragma solidity ^0.8.28;
 
 /// @dev Mainnet-fork suite: requires `ETH_RPC_URL` (skipped otherwise). Last updated for the
-///      cutoff-based redemptions change (ACRED/USCC/bEQTY on SettlementAccount + CutoffPricer,
-///      mGLOBAL on MidasCutoffAccount): oracles passed to those accounts must expose
-///      `getPriceData()`, and ACRED's notice is an ERC-20 transfer to the Securitize
+///      infiniFi locked iUSD change (liUSD-4w/liUSD-13w on InfiniFiAccount): their redemption
+///      notice is a gateway `startUnwinding` call keyed by the block timestamp. Previously
+///      updated for the cutoff-based redemptions change (ACRED/USCC/bEQTY on SettlementAccount +
+///      CutoffPricer, mGLOBAL on MidasCutoffAccount): oracles passed to those accounts must
+///      expose `getPriceData()`, and ACRED's notice is an ERC-20 transfer to the Securitize
 ///      redemption wallet. Re-run on fork after any change to those accounts.
 import {Test} from "forge-std/Test.sol";
 
@@ -27,6 +29,8 @@ import {bEQTY_Account} from "../../../../src/contracts/adapters/ll-adapter/token
 import {deCRDX_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deCRDX_Account.sol";
 import {deJAAA_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJAAA_Account.sol";
 import {deJTRSY_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJTRSY_Account.sol";
+import {liUSD13w_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/liUSD13w_Account.sol";
+import {liUSD4w_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/liUSD4w_Account.sol";
 import {mAPOLLO_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mAPOLLO_Account.sol";
 import {mBASIS_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBASIS_Account.sol";
 import {mBTC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBTC_Account.sol";
@@ -76,6 +80,11 @@ import {IFigureAccount} from "../../../../src/interfaces/adapters/ll-adapter/fig
 import {IFigureYieldVault} from "../../../../src/interfaces/adapters/ll-adapter/figure/IFigureYieldVault.sol";
 import {IGaibAccount} from "../../../../src/interfaces/adapters/ll-adapter/gaib/IGaibAccount.sol";
 import {ISaid} from "../../../../src/interfaces/adapters/ll-adapter/gaib/ISaid.sol";
+import {IInfiniFiAccount} from "../../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiAccount.sol";
+import {IInfiniFiGateway} from "../../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiGateway.sol";
+import {
+    IInfiniFiUnwindingModule
+} from "../../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiUnwindingModule.sol";
 import {ILidoAccount} from "../../../../src/interfaces/adapters/ll-adapter/lido/ILidoAccount.sol";
 import {ILidoWithdrawalQueue} from "../../../../src/interfaces/adapters/ll-adapter/lido/ILidoWithdrawalQueue.sol";
 import {IMakinaAccount} from "../../../../src/interfaces/adapters/ll-adapter/makina/IMakinaAccount.sol";
@@ -120,8 +129,12 @@ contract TokensToRedeemMainnetTest is Test {
     address internal constant ETHERFI_LIQUIDITY_POOL = 0x308861A430be4cce5502d0A12724771Fc6DaF216;
     address internal constant ETHERFI_REDEMPTION_MANAGER = 0xE3F384Dc7002547Dd240AC1Ad69a430CCE1e292d;
     address internal constant ETHERFI_WITHDRAW_REQUEST_NFT = 0x7d5706f6ef3F89B3951E23e557CDFBC3239D4E2c;
+    address internal constant INFINIFI_GATEWAY = 0x3f04b65Ddbd87f9CE0A2e7Eb24d80e7fb87625b5;
+    address internal constant INFINIFI_UNWINDING_MODULE = 0x7092A43aE5407666C78dBEA657a1891f42b3dFcc;
     address internal constant JAAA = 0x5a0F93D040De44e78F251b03c43be9CF317Dcf64;
     address internal constant JTRSY = 0x8c213ee79581Ff4984583C6a801e5263418C4b86;
+    address internal constant LIUSD4W = 0x66bCF6151D5558AfB47c38B20663589843156078;
+    address internal constant LIUSD13W = 0xbd3f9814eB946E617f1d774A6762cDbec0bf087A;
     address internal constant MAPOLLO = 0x7CF9DEC92ca9FD46f8d86e7798B72624Bc116C05;
     address internal constant MBASIS = 0x2a8c22E3b10036f3AEF5875d04f8441d4188b656;
     address internal constant MBTC = 0x007115416AB6c266329a03B09a8aa39aC2eF7d9d;
@@ -171,7 +184,7 @@ contract TokensToRedeemMainnetTest is Test {
         vm.createSelectFork(mainnetRpcUrl);
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 41);
+        assertEq(specs.length, 43);
 
         for (uint256 i; i < specs.length; ++i) {
             _assertTokenAccount(i, specs[i]);
@@ -183,7 +196,7 @@ contract TokensToRedeemMainnetTest is Test {
         vm.createSelectFork(mainnetRpcUrl);
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 41);
+        assertEq(specs.length, 43);
 
         for (uint256 i; i < specs.length; ++i) {
             _assertRedemptionSequence(i, specs[i]);
@@ -240,7 +253,7 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _tokenSpecs() internal pure returns (TokenSpec[] memory specs) {
-        specs = new TokenSpec[](41);
+        specs = new TokenSpec[](43);
         specs[0] = TokenSpec("ACRDX", ACRDX);
         specs[1] = TokenSpec("CarryTradeUSDTRYLeverage", CARRY_TRADE_USD_TRY_LEVERAGE);
         specs[2] = TokenSpec("DUSD", DUSD);
@@ -282,6 +295,8 @@ contract TokensToRedeemMainnetTest is Test {
         specs[38] = TokenSpec("ACRED", ACRED);
         specs[39] = TokenSpec("sUSN", S_USN);
         specs[40] = TokenSpec("USCC", USCC);
+        specs[41] = TokenSpec("liUSD-4w", LIUSD4W);
+        specs[42] = TokenSpec("liUSD-13w", LIUSD13W);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
@@ -360,13 +375,15 @@ contract TokensToRedeemMainnetTest is Test {
         if (index == 38) return new ACRED_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 39) return new sUSN_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 40) return new USCC_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+        if (index == 41) return new liUSD4w_Account(factory, COW_SWAP_SETTLEMENT);
+        if (index == 42) return new liUSD13w_Account(factory, COW_SWAP_SETTLEMENT);
         revert();
     }
 
     function _assetFor(uint256 index, address token) internal view returns (address) {
         if (
             _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 37 || index == 38
-                || index == 40
+                || index == 40 || _isInfiniFi(index)
         ) {
             return USDC;
         }
@@ -388,6 +405,10 @@ contract TokensToRedeemMainnetTest is Test {
 
     function _isCentrifuge(uint256 index) internal pure returns (bool) {
         return index == 0 || index == 3 || index == 4 || (index >= 8 && index <= 10);
+    }
+
+    function _isInfiniFi(uint256 index) internal pure returns (bool) {
+        return index == 41 || index == 42;
     }
 
     function _isKnownMainnetSyncRestricted(uint256 index) internal pure returns (bool) {
@@ -506,6 +527,17 @@ contract TokensToRedeemMainnetTest is Test {
             vm.expectCall(token, abi.encodeWithSelector(ISuperstateToken.offchainRedeem.selector));
             return;
         }
+        if (_isInfiniFi(index)) {
+            vm.expectCall(
+                INFINIFI_GATEWAY,
+                abi.encodeWithSelector(
+                    IInfiniFiGateway.startUnwinding.selector,
+                    amount,
+                    IInfiniFiAccount(address(account)).UNWINDING_EPOCHS()
+                )
+            );
+            return;
+        }
         vm.expectCall(
             ILidoAccount(payable(address(account))).WITHDRAWAL_QUEUE(),
             abi.encodeWithSelector(ILidoWithdrawalQueue.requestWithdrawalsWstETH.selector)
@@ -599,6 +631,10 @@ contract TokensToRedeemMainnetTest is Test {
         }
         if (index == 40) {
             _assertSuperstateRedemption(account, symbol);
+            return;
+        }
+        if (_isInfiniFi(index)) {
+            _assertInfiniFiRedemption(account, symbol);
             return;
         }
         _assertLidoRedemption(account, symbol);
@@ -714,6 +750,18 @@ contract TokensToRedeemMainnetTest is Test {
     function _assertSuperstateRedemption(IAccount account, string memory symbol) internal view {
         address subAccount = ISuperstateAccount(address(account)).subAccounts(0);
         assertGt(subAccount.code.length, 0, symbol);
+        assertGt(account.totalAssets(), 0, symbol);
+    }
+
+    function _assertInfiniFiRedemption(IAccount account, string memory symbol) internal view {
+        uint48 unwindingTimestamp = IInfiniFiAccount(address(account)).unwindingTimestamps(0);
+
+        assertEq(unwindingTimestamp, uint48(block.timestamp), symbol);
+        assertGt(
+            IInfiniFiUnwindingModule(INFINIFI_UNWINDING_MODULE).balanceOf(address(account), unwindingTimestamp),
+            0,
+            symbol
+        );
         assertGt(account.totalAssets(), 0, symbol);
     }
 
