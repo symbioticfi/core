@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 
 import {ACRDX_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
-import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
+import {AsyncRedeemAccount} from "../../../src/contracts/adapters/ll-adapter/common/AsyncRedeemAccount.sol";
 import {DigiFTAccount} from "../../../src/contracts/adapters/ll-adapter/DigiFTAccount.sol";
 import {DUSD_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
 import {GaibAccount} from "../../../src/contracts/adapters/ll-adapter/GaibAccount.sol";
@@ -102,43 +102,43 @@ abstract contract AccountsBase is Test {
             weETH_Account(payable(factory.create(1, address(this), _initData(address(asset), address(mocks.weETH)))));
     }
 
-    function _deployCentrifuge(MockAsyncRedeemVault tokenToRedeem, MockERC20 asset, MockOracle oracle)
+    function _deployAsyncRedeem(MockAsyncRedeemVault tokenToRedeem, MockERC20 asset, MockOracle oracle)
         internal
-        returns (CentrifugeAccount account)
+        returns (TestAsyncRedeemAccount account)
     {
-        account = _deployCentrifuge(address(tokenToRedeem), asset, oracle, 0);
+        account = _deployAsyncRedeem(address(tokenToRedeem), asset, oracle, 0);
     }
 
-    function _deployCentrifuge(MockAsyncRedeemVault tokenToRedeem, MockERC20 asset, AsyncRedeemOracle oracle)
+    function _deployAsyncRedeem(MockAsyncRedeemVault tokenToRedeem, MockERC20 asset, AsyncRedeemOracle oracle)
         internal
-        returns (CentrifugeAccount account)
+        returns (TestAsyncRedeemAccount account)
     {
-        account = _deployCentrifuge(address(tokenToRedeem), asset, address(oracle), 0);
+        account = _deployAsyncRedeem(address(tokenToRedeem), asset, address(oracle), 0);
     }
 
-    function _deployCentrifuge(MockAsyncRedeemVault tokenToRedeem, MockERC20 asset, MockOracle oracle, uint48 cooldown)
+    function _deployAsyncRedeem(MockAsyncRedeemVault tokenToRedeem, MockERC20 asset, MockOracle oracle, uint48 cooldown)
         internal
-        returns (CentrifugeAccount account)
+        returns (TestAsyncRedeemAccount account)
     {
-        account = _deployCentrifuge(address(tokenToRedeem), asset, oracle, cooldown);
+        account = _deployAsyncRedeem(address(tokenToRedeem), asset, oracle, cooldown);
     }
 
-    function _deployCentrifuge(address tokenToRedeem, MockERC20 asset, MockOracle oracle, uint48 cooldown)
+    function _deployAsyncRedeem(address tokenToRedeem, MockERC20 asset, MockOracle oracle, uint48 cooldown)
         internal
-        returns (CentrifugeAccount account)
+        returns (TestAsyncRedeemAccount account)
     {
-        account = _deployCentrifuge(tokenToRedeem, asset, address(oracle), cooldown);
+        account = _deployAsyncRedeem(tokenToRedeem, asset, address(oracle), cooldown);
     }
 
-    function _deployCentrifuge(address tokenToRedeem, MockERC20 asset, address oracle, uint48 cooldown)
+    function _deployAsyncRedeem(address tokenToRedeem, MockERC20 asset, address oracle, uint48 cooldown)
         internal
-        returns (CentrifugeAccount account)
+        returns (TestAsyncRedeemAccount account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        CentrifugeAccount implementation =
-            new CentrifugeAccount(oracle, address(factory), cooldown, tokenToRedeem, cowSwapSettlement);
+        TestAsyncRedeemAccount implementation =
+            new TestAsyncRedeemAccount(oracle, address(factory), cooldown, tokenToRedeem, cowSwapSettlement);
         factory.whitelist(address(implementation));
-        account = CentrifugeAccount(factory.create(1, address(this), _initData(address(asset), tokenToRedeem)));
+        account = TestAsyncRedeemAccount(factory.create(1, address(this), _initData(address(asset), tokenToRedeem)));
     }
 
     function _deployPrime(MockPrimeToken prime, MockERC20 asset, MockOracle oracle)
@@ -774,13 +774,14 @@ contract MockSaidVault is MockERC20 {
 
 contract MockAsyncRedeemVault is MockERC20 {
     MockERC20 public immutable asset;
-    uint256 public immutable assetsPerShare;
+    uint256 public assetsPerShare;
     bool public freshRequestIds;
     bool public revertPreviewWithdraw;
     uint256 public nextRequestId;
 
     mapping(uint256 requestId => mapping(address controller => uint256 shares)) public pending;
     mapping(uint256 requestId => mapping(address controller => uint256 shares)) public claimable;
+    mapping(address controller => uint256 assets) public claimableAssets;
 
     struct PendingRedemption {
         uint256 shares;
@@ -807,6 +808,10 @@ contract MockAsyncRedeemVault is MockERC20 {
 
     function setRevertPreviewWithdraw(bool status) external {
         revertPreviewWithdraw = status;
+    }
+
+    function setAssetsPerShare(uint256 assetsPerShare_) external {
+        assetsPerShare = assetsPerShare_;
     }
 
     function convertToAssets(uint256 shares) public view returns (uint256) {
@@ -852,11 +857,20 @@ contract MockAsyncRedeemVault is MockERC20 {
     function fulfill(uint256 requestId, address controller, uint256 shares) external {
         pending[requestId][controller] -= shares;
         claimable[requestId][controller] += shares;
+        claimableAssets[controller] += convertToAssets(shares);
+    }
+
+    function maxWithdraw(address owner) external view returns (uint256 maxAssets) {
+        return claimableAssets[owner];
     }
 
     function redeem(uint256 shares, address receiver, address controller) external returns (uint256 assets) {
+        uint256 claimableShares = claimable[0][controller];
+        assets = shares == claimableShares
+            ? claimableAssets[controller]
+            : claimableAssets[controller] * shares / claimableShares;
         claimable[0][controller] -= shares;
-        assets = convertToAssets(shares);
+        claimableAssets[controller] -= assets;
         asset.mint(receiver, assets);
     }
 
@@ -1105,4 +1119,10 @@ contract AccountsCoWSwapSettlementMock {
     constructor(address vaultRelayer_) {
         vaultRelayer = vaultRelayer_;
     }
+}
+
+contract TestAsyncRedeemAccount is AsyncRedeemAccount {
+    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
+        AsyncRedeemAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
+    {}
 }

@@ -32,18 +32,16 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns pending async redemption request value in vault assets.
+    /// @dev Returns pending async redemption request value plus claimable value at fulfillment prices.
     function _totalAssets() internal view virtual override returns (uint256 assets) {
         address asyncRedeemVault = _asyncRedeemVault();
 
         for (uint256 i; i < requestIds.length; ++i) {
-            uint256 requestId = requestIds[i];
             assets += IAsyncRedeemVault(asyncRedeemVault)
-                .convertToAssets(
-                    IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestId, address(this))
-                        + IAsyncRedeemVault(asyncRedeemVault).claimableRedeemRequest(requestId, address(this))
-                );
+                .convertToAssets(IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestIds[i], address(this)));
         }
+
+        assets += IAsyncRedeemVault(asyncRedeemVault).maxWithdraw(address(this));
     }
 
     /// @dev Claims processed requests and clears finished request ids.

@@ -17,7 +17,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
         AsyncRedeemOracle oracle = new AsyncRedeemOracle(address(tokenToRedeem));
-        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, oracle);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
 
         tokenToRedeem.mint(address(account), 1 ether);
 
@@ -32,7 +32,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
         MockOracle oracle = new MockOracle(2e18);
-        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, oracle);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
 
         tokenToRedeem.mint(address(account), 1 ether);
         account.sync();
@@ -45,7 +45,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
         MockOracle oracle = new MockOracle(2e18);
-        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, oracle);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
 
         (bool success,) = address(account).staticcall(abi.encodeWithSignature("totalRequests()"));
         assertFalse(success);
@@ -55,7 +55,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
         MockOracle oracle = new MockOracle(2e18);
-        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, oracle);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
 
         (bool success, bytes memory returnData) =
             address(account).staticcall(abi.encodeWithSignature("COW_SWAP_SETTLEMENT()"));
@@ -67,7 +67,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
         MockOracle oracle = new MockOracle(0);
-        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, oracle);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
 
         tokenToRedeem.mint(address(account), 1 ether);
 
@@ -79,7 +79,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
         MockOracle oracle = new MockOracle(2e18);
-        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, oracle);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
         tokenToRedeem.setFreshRequestIds(true);
 
         for (uint256 i; i < 25; ++i) {
@@ -96,7 +96,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
         MockOracle oracle = new MockOracle(2e18);
-        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, oracle);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
         tokenToRedeem.setFreshRequestIds(true);
 
         tokenToRedeem.mint(address(account), 1 ether);
@@ -113,7 +113,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
         MockOracle oracle = new MockOracle(2e18);
-        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, oracle, 1 days);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle, 1 days);
         address keeper = makeAddr("keeper");
 
         tokenToRedeem.mint(address(account), 1 ether);
@@ -141,7 +141,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
         MockOracle oracle = new MockOracle(2e18);
-        CentrifugeAccount account = _deployCentrifuge(tokenToRedeem, asset, oracle, 1 days);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle, 1 days);
 
         tokenToRedeem.mint(address(account), 1 ether);
         account.sync();
@@ -152,5 +152,87 @@ contract AsyncRedeemAccountTest is AccountsBase {
         assertEq(tokenToRedeem.balanceOf(address(account)), 0);
         assertEq(tokenToRedeem.pending(0, address(account)), 2 ether);
         assertEq(account.totalAssets(), 4e6);
+    }
+
+    function testAsyncRedeemAccountRequestsAndClaimsAsyncRedeemVault() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
+        MockOracle oracle = new MockOracle(2e18);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
+
+        tokenToRedeem.mint(address(account), 3 ether);
+
+        assertEq(account.totalAssets(), 6e6);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(tokenToRedeem.balanceOf(address(tokenToRedeem)), 3 ether);
+        assertEq(account.totalAssets(), 6e6);
+
+        tokenToRedeem.fulfill(0, address(account), 3 ether);
+        account.sync();
+
+        assertEq(asset.balanceOf(address(account)), 6e6);
+        assertEq(account.totalAssets(), 6e6);
+    }
+
+    function testAsyncRedeemAccountValuesClaimableLegAtFulfillmentPrice() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
+        MockOracle oracle = new MockOracle(2e18);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
+        tokenToRedeem.setFreshRequestIds(true);
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        account.sync();
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        account.sync();
+
+        // request 0 is fulfilled at 2e6 assets per share, request 1 stays pending
+        tokenToRedeem.fulfill(0, address(account), 1 ether);
+
+        // live price doubles after fulfillment
+        tokenToRedeem.setAssetsPerShare(4e6);
+
+        // claimable leg stays frozen at the fulfillment price (2e6), pending leg follows the live price (4e6)
+        assertEq(account.totalAssets(), 6e6);
+    }
+
+    function testCentrifugeTokenAccountsHardcodeEthereumMainnetTokens() public {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        MockOracle oracle = new MockOracle(1e18);
+
+        _mockDecimals(JTRSY_TOKEN_ADDRESS, 18);
+        _mockDecimals(JAAA_TOKEN_ADDRESS, 18);
+        _mockDecimals(ACRDX_TOKEN_ADDRESS, 18);
+        _mockDecimals(DECRDX_TOKEN_ADDRESS, 18);
+        _mockDecimals(DEJTRSY_TOKEN_ADDRESS, 18);
+        _mockDecimals(DEJAAA_TOKEN_ADDRESS, 18);
+
+        assertEq(
+            new JTRSY_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            JTRSY_TOKEN_ADDRESS
+        );
+        assertEq(
+            new JAAA_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(), JAAA_TOKEN_ADDRESS
+        );
+        assertEq(
+            new ACRDX_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            ACRDX_TOKEN_ADDRESS
+        );
+        assertEq(
+            new deCRDX_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            DECRDX_TOKEN_ADDRESS
+        );
+        assertEq(
+            new deJTRSY_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            DEJTRSY_TOKEN_ADDRESS
+        );
+        assertEq(
+            new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            DEJAAA_TOKEN_ADDRESS
+        );
     }
 }
