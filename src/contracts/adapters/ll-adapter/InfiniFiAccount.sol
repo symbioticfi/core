@@ -13,6 +13,7 @@ import {IInfiniFiUnwindingModule} from "../../../interfaces/adapters/ll-adapter/
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /// @title InfiniFiAccount
 /// @notice Account for infiniFi locked iUSD (liUSD) unwinding redemptions.
@@ -21,6 +22,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 ///      iUSD is valued at par like the protocol's fixed $1 oracle does.
 contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
     using SafeERC20 for IERC20;
+    using SafeCast for uint256;
 
     /* IMMUTABLES */
 
@@ -112,10 +114,11 @@ contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
             // minAssetsOut is 0: every redeem path prices atomically at the protocol oracle rate, the
             // queue path returns 0 assets out by design and pays at the funding-time rate regardless
             try IInfiniFiGateway(GATEWAY).redeem(address(this), receiptAmount, 0) {
+                // assumes redeem never decreases totalEnqueuedRedemptions in-call (a violation reverts via underflow)
                 uint256 enqueued =
                     IInfiniFiRedeemController(REDEEM_CONTROLLER).totalEnqueuedRedemptions() - enqueuedBefore;
                 if (enqueued > 0) {
-                    redemptionTickets.push(RedemptionTicket({queueIndex: queueEnd, amount: uint128(enqueued)}));
+                    redemptionTickets.push(RedemptionTicket({queueIndex: queueEnd, amount: enqueued.toUint128()}));
                 }
             } catch {}
         }
@@ -136,11 +139,11 @@ contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
     }
 
     /// @dev Starts unwinding the held liUSD balance. Unwinding positions are keyed by
-    ///      keccak(account, block.timestamp), so a second request in the same second is skipped
-    ///      and the balance is picked up by a later sync.
+    ///      keccak(account, block.timestamp), so a second request in the same second would collide
+    ///      and revert: lastRequestTimestamp equals block.timestamp only when a request already
+    ///      happened this second, so it is skipped and the balance is picked up by a later sync.
     function _requestRedeem() internal override {
-        uint256 length = unwindingTimestamps.length;
-        if (length != 0 && unwindingTimestamps[length - 1] == block.timestamp) {
+        if (lastRequestTimestamp == block.timestamp) {
             return;
         }
 

@@ -230,6 +230,96 @@ contract InfiniFiAccountTest is Test {
         assertEq(account.totalAssets(), 100e6);
     }
 
+    function testPartialFundingTransientCountsParOnTopOfClaim() public {
+        uint256 ts = vm.getBlockTimestamp();
+        liusd.mint(address(account), 100e18);
+        account.sync();
+
+        // no idle liquidity: the full 100 iUSD is enqueued as a single ticket
+        vm.warp(ts + UNWINDING_DURATION);
+        account.sync();
+        assertEq(account.totalAssets(), 100e6);
+
+        // partial funding leaves the queue cursor on our ticket: the full par leg transiently
+        // counts on top of the partial claim — the documented bounded overstatement
+        redeemController.fund(40e6);
+        assertEq(redeemController.userPendingClaims(address(account)), 40e6);
+        assertEq(account.totalAssets(), 140e6);
+
+        // funding the rest moves the cursor past the ticket: the par leg drops, the claim remains
+        redeemController.fund(60e6);
+        assertEq(redeemController.userPendingClaims(address(account)), 100e6);
+        assertEq(account.totalAssets(), 100e6);
+
+        // sync claims the funded ticket, prunes it and realizes the assets
+        account.sync();
+        assertEq(usdc.balanceOf(address(account)), 100e6);
+        vm.expectRevert();
+        account.redemptionTickets(0);
+        assertEq(account.totalAssets(), 100e6);
+    }
+
+    function testTicketAtNonzeroQueueIndex() public {
+        // a third party enqueues first, so the account's ticket lands at queue index 1
+        address thirdParty = makeAddr("thirdParty");
+        iusd.mint(thirdParty, 50e18);
+        vm.startPrank(thirdParty);
+        iusd.approve(address(redeemController), 50e18);
+        redeemController.redeem(thirdParty, 50e18);
+        vm.stopPrank();
+
+        uint256 ts = vm.getBlockTimestamp();
+        liusd.mint(address(account), 100e18);
+        account.sync();
+        vm.warp(ts + UNWINDING_DURATION);
+        account.sync();
+
+        (uint128 queueIndex, uint128 amount) = account.redemptionTickets(0);
+        assertEq(queueIndex, 1);
+        assertEq(amount, 100e18);
+        assertEq(account.totalAssets(), 100e6);
+
+        // funding the third-party entry moves the cursor onto our ticket: still valued at par
+        redeemController.fund(50e6);
+        assertEq(redeemController.userPendingClaims(address(account)), 0);
+        assertEq(account.totalAssets(), 100e6);
+
+        // funding our ticket switches valuation from par to the pending claim
+        redeemController.fund(100e6);
+        assertEq(redeemController.userPendingClaims(address(account)), 100e6);
+        assertEq(account.totalAssets(), 100e6);
+
+        // sync claims the funded ticket, prunes it and realizes the assets
+        account.sync();
+        assertEq(usdc.balanceOf(address(account)), 100e6);
+        vm.expectRevert();
+        account.redemptionTickets(0);
+        assertEq(account.totalAssets(), 100e6);
+    }
+
+    function testDepegClaimBelowParDropsParLeg() public {
+        uint256 ts = vm.getBlockTimestamp();
+        liusd.mint(address(account), 100e18);
+        account.sync();
+
+        // no idle liquidity: the full 100 iUSD is enqueued and valued at par
+        vm.warp(ts + UNWINDING_DURATION);
+        account.sync();
+        assertEq(account.totalAssets(), 100e6);
+
+        // the ticket is funded below par: once the cursor passes it, the par leg drops and the
+        // valuation uses the actual pending claim instead
+        redeemController.setFundingRate(0.9e18);
+        redeemController.fund(90e6);
+        assertEq(redeemController.userPendingClaims(address(account)), 90e6);
+        assertEq(account.totalAssets(), 90e6);
+
+        // sync realizes the depegged claim
+        account.sync();
+        assertEq(usdc.balanceOf(address(account)), 90e6);
+        assertEq(account.totalAssets(), 90e6);
+    }
+
     function testSyncToleratesUnaccruedLosses() public {
         uint256 ts = vm.getBlockTimestamp();
         liusd.mint(address(account), 100e18);
@@ -388,6 +478,7 @@ contract MockInfiniFiRedeemController {
     uint128 internal _end;
     uint256 public totalEnqueuedRedemptions;
     uint256 public totalPendingClaims;
+    uint256 public fundingRate = 1e18;
 
     mapping(uint128 index => uint128 amount) public ticketAmounts;
     mapping(uint128 index => address recipient) public ticketRecipients;
@@ -430,14 +521,18 @@ contract MockInfiniFiRedeemController {
         return available;
     }
 
+    function setFundingRate(uint256 fundingRate_) external {
+        fundingRate = fundingRate_;
+    }
+
     function fund(uint256 assetAmount) external {
         _usdc.mint(address(this), assetAmount);
 
         uint256 remaining = assetAmount;
         while (remaining > 0 && _begin < _end) {
-            uint256 required = _toAssets(ticketAmounts[_begin]);
+            uint256 required = _toAssets(ticketAmounts[_begin]) * fundingRate / 1e18;
             if (required > remaining) {
-                uint128 receiptFunded = uint128(_toReceipt(remaining));
+                uint128 receiptFunded = uint128(_toReceipt(remaining * 1e18 / fundingRate));
                 ticketAmounts[_begin] -= receiptFunded;
                 totalEnqueuedRedemptions -= receiptFunded;
                 userPendingClaims[ticketRecipients[_begin]] += remaining;
