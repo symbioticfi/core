@@ -15,12 +15,14 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title SettlementAccount
 /// @notice Base account settling redemptions through per-request subaccounts priced by cutoff cohorts.
-/// @dev Settlement is value-covered: a subaccount is only released once cumulative swept value (assets plus
-///      tokens at sweep-time rates) covers its cohort value, making dust donations harmless (they reduce
-///      the remaining receivable one-for-one) and keeping multi-tranche settlements and post-write-off
-///      late settlements sweepable. Release additionally requires the cohort rate to be frozen (or the
-///      entry written off), so pre-freeze oracle rate drift cannot flip coverage true and release a
-///      subaccount early.
+/// @dev Settlement is value-covered: a subaccount is released only once its cohort rate is frozen and
+///      cumulative swept value (assets plus tokens at sweep-time rates) covers the frozen cohort value.
+///      Coverage is always measured against the full frozen value, so dust donations are harmless (they
+///      reduce the remaining receivable one-for-one but can never release a subaccount) and multi-tranche
+///      settlements and post-write-off late settlements stay sweepable. Write-off only zeroes valuation,
+///      not the stored frozen value, so written-off frozen subaccounts still release on full coverage;
+///      never-frozen written-off subaccounts have no frozen rate to define coverage and stay tracked
+///      indefinitely (valued at zero, swept each sync), keeping any late settlement recoverable.
 abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlementAccount {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -85,12 +87,12 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
     }
 
     /// @dev Freezes cohort rates, sweeps subaccounts, and clears value-covered ones. A subaccount is
-    ///      released when its received value covers the cohort value and either (a) the cohort rate is
-    ///      frozen, so pre-freeze rate drift cannot release it early while later settlement tranches are
-    ///      still inbound, or (b) the entry is written off and at least one settlement was received — a
-    ///      written-off never-frozen entry has a zero cohort value (the oracle may be dead), so without
-    ///      the nonzero-receipt requirement it would be released unpaid and late settlements would no
-    ///      longer be sweepable.
+    ///      released only once its cohort rate is frozen and cumulative swept value covers the frozen
+    ///      cohort value: a frozen rate is required to define "covered" (pre-freeze rate drift cannot
+    ///      release a subaccount early, and a written-off never-frozen entry reports a zero cohort value
+    ///      that any dust donation would otherwise satisfy, stranding late real settlements). Write-off
+    ///      keeps the stored frozen value, so written-off frozen entries still release on full coverage,
+    ///      while never-frozen written-off entries stay tracked (valued at zero, swept each sync).
     function _finalizeRequests() internal override {
         for (uint256 i = subAccounts.length; i > 0; --i) {
             uint256 index = i - 1;
@@ -111,8 +113,8 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
                 receivedValues[key] += sweptValue;
             }
 
-            (uint256 value, bool writtenOff) = _cohortValue(key);
-            if (receivedValues[key] >= value && (_isFrozen(key) || (writtenOff && receivedValues[key] > 0))) {
+            (uint256 value,) = _cohortValue(key);
+            if (receivedValues[key] >= value && _isFrozen(key)) {
                 _clearPending(key);
                 delete receivedValues[key];
                 subAccounts[index] = subAccounts[subAccounts.length - 1];

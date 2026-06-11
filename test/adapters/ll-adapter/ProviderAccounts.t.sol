@@ -142,6 +142,38 @@ contract ProviderAccountsTest is AccountsBase {
         assertEq(account.totalAssets(), 11e6);
     }
 
+    function testSuperstateNeverFrozenWriteOffDustDoesNotReleaseSubAccount() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockSuperstateToken uscc = new MockSuperstateToken();
+        MockPriceDataOracle oracle = new MockPriceDataOracle(11e18);
+        SuperstateAccount account = _deploySuperstate(uscc, usdc, oracle);
+
+        // register after the oracle's last print so the cohort rate can never freeze
+        vm.warp(vm.getBlockTimestamp() + 1);
+        uscc.mint(address(account), 1e6);
+        account.sync();
+        address subAccount = account.subAccounts(0);
+
+        // oracle never prints at/after the pricing date: written off without ever freezing
+        vm.warp(vm.getBlockTimestamp() + SETTLEMENT_DURATION);
+        assertEq(account.totalAssets(), 0);
+
+        // a 1 wei donation must not release the never-frozen written-off subaccount
+        usdc.mint(subAccount, 1);
+        account.sync();
+
+        assertEq(account.subAccounts(0), subAccount);
+        assertEq(account.receivedValues(uint160(subAccount)), 1);
+
+        // a late full settlement is still swept to the parent: funds recovered
+        usdc.mint(subAccount, 11e6);
+        account.sync();
+
+        assertEq(usdc.balanceOf(address(account)), 11e6 + 1);
+        assertEq(usdc.balanceOf(subAccount), 0);
+        assertEq(account.totalAssets(), 11e6 + 1);
+    }
+
     function testSuperstateTranchedSettlementReleasesOnFullCoverage() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockSuperstateToken uscc = new MockSuperstateToken();
