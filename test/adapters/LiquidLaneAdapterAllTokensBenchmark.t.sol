@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+/// @dev Mainnet-fork benchmark: requires `ETH_RPC_URL` (skipped otherwise; only the pure spec
+///      test runs without it). Last updated for the cutoff-based redemptions change: the local
+///      constant oracle now exposes `getPriceData()` (required by the ACRED/USCC/bEQTY
+///      settlement accounts), and the bEQTY/mGLOBAL/ACRED wait durations model the new
+///      cohort/settlement timelines. Re-run on fork after any change to those accounts.
 import {Test} from "forge-std/Test.sol";
 
 import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
@@ -154,7 +159,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 259);
+        assertEq(totalMaxAverageRequests, 275);
     }
 
     function testBenchmarkOnboardsAllTokensToLiquidLaneAdapter() public {
@@ -913,7 +918,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         specs[4] = _spec("JTRSY", 1 days);
         specs[5] = _spec("PRIME", 1 days);
         specs[6] = _spec("StockMarketTRBasisTrade", 2 days);
-        specs[7] = _spec("bEQTY", 1 days);
+        // bEQTY settles through DigiFT subaccounts with a 7-day write-off duration.
+        specs[7] = _spec("bEQTY", 7 days);
         specs[8] = _spec("deCRDX", 1 days);
         specs[9] = _spec("deJAAA", 1 days);
         specs[10] = _spec("deJTRSY", 1 days);
@@ -924,7 +930,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         specs[15] = _spec("mEVUSD", 3 days);
         specs[16] = _spec("mFARM", 7 days);
         specs[17] = _spec("mFONE", 35 days);
-        specs[18] = _spec("mGLOBAL", 65 days);
+        // mGLOBAL cohort worst case: 30-day wait to cutoff + 5-day valuation delay + 45-day settlement.
+        specs[18] = _spec("mGLOBAL", 80 days);
         specs[19] = _spec("mHYPER", 3 days);
         specs[20] = _spec("mHyperBTC", 7 days);
         specs[21] = _spec("mHyperETH", 7 days);
@@ -944,7 +951,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         specs[35] = _spec("weETH", 14 days);
         specs[36] = _spec("wstETH", 5 days);
         specs[37] = _spec("AA_FalconXUSDC", 30 days);
-        specs[38] = _spec("ACRED", 90 days);
+        // ACRED cohort worst case: 91-day wait to cutoff + 4-day valuation delay + 30-day settlement.
+        specs[38] = _spec("ACRED", 125 days);
         specs[39] = _spec("sUSN", 7 days);
         specs[40] = _spec("USCC", 3 days);
     }
@@ -1176,6 +1184,12 @@ contract BenchmarkLiquidLaneVault {
 contract BenchmarkConstantOracle {
     function getPrice() external pure returns (uint256) {
         return 1e18;
+    }
+
+    /// @dev Settlement accounts (ACRED/USCC/bEQTY) and other CutoffPricer hosts read
+    ///      `getPriceData()` on sync/totalAssets; a fresh `updatedAt` keeps cohort freezing live.
+    function getPriceData() external view returns (uint256 price, uint48 updatedAt) {
+        return (1e18, uint48(block.timestamp));
     }
 }
 

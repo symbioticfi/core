@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+/// @dev Mainnet-fork suite: requires `ETH_RPC_URL` (skipped otherwise). Last updated for the
+///      cutoff-based redemptions change: mGLOBAL is now a `MidasCutoffAccount` with a
+///      2026-06-26 00:00 UTC cutoff anchor, 30-day period, 5-day valuation delay and 45-day
+///      settlement duration. Re-run on fork after any change to the Midas accounts.
 import {Test} from "forge-std/Test.sol";
 
-import {MidasAccount} from "../../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
+import {MidasAccount, MidasCutoffAccount} from "../../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {
     CarryTradeUSDTRYLeverage_Account
@@ -113,6 +117,17 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertGt(MidasOracle(account.ORACLE()).getPrice(), 0);
         assertEq(IERC20(token).allowance(address(account), redemptionVault), type(uint256).max);
         assertEq(IAccount(address(account)).totalAssets(), 0);
+
+        if (keccak256(bytes(spec.symbol)) == keccak256("mGLOBAL")) {
+            // mGLOBAL is a MidasCutoffAccount: initialization applies the constructor cutoff schedule
+            // verbatim (2026-06-26 00:00 UTC anchor, 30-day period); rolling only happens on request
+            // registration, so these hold at any fork timestamp.
+            MidasCutoffAccount cutoffAccount = MidasCutoffAccount(address(account));
+            assertEq(cutoffAccount.cutoff(), 1_782_432_000);
+            assertEq(cutoffAccount.cutoffPeriod(), 30 days);
+            assertEq(cutoffAccount.VALUATION_DELAY(), 5 days);
+            assertEq(cutoffAccount.SETTLEMENT_DURATION(), 45 days);
+        }
     }
 
     function _initData(address, MidasTokensToRedeemAssetVault vault) internal view returns (bytes memory) {

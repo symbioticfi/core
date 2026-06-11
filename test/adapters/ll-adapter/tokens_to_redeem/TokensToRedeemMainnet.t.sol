@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+/// @dev Mainnet-fork suite: requires `ETH_RPC_URL` (skipped otherwise). Last updated for the
+///      cutoff-based redemptions change (ACRED/USCC/bEQTY on SettlementAccount + CutoffPricer,
+///      mGLOBAL on MidasCutoffAccount): oracles passed to those accounts must expose
+///      `getPriceData()`, and ACRED's notice is an ERC-20 transfer to the Securitize
+///      redemption wallet. Re-run on fork after any change to those accounts.
 import {Test} from "forge-std/Test.sol";
 
 import {ACRDX_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
@@ -166,7 +171,7 @@ contract TokensToRedeemMainnetTest is Test {
         vm.createSelectFork(mainnetRpcUrl);
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 42);
+        assertEq(specs.length, 41);
 
         for (uint256 i; i < specs.length; ++i) {
             _assertTokenAccount(i, specs[i]);
@@ -178,7 +183,7 @@ contract TokensToRedeemMainnetTest is Test {
         vm.createSelectFork(mainnetRpcUrl);
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 42);
+        assertEq(specs.length, 41);
 
         for (uint256 i; i < specs.length; ++i) {
             _assertRedemptionSequence(i, specs[i]);
@@ -744,5 +749,11 @@ contract MainnetAssetVault {
 contract MainnetConstantOracle {
     function getPrice() external pure returns (uint256) {
         return 1e18;
+    }
+
+    /// @dev Settlement accounts (ACRED/USCC/bEQTY) and other CutoffPricer hosts read
+    ///      `getPriceData()` on sync/totalAssets; a fresh `updatedAt` keeps cohort freezing live.
+    function getPriceData() external view returns (uint256 price, uint48 updatedAt) {
+        return (1e18, uint48(block.timestamp));
     }
 }
