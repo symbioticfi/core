@@ -46,6 +46,7 @@ contract ChainlinkOracle is IChainlinkOracle {
     }
 
     /// @inheritdoc IPriceDataOracle
+    /// @dev The update timestamp is the older of the two aggregators' timestamps.
     function getPriceData() public view returns (uint256 price, uint48 updatedAt) {
         price = getPrice();
         (,,, uint256 timestamp,) = AggregatorV3Interface(AGGREGATOR_0).latestRoundData();

@@ -82,4 +82,40 @@ contract PriceDataOraclesTest is Test {
         (, uint48 updatedAt) = oracle.getPriceData();
         assertEq(updatedAt, 1_999_999_123);
     }
+
+    function testChainlinkOracleStaleLegZeroesPriceButReportsUpdatedAt() public {
+        MockAggregatorV3 aggregator0 = new MockAggregatorV3(8);
+        MockAggregatorV3 aggregator1 = new MockAggregatorV3(8);
+        vm.warp(2_000_000_000);
+        aggregator0.setRound(1e8, 1_999_999_000);
+        aggregator1.setRound(2e8, 2_000_000_000 - 2 days);
+
+        ChainlinkOracle oracle =
+            new ChainlinkOracle([address(aggregator0), address(aggregator1)], [uint48(1 days), uint48(1 days)]);
+        (uint256 price, uint48 updatedAt) = oracle.getPriceData();
+        assertEq(price, 0);
+        assertEq(updatedAt, 2_000_000_000 - 2 days);
+    }
+
+    function testChainlinkOracleNegativeAnswerZeroesPrice() public {
+        MockAggregatorV3 aggregator0 = new MockAggregatorV3(8);
+        vm.warp(2_000_000_000);
+        aggregator0.setRound(-1, block.timestamp);
+
+        ChainlinkOracle oracle = new ChainlinkOracle([address(aggregator0), address(0)], [uint48(1 days), uint48(0)]);
+        (uint256 price, uint48 updatedAt) = oracle.getPriceData();
+        assertEq(price, 0);
+        assertEq(updatedAt, 2_000_000_000);
+    }
+
+    function testChainlinkOracleZeroUpdatedAtFailsBothLegs() public {
+        MockAggregatorV3 aggregator0 = new MockAggregatorV3(8);
+        vm.warp(2_000_000_000);
+        aggregator0.setRound(1e8, 0);
+
+        ChainlinkOracle oracle = new ChainlinkOracle([address(aggregator0), address(0)], [uint48(1 days), uint48(0)]);
+        (uint256 price, uint48 updatedAt) = oracle.getPriceData();
+        assertEq(price, 0);
+        assertEq(updatedAt, 0);
+    }
 }
