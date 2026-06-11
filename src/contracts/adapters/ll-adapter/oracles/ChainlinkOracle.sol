@@ -2,10 +2,11 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {ChainlinkPriceFeed} from "./libraries/ChainlinkPriceFeed.sol";
+import {AggregatorV3Interface, ChainlinkPriceFeed} from "./libraries/ChainlinkPriceFeed.sol";
 
 import {IChainlinkOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/IChainlinkOracle.sol";
 import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
+import {IPriceDataOracle} from "../../../../interfaces/adapters/ll-adapter/IPriceDataOracle.sol";
 
 /// @title ChainlinkOracle
 /// @notice Constructor-configured Chainlink oracle returning a token price in `1e18` precision.
@@ -42,5 +43,18 @@ contract ChainlinkOracle is IChainlinkOracle {
         return ChainlinkPriceFeed.getLatestPrice(
             [AGGREGATOR_0, AGGREGATOR_1], [false, false], [STALENESS_DURATION_0, STALENESS_DURATION_1]
         );
+    }
+
+    /// @inheritdoc IPriceDataOracle
+    function getPriceData() public view returns (uint256 price, uint48 updatedAt) {
+        price = getPrice();
+        (,,, uint256 timestamp,) = AggregatorV3Interface(AGGREGATOR_0).latestRoundData();
+        updatedAt = uint48(timestamp);
+        if (AGGREGATOR_1 != address(0)) {
+            (,,, uint256 timestamp1,) = AggregatorV3Interface(AGGREGATOR_1).latestRoundData();
+            if (timestamp1 < updatedAt) {
+                updatedAt = uint48(timestamp1);
+            }
+        }
     }
 }

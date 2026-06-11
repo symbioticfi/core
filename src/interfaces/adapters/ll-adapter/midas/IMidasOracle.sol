@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IOracle} from "../IOracle.sol";
+import {IPriceDataOracle} from "../IPriceDataOracle.sol";
 
 /**
  * @title IMidasDataFeed
@@ -15,13 +15,19 @@ interface IMidasDataFeed {
      * @return answer The fetched aggregator answer.
      */
     function getDataInBase18() external view returns (uint256 answer);
+
+    /**
+     * @notice Returns the underlying Chainlink-compatible aggregator.
+     * @return aggregator The aggregator address.
+     */
+    function aggregator() external view returns (address aggregator);
 }
 
 /**
  * @title IMidasOracle
  * @notice Interface for Midas-backed liquidity lane token oracles.
  */
-interface IMidasOracle is IOracle {
+interface IMidasOracle is IPriceDataOracle {
     /* FUNCTIONS */
 
     /**

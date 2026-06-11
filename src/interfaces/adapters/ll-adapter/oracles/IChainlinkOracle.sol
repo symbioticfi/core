@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IOracle} from "../IOracle.sol";
+import {IPriceDataOracle} from "../IPriceDataOracle.sol";
 
 /**
  * @title IChainlinkOracle
  * @notice Interface for Chainlink-backed liquidity lane token oracles.
  */
-interface IChainlinkOracle is IOracle {
+interface IChainlinkOracle is IPriceDataOracle {
     /* ERRORS */
 
     /**
