@@ -52,7 +52,7 @@ abstract contract AccountsBase is Test {
     address internal constant SUSD3_TOKEN_ADDRESS = 0xf689555121e529Ff0463e191F9Bd9d1E496164a7;
     address internal constant USDC_TOKEN_ADDRESS = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     uint48 internal constant DUSD_TOKEN_COOLDOWN = 72 minutes;
-    uint48 internal constant DIGIFT_PENDING_ASSETS_DURATION = 1 days;
+    uint48 internal constant DIGIFT_SETTLEMENT_DURATION = 7 days;
     uint48 internal constant SAID_TOKEN_COOLDOWN = 6 days;
 
     address internal adapter = makeAddr("adapter");
@@ -198,24 +198,26 @@ abstract contract AccountsBase is Test {
         account = TheoAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
 
-    function _deployDigiFT(MockERC20 tokenToRedeem, MockERC20 asset, MockOracle oracle)
+    function _deployDigiFT(MockERC20 tokenToRedeem, MockERC20 asset, MockPriceDataOracle oracle)
         internal
         returns (DigiFTAccount account)
     {
         account = _deployDigiFT(tokenToRedeem, asset, oracle, subRedManagement);
     }
 
-    function _deployDigiFT(MockERC20 tokenToRedeem, MockERC20 asset, MockOracle oracle, address subRedManagement_)
-        internal
-        returns (DigiFTAccount account)
-    {
+    function _deployDigiFT(
+        MockERC20 tokenToRedeem,
+        MockERC20 asset,
+        MockPriceDataOracle oracle,
+        address subRedManagement_
+    ) internal returns (DigiFTAccount account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         DigiFTAccount implementation = new DigiFTAccount(
             address(oracle),
             address(factory),
             address(tokenToRedeem),
             subRedManagement_,
-            DIGIFT_PENDING_ASSETS_DURATION,
+            DIGIFT_SETTLEMENT_DURATION,
             cowSwapSettlement
         );
         factory.whitelist(address(implementation));

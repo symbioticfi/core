@@ -58,7 +58,6 @@ import {IAsyncRedeemAccount} from "../../../../src/interfaces/adapters/ll-adapte
 import {IAsyncRedeemVault} from "../../../../src/interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
 import {IAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IDigiFTAccount} from "../../../../src/interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol";
-import {IDigiFTSubAccount} from "../../../../src/interfaces/adapters/ll-adapter/digift/IDigiFTSubAccount.sol";
 import {IEtherFiAccount} from "../../../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
 import {IEtherFiLiquidityPool} from "../../../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiLiquidityPool.sol";
 import {
@@ -639,7 +638,6 @@ contract TokensToRedeemMainnetTest is Test {
     function _assertDigiFTRedemption(IAccount account, string memory symbol) internal view {
         address subAccount = IDigiFTAccount(address(account)).subAccounts(0);
         assertGt(subAccount.code.length, 0, symbol);
-        assertGt(IDigiFTSubAccount(subAccount).totalAssets(), 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
 
