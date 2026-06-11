@@ -18,7 +18,9 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 /// @dev Settlement is value-covered: a subaccount is only released once cumulative swept value (assets plus
 ///      tokens at sweep-time rates) covers its cohort value, making dust donations harmless (they reduce
 ///      the remaining receivable one-for-one) and keeping multi-tranche settlements and post-write-off
-///      late settlements sweepable.
+///      late settlements sweepable. Release additionally requires the cohort rate to be frozen (or the
+///      entry written off), so pre-freeze oracle rate drift cannot flip coverage true and release a
+///      subaccount early.
 abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlementAccount {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -82,7 +84,9 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
         return value.saturatingSub(receivedValues[key]);
     }
 
-    /// @dev Freezes cohort rates, sweeps subaccounts, and clears value-covered ones.
+    /// @dev Freezes cohort rates, sweeps subaccounts, and clears value-covered ones. A subaccount is only
+    ///      cleared once its cohort rate is frozen (or the entry is written off), so pre-freeze rate drift
+    ///      cannot release it early while later settlement tranches are still inbound.
     function _finalizeRequests() internal override {
         for (uint256 i = subAccounts.length; i > 0; --i) {
             uint256 index = i - 1;
@@ -100,8 +104,8 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
                 receivedValues[key] += sweptValue;
             }
 
-            (uint256 value,) = _cohortValue(key);
-            if (receivedValues[key] >= value) {
+            (uint256 value, bool writtenOff) = _cohortValue(key);
+            if (receivedValues[key] >= value && (writtenOff || _isFrozen(key))) {
                 _clearPending(key);
                 delete receivedValues[key];
                 subAccounts[index] = subAccounts[subAccounts.length - 1];

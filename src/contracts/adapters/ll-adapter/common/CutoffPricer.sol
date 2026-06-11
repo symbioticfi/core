@@ -153,6 +153,11 @@ abstract contract CutoffPricer is ICutoffPricer {
         return writtenOff ? 0 : value;
     }
 
+    /// @dev Returns whether a pending entry's cohort rate has been frozen.
+    function _isFrozen(uint256 key) internal view returns (bool) {
+        return _getCutoffPricerStorage().pendingCohorts[key].frozenRate != 0;
+    }
+
     /// @dev Returns the cohort value at the frozen (or live) rate, and whether the entry is written off.
     function _cohortValue(uint256 key) internal view returns (uint256 value, bool writtenOff) {
         PendingCohort storage pendingCohort = _getCutoffPricerStorage().pendingCohorts[key];
