@@ -88,20 +88,19 @@ New `IPriceDataOracle is IOracle { function getPriceData() external view returns
 ### 3.3 `common/SettlementAccount.sol` + `SettlementSubAccount` (new, replaces 3 near-clones)
 
 `SettlementAccount is CooldownAccount, CutoffPricer` (abstract):
-- `address[] subAccounts`.
+- `address[] subAccounts`; `mapping(uint256 key => uint256) receivedValues` — cumulative settlement value received per sub, in vault assets (token receipts valued at sweep-time rates).
 - `_requestRedeem()`: `sub = _createSubAccount()` (virtual), `_registerPending(uint160(sub), balance)`, transfer balance to sub, `sub.requestRedeem()`.
-- `_finalizeRequests()`: reverse loop — `sub.sync()` (sweeps), `_tryFreeze`, and if `sub.isSettled()` → `_clearPending` + swap-pop.
-- `_totalAssets()`: per sub — `holdings = asset.balanceOf(sub) + tokenValue(token.balanceOf(sub))`; `assets += holdings + _pendingValue(sub).saturatingSub(holdings)` (i.e. `max(pending, actual)` — extinguishes the receivable the moment the settlement batch arrives, and prices ACRED re-mints as live token holdings without double counting).
+- `_finalizeRequests()`: reverse loop — `_tryFreeze`, `(assets, tokens) = sub.sync()` (sweeps and reports), `receivedValues[sub] += assets + tokenValue(tokens)`; the sub is settled (`_clearPending` + `delete receivedValues` + swap-pop) only once `receivedValues[sub] ≥ cohortValue(sub)` (**value-covered settlement**). This supports multi-tranche settlements (e.g. DigiFT pays in tranches), makes dust donations harmless (they reduce the remaining receivable one-for-one instead of writing it off), and keeps written-off-but-unpaid subs tracked indefinitely so late settlements are still swept and recovered.
+- `_totalAssets()`: per sub — `holdings = asset.balanceOf(sub) + tokenValue(token.balanceOf(sub))`; `remaining = cohortValue(sub) − receivedValues[sub]` (0 once written off); `assets += holdings + remaining.saturatingSub(holdings)` (i.e. `max(remaining, holdings)` per sub — the receivable shrinks one-for-one as settlement value arrives, and ACRED re-mints are priced as live token holdings without double counting).
 
 `SettlementSubAccount` (base, dumb holder):
-- immutables `ACCOUNT, ASSET, TOKEN_TO_REDEEM`; sticky `settled` flag.
+- immutables `ACCOUNT, ASSET, TOKEN_TO_REDEEM`; stateless.
 - `requestRedeem()` (onlyAccount) → virtual `_executeRedemption()`.
-- `sync()` (onlyAccount) → sweep ASSET and TOKEN_TO_REDEEM balances to ACCOUNT; set `settled = true` when ASSET was received (settlements are single-batch for all three issuers).
-- `isSettled() → settled`.
+- `sync()` (onlyAccount) → sweeps ASSET and TOKEN_TO_REDEEM balances to ACCOUNT and returns both swept amounts; settledness is decided by the parent from cumulative received value, not by the sub.
 
 Issuer shims (each ~25–40 lines, sub subclass in the same file):
 - **SecuritizeAccount**: immutable `REDEMPTION_WALLET`; sub `_executeRedemption()` = `safeTransfer(REDEMPTION_WALLET, balance)` (replaces the broken `burn()`). Re-minted partial-fill ACRED is swept back by the base `sync()` and re-tendered automatically next window by the parent's normal flow.
-- **SuperstateAccount**: sub `_executeRedemption()` = `offchainRedeem(balance)`. Rolling parameters preserve current behavior exactly.
+- **SuperstateAccount**: sub `_executeRedemption()` = `offchainRedeem(balance)`. Rolling parameters reproduce current behavior with two intended deltas: pre-freeze pending value floats with the live oracle (instead of being fixed at the request-time rate), and `totalAssets` now consults the oracle for pending subs — reverting on a zero price during that window.
 - **DigiFTAccount**: sub approves `SUB_RED_MANAGEMENT` in constructor; `_executeRedemption()` = `subRedManagement.redeem(token, asset, balance, block.timestamp)`. Moves onto `CooldownAccount` with `COOLDOWN = 0` (identical request-every-sync behavior).
 
 ### 3.4 `MidasCutoffAccount` (new, issuer-level, ~60 lines)
@@ -134,7 +133,7 @@ Cohort boundary uses the start-of-day (UTC) of the deadline date — mis-assigni
 
 ## 5. Edge cases
 
-- **Oracle staleness**: mGLOBAL's DataFeed reverts >60 days stale — matches vault behavior; `_tryFreeze` simply doesn't freeze and `sync()` reverts as today's `totalAssets` would. No new failure mode.
+- **Oracle staleness**: mGLOBAL's DataFeed reverts >60 days stale — matches vault behavior; `_tryFreeze` simply doesn't freeze and `sync()` reverts as today's `totalAssets` would. One intended new failure mode: `totalAssets` now consults the oracle for pending (unfrozen) subs and reverts on a zero price during that window — previously the request-time rate was cached and no oracle read happened.
 - **Partial fill (ACRED)**: settlement batch = USDC + re-minted ACRED at the sub; `max(pending, holdings)` valuation hands over smoothly; re-mint is swept and re-tendered next window as a new entry.
 - **Zero fill / suspension**: receivable written off after `SETTLEMENT_DURATION` (NAV dips conservatively); the sub stays tracked and any late settlement is still swept (NAV recovers on arrival) — same liveness semantics as today.
 - **Multiple requests per window**: allowed (cooldown-throttled); all cohort-mates freeze at the same rate and settle in the same batch.

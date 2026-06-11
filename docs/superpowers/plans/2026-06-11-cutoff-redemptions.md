@@ -637,6 +637,8 @@ abstract contract CutoffPricer is ICutoffPricer {
 
 ### Task 3: `SettlementAccount` + `SettlementSubAccount` + interfaces
 
+> **AMENDED after review:** the sticky `isSettled` flag was replaced by value-covered settlement (sub `sync()` returns swept amounts; parent accumulates `receivedValues` and settles only when received ≥ cohort value; written-off unpaid subs stay tracked). The committed `SettlementAccount.sol` is authoritative for Tasks 4–5 expectations.
+
 **Files:**
 - Create: `src/interfaces/adapters/ll-adapter/ISettlementAccount.sol`
 - Create: `src/interfaces/adapters/ll-adapter/ISettlementSubAccount.sol`

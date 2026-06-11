@@ -15,6 +15,10 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title SettlementAccount
 /// @notice Base account settling redemptions through per-request subaccounts priced by cutoff cohorts.
+/// @dev Settlement is value-covered: a subaccount is only released once cumulative swept value (assets plus
+///      tokens at sweep-time rates) covers its cohort value, making dust donations harmless (they reduce
+///      the remaining receivable one-for-one) and keeping multi-tranche settlements and post-write-off
+///      late settlements sweepable.
 abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlementAccount {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -23,6 +27,8 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
 
     /// @inheritdoc ISettlementAccount
     address[] public subAccounts;
+    /// @inheritdoc ISettlementAccount
+    mapping(uint256 key => uint256 assets) public receivedValues;
 
     /* CONSTRUCTOR */
 
@@ -51,9 +57,10 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns subaccount holdings plus any pending receivable not yet realized.
+    /// @dev Returns subaccount holdings plus any remaining pending receivable not yet realized.
     function _totalAssets() internal view override returns (uint256 assets) {
-        for (uint256 i; i < subAccounts.length; ++i) {
+        uint256 length = subAccounts.length;
+        for (uint256 i; i < length; ++i) {
             address subAccount = subAccounts[i];
 
             uint256 holdings = IERC20(_asset).balanceOf(subAccount);
@@ -62,21 +69,41 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
                 holdings += _tokenToRedeemToAssets(tokenBalance);
             }
 
-            assets += holdings + _pendingValue(uint160(subAccount)).saturatingSub(holdings);
+            assets += holdings + _remainingValue(uint160(subAccount)).saturatingSub(holdings);
         }
     }
 
-    /// @dev Freezes cohort rates, sweeps settled subaccounts, and clears them.
+    /// @dev Returns the unsettled portion of a subaccount's receivable (0 once written off).
+    function _remainingValue(uint256 key) internal view returns (uint256 remaining) {
+        (uint256 value, bool writtenOff) = _cohortValue(key);
+        if (writtenOff) {
+            return 0;
+        }
+        return value.saturatingSub(receivedValues[key]);
+    }
+
+    /// @dev Freezes cohort rates, sweeps subaccounts, and clears value-covered ones.
     function _finalizeRequests() internal override {
         for (uint256 i = subAccounts.length; i > 0; --i) {
             uint256 index = i - 1;
             address subAccount = subAccounts[index];
+            uint256 key = uint160(subAccount);
 
-            _tryFreezePending(uint160(subAccount));
+            _tryFreezePending(key);
 
-            ISettlementSubAccount(subAccount).sync();
-            if (ISettlementSubAccount(subAccount).isSettled()) {
-                _clearPending(uint160(subAccount));
+            (uint256 sweptAssets, uint256 sweptTokenAmount) = ISettlementSubAccount(subAccount).sync();
+            uint256 sweptValue = sweptAssets;
+            if (sweptTokenAmount > 0) {
+                sweptValue += _tokenToRedeemToAssets(sweptTokenAmount);
+            }
+            if (sweptValue > 0) {
+                receivedValues[key] += sweptValue;
+            }
+
+            (uint256 value,) = _cohortValue(key);
+            if (receivedValues[key] >= value) {
+                _clearPending(key);
+                delete receivedValues[key];
                 subAccounts[index] = subAccounts[subAccounts.length - 1];
                 subAccounts.pop();
             }
@@ -130,11 +157,6 @@ abstract contract SettlementSubAccount is ISettlementSubAccount {
     /// @dev Token submitted for redemption.
     address internal immutable TOKEN_TO_REDEEM;
 
-    /* STATE VARIABLES */
-
-    /// @dev Whether settlement assets have been received.
-    bool internal _settled;
-
     /* CONSTRUCTOR */
 
     /// @notice Creates the request-holder subaccount.
@@ -156,28 +178,20 @@ abstract contract SettlementSubAccount is ISettlementSubAccount {
     }
 
     /// @inheritdoc ISettlementSubAccount
-    function sync() external {
+    function sync() external returns (uint256 assets, uint256 tokenAmount) {
         if (msg.sender != ACCOUNT) {
             revert NotAccount();
         }
 
-        uint256 assets = IERC20(ASSET).balanceOf(address(this));
+        assets = IERC20(ASSET).balanceOf(address(this));
         if (assets > 0) {
-            _settled = true;
             IERC20(ASSET).safeTransfer(ACCOUNT, assets);
         }
 
-        uint256 tokenBalance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (tokenBalance > 0) {
-            IERC20(TOKEN_TO_REDEEM).safeTransfer(ACCOUNT, tokenBalance);
+        tokenAmount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        if (tokenAmount > 0) {
+            IERC20(TOKEN_TO_REDEEM).safeTransfer(ACCOUNT, tokenAmount);
         }
-    }
-
-    /* VIEW FUNCTIONS */
-
-    /// @inheritdoc ISettlementSubAccount
-    function isSettled() public view returns (bool status) {
-        return _settled;
     }
 
     /* INTERNAL FUNCTIONS */

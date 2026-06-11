@@ -149,16 +149,19 @@ abstract contract CutoffPricer is ICutoffPricer {
 
     /// @dev Returns the pending redemption value: live until frozen, frozen until written off.
     function _pendingValue(uint256 key) internal view returns (uint256 assets) {
+        (uint256 value, bool writtenOff) = _cohortValue(key);
+        return writtenOff ? 0 : value;
+    }
+
+    /// @dev Returns the cohort value at the frozen (or live) rate, and whether the entry is written off.
+    function _cohortValue(uint256 key) internal view returns (uint256 value, bool writtenOff) {
         PendingCohort storage pendingCohort = _getCutoffPricerStorage().pendingCohorts[key];
         uint256 amount = pendingCohort.amount;
         if (amount == 0) {
-            return 0;
+            return (0, false);
         }
 
-        uint256 pricingTimestamp = pendingCohort.cutoffTimestamp + VALUATION_DELAY;
-        if (block.timestamp >= pricingTimestamp + SETTLEMENT_DURATION) {
-            return 0;
-        }
+        writtenOff = block.timestamp >= pendingCohort.cutoffTimestamp + VALUATION_DELAY + SETTLEMENT_DURATION;
 
         uint256 rate = pendingCohort.frozenRate;
         if (rate == 0) {
@@ -167,7 +170,7 @@ abstract contract CutoffPricer is ICutoffPricer {
                 revert InvalidCutoffPrice();
             }
         }
-        return _cutoffToAssets(amount, rate);
+        value = _cutoffToAssets(amount, rate);
     }
 
     /// @dev Rolls the stored cutoff to the first cutoff at/after the current time and returns it.

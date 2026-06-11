@@ -22,12 +22,8 @@ interface ISettlementSubAccount {
 
     /**
      * @notice Sweeps received settlement assets and returned tokens to the parent account.
+     * @return assets The vault-asset amount swept.
+     * @return tokenAmount The token-to-redeem amount swept.
      */
-    function sync() external;
-
-    /**
-     * @notice Returns whether settlement assets have been received.
-     * @return status True if the settlement batch arrived.
-     */
-    function isSettled() external view returns (bool status);
+    function sync() external returns (uint256 assets, uint256 tokenAmount);
 }

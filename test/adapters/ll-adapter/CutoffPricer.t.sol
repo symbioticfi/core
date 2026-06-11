@@ -37,6 +37,10 @@ contract CutoffPricerHarness is CutoffPricer {
         return _pendingValue(key);
     }
 
+    function cohortValue(uint256 key) external view returns (uint256, bool) {
+        return _cohortValue(key);
+    }
+
     function setCutoffSchedule(uint48 nextCutoff, uint48 period) external {
         _setCutoffSchedule(nextCutoff, period);
     }
@@ -275,6 +279,29 @@ contract CutoffPricerTest is Test {
         (, uint128 frozenRate,) = pricer.pendingCohorts(1);
         assertEq(frozenRate, 0);
         assertEq(pricer.pendingValue(1), 0);
+    }
+
+    function testCohortValueReportsWriteOffWithoutZeroing() public {
+        pricer.registerPending(1, 100e18);
+        uint48 pricingTime = CUTOFF + VALUATION_DELAY;
+
+        vm.warp(pricingTime + 1);
+        pricer.setPriceData(1.5e18, pricingTime + 1);
+        pricer.tryFreezePending(1);
+        (, uint128 frozenRate,) = pricer.pendingCohorts(1);
+        assertEq(frozenRate, 1.5e18);
+
+        vm.warp(pricingTime + SETTLEMENT_DURATION);
+        (uint256 value, bool writtenOff) = pricer.cohortValue(1);
+        assertEq(value, 150e18);
+        assertTrue(writtenOff);
+        assertEq(pricer.pendingValue(1), 0);
+    }
+
+    function testCohortValueEmptyEntry() public view {
+        (uint256 value, bool writtenOff) = pricer.cohortValue(42);
+        assertEq(value, 0);
+        assertFalse(writtenOff);
     }
 
     function testFreezeEmitsEvent() public {

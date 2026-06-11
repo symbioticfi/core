@@ -19,6 +19,13 @@ interface ISettlementAccount is ICooldownAccount, ICutoffPricer {
     function subAccounts(uint256 index) external view returns (address subAccount);
 
     /**
+     * @notice Returns the cumulative settlement value received for a subaccount key, in vault assets.
+     * @param key The subaccount key (`uint160(subAccount)`).
+     * @return assets The cumulative received vault-asset value.
+     */
+    function receivedValues(uint256 key) external view returns (uint256 assets);
+
+    /**
      * @notice Updates the cutoff schedule. Only callable by the owner.
      * @param nextCutoff The next cutoff timestamp (0 for rolling mode).
      * @param period The cutoff period (0 for rolling mode).
