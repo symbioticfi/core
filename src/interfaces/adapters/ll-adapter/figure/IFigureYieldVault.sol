@@ -28,10 +28,7 @@ interface IFigureYieldVault {
      * @return assets The pending asset amount.
      * @return timestamp The request timestamp.
      */
-    function pendingRedemptions(address user)
-        external
-        view
-        returns (uint256 shares, uint256 assets, uint256 timestamp);
+    function pendingRedemptions(address user) external view returns (uint256 shares, uint256 assets, uint256 timestamp);
 
     /**
      * @notice Requests redemption for held shares.

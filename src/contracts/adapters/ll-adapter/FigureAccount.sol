@@ -45,8 +45,7 @@ contract FigureAccount is CooldownAccount, IFigureAccount {
     /// @dev Returns held wYLDS value plus pending async redemption request value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
         return pendingAssets()
-            + IFigureYieldVault(ASYNC_REDEEM_VAULT)
-                .convertToAssets(IERC20(ASYNC_REDEEM_VAULT).balanceOf(address(this)));
+            + IFigureYieldVault(ASYNC_REDEEM_VAULT).convertToAssets(IERC20(ASYNC_REDEEM_VAULT).balanceOf(address(this)));
     }
 
     /// @dev Figure redemptions are finalized offchain by the yield vault admin.
