@@ -38,6 +38,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract AppAdapterInvariantHandler is Test {
     using Subnetwork for address;
+    using Math for uint256;
 
     struct Observation {
         uint48 timestamp;
@@ -84,6 +85,9 @@ contract AppAdapterInvariantHandler is Test {
     bool internal limitChanged;
     bool internal limitLockViolated;
     bool internal allocationLimitViolated;
+    bool internal debtMaturityDrainViolated;
+    bool internal immatureDebtWipeViolated;
+    bool internal slashMaturedExitViolated;
 
     constructor() {
         _initialize();
@@ -268,6 +272,474 @@ contract AppAdapterInvariantHandler is Test {
         }
 
         _afterAction(false);
+    }
+
+    function debtMaturityDrainPressure(uint256 actorSeed, uint256 assetsSeed, uint256 firstSeed, uint256 secondSeed)
+        external
+    {
+        uint256 snapshotId = vm.snapshotState();
+        bool violated = _debtMaturityDrainPressure(actorSeed, assetsSeed, firstSeed, secondSeed);
+        bool reverted = vm.revertToState(snapshotId);
+        if (!reverted || violated) {
+            debtMaturityDrainViolated = true;
+        }
+        _afterAction(false);
+    }
+
+    function immatureDebtCleanupPressure(uint256 actorSeed, uint256 assetsSeed, uint256 amountSeed) external {
+        uint256 snapshotId = vm.snapshotState();
+        bool violated = _immatureDebtCleanupPressure(actorSeed, assetsSeed, amountSeed);
+        bool reverted = vm.revertToState(snapshotId);
+        if (!reverted || violated) {
+            immatureDebtWipeViolated = true;
+        }
+        _afterAction(false);
+    }
+
+    function slashMaturedExitPressure(uint256 actorSeed, uint256 assetsSeed, uint256 sharesSeed, uint256 slashSeed)
+        external
+    {
+        uint256 snapshotId = vm.snapshotState();
+        bool violated = _slashMaturedExitPressure(actorSeed, assetsSeed, sharesSeed, slashSeed);
+        bool reverted = vm.revertToState(snapshotId);
+        if (!reverted || violated) {
+            slashMaturedExitViolated = true;
+        }
+        _afterAction(false);
+    }
+
+    function _debtMaturityDrainPressure(uint256 actorSeed, uint256 assetsSeed, uint256 firstSeed, uint256 secondSeed)
+        internal
+        returns (bool)
+    {
+        uint256 snapshotId = vm.snapshotState();
+        bool violated = _forceDeallocateDebtMaturityDrain(actorSeed, assetsSeed, firstSeed, secondSeed);
+        bool reverted = vm.revertToState(snapshotId);
+        if (!reverted || violated) {
+            return true;
+        }
+
+        snapshotId = vm.snapshotState();
+        violated = _directRequestDebtMaturityDrain(actorSeed, assetsSeed, firstSeed, secondSeed);
+        reverted = vm.revertToState(snapshotId);
+        if (!reverted || violated) {
+            return true;
+        }
+
+        snapshotId = vm.snapshotState();
+        violated = _queuedWithdrawalDebtMaturityDrain(actorSeed, assetsSeed, firstSeed, secondSeed);
+        reverted = vm.revertToState(snapshotId);
+        return !reverted || violated;
+    }
+
+    function _forceDeallocateDebtMaturityDrain(
+        uint256 actorSeed,
+        uint256 assetsSeed,
+        uint256 firstSeed,
+        uint256 secondSeed
+    ) internal returns (bool) {
+        if (!_prepareDebtPressure(actorSeed, assetsSeed, 3)) {
+            return false;
+        }
+
+        uint256 total = adapter.totalAssets();
+        if (total < 2) {
+            return false;
+        }
+
+        uint256 first = bound(firstSeed, 1, total - 1);
+        uint256 vaultBalanceBefore = assetToken.balanceOf(address(vault));
+
+        try delegator.forceDeallocate(address(adapter), first) {}
+        catch {
+            return true;
+        }
+
+        vm.warp(vm.getBlockTimestamp() + duration);
+        if (adapter.slashable() != total - first || adapter.freeAssets() != first) {
+            return true;
+        }
+
+        try delegator.sweepPending() {}
+        catch {
+            return true;
+        }
+
+        uint256 afterFirst = adapter.totalAssets();
+        if (
+            afterFirst != total - first || adapter.slashable() != afterFirst || adapter.freeAssets() != 0
+                || assetToken.balanceOf(address(vault)) < vaultBalanceBefore + first
+        ) {
+            return true;
+        }
+
+        if (afterFirst == 0) {
+            return false;
+        }
+
+        uint256 second = bound(secondSeed, 1, Math.min(first, afterFirst));
+        try delegator.forceDeallocate(address(adapter), second) {}
+        catch {
+            return true;
+        }
+
+        vm.warp(vm.getBlockTimestamp() + duration);
+        if (adapter.slashable() != afterFirst - second || adapter.freeAssets() != second) {
+            return true;
+        }
+
+        try delegator.sweepPending() {}
+        catch {
+            return true;
+        }
+
+        uint256 afterSecond = adapter.totalAssets();
+        if (
+            afterSecond != afterFirst - second || adapter.slashable() != afterSecond || adapter.freeAssets() != 0
+                || assetToken.balanceOf(address(vault)) < vaultBalanceBefore + first + second
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function _directRequestDebtMaturityDrain(
+        uint256 actorSeed,
+        uint256 assetsSeed,
+        uint256 firstSeed,
+        uint256 secondSeed
+    ) internal returns (bool) {
+        if (!_prepareDebtPressure(actorSeed, assetsSeed, 3)) {
+            return false;
+        }
+
+        uint256 total = adapter.totalAssets();
+        if (total < 2) {
+            return false;
+        }
+
+        uint256 first = bound(firstSeed, 1, total - 1);
+        uint256 vaultBalanceBefore = assetToken.balanceOf(address(vault));
+
+        vm.prank(address(delegator));
+        try adapter.requestDeallocate(first) {}
+        catch {
+            return true;
+        }
+
+        vm.warp(vm.getBlockTimestamp() + duration);
+        if (adapter.slashable() != total - first || adapter.freeAssets() != first) {
+            return true;
+        }
+
+        try delegator.sweepPending() {}
+        catch {
+            return true;
+        }
+
+        uint256 afterFirst = adapter.totalAssets();
+        if (
+            afterFirst != total - first || adapter.slashable() != afterFirst || adapter.freeAssets() != 0
+                || assetToken.balanceOf(address(vault)) < vaultBalanceBefore + first
+        ) {
+            return true;
+        }
+
+        if (afterFirst == 0) {
+            return false;
+        }
+
+        uint256 second = bound(secondSeed, 1, Math.min(first, afterFirst));
+        vm.prank(address(delegator));
+        try adapter.requestDeallocate(second) {}
+        catch {
+            return true;
+        }
+
+        vm.warp(vm.getBlockTimestamp() + duration);
+        if (adapter.slashable() != afterFirst - second || adapter.freeAssets() != second) {
+            return true;
+        }
+
+        try delegator.sweepPending() {}
+        catch {
+            return true;
+        }
+
+        uint256 afterSecond = adapter.totalAssets();
+        if (
+            afterSecond != afterFirst - second || adapter.slashable() != afterSecond || adapter.freeAssets() != 0
+                || assetToken.balanceOf(address(vault)) < vaultBalanceBefore + first + second
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function _queuedWithdrawalDebtMaturityDrain(
+        uint256 actorSeed,
+        uint256 assetsSeed,
+        uint256 firstSeed,
+        uint256 secondSeed
+    ) internal returns (bool) {
+        if (!_prepareDebtPressure(actorSeed, assetsSeed, 3)) {
+            return false;
+        }
+
+        address actor = _actor(actorSeed);
+        uint256 balance = vault.balanceOf(actor);
+        if (balance < 2) {
+            return false;
+        }
+
+        uint256 firstShares = bound(firstSeed, 1, balance - 1);
+        if (_requestAndSettleMaturedExit(actor, firstShares)) {
+            return true;
+        }
+
+        balance = vault.balanceOf(actor);
+        if (balance == 0) {
+            return false;
+        }
+
+        uint256 secondShares = bound(secondSeed, 1, Math.min(firstShares, balance));
+        return _requestAndSettleMaturedExit(actor, secondShares);
+    }
+
+    function _immatureDebtCleanupPressure(uint256 actorSeed, uint256 assetsSeed, uint256 amountSeed)
+        internal
+        returns (bool)
+    {
+        for (uint256 mode; mode < 3; ++mode) {
+            uint256 snapshotId = vm.snapshotState();
+            bool violated = _immatureDebtCleanupScenario(actorSeed, assetsSeed, amountSeed, mode);
+            bool reverted = vm.revertToState(snapshotId);
+            if (!reverted || violated) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function _immatureDebtCleanupScenario(
+        uint256 actorSeed,
+        uint256 assetsSeed,
+        uint256 amountSeed,
+        uint256 cleanupMode
+    ) internal returns (bool) {
+        if (!_prepareDebtPressure(actorSeed, assetsSeed, 2)) {
+            return false;
+        }
+
+        uint256 total = adapter.totalAssets();
+        if (total < 2) {
+            return false;
+        }
+
+        uint256 amount = bound(amountSeed, 1, total - 1);
+        uint48 requestedAt = uint48(vm.getBlockTimestamp());
+
+        try delegator.forceDeallocate(address(adapter), amount) {}
+        catch {
+            return true;
+        }
+
+        try delegator.setLimits(address(adapter), total - amount, MAX_SHARE) {
+            limitChanged = true;
+        } catch {
+            return true;
+        }
+
+        if (adapter.slashable() <= delegator.limitOf(address(adapter))) {
+            return false;
+        }
+
+        uint256 stakeBefore = adapter.stake();
+        uint256 slashableBefore = adapter.slashable();
+        uint256 adapterAssetsBefore = adapter.totalAssets();
+
+        cleanupMode %= 3;
+        if (cleanupMode == 0) {
+            try delegator.sweepPending() {}
+            catch {
+                return true;
+            }
+        } else if (cleanupMode == 1) {
+            address actor = _actor(actorSeed + 1);
+            deal(address(assetToken), actor, 1);
+            vm.startPrank(actor);
+            assetToken.approve(address(vault), 1);
+            try vault.deposit(1, actor) {} catch {}
+            vm.stopPrank();
+        } else {
+            vm.prank(address(delegator));
+            try adapter.requestDeallocate(0) {}
+            catch {
+                return true;
+            }
+        }
+
+        if (adapter.stake() > stakeBefore || adapter.slashable() != slashableBefore) {
+            return true;
+        }
+
+        vm.warp(requestedAt + duration);
+        try delegator.sweepPending() {}
+        catch {
+            return true;
+        }
+
+        if (
+            adapter.totalAssets() != adapterAssetsBefore - amount || adapter.slashable() != adapterAssetsBefore - amount
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function _slashMaturedExitPressure(uint256 actorSeed, uint256 assetsSeed, uint256 sharesSeed, uint256 slashSeed)
+        internal
+        returns (bool)
+    {
+        for (uint256 mode; mode < 3; ++mode) {
+            uint256 snapshotId = vm.snapshotState();
+            bool violated = _slashMaturedExitScenario(actorSeed, assetsSeed, sharesSeed, slashSeed, mode);
+            bool reverted = vm.revertToState(snapshotId);
+            if (!reverted || violated) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function _slashMaturedExitScenario(
+        uint256 actorSeed,
+        uint256 assetsSeed,
+        uint256 sharesSeed,
+        uint256 slashSeed,
+        uint256 slashMode
+    ) internal returns (bool) {
+        if (!_prepareDebtPressure(actorSeed, assetsSeed, 3)) {
+            return false;
+        }
+
+        address actor = _actor(actorSeed);
+        uint256 balance = vault.balanceOf(actor);
+        if (balance < 2) {
+            return false;
+        }
+
+        uint256 shares = bound(sharesSeed, 1, balance - 1);
+        vm.startPrank(actor);
+        vault.approve(address(queue), shares);
+        uint256 tokenId;
+        try queue.requestRedeem(shares, actor) returns (uint256 newTokenId) {
+            tokenId = newTokenId;
+            requestTokenIds.push(newTokenId);
+        } catch {
+            vm.stopPrank();
+            return false;
+        }
+        vm.stopPrank();
+
+        if (queue.pendingShares() == 0) {
+            return false;
+        }
+
+        vm.warp(vm.getBlockTimestamp() + duration);
+        uint256 pendingAssetsBefore = queue.pendingAssets();
+        uint256 adapterAssetsBefore = adapter.totalAssets();
+        if (pendingAssetsBefore == 0) {
+            return false;
+        }
+
+        uint256 slashable = adapter.slashable();
+        if (slashable == 0) {
+            return false;
+        }
+
+        uint256 amount;
+        if (slashMode == 0) {
+            if (slashable < 2) {
+                return false;
+            }
+            amount = bound(slashSeed, 1, slashable - 1);
+        } else if (slashMode == 1) {
+            amount = slashable;
+        } else {
+            amount = slashable + bound(slashSeed, 1, 1000 ether);
+        }
+        vm.prank(networkMiddleware);
+        try adapter.slash(amount) {
+            _clearObservations();
+        } catch {
+            return false;
+        }
+
+        uint256 expectedSlash = Math.min(amount, slashable);
+        (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(tokenId);
+        if (
+            claimableAssets != pendingAssetsBefore || claimableShares != shares || queue.pendingShares() != 0
+                || queue.pendingAssets() != 0
+                || adapter.totalAssets()
+                    != adapterAssetsBefore.saturatingSub(pendingAssetsBefore).saturatingSub(expectedSlash)
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function _requestAndSettleMaturedExit(address actor, uint256 shares) internal returns (bool) {
+        vm.startPrank(actor);
+        vault.approve(address(queue), shares);
+        uint256 tokenId;
+        try queue.requestRedeem(shares, actor) returns (uint256 newTokenId) {
+            tokenId = newTokenId;
+            requestTokenIds.push(newTokenId);
+        } catch {
+            vm.stopPrank();
+            return false;
+        }
+        vm.stopPrank();
+
+        if (queue.pendingShares() == 0) {
+            return false;
+        }
+
+        uint256 pendingAssetsBefore = queue.pendingAssets();
+        uint256 adapterAssetsBefore = adapter.totalAssets();
+
+        vm.warp(vm.getBlockTimestamp() + duration);
+        if (
+            adapter.slashable() != adapterAssetsBefore.saturatingSub(pendingAssetsBefore)
+                || adapter.freeAssets() != pendingAssetsBefore
+        ) {
+            return true;
+        }
+
+        try delegator.sweepPending() {}
+        catch {
+            return true;
+        }
+
+        (uint256 claimableAssets, uint256 claimableShares) = queue.claimable(tokenId);
+        uint256 pendingShares = queue.pendingShares();
+        if (
+            claimableAssets != pendingAssetsBefore || claimableShares != shares
+                || adapter.totalAssets() != adapterAssetsBefore.saturatingSub(claimableAssets)
+                || adapter.slashable() != adapter.totalAssets() || adapter.freeAssets() != 0
+                || (pendingShares != 0 && queue.pendingAssets() != 0)
+        ) {
+            return true;
+        }
+
+        return false;
     }
 
     function _requestRedeem(address actor, address receiver, uint256 shares) internal {
@@ -481,6 +953,75 @@ contract AppAdapterInvariantHandler is Test {
 
     function assertAllocationLimitInvariant() external view {
         assertFalse(allocationLimitViolated);
+    }
+
+    function assertDebtMaturityDrainInvariant() external view {
+        assertFalse(debtMaturityDrainViolated);
+    }
+
+    function assertNoImmatureDebtWipeInvariant() external view {
+        assertFalse(immatureDebtWipeViolated);
+    }
+
+    function assertSlashSettlesMaturedExitInvariant() external view {
+        assertFalse(slashMaturedExitViolated);
+    }
+
+    function _prepareDebtPressure(uint256 actorSeed, uint256 assetsSeed, uint256 minAssets) internal returns (bool) {
+        if (!_settleQueueBestEffort()) {
+            return false;
+        }
+
+        _normalizeDebtPressure();
+
+        address actor = _actor(actorSeed);
+        uint256 assets = bound(assetsSeed, minAssets, 1000 ether);
+
+        deal(address(assetToken), actor, assets);
+        vm.startPrank(actor);
+        assetToken.approve(address(vault), assets);
+        try vault.deposit(assets, actor) {}
+        catch {
+            vm.stopPrank();
+            return adapter.totalAssets() >= minAssets && queue.pendingShares() == 0;
+        }
+        vm.stopPrank();
+
+        try delegator.allocate(address(adapter), type(uint256).max) {} catch {}
+
+        return adapter.totalAssets() >= minAssets && queue.pendingShares() == 0;
+    }
+
+    function _settleQueueBestEffort() internal returns (bool) {
+        for (uint256 i; i < 4; ++i) {
+            try delegator.sweepPending() {} catch {}
+            try queue.fill() {} catch {}
+
+            if (queue.pendingShares() == 0) {
+                return true;
+            }
+
+            vm.warp(vm.getBlockTimestamp() + duration);
+        }
+
+        return queue.pendingShares() == 0;
+    }
+
+    function _normalizeDebtPressure() internal {
+        try vault.setDepositWhitelist(false) {} catch {}
+        try vault.setIsDepositLimit(false) {} catch {}
+        try vault.setDepositLimit(type(uint256).max) {} catch {}
+        try vault.setManagementFee(0, address(0)) {} catch {}
+        try vault.setPerformanceFee(0, address(0)) {} catch {}
+        try vault.accrueInterest() {} catch {}
+        try delegator.addAdapter(address(adapter)) {} catch {}
+        try delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE) {
+            limitChanged = true;
+        } catch {}
+
+        address[] memory autoAllocateAdapters = new address[](1);
+        autoAllocateAdapters[0] = address(adapter);
+        try delegator.setAutoAllocateAdapters(autoAllocateAdapters) {} catch {}
     }
 
     function _afterAction(bool slashAction) internal {

@@ -200,13 +200,18 @@ contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
         uint256 curSlashable = _slashable();
         uint256 targetSlashable = totalAssets().saturatingSub(amount);
 
-        // Reset stake, debt, and slashed when the deallocation fits within the free (non-slashable) assets.
+        // The request fits within currently free assets; no new delayed debt is needed.
         if (targetSlashable >= curSlashable) {
             uint256 limit = IUniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this));
-            if (limit >= curSlashable && limit < targetSlashable) {
+
+            // Only compact/reset accounting if doing so does not need to preserve
+            // slashable stake above the current limit.
+            if (curSlashable > limit) {
+                return;
+            }
+            if (targetSlashable > limit) {
                 targetSlashable = limit;
             }
-
             _stakePos.push(uint48(block.timestamp), uint208(_stakes.length));
             _stakes.push().initialStake = targetSlashable;
         } else {

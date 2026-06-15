@@ -5,6 +5,7 @@ import {Script} from "forge-std/Script.sol";
 
 import {DeployCoreBaseScript} from "../base/DeployCoreBase.s.sol";
 import {DeployV2BaseScript} from "../base/DeployV2Base.s.sol";
+import {TestnetVaultFactory} from "./TestnetVaultFactory.sol";
 import {Logs} from "../../utils/Logs.sol";
 import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
@@ -18,6 +19,7 @@ import {AccountRegistry} from "../../../src/contracts/adapters/ll-adapter/Accoun
 import {MidasCompAccount, MidasNonCompAccount} from "../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
+import {VaultFactory} from "../../../src/contracts/VaultFactory.sol";
 
 import {IAdapterRegistry} from "../../../src/interfaces/IAdapterRegistry.sol";
 import {IAaveV3Adapter} from "../../../src/interfaces/adapters/IAaveV3Adapter.sol";
@@ -790,6 +792,10 @@ contract DeployFullCoreLiquidLaneTestnetCoreScript is DeployCoreBaseScript {
         } else {
             vm.stopPrank();
         }
+    }
+
+    function _deployVaultFactory(address owner) internal override returns (VaultFactory) {
+        return VaultFactory(address(new TestnetVaultFactory(owner)));
     }
 }
 

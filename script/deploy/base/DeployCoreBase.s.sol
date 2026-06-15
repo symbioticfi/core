@@ -51,7 +51,7 @@ contract DeployCoreBaseScript is Script {
         _startBroadcast();
         (,, address deployer) = vm.readCallers();
 
-        data.vaultFactory = new VaultFactory(deployer);
+        data.vaultFactory = _deployVaultFactory(deployer);
         data.delegatorFactory = new DelegatorFactory(deployer);
         data.slasherFactory = new SlasherFactory(deployer);
         data.networkRegistry = new NetworkRegistry();
@@ -194,5 +194,9 @@ contract DeployCoreBaseScript is Script {
 
     function _stopBroadcast() internal virtual {
         vm.stopBroadcast();
+    }
+
+    function _deployVaultFactory(address owner) internal virtual returns (VaultFactory) {
+        return new VaultFactory(owner);
     }
 }

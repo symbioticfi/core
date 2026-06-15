@@ -315,6 +315,66 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(adapter.totalAssets(), total - first - second);
     }
 
+    function test_ZeroRequestDoesNotRestoreSlashableWhenLimitIsBelowCurrentSlashable() public {
+        uint256 total = adapter.totalAssets();
+
+        delegator.forceDeallocate(address(adapter), 40);
+        vm.warp(vm.getBlockTimestamp() + duration);
+        delegator.setLimits(address(adapter), 30, MAX_SHARE);
+
+        vm.prank(address(delegator));
+        adapter.requestDeallocate(0);
+
+        assertEq(adapter.slashable(), total - 40);
+        assertEq(adapter.freeAssets(), 40);
+    }
+
+    function test_ZeroRequestPreservesImmatureForceDeallocateDebtWhenLimitWasReduced() public {
+        uint256 total = adapter.totalAssets();
+        uint256 amount = 40;
+        uint48 requestedAt = uint48(vm.getBlockTimestamp());
+
+        delegator.forceDeallocate(address(adapter), amount);
+
+        assertEq(delegator.limitOf(address(adapter)), total - amount);
+        assertEq(adapter.slashable(), total);
+        assertEq(adapter.stake(), total);
+
+        vm.prank(address(delegator));
+        adapter.requestDeallocate(0);
+
+        assertEq(adapter.slashable(), total);
+        assertEq(adapter.stake(), total);
+
+        vm.warp(requestedAt + 1);
+        assertEq(adapter.stake(), total - amount);
+
+        vm.warp(requestedAt + duration);
+        assertEq(adapter.slashable(), total - amount);
+        assertEq(adapter.freeAssets(), amount);
+    }
+
+    function test_ZeroRequestRestakesMatureFreeAssetsOnlyUpToLimit() public {
+        uint256 total = adapter.totalAssets();
+
+        delegator.forceDeallocate(address(adapter), 40);
+        vm.warp(vm.getBlockTimestamp() + duration);
+
+        assertEq(adapter.slashable(), 60);
+        assertEq(adapter.freeAssets(), 40);
+
+        delegator.setLimits(address(adapter), 70, MAX_SHARE);
+
+        vm.prank(address(delegator));
+        adapter.requestDeallocate(0);
+
+        assertEq(adapter.totalAssets(), total);
+        assertEq(adapter.slashable(), 70);
+        assertEq(adapter.freeAssets(), 30);
+        assertEq(delegator.deallocate(address(adapter), 1), 30);
+        assertEq(adapter.totalAssets(), 70);
+    }
+
     function test_SweepPendingFillsQueuedWithdrawalAfterDelayedAppAdapterDebt() public {
         address alice = address(0xA11CE);
         (WithdrawalQueue queue, uint256 tokenId, uint256 shares) = _requestAllocatedWithdrawal(1000);

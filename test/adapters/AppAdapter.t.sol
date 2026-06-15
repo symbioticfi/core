@@ -211,6 +211,59 @@ contract AppAdapterTest is Test {
         assertEq(adapter.totalAssets(), 40);
     }
 
+    function test_ZeroRequestKeepsImmatureDebtWhenLimitIsBelowCurrentSlashable() public {
+        _allocate(100);
+        uint48 requestedAt = uint48(vm.getBlockTimestamp());
+
+        delegator.requestDeallocate(address(adapter), 40);
+        delegator.setLimit(60);
+
+        assertEq(adapter.slashable(), 100);
+        assertEq(adapter.stake(), 100);
+
+        delegator.requestDeallocate(address(adapter), 0);
+
+        assertEq(adapter.slashable(), 100);
+        assertEq(adapter.stake(), 100);
+
+        vm.warp(requestedAt + duration);
+
+        assertEq(adapter.slashable(), 60);
+        assertEq(adapter.freeAssets(), 40);
+        assertEq(delegator.deallocate(address(adapter), 1), 40);
+        assertEq(adapter.totalAssets(), 60);
+    }
+
+    function testFuzz_ZeroRequestKeepsImmatureDebtWhenLimitIsBelowCurrentSlashable(
+        uint256 totalSeed,
+        uint256 amountSeed,
+        uint256 limitSeed,
+        uint256 elapsedSeed
+    ) public {
+        uint256 total = bound(totalSeed, 2, 1_000_000);
+        uint256 amount = bound(amountSeed, 1, total - 1);
+        uint256 limit = bound(limitSeed, 0, total - 1);
+        uint256 elapsed = bound(elapsedSeed, 0, duration - 1);
+
+        _allocate(total);
+        uint48 requestedAt = uint48(vm.getBlockTimestamp());
+
+        delegator.requestDeallocate(address(adapter), amount);
+        delegator.setLimit(limit);
+
+        vm.warp(requestedAt + elapsed);
+        delegator.requestDeallocate(address(adapter), 0);
+
+        assertEq(adapter.slashable(), total);
+
+        vm.warp(requestedAt + duration);
+
+        assertEq(adapter.slashable(), total - amount);
+        assertEq(adapter.freeAssets(), amount);
+        assertEq(delegator.deallocate(address(adapter), 1), amount);
+        assertEq(adapter.totalAssets(), total - amount);
+    }
+
     function test_RequestDeallocateDecreaseCapsRestakedAssetsAtLimit() public {
         _allocate(100);
         delegator.setLimit(30);

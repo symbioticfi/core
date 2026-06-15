@@ -72,3 +72,31 @@ contract AppAdapterInvariantsTest is Test {
         handler.assertAllocationLimitInvariant();
     }
 }
+
+contract AppAdapterDebtInvariantsTest is Test {
+    AppAdapterInvariantHandler public handler;
+
+    function setUp() public {
+        handler = new AppAdapterInvariantHandler();
+
+        bytes4[] memory selectors = new bytes4[](3);
+        selectors[0] = AppAdapterInvariantHandler.debtMaturityDrainPressure.selector;
+        selectors[1] = AppAdapterInvariantHandler.immatureDebtCleanupPressure.selector;
+        selectors[2] = AppAdapterInvariantHandler.slashMaturedExitPressure.selector;
+
+        targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
+        targetContract(address(handler));
+    }
+
+    function invariant_AppAdapterDebtMaturityDrains() public view {
+        handler.assertDebtMaturityDrainInvariant();
+    }
+
+    function invariant_AppAdapterNoImmatureDebtWipe() public view {
+        handler.assertNoImmatureDebtWipeInvariant();
+    }
+
+    function invariant_AppAdapterSlashSettlesMaturedExitsFirst() public view {
+        handler.assertSlashSettlesMaturedExitInvariant();
+    }
+}

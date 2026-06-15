@@ -4,15 +4,20 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 
 import {DeployFullCoreLiquidLaneTestnetScript} from "../../script/deploy/testnet/DeployFullCoreLiquidLaneTestnet.s.sol";
+import {TestnetVaultFactory} from "../../script/deploy/testnet/TestnetVaultFactory.sol";
 
 import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
+import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
+import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntityProxy.sol";
+import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
+import {IMigratablesFactory} from "../../src/interfaces/common/IMigratablesFactory.sol";
 import {IAaveV3Adapter} from "../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 import {ILiquidLaneAdapter} from "../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IAccountRegistry} from "../../src/interfaces/adapters/ll-adapter/IAccountRegistry.sol";
 import {IUniversalDelegator, MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
-import {IVaultV2} from "../../src/interfaces/vault/IVaultV2.sol";
+import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
 import {MockAavePool, MockMorphoVaultFactory} from "../mocks/HoodiScenarioProtocolMocks.sol";
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -25,6 +30,18 @@ contract DeployFullCoreLiquidLaneTestnetScriptHarness is DeployFullCoreLiquidLan
 
     function _scriptOwner() internal view override returns (address) {
         return address(this);
+    }
+}
+
+contract TestnetRegistryStateEntity is MigratableEntity {
+    bool public wasEntityDuringInitialize;
+    uint256 public totalEntitiesDuringInitialize;
+
+    constructor(address factory) MigratableEntity(factory) {}
+
+    function _initialize(uint64, address, bytes memory) internal override {
+        wasEntityDuringInitialize = IMigratablesFactory(FACTORY).isEntity(address(this));
+        totalEntitiesDuringInitialize = IMigratablesFactory(FACTORY).totalEntities();
     }
 }
 
@@ -52,6 +69,7 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
         );
 
         assertEq(Ownable(address(data.core.vaultFactory)).owner(), owner);
+        assertEq(address(data.core.vaultFactory).codehash, keccak256(type(TestnetVaultFactory).runtimeCode));
         assertEq(Ownable(address(data.core.delegatorFactory)).owner(), owner);
         assertEq(Ownable(address(data.v2.adapterRegistry)).owner(), owner);
 
@@ -64,6 +82,12 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
 
         _assertVault(data.liquidLane.usdcVault, data.tokens.usdc, data.liquidLane.usdcDelegator);
         _assertVault(data.liquidLane.aUsdVault, data.tokens.aUsd, data.liquidLane.aUsdDelegator);
+        _assertTestnetVaultCreate2Address(
+            data, 0, owner, data.liquidLane.usdcVault, data.tokens.usdc, "Testnet USDC Vault", "tUSDC-V"
+        );
+        _assertTestnetVaultCreate2Address(
+            data, 1, owner, data.liquidLane.aUsdVault, data.tokens.aUsd, "Testnet aUSD Vault", "taUSD-V"
+        );
 
         _assertAdapter(
             data.liquidLane.usdcAdapter,
@@ -93,6 +117,115 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
         );
 
         _assertFullFormDeployments(data, owner);
+    }
+
+    function test_TestnetVaultFactoryCreate2AddressUsesConstructorInitializeCalldata() public {
+        TestnetVaultFactory factory = new TestnetVaultFactory(address(this));
+        TestnetRegistryStateEntity implementation = new TestnetRegistryStateEntity(address(factory));
+        factory.whitelist(address(implementation));
+
+        address owner = address(0xBEEF);
+        bytes memory data = abi.encode("constructor initialized");
+        address expected = _computeProxyAddress(address(factory), address(implementation), 0, 1, owner, data, true);
+        address legacyExpected =
+            _computeProxyAddress(address(factory), address(implementation), 0, 1, owner, data, false);
+
+        address entity = factory.create(1, owner, data);
+
+        assertEq(entity, expected);
+        assertNotEq(entity, legacyExpected);
+        assertEq(factory.entity(0), entity);
+    }
+
+    function test_TestnetVaultFactoryInitializesBeforeRegisteringEntity() public {
+        TestnetVaultFactory factory = new TestnetVaultFactory(address(this));
+        TestnetRegistryStateEntity implementation = new TestnetRegistryStateEntity(address(factory));
+        factory.whitelist(address(implementation));
+
+        address entity = factory.create(1, address(this), "");
+
+        assertFalse(TestnetRegistryStateEntity(entity).wasEntityDuringInitialize());
+        assertEq(TestnetRegistryStateEntity(entity).totalEntitiesDuringInitialize(), 0);
+        assertTrue(factory.isEntity(entity));
+        assertEq(factory.totalEntities(), 1);
+    }
+
+    function _assertTestnetVaultCreate2Address(
+        DeployFullCoreLiquidLaneTestnetScript.DeploymentData memory data,
+        uint256 entityIndex,
+        address owner,
+        address vault,
+        address asset,
+        string memory name,
+        string memory symbol
+    ) internal view {
+        bytes memory vaultParams = _vaultParams(owner, asset, name, symbol);
+        address expected = _computeProxyAddress(
+            address(data.core.vaultFactory),
+            address(data.v2.vaultV2),
+            entityIndex,
+            VAULT_V2_VERSION,
+            owner,
+            vaultParams,
+            true
+        );
+        address legacyExpected = _computeProxyAddress(
+            address(data.core.vaultFactory),
+            address(data.v2.vaultV2),
+            entityIndex,
+            VAULT_V2_VERSION,
+            owner,
+            vaultParams,
+            false
+        );
+
+        assertEq(vault, expected);
+        assertNotEq(vault, legacyExpected);
+        assertEq(data.core.vaultFactory.entity(entityIndex), vault);
+    }
+
+    function _computeProxyAddress(
+        address factory,
+        address implementation,
+        uint256 entityIndex,
+        uint64 version,
+        address owner,
+        bytes memory data,
+        bool constructorInitializes
+    ) internal view returns (address) {
+        bytes memory proxyConstructorData = constructorInitializes
+            ? abi.encodeCall(IMigratableEntity.initialize, (version, owner, data))
+            : bytes("");
+        bytes32 salt = keccak256(abi.encode(entityIndex, version, owner, data));
+        bytes32 initCodeHash = keccak256(
+            abi.encodePacked(type(MigratableEntityProxy).creationCode, abi.encode(implementation, proxyConstructorData))
+        );
+        return vm.computeCreate2Address(salt, initCodeHash, factory);
+    }
+
+    function _vaultParams(address owner, address asset, string memory name, string memory symbol)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encode(
+            IVaultV2.InitParams({
+                name: name,
+                symbol: symbol,
+                asset: asset,
+                depositWhitelist: false,
+                depositorToWhitelist: address(0),
+                depositLimit: type(uint256).max,
+                isDepositLimit: true,
+                defaultAdminRoleHolder: owner,
+                managementFeeRoleHolder: owner,
+                performanceFeeRoleHolder: owner,
+                depositLimitSetRoleHolder: owner,
+                depositorWhitelistRoleHolder: owner,
+                isDepositLimitSetRoleHolder: owner,
+                depositWhitelistSetRoleHolder: owner
+            })
+        );
     }
 
     function _assertFullFormDeployments(DeployFullCoreLiquidLaneTestnetScript.DeploymentData memory data, address owner)
