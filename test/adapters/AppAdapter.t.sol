@@ -333,6 +333,16 @@ contract AppAdapterTest is Test {
         assertEq(assetToken.balanceOf(burner), 40);
     }
 
+    function test_SlashSweepsPendingBeforeDecreasingLimits() public {
+        _allocate(100);
+
+        vm.prank(networkMiddleware);
+        adapter.slash(40);
+
+        assertEq(delegator.sweepPendingCalls(), 1);
+        assertTrue(delegator.sweepPendingBeforeDecrease());
+    }
+
     function test_SlashSaturatesAtCurrentSlashable() public {
         _allocate(100);
 
@@ -474,7 +484,7 @@ contract AppAdapterTest is Test {
 
         vm.expectRevert(IAppAdapter.InsufficientBurnerGas.selector);
         vm.prank(networkMiddleware);
-        adapter.slash{gas: BURNER_GAS_LIMIT + 40_000}(40);
+        adapter.slash{gas: BURNER_GAS_LIMIT + 80_000}(40);
     }
 
     function test_ZeroStateViewsReturnZeroAndSlashReverts() public {
@@ -559,10 +569,12 @@ contract AppAdapterRegistryMock is Registry {
 
 contract AppAdapterDelegatorMock {
     uint256 public decreaseLimitsCalls;
+    uint256 public sweepPendingCalls;
     uint256 public lastDecreaseAssets;
     uint256 public lastDecreaseShare;
     uint256 public limitOverride;
     bool public isLimitOverride;
+    bool public sweepPendingBeforeDecrease;
 
     function allocate(address adapter, uint256 amount) external {
         IAdapter(adapter).allocate(amount);
@@ -599,7 +611,13 @@ contract AppAdapterDelegatorMock {
         return IAdapter(adapter).totalAssets();
     }
 
+    function sweepPending() external returns (uint256) {
+        ++sweepPendingCalls;
+        return 0;
+    }
+
     function decreaseLimits(uint256 assets, uint256 share) external {
+        sweepPendingBeforeDecrease = sweepPendingCalls > 0;
         ++decreaseLimitsCalls;
         lastDecreaseAssets = assets;
         lastDecreaseShare = share;

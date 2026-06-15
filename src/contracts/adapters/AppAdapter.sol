@@ -128,6 +128,9 @@ contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
 
     /// @inheritdoc IAppAdapter
     function slash(uint256 amount) public virtual {
+        address delegator = IVaultV2(vault).delegator();
+        IUniversalDelegator(delegator).sweepPending();
+
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
             revert NotNetworkMiddleware();
         }
@@ -141,7 +144,7 @@ contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
         curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + amount);
 
         // Decrease the adapter limits to avoid new allocations.
-        IUniversalDelegator(IVaultV2(vault).delegator()).decreaseLimits(amount, 0);
+        IUniversalDelegator(delegator).decreaseLimits(amount, 0);
 
         // Send slashed amount to the burner.
         _sendToBurner(amount);

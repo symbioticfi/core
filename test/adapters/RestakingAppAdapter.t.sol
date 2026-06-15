@@ -668,6 +668,10 @@ contract RestakingAppAdapterDelegatorMock {
         lastDecreaseAssets = assets;
         lastDecreaseShare = share;
     }
+
+    function sweepPending() external pure returns (uint256) {
+        return 0;
+    }
 }
 
 contract RestakingAppAdapterNetworkMiddlewareServiceMock {
