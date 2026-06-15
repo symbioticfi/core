@@ -269,9 +269,10 @@ contract VaultV2 is
         }
         accrueInterest();
 
-        IERC20(asset()).safeTransfer(receiver, assets);
-
-        emit Pull(assets, receiver);
+        if (assets > 0) {
+            IERC20(asset()).safeTransfer(receiver, assets);
+            emit Pull(assets, receiver);
+        }
     }
 
     /// @inheritdoc IVaultV2
@@ -280,9 +281,10 @@ contract VaultV2 is
             revert NotDelegator();
         }
 
-        IERC20(asset()).safeTransferFrom(owner, address(this), assets);
-
-        emit Push(assets, owner);
+        if (assets > 0) {
+            IERC20(asset()).safeTransferFrom(owner, address(this), assets);
+            emit Push(assets, owner);
+        }
     }
 
     /// @inheritdoc ERC4626Upgradeable

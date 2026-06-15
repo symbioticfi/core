@@ -49,6 +49,26 @@ contract VaultV2SixDecimalToken is Token {
     }
 }
 
+contract VaultV2ZeroRevertToken is Token {
+    error ZeroTransfer();
+
+    constructor() Token("Zero Revert Collateral") {}
+
+    function transfer(address to, uint256 amount) public override returns (bool) {
+        if (amount == 0) {
+            revert ZeroTransfer();
+        }
+        return super.transfer(to, amount);
+    }
+
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+        if (amount == 0) {
+            revert ZeroTransfer();
+        }
+        return super.transferFrom(from, to, amount);
+    }
+}
+
 interface OwnableView {
     function owner() external view returns (address);
 }
@@ -362,6 +382,21 @@ contract VaultV2BehaviorTest is Test {
         vault.push(10 ether, bob);
     }
 
+    function test_ZeroAmountPullAndPushSkipTransferAndEvent() public {
+        collateral = new VaultV2ZeroRevertToken();
+        VaultV2 vault = _createVault(false, false, 0);
+
+        vm.recordLogs();
+        vm.prank(vault.delegator());
+        vault.pull(0, bob);
+        assertFalse(_hasTopic(vm.getRecordedLogs(), keccak256("Pull(uint256,address)")));
+
+        vm.recordLogs();
+        vm.prank(vault.delegator());
+        vault.push(0, bob);
+        assertFalse(_hasTopic(vm.getRecordedLogs(), keccak256("Push(uint256,address)")));
+    }
+
     function test_PreviewMintAndWithdrawRoundUpWithFees() public {
         VaultV2 vault = _createVault(false, false, 0);
         _setCuratorFees(vault);
@@ -648,5 +683,14 @@ contract VaultV2BehaviorTest is Test {
         collateral.approve(address(vault), assets);
         vault.deposit(assets, account);
         vm.stopPrank();
+    }
+
+    function _hasTopic(Vm.Log[] memory logs, bytes32 topic) internal pure returns (bool) {
+        for (uint256 i; i < logs.length; ++i) {
+            if (logs[i].topics.length > 0 && logs[i].topics[0] == topic) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -509,7 +509,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(vault.lastPushAdapter(), address(adapter));
     }
 
-    function test_AllocateZeroAmountStillCallsAdapterAfterSweep() public {
+    function test_AllocateZeroAmountSkipsAdapterAfterSweep() public {
         UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
         vault.mintFreeAssets(100);
@@ -527,7 +527,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         uint256 allocated = delegator.allocate(address(adapter), 0);
 
         assertEq(allocated, 0);
-        assertEq(adapter.allocateCalls(), 1);
+        assertEq(adapter.allocateCalls(), 0);
         assertEq(adapter.lastAllocateAssets(), 0);
         assertEq(vault.pulledAssets(), 0);
     }
@@ -638,7 +638,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(vault.pulledAssets(), 0);
     }
 
-    function test_DeallocateZeroAmountStillRunsDirectAndSweepPaths() public {
+    function test_DeallocateZeroAmountSkipsAdapterAndVaultPush() public {
         UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
         delegator.setVault(address(vault));
@@ -650,7 +650,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         uint256 deallocated = delegator.deallocate(address(adapter), 0);
 
         assertEq(deallocated, 0);
-        assertEq(adapter.deallocateCalls(), 2);
+        assertEq(adapter.deallocateCalls(), 0);
         assertEq(adapter.lastDeallocateAssets(), 0);
         assertEq(vault.pushedAssets(), 0);
     }

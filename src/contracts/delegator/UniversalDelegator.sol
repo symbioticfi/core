@@ -476,9 +476,21 @@ contract UniversalDelegator is
 
     /// @dev Allocate vault assets to an adapter.
     function _allocate(address adapter, uint256 assets) internal returns (uint256 allocated) {
-        assets = Math.min(assets, limitOf(adapter).saturatingSub(IAdapter(adapter).totalAssets()));
+        if (assets == 0) {
+            return 0;
+        }
         assets = Math.min(assets, VaultV2(vault).freeAssets());
+        if (assets == 0) {
+            return 0;
+        }
         assets = Math.min(assets, IAdapter(adapter).allocatable());
+        if (assets == 0) {
+            return 0;
+        }
+        assets = Math.min(assets, limitOf(adapter).saturatingSub(IAdapter(adapter).totalAssets()));
+        if (assets == 0) {
+            return 0;
+        }
 
         VaultV2(vault).pull(assets, adapter);
         allocated = IAdapter(adapter).allocate(assets);
@@ -491,6 +503,10 @@ contract UniversalDelegator is
 
     /// @dev Deallocate adapter assets back into the vault.
     function _deallocate(address adapter, uint256 assets) internal returns (uint256 deallocated) {
+        if (assets == 0) {
+            return 0;
+        }
+
         deallocated = IAdapter(adapter).deallocate(assets);
         if (deallocated > 0) {
             VaultV2(vault).push(deallocated, adapter);
