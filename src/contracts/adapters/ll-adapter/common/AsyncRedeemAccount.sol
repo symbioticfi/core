@@ -67,8 +67,7 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
 
     /// @dev Submits held token-to-redeem balance for async redemption.
     function _requestRedeem() internal virtual override {
-        address asyncRedeemVault = _asyncRedeemVault();
-        uint256 requestId = IAsyncRedeemVault(asyncRedeemVault)
+        uint256 requestId = IAsyncRedeemVault(_asyncRedeemVault())
             .requestRedeem(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), address(this), address(this));
         if (!_requestIdExists.get(requestId)) {
             _requestIdExists.set(requestId);

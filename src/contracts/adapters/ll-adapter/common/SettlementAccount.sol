@@ -101,10 +101,7 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
     /// @dev Returns the unsettled portion of a subaccount's receivable (0 once written off).
     function _remainingValue(uint256 key) internal view returns (uint256 remaining) {
         (uint256 value, bool writtenOff) = _cohortValue(key);
-        if (writtenOff) {
-            return 0;
-        }
-        return value.saturatingSub(receivedValues[key]);
+        return writtenOff ? 0 : value.saturatingSub(receivedValues[key]);
     }
 
     /// @dev Freezes cohort rates, sweeps subaccounts, and clears value-covered ones. A subaccount is

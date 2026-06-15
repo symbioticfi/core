@@ -127,10 +127,7 @@ abstract contract CutoffPricer is ICutoffPricer {
         }
 
         uint256 pricingTimestamp = pendingCohort.cutoffTimestamp + VALUATION_DELAY;
-        if (block.timestamp < pricingTimestamp) {
-            return;
-        }
-        if (block.timestamp >= pricingTimestamp + SETTLEMENT_DURATION) {
+        if (block.timestamp < pricingTimestamp || block.timestamp >= pricingTimestamp + SETTLEMENT_DURATION) {
             return;
         }
 

@@ -73,15 +73,16 @@ contract LidoAccount is Account, ILidoAccount {
             ids[index] = requestId;
         }
 
-        ILidoWithdrawalQueue withdrawalQueue = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE);
-        ILidoWithdrawalQueue.WithdrawalRequestStatus[] memory statuses = withdrawalQueue.getWithdrawalStatus(ids);
+        ILidoWithdrawalQueue.WithdrawalRequestStatus[] memory statuses =
+            ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).getWithdrawalStatus(ids);
 
         uint256[] memory claimableEther;
-        uint256 lastCheckpointIndex = withdrawalQueue.getLastCheckpointIndex();
+        uint256 lastCheckpointIndex = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).getLastCheckpointIndex();
         if (lastCheckpointIndex > 0) {
-            claimableEther = withdrawalQueue.getClaimableEther(
-                ids, withdrawalQueue.findCheckpointHints(ids, 1, lastCheckpointIndex)
-            );
+            claimableEther = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE)
+                .getClaimableEther(
+                    ids, ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).findCheckpointHints(ids, 1, lastCheckpointIndex)
+                );
         }
 
         for (uint256 i; i < length; ++i) {

@@ -105,8 +105,8 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
     /* INTERNAL FUNCTIONS */
 
     /// @dev Returns pending request value in vault assets.
-    function _totalAssets() internal view override returns (uint256 assets) {
-        assets = pendingAssets();
+    function _totalAssets() internal view override returns (uint256) {
+        return pendingAssets();
     }
 
     /// @dev Uses no-fee instant redemption into WETH when available, otherwise queues a WETH-backed withdrawal.
