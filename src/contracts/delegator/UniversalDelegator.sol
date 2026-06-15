@@ -332,7 +332,7 @@ contract UniversalDelegator is
         // Update the adapter's absolute limit to avoid new allocations.
         _setLimits(
             adapter,
-            Math.min(absoluteLimitOf[adapter], adapterTotalAssets - deallocated - pending),
+            Math.min(absoluteLimitOf[adapter], adapterTotalAssets.saturatingSub(deallocated).saturatingSub(pending)),
             shareLimitOf[adapter]
         );
 
