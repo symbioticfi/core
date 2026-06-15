@@ -98,7 +98,8 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function totalAssets() public view returns (uint256 assets) {
-        for (uint256 i; i < adapters.length; ++i) {
+        uint256 length = adapters.length;
+        for (uint256 i; i < length; ++i) {
             assets += IAdapter(adapters[i]).totalAssets();
         }
     }
@@ -163,9 +164,10 @@ contract UniversalDelegator is
         _removeOrdered(autoAllocateAdapters, adapter);
 
         uint16 index = adapterToIndex[adapter];
-        for (uint256 i; i < adaptersWithPending.length; ++i) {
+        uint256 length = adaptersWithPending.length;
+        for (uint256 i; i < length; ++i) {
             if (adaptersWithPending[i] == index) {
-                adaptersWithPending[i] = adaptersWithPending[adaptersWithPending.length - 1];
+                adaptersWithPending[i] = adaptersWithPending[length - 1];
                 adaptersWithPending.pop();
                 break;
             }
@@ -208,11 +210,13 @@ contract UniversalDelegator is
     function swapAdapters(address adapter1, address adapter2) public onlyRole(SWAP_ADAPTERS_ROLE) nonReentrant {
         uint256 adapter1Pos = type(uint256).max;
         uint256 adapter2Pos = type(uint256).max;
-        for (uint256 i; i < adapters.length; ++i) {
-            if (adapters[i] == adapter1) {
+        uint256 length = adapters.length;
+        for (uint256 i; i < length; ++i) {
+            address adapter = adapters[i];
+            if (adapter == adapter1) {
                 adapter1Pos = i;
             }
-            if (adapters[i] == adapter2) {
+            if (adapter == adapter2) {
                 adapter2Pos = i;
             }
         }
@@ -227,11 +231,12 @@ contract UniversalDelegator is
         nonReentrant
     {
         for (uint256 i; i < newAutoAllocateAdapters.length; ++i) {
-            if (!_isAdapterAdded[newAutoAllocateAdapters[i]]) {
+            address adapter = newAutoAllocateAdapters[i];
+            if (!_isAdapterAdded[adapter]) {
                 revert InvalidAdapter();
             }
             for (uint256 j; j < i; ++j) {
-                if (newAutoAllocateAdapters[j] == newAutoAllocateAdapters[i]) {
+                if (newAutoAllocateAdapters[j] == adapter) {
                     revert InvalidAdapter();
                 }
             }
@@ -382,8 +387,10 @@ contract UniversalDelegator is
         address withdrawalQueue = VaultV2(vault).withdrawalQueue();
 
         // Try to sweep free assets as much as possible.
-        for (uint256 i; i < adapters.length; ++i) {
-            _deallocate(adapters[i], IAdapter(adapters[i]).freeAssets());
+        uint256 adapterLength = adapters.length;
+        for (uint256 i; i < adapterLength; ++i) {
+            address adapter = adapters[i];
+            _deallocate(adapter, IAdapter(adapter).freeAssets());
         }
 
         // Try to deallocate assets as much as possible to fill the queue.
@@ -394,12 +401,12 @@ contract UniversalDelegator is
         pendingAssets = WithdrawalQueue(withdrawalQueue).pendingAssets();
 
         // Update requests or reset them.
-        uint16[] memory previousAdaptersWithPending = adaptersWithPending;
+        uint16[] memory prevAdaptersWithPending = adaptersWithPending;
         delete adaptersWithPending;
 
         // Request deallocation for remaining pending assets.
         uint256 remainingPendingAssets = pendingAssets;
-        for (uint256 i; remainingPendingAssets > 0 && i < adapters.length; ++i) {
+        for (uint256 i; remainingPendingAssets > 0 && i < adapterLength; ++i) {
             address adapter = adapters[i];
             uint256 toRequest = Math.min(remainingPendingAssets, IAdapter(adapter).totalAssets());
             if (toRequest == 0) {
@@ -411,16 +418,19 @@ contract UniversalDelegator is
         }
 
         // Reset requests for adapters that are no longer pending.
-        for (uint256 i; i < previousAdaptersWithPending.length; ++i) {
+        uint256 prevPendingLength = prevAdaptersWithPending.length;
+        uint256 curPendingLength = adaptersWithPending.length;
+        for (uint256 i; i < prevPendingLength; ++i) {
+            uint16 adapterIndex = prevAdaptersWithPending[i];
             bool found;
-            for (uint256 j; j < adaptersWithPending.length; ++j) {
-                if (previousAdaptersWithPending[i] == adaptersWithPending[j]) {
+            for (uint256 j; j < curPendingLength; ++j) {
+                if (adapterIndex == adaptersWithPending[j]) {
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                _requestDeallocate(indexToAdapter[previousAdaptersWithPending[i]], 0);
+                _requestDeallocate(indexToAdapter[adapterIndex], 0);
             }
         }
     }
@@ -458,7 +468,8 @@ contract UniversalDelegator is
 
     /// @dev Allocate assets through the configured auto-allocation route.
     function _allocateAll(uint256 assets) internal returns (uint256 allocated) {
-        for (uint256 i; i < autoAllocateAdapters.length && assets > 0; ++i) {
+        uint256 length = autoAllocateAdapters.length;
+        for (uint256 i; i < length && assets > 0; ++i) {
             uint256 curAllocated = _allocate(autoAllocateAdapters[i], assets);
             allocated += curAllocated;
             assets -= curAllocated;
@@ -467,7 +478,8 @@ contract UniversalDelegator is
 
     /// @dev Deallocate assets through the ordered adapter route.
     function _deallocateAll(uint256 assets) internal returns (uint256 deallocated) {
-        for (uint256 i; i < adapters.length && assets > 0; ++i) {
+        uint256 length = adapters.length;
+        for (uint256 i; i < length && assets > 0; ++i) {
             uint256 curDeallocated = _deallocate(adapters[i], assets);
             deallocated += curDeallocated;
             assets = assets.saturatingSub(curDeallocated);
@@ -531,9 +543,11 @@ contract UniversalDelegator is
 
     /// @dev Remove a value from an ordered address array.
     function _removeOrdered(address[] storage values, address value) internal {
-        for (uint256 i; i < values.length; ++i) {
+        uint256 length = values.length;
+        for (uint256 i; i < length; ++i) {
             if (values[i] == value) {
-                for (uint256 j = i; j < values.length - 1; ++j) {
+                uint256 last = length - 1;
+                for (uint256 j = i; j < last; ++j) {
                     values[j] = values[j + 1];
                 }
                 values.pop();
