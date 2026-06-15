@@ -50,4 +50,10 @@ interface IMorphoVaultV2Adapter is IAdapter {
      * @return Configured Morpho vault.
      */
     function morphoVault() external view returns (address);
+
+    /**
+     * @notice Returns the adapter-managed Morpho vault shares.
+     * @return totalShares Adapter-managed Morpho vault shares.
+     */
+    function totalShares() external view returns (uint256);
 }

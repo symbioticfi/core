@@ -113,6 +113,7 @@ contract MorphoVaultV2AdapterTest is Test {
 
         assertEq(allocated, 100);
         assertEq(morphoVault.balanceOf(address(adapter)), 100);
+        assertEq(adapter.totalShares(), 100);
         assertEq(adapter.totalAssets(), 100);
 
         vm.prank(delegator);
@@ -120,6 +121,7 @@ contract MorphoVaultV2AdapterTest is Test {
 
         assertEq(deallocated, 40);
         assertEq(assetToken.balanceOf(address(adapter)), 40);
+        assertEq(adapter.totalShares(), 60);
         assertEq(adapter.freeAssets(), 40);
         assertEq(adapter.totalAssets(), 100);
 
@@ -127,7 +129,23 @@ contract MorphoVaultV2AdapterTest is Test {
         assetToken.transferFrom(address(adapter), address(vault), deallocated);
 
         assertEq(adapter.freeAssets(), 0);
+        assertEq(adapter.totalShares(), 60);
         assertEq(adapter.totalAssets(), 60);
+    }
+
+    function test_DirectMorphoShareDonationDoesNotChangeTotalShares() public {
+        assetToken.transfer(address(adapter), 100);
+
+        vm.prank(delegator);
+        adapter.allocate(100);
+
+        assetToken.approve(address(morphoVault), 50);
+        morphoVault.deposit(50, address(this));
+        morphoVault.transfer(address(adapter), 50);
+
+        assertEq(morphoVault.balanceOf(address(adapter)), 150);
+        assertEq(adapter.totalShares(), 100);
+        assertEq(adapter.totalAssets(), 100);
     }
 
     function test_AllocateReturnsZeroWhenDepositFailsOrMintsNoShares() public {

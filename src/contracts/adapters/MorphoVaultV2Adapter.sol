@@ -35,6 +35,9 @@ contract MorphoVaultV2Adapter is Adapter, CoWSwapConverter, MerklClaimer, IMorph
     /// @inheritdoc IMorphoVaultV2Adapter
     address public morphoVault;
 
+    /// @inheritdoc IMorphoVaultV2Adapter
+    uint256 public totalShares;
+
     /* CONSTRUCTOR */
 
     constructor(
@@ -53,9 +56,7 @@ contract MorphoVaultV2Adapter is Adapter, CoWSwapConverter, MerklClaimer, IMorph
 
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
-        return
-            freeAssets()
-                + IMorphoVaultV2(morphoVault).previewRedeem(IMorphoVaultV2(morphoVault).balanceOf(address(this)));
+        return freeAssets() + IMorphoVaultV2(morphoVault).previewRedeem(totalShares);
     }
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
@@ -74,11 +75,12 @@ contract MorphoVaultV2Adapter is Adapter, CoWSwapConverter, MerklClaimer, IMorph
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
     /// @dev Uses a self-call so zero-share deposits revert and roll back the Morpho transfer.
-    function deposit(uint256 amount) public {
+    function deposit(uint256 amount) public returns (uint256 shares) {
         if (address(this) != msg.sender) {
             revert NotSelf();
         }
-        if (IMorphoVaultV2(morphoVault).deposit(amount, address(this)) == 0) {
+        shares = IMorphoVaultV2(morphoVault).deposit(amount, address(this));
+        if (shares == 0) {
             revert InsufficientAmount();
         }
     }
@@ -87,7 +89,8 @@ contract MorphoVaultV2Adapter is Adapter, CoWSwapConverter, MerklClaimer, IMorph
 
     /// @dev Deposits asset from the calling vault into the configured Morpho vault.
     function _allocate(uint256 amount) internal override returns (uint256) {
-        try this.deposit(amount) {
+        try this.deposit(amount) returns (uint256 shares) {
+            totalShares += shares;
             return amount;
         } catch {}
         return 0;
@@ -99,7 +102,7 @@ contract MorphoVaultV2Adapter is Adapter, CoWSwapConverter, MerklClaimer, IMorph
         amount = Math.min(
             amount,
             Math.min(
-                IMorphoVaultV2(morphoVault).previewRedeem(IMorphoVaultV2(morphoVault).balanceOf(address(this))),
+                IMorphoVaultV2(morphoVault).previewRedeem(totalShares),
                 IERC20(IERC4626(vault).asset()).balanceOf(morphoVault)
                     + (liquidityAdapter == address(0) ? 0 : IMorphoLiquidityAdapter(liquidityAdapter).realAssets())
             )
@@ -108,7 +111,8 @@ contract MorphoVaultV2Adapter is Adapter, CoWSwapConverter, MerklClaimer, IMorph
             return 0;
         }
 
-        try IMorphoVaultV2(morphoVault).withdraw(amount, address(this), address(this)) returns (uint256) {
+        try IMorphoVaultV2(morphoVault).withdraw(amount, address(this), address(this)) returns (uint256 shares) {
+            totalShares -= shares;
             return amount;
         } catch {}
         return 0;

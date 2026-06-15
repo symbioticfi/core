@@ -98,6 +98,7 @@ contract AaveV3AdapterTest is Test {
 
         assertEq(allocated, 100);
         assertEq(aToken.balanceOf(address(adapter)), 100);
+        assertEq(adapter.totalATokens(), 100);
         assertEq(adapter.totalAssets(), 100);
 
         pool.setVirtualUnderlyingBalance(40);
@@ -107,6 +108,7 @@ contract AaveV3AdapterTest is Test {
 
         assertEq(deallocated, 40);
         assertEq(assetToken.balanceOf(address(adapter)), 40);
+        assertEq(adapter.totalATokens(), 60);
         assertEq(adapter.freeAssets(), 40);
         assertEq(adapter.totalAssets(), 100);
 
@@ -114,7 +116,22 @@ contract AaveV3AdapterTest is Test {
         assetToken.transferFrom(address(adapter), address(vault), deallocated);
 
         assertEq(adapter.freeAssets(), 0);
+        assertEq(adapter.totalATokens(), 60);
         assertEq(adapter.totalAssets(), 60);
+    }
+
+    function test_DirectATokenDonationDoesNotChangeTotalATokens() public {
+        assetToken.transfer(address(adapter), 100);
+
+        vm.prank(delegator);
+        adapter.allocate(100);
+
+        aToken.mint(address(this), 50);
+        aToken.transfer(address(adapter), 50);
+
+        assertEq(aToken.balanceOf(address(adapter)), 150);
+        assertEq(adapter.totalATokens(), 100);
+        assertEq(adapter.totalAssets(), 100);
     }
 
     function test_AllocateAndDeallocateReturnZeroForZeroAmount() public {

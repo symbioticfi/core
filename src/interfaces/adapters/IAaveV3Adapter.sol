@@ -34,4 +34,10 @@ interface IAaveV3Adapter is IAdapter {
      * @return aToken Aave reserve aToken.
      */
     function aToken() external view returns (address);
+
+    /**
+     * @notice Returns the adapter-managed aToken amount.
+     * @return totalATokens Adapter-managed aTokens.
+     */
+    function totalATokens() external view returns (uint256);
 }
