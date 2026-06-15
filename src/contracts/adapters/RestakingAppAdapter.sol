@@ -129,16 +129,17 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     function syncSlash() public {
         uint256 amount;
         for (uint256 i; i < underlyingVaults.length; ++i) {
-            address withdrawalQueue = IVaultV2(underlyingVaults[i]).withdrawalQueue();
+            address vault = underlyingVaults[i];
+            address withdrawalQueue = IVaultV2(vault).withdrawalQueue();
 
             // Create a request for previously claimed vault shares.
             if (amount > 0) {
-                withdrawalRequests[underlyingVaults[i]].tokenIds
+                withdrawalRequests[vault].tokenIds
                     .push(uint64(IWithdrawalQueue(withdrawalQueue).requestRedeem(amount, address(this))));
                 amount = 0;
             }
             // Try claim existing requests greedily.
-            WithdrawalRequests storage requests = withdrawalRequests[underlyingVaults[i]];
+            WithdrawalRequests storage requests = withdrawalRequests[vault];
             uint256 indexToClaim = requests.firstUnclaimed;
             for (; indexToClaim < requests.tokenIds.length; ++indexToClaim) {
                 uint256 tokenId = requests.tokenIds[indexToClaim];
@@ -177,17 +178,18 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /// @inheritdoc AppAdapter
     function _sendToBurner(uint256 amount) internal override {
         for (uint256 i; i < underlyingVaults.length; ++i) {
-            address withdrawalQueue = IVaultV2(underlyingVaults[i]).withdrawalQueue();
+            address vault = underlyingVaults[i];
+            address withdrawalQueue = IVaultV2(vault).withdrawalQueue();
             uint256 tokenId = IWithdrawalQueue(withdrawalQueue).requestRedeem(amount, address(this));
             try IWithdrawalQueue(withdrawalQueue).claim(tokenId, address(this)) returns (
                 uint256 curAmount, uint256 shares
             ) {
                 if (shares < amount) {
-                    withdrawalRequests[underlyingVaults[i]].tokenIds.push(uint64(tokenId));
+                    withdrawalRequests[vault].tokenIds.push(uint64(tokenId));
                 }
                 amount = curAmount;
             } catch {
-                withdrawalRequests[underlyingVaults[i]].tokenIds.push(uint64(tokenId));
+                withdrawalRequests[vault].tokenIds.push(uint64(tokenId));
                 amount = 0;
             }
             if (amount == 0) {
