@@ -62,7 +62,7 @@ contract WithdrawalQueue is MigratableEntity, ERC721Upgradeable, IWithdrawalQueu
     /// @inheritdoc IWithdrawalQueue
     function isClaimed(uint256 tokenId) public view returns (bool) {
         WithdrawalRequest storage request = requests[tokenId];
-        return request.sharesClaimed == request.shares;
+        return request.sharesClaimed > 0 && request.sharesClaimed == request.shares;
     }
 
     /// @inheritdoc IWithdrawalQueue

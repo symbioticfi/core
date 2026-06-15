@@ -511,6 +511,10 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(IWithdrawalQueue(queue).isClaimed(tokenId), true);
     }
 
+    function test_IsClaimedReturnsFalseForNonexistentRequest() public view {
+        assertFalse(IWithdrawalQueue(queue).isClaimed(0));
+    }
+
     function test_ClaimAcrossManyTinyFills() public {
         uint256 shares = 32;
 
