@@ -47,11 +47,6 @@ interface IUniversalDelegator is IMulticallable {
     error InvalidAdapter();
 
     /**
-     * @notice Raised when adapter arrays have inconsistent lengths.
-     */
-    error InvalidLength();
-
-    /**
      * @notice Raised when a protected role operation is invalid.
      */
     error InvalidRole();
@@ -77,20 +72,9 @@ interface IUniversalDelegator is IMulticallable {
     error OldVault();
 
     /**
-     * @notice Internal sentinel used to return simulated deallocation through a revert.
-     * @param assets Simulated deallocated assets.
-     */
-    error SimulatedDeallocate(uint256 assets);
-
-    /**
      * @notice Raised when adding an adapter would exceed MAX_ADAPTERS.
      */
     error TooManyAdapters();
-
-    /**
-     * @notice Raised if the self-call simulation unexpectedly returns normally.
-     */
-    error UnexpectedSimulationSuccess();
 
     /* STRUCTS */
 
@@ -182,12 +166,6 @@ interface IUniversalDelegator is IMulticallable {
      * @param assets Assets requested for delayed deallocation.
      */
     event RequestDeallocate(address indexed adapter, uint256 assets);
-
-    /**
-     * @notice Emitted after pending queue assets are swept.
-     * @param pendingAssets Assets still pending after the sweep.
-     */
-    event SweepPending(uint256 pendingAssets);
 
     /**
      * @notice Emitted when the delegator is initialized.

@@ -35,11 +35,6 @@ interface IWithdrawalQueue is IMigratableEntity, IERC721Metadata, IMulticallable
     error NotTokenOwner();
 
     /**
-     * @notice Reverts when a request is made by a non-vault account.
-     */
-    error NotVault();
-
-    /**
      * @notice Reverts when a request is made with zero shares.
      */
     error ZeroShares();

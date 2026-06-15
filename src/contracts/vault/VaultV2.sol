@@ -50,7 +50,6 @@ contract VaultV2 is
     IVaultV2
 {
     using Checkpoints for Checkpoints.Trace256;
-    using Checkpoints for Checkpoints.Trace208;
     using SafeERC20 for IERC20;
     using Math for uint256;
 

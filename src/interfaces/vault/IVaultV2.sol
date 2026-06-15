@@ -39,19 +39,9 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
     error DelegatorAlreadyInitialized();
 
     /**
-     * @notice Raised when a deposit would exceed the configured deposit limit.
-     */
-    error DepositLimitReached();
-
-    /**
      * @notice Raised when a configured fee exceeds its maximum value.
      */
     error FeeTooHigh();
-
-    /**
-     * @notice Raised when the vault does not have enough free assets for the operation.
-     */
-    error InsufficientFreeAssets();
 
     /**
      * @notice Raised when an address argument is invalid.
@@ -64,24 +54,9 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
     error InvalidDelegator();
 
     /**
-     * @notice Raised when depositor address provided for whitelist initialization is invalid.
-     */
-    error InvalidDepositorToWhitelist();
-
-    /**
      * @notice Raised when the caller is not the configured delegator.
      */
     error NotDelegator();
-
-    /**
-     * @notice Raised when depositor is not in the whitelist while whitelist is enabled.
-     */
-    error NotWhitelistedDepositor();
-
-    /**
-     * @notice Raised when the caller is not the configured withdrawal queue.
-     */
-    error NotWithdrawalQueue();
 
     /**
      * @notice Raised when instant withdrawal is attempted while withdrawal queue assets are still pending.
@@ -125,15 +100,6 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
     }
 
     /* EVENTS */
-
-    /**
-     * @notice Emitted when a withdrawal queue request is claimed through the vault.
-     * @param claimer Account that claimed.
-     * @param receiver Account that receives the assets.
-     * @param tokenId Withdrawal queue token id.
-     * @param assets Assets claimed.
-     */
-    event Claim(address indexed claimer, address indexed receiver, uint256 tokenId, uint256 assets);
 
     /**
      * @notice Emitted when fee shares are accrued.
