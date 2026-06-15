@@ -30,6 +30,11 @@ interface IWithdrawalQueue is IMigratableEntity, IERC721Metadata, IMulticallable
     /* ERRORS */
 
     /**
+     * @notice Reverts when a withdrawal request is claimed by a non-owner.
+     */
+    error NotTokenOwner();
+
+    /**
      * @notice Reverts when a request is made by a non-vault account.
      */
     error NotVault();
@@ -53,10 +58,11 @@ interface IWithdrawalQueue is IMigratableEntity, IERC721Metadata, IMulticallable
     /**
      * @notice Emitted when a withdrawal request is claimed.
      * @param tokenId Withdrawal NFT id.
+     * @param receiver Account that received the claimed assets.
      * @param assetsClaimed Assets claimed.
      * @param sharesClaimed Request shares claimed.
      */
-    event Claim(uint256 indexed tokenId, uint256 assetsClaimed, uint256 sharesClaimed);
+    event Claim(uint256 indexed tokenId, address indexed receiver, uint256 assetsClaimed, uint256 sharesClaimed);
 
     /**
      * @notice Emitted when pending withdrawal requests are filled.
@@ -141,10 +147,11 @@ interface IWithdrawalQueue is IMigratableEntity, IERC721Metadata, IMulticallable
     /**
      * @notice Claims a withdrawal request.
      * @param tokenId Withdrawal NFT id.
+     * @param receiver Address that receives the claimed assets.
      * @return assetsClaimed Assets claimed.
      * @return sharesClaimed Request shares claimed.
      */
-    function claim(uint256 tokenId) external returns (uint256 assetsClaimed, uint256 sharesClaimed);
+    function claim(uint256 tokenId, address receiver) external returns (uint256 assetsClaimed, uint256 sharesClaimed);
 
     /**
      * @notice Fills pending withdrawal requests with available vault assets.

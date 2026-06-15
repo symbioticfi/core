@@ -620,7 +620,7 @@ contract RestakingWithdrawalQueueMock {
         maxClaimShares = maxClaimShares_;
     }
 
-    function claim(uint256 tokenId) external returns (uint256 assets, uint256 shares) {
+    function claim(uint256 tokenId, address receiver) external returns (uint256 assets, uint256 shares) {
         if (claimReverts) {
             revert("CLAIM_REVERTS");
         }
@@ -631,7 +631,7 @@ contract RestakingWithdrawalQueueMock {
         request.shares -= shares;
         request.claimed = request.shares == 0;
         if (_redeems && shares > 0) {
-            RestakingTokenMock(vault).withdraw(assets, msg.sender, address(this));
+            RestakingTokenMock(vault).withdraw(assets, receiver, address(this));
         }
     }
 

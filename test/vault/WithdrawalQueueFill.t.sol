@@ -196,6 +196,7 @@ contract WithdrawalQueueFillTest is Test {
 
     function test_WithdrawalQueueExposesRequestRedeemApi() public pure {
         assertEq(IWithdrawalQueue.requestRedeem.selector, bytes4(keccak256("requestRedeem(uint256,address)")));
+        assertEq(IWithdrawalQueue.claim.selector, bytes4(keccak256("claim(uint256,address)")));
         assertEq(IWithdrawalQueue.isClaimed.selector, bytes4(keccak256("isClaimed(uint256)")));
         assertEq(IWithdrawalQueue.totalRequests.selector, bytes4(keccak256("totalRequests()")));
     }
@@ -471,13 +472,13 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(WithdrawalQueue(queue).totalFilled(), shares);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 161);
 
-        (uint256 firstAssetsClaimed, uint256 firstSharesClaimed) = WithdrawalQueue(queue).claim(tokenId);
+        (uint256 firstAssetsClaimed, uint256 firstSharesClaimed) = _claim(tokenId);
 
         assertEq(firstAssetsClaimed, 161);
         assertEq(firstSharesClaimed, shares);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), 161);
 
-        (uint256 secondAssetsClaimed, uint256 secondSharesClaimed) = WithdrawalQueue(queue).claim(tokenId);
+        (uint256 secondAssetsClaimed, uint256 secondSharesClaimed) = _claim(tokenId);
 
         assertEq(secondAssetsClaimed, 0);
         assertEq(secondSharesClaimed, 0);
@@ -499,13 +500,13 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(IWithdrawalQueue(queue).isClaimed(tokenId), false);
 
         WithdrawalQueue(queue).fill();
-        WithdrawalQueue(queue).claim(tokenId);
+        _claim(tokenId);
 
         assertEq(IWithdrawalQueue(queue).isClaimed(tokenId), false);
 
         WithdrawalQueueFillToken(collateral).mint(vault, 60);
         WithdrawalQueue(queue).fill();
-        WithdrawalQueue(queue).claim(tokenId);
+        _claim(tokenId);
 
         assertEq(IWithdrawalQueue(queue).isClaimed(tokenId), true);
     }
@@ -525,7 +526,7 @@ contract WithdrawalQueueFillTest is Test {
             WithdrawalQueue(queue).fill();
         }
 
-        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claim(tokenId);
+        (uint256 assetsClaimed, uint256 sharesClaimed) = _claim(tokenId);
 
         assertEq(assetsClaimed, shares);
         assertEq(sharesClaimed, shares);
@@ -565,13 +566,32 @@ contract WithdrawalQueueFillTest is Test {
 
         WithdrawalQueue(queue).fill();
 
-        (uint256 assetsClaimed, uint256 sharesClaimed) = WithdrawalQueue(queue).claim(tokenId);
+        (uint256 assetsClaimed, uint256 sharesClaimed) = _claim(tokenId);
         (, uint256 claimedShares,) = WithdrawalQueue(queue).requests(tokenId);
 
         assertEq(assetsClaimed, 100);
         assertEq(sharesClaimed, shares);
         assertEq(claimedShares, shares);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), 100);
+    }
+
+    function test_ClaimRevertsWhenCallerIsNotTokenOwner() public {
+        uint256 shares = 100;
+        address bob = address(0xB0B);
+
+        WithdrawalQueueFillToken(collateral).mint(vault, 100);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, 100);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        vm.prank(bob);
+        vm.expectRevert(IWithdrawalQueue.NotTokenOwner.selector);
+        WithdrawalQueue(queue).claim(tokenId, bob);
     }
 
     function test_FillMarksSharesFilledEvenWhenRedeemRoundsToZero() public {
@@ -648,12 +668,12 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(sharesClaimed, shares);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), assets + drift);
 
-        WithdrawalQueue(queue).claim(tokenId);
+        _claim(tokenId);
 
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), assets + drift);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 0);
 
-        (uint256 secondAssetsClaimed, uint256 secondSharesClaimed) = WithdrawalQueue(queue).claim(tokenId);
+        (uint256 secondAssetsClaimed, uint256 secondSharesClaimed) = _claim(tokenId);
 
         assertEq(secondAssetsClaimed, 0);
         assertEq(secondSharesClaimed, 0);
@@ -732,7 +752,7 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(sharesClaimed, shares);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), assets - drift);
 
-        WithdrawalQueue(queue).claim(tokenId);
+        _claim(tokenId);
 
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), assets - drift);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 0);
@@ -753,7 +773,7 @@ contract WithdrawalQueueFillTest is Test {
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
-        WithdrawalQueue(queue).claim(firstTokenId);
+        _claim(firstTokenId);
 
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), assets + drift);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 0);
@@ -773,7 +793,7 @@ contract WithdrawalQueueFillTest is Test {
         assertEq(assetsClaimed, assets - drift);
         assertEq(sharesClaimed, shares);
 
-        WithdrawalQueue(queue).claim(secondTokenId);
+        _claim(secondTokenId);
 
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(bob), assets - drift);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(queue), 0);
@@ -793,7 +813,28 @@ contract WithdrawalQueueFillTest is Test {
         vm.stopPrank();
 
         WithdrawalQueue(queue).fill();
-        WithdrawalQueue(queue).claim(tokenId);
+        _claim(tokenId);
+
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(bob), 100);
+        assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), 0);
+    }
+
+    function test_ClaimOwnerCanChooseReceiver() public {
+        address bob = address(0xB0B);
+        uint256 shares = 100;
+
+        WithdrawalQueueFillToken(collateral).mint(vault, 100);
+        WithdrawalQueueFillVault(vault).mintShares(alice, shares, 100);
+
+        vm.startPrank(alice);
+        WithdrawalQueueFillVault(vault).approve(queue, shares);
+        uint256 tokenId = WithdrawalQueue(queue).requestRedeem(shares, alice);
+        vm.stopPrank();
+
+        WithdrawalQueue(queue).fill();
+
+        vm.prank(alice);
+        WithdrawalQueue(queue).claim(tokenId, bob);
 
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(bob), 100);
         assertEq(WithdrawalQueueFillToken(collateral).balanceOf(alice), 0);
@@ -805,5 +846,11 @@ contract WithdrawalQueueFillTest is Test {
         queue_ = factory.create(
             1, vault, abi.encode(WithdrawalQueueFillVault(vault).name(), WithdrawalQueueFillVault(vault).symbol())
         );
+    }
+
+    function _claim(uint256 tokenId) internal returns (uint256 assets, uint256 shares) {
+        address owner = WithdrawalQueue(queue).ownerOf(tokenId);
+        vm.prank(owner);
+        return WithdrawalQueue(queue).claim(tokenId, owner);
     }
 }

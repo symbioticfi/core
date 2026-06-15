@@ -295,7 +295,10 @@ contract AppAdapterInvariantHandler is Test {
         }
 
         uint256 tokenId = requestTokenIds[tokenSeed % requestTokenIds.length];
-        try queue.claim(tokenId) {} catch {}
+        try queue.ownerOf(tokenId) returns (address owner) {
+            vm.prank(owner);
+            try queue.claim(tokenId, owner) {} catch {}
+        } catch {}
 
         _afterAction(false);
     }

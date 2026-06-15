@@ -24,6 +24,7 @@
 ### Task 1: `IPriceDataOracle` + `getPriceData()` on MidasOracle and ChainlinkOracle
 
 **Files:**
+
 - Create: `src/interfaces/adapters/ll-adapter/IPriceDataOracle.sol`
 - Modify: `src/interfaces/adapters/ll-adapter/midas/IMidasOracle.sol` (add `aggregator()` to `IMidasDataFeed`; `IMidasOracle is IPriceDataOracle`)
 - Modify: `src/interfaces/adapters/ll-adapter/oracles/IChainlinkOracle.sol` (`IChainlinkOracle is IPriceDataOracle`)
@@ -202,6 +203,7 @@ Note: `ChainlinkOracle.getPrice()` may return 0 on staleness (lib semantics) —
 ### Task 2: `CutoffPricer` mixin + `ICutoffPricer` + unit tests
 
 **Files:**
+
 - Create: `src/interfaces/adapters/ll-adapter/ICutoffPricer.sol`
 - Create: `src/contracts/adapters/ll-adapter/common/CutoffPricer.sol`
 - Test: create `test/adapters/ll-adapter/CutoffPricer.t.sol`
@@ -640,6 +642,7 @@ abstract contract CutoffPricer is ICutoffPricer {
 > **AMENDED after review:** the sticky `isSettled` flag was replaced by value-covered settlement (sub `sync()` returns swept amounts; parent accumulates `receivedValues` and settles only when received ≥ cohort value; written-off unpaid subs stay tracked). The committed `SettlementAccount.sol` is authoritative for Tasks 4–5 expectations.
 
 **Files:**
+
 - Create: `src/interfaces/adapters/ll-adapter/ISettlementAccount.sol`
 - Create: `src/interfaces/adapters/ll-adapter/ISettlementSubAccount.sol`
 - Create: `src/contracts/adapters/ll-adapter/common/SettlementAccount.sol`
@@ -919,9 +922,10 @@ Note on overrides: `CooldownAccount` declares `_finalizeRequests`/`_requestRedee
 
 ### Task 4: Rewrite `SuperstateAccount` + `SecuritizeAccount`; update USCC/ACRED token files; update tests
 
-> **AMENDED:** the committed `ACRED_Account.sol` uses `TOKEN_INITIAL_CUTOFF = 1_785_542_400` (2026-08-01 00:00:00 UTC — the day *after* the 07/31 feeder deadline, so deadline-day requests fall in the closing cohort) and `TOKEN_VALUATION_DELAY = 4 days` (pricing date relative to the 08-01 anchor; deadline-day cohort inclusion preserved). This supersedes the `INITIAL_CUTOFF = 1_785_456_000` / `VALUATION_DELAY = 5 days` values in the inline code blocks below.
+> **AMENDED:** the committed `ACRED_Account.sol` uses `TOKEN_INITIAL_CUTOFF = 1_785_542_400` (2026-08-01 00:00:00 UTC — the day _after_ the 07/31 feeder deadline, so deadline-day requests fall in the closing cohort) and `TOKEN_VALUATION_DELAY = 4 days` (pricing date relative to the 08-01 anchor; deadline-day cohort inclusion preserved). This supersedes the `INITIAL_CUTOFF = 1_785_456_000` / `VALUATION_DELAY = 5 days` values in the inline code blocks below.
 
 **Files:**
+
 - Rewrite: `src/contracts/adapters/ll-adapter/SuperstateAccount.sol`
 - Rewrite: `src/contracts/adapters/ll-adapter/SecuritizeAccount.sol`
 - Modify: `src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol`
@@ -1188,6 +1192,7 @@ contract ACRED_AccountFactory is MigratablesFactory {
 - [ ] **Step 4: Update `ProviderAccounts.t.sol` (and shared mocks)**
 
 Read the existing file first. Required changes:
+
 1. A reusable `MockPriceDataOracle` (add next to the existing `MockOracle` in `AccountsBase.t.sol`):
 
 ```solidity
@@ -1233,6 +1238,7 @@ contract MockPriceDataOracle {
 ### Task 5: Rewrite `DigiFTAccount` on `SettlementAccount`; bEQTY duration 1d→7d
 
 **Files:**
+
 - Rewrite: `src/contracts/adapters/ll-adapter/DigiFTAccount.sol`
 - Modify: `src/interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol`
 - Delete: `src/interfaces/adapters/ll-adapter/digift/IDigiFTSubAccount.sol`
@@ -1349,6 +1355,7 @@ interface IDigiFTAccount is ISettlementAccount {
 ### Task 6: Makina `min(quote, live)` pending cap
 
 **Files:**
+
 - Modify: `src/contracts/adapters/ll-adapter/MakinaAccount.sol`
 - Modify: `src/interfaces/adapters/ll-adapter/makina/IMakinaAccount.sol`
 - Test: `test/adapters/ll-adapter/MakinaAccount.t.sol`
@@ -1439,6 +1446,7 @@ In `_finalizeRequests`, delete the quote when a claim succeeds (before the swap-
 ### Task 7: AsyncRedeem claimable precision + delete `CentrifugeAccount` passthrough
 
 **Files:**
+
 - Modify: `src/contracts/adapters/ll-adapter/common/AsyncRedeemAccount.sol` (`_totalAssets` only)
 - Modify: `src/interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol` (add `maxWithdraw`)
 - Delete: `src/contracts/adapters/ll-adapter/CentrifugeAccount.sol`, `src/interfaces/adapters/ll-adapter/centrifuge/ICentrifugeAccount.sol`
@@ -1508,6 +1516,7 @@ contract JAAA_AccountFactory is MigratablesFactory {
 ### Task 8: `MidasCutoffAccount` + switch `mGLOBAL_Account`
 
 **Files:**
+
 - Modify: `src/contracts/adapters/ll-adapter/MidasAccount.sol` (append `MidasCutoffAccount`)
 - Modify: `src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol` (only if `@inheritdoc` targets require; expected: no change)
 - Modify: `src/contracts/adapters/ll-adapter/tokens-to-redeem/mGLOBAL_Account.sol`
@@ -1782,6 +1791,7 @@ contract mGLOBAL_AccountFactory is MigratablesFactory {
 ### Task 9: Mainnet-fork spec tests
 
 **Files:**
+
 - Modify: `test/adapters/ll-adapter/tokens_to_redeem/MidasTokensToRedeemMainnet.t.sol` (mGLOBAL spec entry)
 - Modify: `test/adapters/ll-adapter/tokens_to_redeem/TokensToRedeemMainnet.t.sol` (ACRED/USCC/bEQTY entries)
 - Possibly: `test/adapters/LiquidLaneAdapterAllTokensBenchmark.t.sol`

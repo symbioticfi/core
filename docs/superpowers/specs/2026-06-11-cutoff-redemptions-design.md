@@ -15,18 +15,21 @@ Additionally, re-research of every Account surfaced correctness deltas (§2) and
 ## 2. Research findings driving the design
 
 ### ACRED (verified on-chain + SEC filings + Securitize feed/docs)
+
 1. **`burn()` is unusable**: the deployed ACRED DSToken's `burn` is `onlyIssuerOrTransferAgentOrAbove`; the current `SecuritizeSubAccount.requestRedeem()` would revert on mainnet. The actual redemption notice is a **plain ERC-20 transfer to the redemption wallet** `0xbb543C77436645C8b95B64eEc39E3C0d48D4842b` (per `public-feed.securitize.io/asset-info?symbol=ACRED`; Ethereum has no off-ramp contract).
 2. **Quarterly single-batch settlement with pro-rata fills**: observed Q2-2026 — all tenders settled in one batch on 05/13 (deadline 04/30), fill ratio 34.78%; USDC paid for the filled portion and **unfilled ACRED re-minted back to the sender address**. Remainders do not roll over; they must be re-tendered.
 3. NAV **keeps accruing until the Repurchase Pricing Date** (= underlying deadline ≈ feeder deadline + 5 days). Observed settlement lag 12–20 days after the feeder deadline; structural max ≈ 30 days (suspension tail exists).
 4. On-chain oracle: RedStone `ACRED_FUNDAMENTAL` (AggregatorV3-compatible, ~daily updates, `updatedAt` available).
 
 ### mGLOBAL (verified contract source + Midas docs + rwa.xyz)
+
 1. The redemption vault (`MGlobalRedemptionVaultWithSwapper` @ `0x1e0fd667…`) pays `amountMToken × rate supplied at approval` (bulk path uses the vault feed at fulfillment) — pending requests **compound until the cohort valuation date, then the payout is fixed** at that cohort NAV while the feed keeps stepping monthly → pure live-rate valuation overvalues a post-valuation request by up to ~1 month of yield.
 2. The vault's `mTokenDataFeed` is the **"PriceLowered" feed = NAV × 0.93**; the 7% exit fee is refunded **out-of-band**. Current `MidasOracle` wiring already uses the vault feed → on-chain payout valuation is correct; the refund leg is NOT counted until received (conservative; ops to confirm the refund destination).
 3. Feed aggregator exposes `updatedAt` (monthly prints ~15th–16th); the DataFeed wrapper reverts when >60 days stale.
 4. No other Midas token is cutoff-based (all 23 checked; mF-ONE request-time pricing = existing `MidasNonCompAccount` confirmed correct). mFARM, mBTC, msyrupUSD, mevBTC are retired/paused (informational; no action in this change).
 
 ### Other issuers
+
 - **Superstate USCC**: rolling T+1/T+2 at request-day NAV → current freeze-at-request + 3-day write-off is correct.
 - **DigiFT bEQTY**: published settlement "up to five days" → `PENDING_ASSETS_DURATION` must go 1 day → **7 days**.
 - **Makina DUSD**: payout is capped at the **request-time quote** (`min(quote, live)`); current live-rate valuation overvalues in rising markets → add quote cap.
@@ -51,6 +54,7 @@ SettlementSubAccount (NEW, common/, base request-holder; 3 tiny issuer subclasse
 ```
 
 A cutoff redemption is fully described by **three timing parameters + one freezing rule**:
+
 - requests registered at time T are assigned cohort `cutoff = nextCutoff(T)`;
 - the cohort is priced at `cutoff + VALUATION_DELAY`;
 - value is written off (counted as 0, entry retained) after `pricing + SETTLEMENT_DURATION`;
@@ -63,6 +67,7 @@ A cutoff redemption is fully described by **three timing parameters + one freezi
 Standalone abstract mixin (avoids inheritance diamonds; hosts already extend `Account` lineages).
 
 State / immutables:
+
 - `uint48 immutable VALUATION_DELAY` — cutoff → cohort pricing moment.
 - `uint48 immutable SETTLEMENT_DURATION` — pricing → write-off.
 - `uint48 cutoff`, `uint48 cutoffPeriod` — next cutoff and auto-roll period; initialized from constructor immutables (anchor values), owner-adjustable via `setCutoffSchedule(uint48 nextCutoff, uint48 period)` (calendar months/quarters drift vs fixed periods; owner corrects occasionally). `cutoff == 0` ⇒ rolling mode (cohort = registration time).
@@ -70,8 +75,9 @@ State / immutables:
 - `mapping(uint256 key => PendingCohort)` — key is a request id or `uint160(subAccount)`.
 
 Internal API (called by hosts):
+
 - `_registerPending(key, amount)` — rolls `cutoff` forward (`while (block.timestamp > cutoff) cutoff += cutoffPeriod`), stores entry with the assigned cohort.
-- `_tryFreeze(key)` — if not frozen and `block.timestamp ≥ pricingTime`: read `(price, updatedAt) = _priceData()`; freeze only when `updatedAt ≥ pricingTime && price != 0`. This captures the *first oracle print at/after the cohort pricing date* — for mGLOBAL that is exactly the print embedding the cohort NAV; for ACRED the next daily RedStone print; for rolling issuers the request-day closing NAV.
+- `_tryFreeze(key)` — if not frozen and `block.timestamp ≥ pricingTime`: read `(price, updatedAt) = _priceData()`; freeze only when `updatedAt ≥ pricingTime && price != 0`. This captures the _first oracle print at/after the cohort pricing date_ — for mGLOBAL that is exactly the print embedding the cohort NAV; for ACRED the next daily RedStone print; for rolling issuers the request-day closing NAV.
 - `_pendingValue(key) view` — `0` if written off; else `_toAssets(amount, frozenRate != 0 ? frozenRate : livePrice)`.
 - `_clearPending(key)`.
 
@@ -88,17 +94,20 @@ New `IPriceDataOracle is IOracle { function getPriceData() external view returns
 ### 3.3 `common/SettlementAccount.sol` + `SettlementSubAccount` (new, replaces 3 near-clones)
 
 `SettlementAccount is CooldownAccount, CutoffPricer` (abstract):
+
 - `address[] subAccounts`; `mapping(uint256 key => uint256) receivedValues` — cumulative settlement value received per sub, in vault assets (token receipts valued at sweep-time rates).
 - `_requestRedeem()`: `sub = _createSubAccount()` (virtual), `_registerPending(uint160(sub), balance)`, transfer balance to sub, `sub.requestRedeem()`.
 - `_finalizeRequests()`: reverse loop — `_tryFreeze`, `(assets, tokens) = sub.sync()` (sweeps and reports), `receivedValues[sub] += assets + tokenValue(tokens)`; the sub is settled (`_clearPending` + `delete receivedValues` + swap-pop) only once `receivedValues[sub] ≥ cohortValue(sub)` (**value-covered settlement**). This supports multi-tranche settlements (e.g. DigiFT pays in tranches), makes dust donations harmless (they reduce the remaining receivable one-for-one instead of writing it off), and keeps written-off-but-unpaid subs tracked indefinitely so late settlements are still swept and recovered.
 - `_totalAssets()`: per sub — `holdings = asset.balanceOf(sub) + tokenValue(token.balanceOf(sub))`; `remaining = cohortValue(sub) − receivedValues[sub]` (0 once written off); `assets += holdings + remaining.saturatingSub(holdings)` (i.e. `max(remaining, holdings)` per sub — the receivable shrinks one-for-one as settlement value arrives, and ACRED re-mints are priced as live token holdings without double counting).
 
 `SettlementSubAccount` (base, dumb holder):
+
 - immutables `ACCOUNT, ASSET, TOKEN_TO_REDEEM`; stateless.
 - `requestRedeem()` (onlyAccount) → virtual `_executeRedemption()`.
 - `sync()` (onlyAccount) → sweeps ASSET and TOKEN_TO_REDEEM balances to ACCOUNT and returns both swept amounts; settledness is decided by the parent from cumulative received value, not by the sub.
 
 Issuer shims (each ~25–40 lines, sub subclass in the same file):
+
 - **SecuritizeAccount**: immutable `REDEMPTION_WALLET`; sub `_executeRedemption()` = `safeTransfer(REDEMPTION_WALLET, balance)` (replaces the broken `burn()`). Re-minted partial-fill ACRED is swept back by the base `sync()` and re-tendered automatically next window by the parent's normal flow.
 - **SuperstateAccount**: sub `_executeRedemption()` = `offchainRedeem(balance)`. Rolling parameters reproduce current behavior with two intended deltas: pre-freeze pending value floats with the live oracle (instead of being fixed at the request-time rate), and `totalAssets` now consults the oracle for pending subs — reverting on a zero price during that window.
 - **DigiFTAccount**: sub approves `SUB_RED_MANAGEMENT` in constructor; `_executeRedemption()` = `subRedManagement.redeem(token, asset, balance, block.timestamp)`. Moves onto `CooldownAccount` with `COOLDOWN = 0` (identical request-every-sync behavior).
@@ -106,6 +115,7 @@ Issuer shims (each ~25–40 lines, sub subclass in the same file):
 ### 3.4 `MidasCutoffAccount` (new, issuer-level, ~60 lines)
 
 `is MidasAccount, CutoffPricer` (no diamond — the mixin is standalone):
+
 - `_requestRedeem()`: `super._requestRedeem()`, then read back the vault-stored net-of-fee `amountMToken` for the new request id and `_registerPending(requestId, amountMToken)` — the net amount is what the vault pays out, not the pre-submit gross balance.
 - `_finalizeRequests()`: per tracked id — `_tryFreeze(id)`; clear `pendingCohorts` alongside the existing processed-id removal (loop implemented locally instead of `super` to clear both in one pass).
 - `_pendingAssets()`: `Σ _pendingValue(id)` over requests still `REQUEST_STATUS_PENDING` (replaces the Comp loop for this account type). The status filter matters: Midas `approveRequest` pays the assets and marks the request processed atomically, while the cohort entry is only cleared on the next sync — without the filter `totalAssets()` would count both the received assets and the stale frozen cohort in that window.
@@ -121,15 +131,15 @@ Issuer shims (each ~25–40 lines, sub subclass in the same file):
 
 ## 4. Initial parameters
 
-| | ACRED | mGLOBAL | USCC | bEQTY |
-|---|---|---|---|---|
-| Cutoff anchor | 2026-08-01 00:00 UTC (day after the 07/31 feeder deadline) | 2026-06-26 00:00 UTC (ops-unverified day; owner-adjustable) | rolling (0) | rolling (0) |
-| Period | 91 days (owner-corrected per calendar) | 30 days (owner-corrected per calendar) | — | — |
-| VALUATION_DELAY | 4 days (underlying pricing date) | 5 days (cohort month-end) | 0 | 0 |
-| SETTLEMENT_DURATION | 30 days (observed 12–20 + margin) | 45 days (pricing → payment ≈ 32 d + margin; total ≤ 65 d from request) | 3 days (unchanged) | 7 days (was 1) |
-| COOLDOWN (throttle) | 9 days (unchanged) | 6 days (unchanged) | 12 h | 0 |
+|                     | ACRED                                                      | mGLOBAL                                                                | USCC               | bEQTY          |
+| ------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------ | -------------- |
+| Cutoff anchor       | 2026-08-01 00:00 UTC (day after the 07/31 feeder deadline) | 2026-06-26 00:00 UTC (ops-unverified day; owner-adjustable)            | rolling (0)        | rolling (0)    |
+| Period              | 91 days (owner-corrected per calendar)                     | 30 days (owner-corrected per calendar)                                 | —                  | —              |
+| VALUATION_DELAY     | 4 days (underlying pricing date)                           | 5 days (cohort month-end)                                              | 0                  | 0              |
+| SETTLEMENT_DURATION | 30 days (observed 12–20 + margin)                          | 45 days (pricing → payment ≈ 32 d + margin; total ≤ 65 d from request) | 3 days (unchanged) | 7 days (was 1) |
+| COOLDOWN (throttle) | 9 days (unchanged)                                         | 6 days (unchanged)                                                     | 12 h               | 0              |
 
-Cohort boundary uses the start-of-day (UTC) of the deadline date — mis-assigning a boundary request to an *earlier* cohort is conservative (earlier freeze + earlier write-off).
+Cohort boundary uses the start-of-day (UTC) of the deadline date — mis-assigning a boundary request to an _earlier_ cohort is conservative (earlier freeze + earlier write-off).
 
 ## 5. Edge cases
 
@@ -137,9 +147,9 @@ Cohort boundary uses the start-of-day (UTC) of the deadline date — mis-assigni
 - **Partial fill (ACRED)**: settlement batch = USDC + re-minted ACRED at the sub; `max(pending, holdings)` valuation hands over smoothly; re-mint is swept and re-tendered next window as a new entry.
 - **Zero fill / suspension**: receivable written off after `SETTLEMENT_DURATION` (NAV dips conservatively); the sub stays tracked and any late settlement is still swept (NAV recovers on arrival) — same liveness semantics as today.
 - **Multiple requests per window**: allowed (cooldown-throttled); all cohort-mates freeze at the same rate and settle in the same batch.
-- **Owner schedule maintenance**: `setCutoffSchedule` only affects *future* cohort assignment; existing entries keep their assigned cutoff.
-- **Keeper liveness**: the freeze captures the oracle's *live* print at the first post-pricing sync — for monthly-print tokens a missed month means the *next* print is captured instead of the cohort's. Ops should sync each cohort shortly after its pricing date (at least once before the next oracle print) for exact cohort pricing.
-- **Namespaced storage & migration preconditions**: `CutoffPricer` keeps its state in ERC-7201 namespaced storage, which keeps the *pricer's* slots out of the linear layout. That alone preserves `subAccounts` slots only for Securitize/Superstate (old and new layouts both place the array at slot 16); it does **not** hold for DigiFT — the old `DigiFTAccount` extended `Account` directly, so its `subAccounts` array lived at slot 15, which the new base (via `CooldownAccount`) reinterprets as `lastRequestTimestamp`, with `subAccounts` moved to 16: migrating a live old DigiFT instance would strand its in-flight subaccounts entirely. Old subaccounts are also ABI-incompatible (their `sync()` returns void; the new base decodes `(uint256,uint256)`). Migration preconditions are therefore **enforced on-chain**: `SettlementAccount._migrate` reverts with `MigrationWithLiveSubAccounts` while `subAccounts.length != 0`, and `DigiFTAccount._migrate` additionally reverts when raw slot 15 is nonzero (at upgrade time, before the new layout writes anything, a nonzero slot 15 can only be the legacy array length — conservatively, this also blocks later migrations once `lastRequestTimestamp` is nonzero). mGLOBAL migration from `MidasCompAccount` to `MidasCutoffAccount` leaves pre-existing pending request ids with no cohort entries — they are valued 0 until fulfillment (a conservative NAV dip); migrate with an empty pipeline or accept the documented window. Migrated instances additionally need their cutoff schedule set via `setCutoffSchedule`, since `__CutoffPricer_init` only runs on fresh initialization.
+- **Owner schedule maintenance**: `setCutoffSchedule` only affects _future_ cohort assignment; existing entries keep their assigned cutoff.
+- **Keeper liveness**: the freeze captures the oracle's _live_ print at the first post-pricing sync — for monthly-print tokens a missed month means the _next_ print is captured instead of the cohort's. Ops should sync each cohort shortly after its pricing date (at least once before the next oracle print) for exact cohort pricing.
+- **Namespaced storage & migration preconditions**: `CutoffPricer` keeps its state in ERC-7201 namespaced storage, which keeps the _pricer's_ slots out of the linear layout. That alone preserves `subAccounts` slots only for Securitize/Superstate (old and new layouts both place the array at slot 16); it does **not** hold for DigiFT — the old `DigiFTAccount` extended `Account` directly, so its `subAccounts` array lived at slot 15, which the new base (via `CooldownAccount`) reinterprets as `lastRequestTimestamp`, with `subAccounts` moved to 16: migrating a live old DigiFT instance would strand its in-flight subaccounts entirely. Old subaccounts are also ABI-incompatible (their `sync()` returns void; the new base decodes `(uint256,uint256)`). Migration preconditions are therefore **enforced on-chain**: `SettlementAccount._migrate` reverts with `MigrationWithLiveSubAccounts` while `subAccounts.length != 0`, and `DigiFTAccount._migrate` additionally reverts when raw slot 15 is nonzero (at upgrade time, before the new layout writes anything, a nonzero slot 15 can only be the legacy array length — conservatively, this also blocks later migrations once `lastRequestTimestamp` is nonzero). mGLOBAL migration from `MidasCompAccount` to `MidasCutoffAccount` leaves pre-existing pending request ids with no cohort entries — they are valued 0 until fulfillment (a conservative NAV dip); migrate with an empty pipeline or accept the documented window. Migrated instances additionally need their cutoff schedule set via `setCutoffSchedule`, since `__CutoffPricer_init` only runs on fresh initialization.
 - **Oracle liveness (quantified)**: an unfrozen ACRED cohort entry can keep `totalAssets()` oracle-dependent for ~95 days worst case (a request submitted just after a quarterly cutoff waits ~91 days to the next cutoff + 4 days valuation delay before its rate can freeze). A zero or reverting feed anywhere in that window reverts the **adapter-wide** `totalAssets()` (all tokens, not just ACRED) until the feed recovers or the entry is written off. Ops must monitor feed health; this is the largest liveness delta introduced by this feature.
 
 ## 6. Testing
@@ -154,15 +164,16 @@ Cohort boundary uses the start-of-day (UTC) of the deadline date — mis-assigni
 2. **mGLOBAL 7% refund leg**: refunded out-of-band "at the next monthly price update" — confirm destination address; it is not counted until received.
 3. mGLOBAL cutoff day (26th) is unpublished — treat as ops parameter, monitor first real cohort.
 4. Retired/paused Midas tokens (mFARM, mBTC, msyrupUSD, mevBTC) — keep or remove their accounts (out of scope here).
-5. **Monitoring**: alert if settlement assets arrive on the *parent* account without a matching subaccount credit — a config-drift direct-pay would double-count the unfilled portion (parent holdings plus the still-open receivable) until write-off and leave a permanently retained subaccount.
+5. **Monitoring**: alert if settlement assets arrive on the _parent_ account without a matching subaccount credit — a config-drift direct-pay would double-count the unfilled portion (parent holdings plus the still-open receivable) until write-off and leave a permanently retained subaccount.
 6. **Compliance runbook**: sub-account addresses are deterministic (CREATE from the account's nonce, which only advances on success) — precompute and pre-whitelist the next sub address with Securitize/Superstate before each tender window. A blocked notice transfer reverts sync atomically (tokens stay on the parent, valuation unaffected) but also blocks convert/doSwap for that token until whitelisting completes.
 7. **Superstate**: the real `offchainRedeem` enforces allowlist, pausability, and minimum amounts (the mock idealizes these); below-minimum redemptions risk burned-without-settlement — cooldown batching mitigates; confirm minimums with Superstate ops.
-8. **Gas creep & retained subaccounts**: each retained never-frozen or under-covered subaccount adds ~3 external calls per `sync()` (freeze attempt + sweep + balance reads), forever. Runbook: a dust top-up of the remaining shortfall to a frozen under-covered subaccount triggers release on the next sync (the top-up itself sweeps to the vault); never-frozen written-off entries stay tracked by design until their late settlement covers the frozen value (which never exists) — they are the one permanent-creep case and should be rare (dead oracle through the whole settlement window). For settlements that land on an *already-released* subaccount, the permissionless `rescueSubAccount(address)` sweeps them to the parent as plain account balance (reverts for still-tracked subs and for addresses the account never created).
+8. **Gas creep & retained subaccounts**: each retained never-frozen or under-covered subaccount adds ~3 external calls per `sync()` (freeze attempt + sweep + balance reads), forever. Runbook: a dust top-up of the remaining shortfall to a frozen under-covered subaccount triggers release on the next sync (the top-up itself sweeps to the vault); never-frozen written-off entries stay tracked by design until their late settlement covers the frozen value (which never exists) — they are the one permanent-creep case and should be rare (dead oracle through the whole settlement window). For settlements that land on an _already-released_ subaccount, the permissionless `rescueSubAccount(address)` sweeps them to the parent as plain account balance (reverts for still-tracked subs and for addresses the account never created).
 9. **`MAX_WITHDRAWAL_DELAY` is informational only**: the per-token constant (e.g. mGLOBAL 65 days) documents the issuer's SLA, not the on-chain write-off horizon. On-chain, a worst-case mGLOBAL request (just after a cutoff) is written off only after cutoff period (30d) + valuation delay (5d) + settlement duration (45d) ≈ **80 days**.
 
 ## 8. Future-proofing (proposal only, not implemented now)
 
 New-issuer integrations decompose into three orthogonal axes; `common/` should eventually carry all three so a new issuer is ~20–30 lines:
+
 1. **Attribution** — request-id set (extract the swap-and-pop loop used 6×), sub-account segregation (`SettlementSubAccount`, done here), or self-custodied position.
 2. **Timing** — `CutoffPricer` covers rolling (period 0) and cohort schedules (done here).
 3. **Pricing policy** — the only four observed across all 16 issuers: LIVE (Midas Comp), FROZEN_AT_REQUEST (mF-ONE, Superstate, GAIB), FROZEN_AT_CUTOFF (ACRED, mGLOBAL), MIN_QUOTE_LIVE (Makina). A policy enum inside the pricer would let future issuers pick a policy instead of writing valuation code.

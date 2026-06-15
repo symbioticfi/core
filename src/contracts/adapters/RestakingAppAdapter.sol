@@ -142,7 +142,7 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
             uint256 indexToClaim = requests.firstUnclaimed;
             for (; indexToClaim < requests.tokenIds.length; ++indexToClaim) {
                 uint256 tokenId = requests.tokenIds[indexToClaim];
-                try IWithdrawalQueue(withdrawalQueue).claim(tokenId) returns (uint256 assets, uint256) {
+                try IWithdrawalQueue(withdrawalQueue).claim(tokenId, address(this)) returns (uint256 assets, uint256) {
                     amount += assets;
                 } catch {}
                 // Stop if the last request was not fully claimed.
@@ -179,7 +179,9 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         for (uint256 i; i < underlyingVaults.length; ++i) {
             address withdrawalQueue = IVaultV2(underlyingVaults[i]).withdrawalQueue();
             uint256 tokenId = IWithdrawalQueue(withdrawalQueue).requestRedeem(amount, address(this));
-            try IWithdrawalQueue(withdrawalQueue).claim(tokenId) returns (uint256 curAmount, uint256 shares) {
+            try IWithdrawalQueue(withdrawalQueue).claim(tokenId, address(this)) returns (
+                uint256 curAmount, uint256 shares
+            ) {
                 if (shares < amount) {
                     withdrawalRequests[underlyingVaults[i]].tokenIds.push(uint64(tokenId));
                 }

@@ -239,7 +239,10 @@ contract PendingWithdrawalQueueHandler is Test {
             return;
         }
 
-        try queue.claim(0) {} catch {}
+        try queue.ownerOf(0) returns (address owner) {
+            vm.prank(owner);
+            try queue.claim(0, owner) {} catch {}
+        } catch {}
     }
 
     function sweepPendingWhilePending() external {

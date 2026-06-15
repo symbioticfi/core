@@ -439,7 +439,8 @@ contract WithdrawalQueueClaimHandler is Test {
         uint256 ownerBalanceBefore = collateral.balanceOf(owner);
         uint256 queueBalanceBefore = collateral.balanceOf(address(queue));
 
-        (uint256 assetsClaimed, uint256 sharesClaimed) = queue.claim(tokenId);
+        vm.prank(owner);
+        (uint256 assetsClaimed, uint256 sharesClaimed) = queue.claim(tokenId, owner);
         uint256 assetsPaidOut = queueBalanceBefore - collateral.balanceOf(address(queue));
 
         assertEq(assetsClaimed, expectedAssets);

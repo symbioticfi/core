@@ -80,7 +80,7 @@ contract WithdrawalQueueClaimInvariantsTest is Test {
         handler.assertActorBalancesMatchClaims();
     }
 
-    function test_PermissionlessClaimPaysCurrentWithdrawalNftOwner() public {
+    function test_OwnerClaimPaysCurrentWithdrawalNftOwner() public {
         address alice = address(0xA11CE);
         address bob = address(0xB0B);
 

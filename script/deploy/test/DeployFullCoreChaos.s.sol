@@ -1352,7 +1352,8 @@ contract DeployFullCoreChaosScript is Script {
         _try(vault.withdrawalQueue, abi.encodeCall(IWithdrawalQueue.claimable, (tokenId)), "v2-queue-claimable");
         _try(vault.withdrawalQueue, abi.encodeCall(IWithdrawalQueue.fill, ()), "v2-queue-fill");
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.sweepPending, ()), "v2-queue-sweep");
-        _try(vault.withdrawalQueue, abi.encodeCall(IWithdrawalQueue.claim, (tokenId)), "v2-queue-claim");
+        vm.prank(actors.staker);
+        _try(vault.withdrawalQueue, abi.encodeCall(IWithdrawalQueue.claim, (tokenId, actors.staker)), "v2-queue-claim");
         _try(vault.withdrawalQueue, abi.encodeCall(IWithdrawalQueue.isClaimed, (tokenId)), "v2-queue-claimed");
         _try(vault.withdrawalQueue, abi.encodeWithSignature("ownerOf(uint256)", tokenId), "v2-queue-owner-of");
         _try(vault.withdrawalQueue, abi.encodeWithSignature("tokenURI(uint256)", tokenId), "v2-queue-token-uri");

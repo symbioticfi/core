@@ -9,14 +9,14 @@ interface ICutoffPricer {
     /* ERRORS */
 
     /**
-     * @notice Raised when a cutoff schedule is partially zero.
-     */
-    error InvalidCutoffSchedule();
-
-    /**
      * @notice Raised when the live cutoff price is zero.
      */
     error InvalidCutoffPrice();
+
+    /**
+     * @notice Raised when a cutoff schedule is partially zero.
+     */
+    error InvalidCutoffSchedule();
 
     /* EVENTS */
 

@@ -337,7 +337,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertGt(claimableAssets, 0);
         assertEq(claimableShares, shares);
 
-        queue.claim(tokenId);
+        _claim(queue, tokenId);
 
         assertEq(assetToken.balanceOf(alice), aliceBalanceBefore + claimableAssets);
     }
@@ -494,7 +494,7 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(claimableAssets, assetsFilled);
         assertEq(claimableShares, shares);
 
-        queue.claim(tokenId);
+        _claim(queue, tokenId);
 
         assertEq(assetToken.balanceOf(address(0xA11CE)), aliceBalanceBefore + assetsFilled);
     }
@@ -553,6 +553,12 @@ contract AppAdapterUniversalDelegatorTest is Test {
         vault.approve(address(queue), shares);
         tokenId = queue.requestRedeem(shares, alice);
         vm.stopPrank();
+    }
+
+    function _claim(WithdrawalQueue queue, uint256 tokenId) internal returns (uint256 assets, uint256 shares) {
+        address owner = queue.ownerOf(tokenId);
+        vm.prank(owner);
+        return queue.claim(tokenId, owner);
     }
 
     function _setAutoAllocateAdapter() internal {

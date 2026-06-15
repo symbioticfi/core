@@ -119,14 +119,18 @@ contract WithdrawalQueue is MigratableEntity, ERC721Upgradeable, IWithdrawalQueu
     }
 
     /// @inheritdoc IWithdrawalQueue
-    function claim(uint256 tokenId) public returns (uint256 assets, uint256 shares) {
+    function claim(uint256 tokenId, address receiver) public returns (uint256 assets, uint256 shares) {
+        if (ownerOf(tokenId) != msg.sender) {
+            revert NotTokenOwner();
+        }
+
         (assets, shares) = claimable(tokenId);
 
         requests[tokenId].sharesClaimed += shares;
 
-        IERC20(IERC4626(vault).asset()).safeTransfer(ownerOf(tokenId), assets);
+        IERC20(IERC4626(vault).asset()).safeTransfer(receiver, assets);
 
-        emit Claim(tokenId, assets, shares);
+        emit Claim(tokenId, receiver, assets, shares);
     }
 
     /// @inheritdoc IWithdrawalQueue

@@ -12,8 +12,8 @@ import {
 import {IInfiniFiUnwindingModule} from "../../../interfaces/adapters/ll-adapter/infinifi/IInfiniFiUnwindingModule.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title InfiniFiAccount
 /// @notice Account for infiniFi locked iUSD (liUSD) unwinding redemptions.
