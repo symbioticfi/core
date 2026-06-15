@@ -655,6 +655,14 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(vault.pushedAssets(), 0);
     }
 
+    function test_DeallocateRevertsInvalidAdapterEvenWithRole() public {
+        UniversalDelegatorSweepAdapter adapter = _newAdapter(0, 0);
+        delegator.grantRoleForTest(DEALLOCATE_ROLE, address(this));
+
+        vm.expectRevert(IUniversalDelegator.InvalidAdapter.selector);
+        delegator.deallocate(address(adapter), 1);
+    }
+
     function test_ForceDeallocateSaturatesLimitWhenAdapterReturnsMoreThanSnapshot() public {
         UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));

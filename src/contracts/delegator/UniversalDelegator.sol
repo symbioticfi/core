@@ -292,6 +292,9 @@ contract UniversalDelegator is
         nonReentrant
         returns (uint256 deallocated)
     {
+        if (!_isAdapterAdded[adapter]) {
+            revert InvalidAdapter();
+        }
         deallocated = _deallocate(adapter, assets);
         sweepPending();
     }
