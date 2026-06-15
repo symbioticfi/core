@@ -166,6 +166,16 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.withdrawable(), vault.freeAssets());
     }
 
+    function test_RedeemableUsesFloorRoundedShares() public {
+        VaultV2 vault = _createVault(false, false, 0);
+        _deposit(vault, alice, 2);
+        collateral.transfer(address(vault), 1);
+
+        assertEq(vault.withdrawable(), 3);
+        assertEq(vault.previewWithdraw(vault.withdrawable()), 3);
+        assertEq(vault.redeemable(), 2);
+    }
+
     function test_InitializeStartsWithDefaultFeeConfig() public {
         VaultV2 vault = _createVault(false, false, 0);
 

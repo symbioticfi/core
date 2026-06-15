@@ -220,7 +220,7 @@ contract VaultV2 is
 
     /// @inheritdoc IVaultV2
     function redeemable() public returns (uint256) {
-        return previewWithdraw(withdrawable());
+        return convertToShares(withdrawable());
     }
 
     /// @inheritdoc IVaultV2
