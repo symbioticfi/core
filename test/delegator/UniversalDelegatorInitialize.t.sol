@@ -4,7 +4,11 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
-import {IUniversalDelegator, UNIVERSAL_DELEGATOR_TYPE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {
+    IUniversalDelegator,
+    UNIVERSAL_DELEGATOR_TYPE,
+    FORCE_DEALLOCATE_ROLE
+} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
 
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
@@ -44,6 +48,7 @@ contract UniversalDelegatorInitializeTest is Test {
 
         assertEq(delegator.vault(), address(vault));
         assertEq(delegator.totalAdapters(), 0);
+        assertEq(delegator.hasRole(FORCE_DEALLOCATE_ROLE, address(this)), true);
     }
 
     function testInitializeRejectsUnregisteredVault() public {
@@ -83,6 +88,7 @@ contract UniversalDelegatorInitializeTest is Test {
                     swapAdaptersRoleHolder: address(this),
                     defaultAdminRoleHolder: address(this),
                     removeAdapterRoleHolder: address(this),
+                    forceDeallocateRoleHolder: address(this),
                     setAdapterLimitsRoleHolder: address(this),
                     setAutoAllocateAdaptersRoleHolder: address(this)
                 })

@@ -589,6 +589,7 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         params = IUniversalDelegator.InitParams({
             allocateRoleHolder: owner,
             deallocateRoleHolder: owner,
+            forceDeallocateRoleHolder: owner,
             addAdapterRoleHolder: owner,
             swapAdaptersRoleHolder: owner,
             defaultAdminRoleHolder: owner,

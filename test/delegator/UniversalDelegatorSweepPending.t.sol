@@ -12,12 +12,14 @@ import {
     ADD_ADAPTER_ROLE,
     ALLOCATE_ROLE,
     DEALLOCATE_ROLE,
+    FORCE_DEALLOCATE_ROLE,
     REMOVE_ADAPTER_ROLE,
     SET_ADAPTER_LIMITS_ROLE,
     SET_AUTO_ALLOCATE_ADAPTERS_ROLE,
     SWAP_ADAPTERS_ROLE
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 contract UniversalDelegatorSweepToken is ERC20 {
@@ -362,6 +364,9 @@ contract UniversalDelegatorSweepPendingTest is Test {
         assertEq(delegator.adapterToIndex(address(adapter)), 1);
         assertEq(delegator.indexToAdapter(1), address(adapter));
         assertEq(delegator.adapters(0), address(adapter));
+        assertTrue(delegator.hasRole(ALLOCATE_ROLE, address(adapter)));
+        assertTrue(delegator.hasRole(DEALLOCATE_ROLE, address(adapter)));
+        assertFalse(delegator.hasRole(FORCE_DEALLOCATE_ROLE, address(adapter)));
 
         delegator.grantRoleForTest(REMOVE_ADAPTER_ROLE, address(this));
         delegator.removeAdapter(address(adapter));
@@ -663,6 +668,29 @@ contract UniversalDelegatorSweepPendingTest is Test {
         delegator.deallocate(address(adapter), 1);
     }
 
+    function test_ForceDeallocateRequiresForceDeallocateRole() public {
+        UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
+        UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
+        delegator.setVault(address(vault));
+
+        UniversalDelegatorSweepAdapter adapter = _newWhitelistedAdapterForVault(address(vault), 100, 100);
+        delegator.addAdapterForTest(address(adapter));
+        delegator.grantRoleForTest(DEALLOCATE_ROLE, address(this));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, address(this), FORCE_DEALLOCATE_ROLE
+            )
+        );
+        delegator.forceDeallocate(address(adapter), 100);
+
+        delegator.grantRoleForTest(FORCE_DEALLOCATE_ROLE, address(this));
+        (uint256 deallocated, uint256 pending) = delegator.forceDeallocate(address(adapter), 100);
+
+        assertEq(deallocated, 100);
+        assertEq(pending, 0);
+    }
+
     function test_ForceDeallocateSaturatesLimitWhenAdapterReturnsMoreThanSnapshot() public {
         UniversalDelegatorSweepQueue queue = new UniversalDelegatorSweepQueue(0);
         UniversalDelegatorSweepVault vault = new UniversalDelegatorSweepVault(address(queue));
@@ -673,7 +701,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
         adapterRegistry.setWhitelisted(address(vault), address(adapter), true);
 
         delegator.addAdapterForTest(address(adapter));
-        delegator.grantRoleForTest(DEALLOCATE_ROLE, address(this));
+        delegator.grantRoleForTest(FORCE_DEALLOCATE_ROLE, address(this));
         delegator.grantRoleForTest(SET_ADAPTER_LIMITS_ROLE, address(this));
         delegator.setLimits(address(adapter), 80, MAX_SHARE);
 

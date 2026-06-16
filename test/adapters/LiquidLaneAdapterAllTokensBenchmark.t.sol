@@ -273,6 +273,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             swapAdaptersRoleHolder: curator,
             defaultAdminRoleHolder: curator,
             removeAdapterRoleHolder: curator,
+            forceDeallocateRoleHolder: curator,
             setAdapterLimitsRoleHolder: curator,
             setAutoAllocateAdaptersRoleHolder: curator
         });

@@ -44,6 +44,7 @@ import {
     ADD_ADAPTER_ROLE,
     ALLOCATE_ROLE,
     DEALLOCATE_ROLE,
+    FORCE_DEALLOCATE_ROLE,
     IUniversalDelegator,
     MAX_SHARE,
     REMOVE_ADAPTER_ROLE,
@@ -340,7 +341,8 @@ contract DeployFullCoreChaosScript is Script {
                                 setAutoAllocateAdaptersRoleHolder: owner,
                                 swapAdaptersRoleHolder: owner,
                                 allocateRoleHolder: owner,
-                                deallocateRoleHolder: owner
+                                deallocateRoleHolder: owner,
+                                forceDeallocateRoleHolder: owner
                             })
                         )
                     )
@@ -1569,6 +1571,11 @@ contract DeployFullCoreChaosScript is Script {
             delegator,
             abi.encodeWithSignature("grantRole(bytes32,address)", DEALLOCATE_ROLE, account),
             "v2-grant-deallocate"
+        );
+        _try(
+            delegator,
+            abi.encodeWithSignature("grantRole(bytes32,address)", FORCE_DEALLOCATE_ROLE, account),
+            "v2-grant-force-deallocate"
         );
     }
 

@@ -18,6 +18,7 @@ import {
     MAX_SHARE,
     ALLOCATE_ROLE,
     DEALLOCATE_ROLE,
+    FORCE_DEALLOCATE_ROLE,
     ADD_ADAPTER_ROLE,
     SWAP_ADAPTERS_ROLE,
     REMOVE_ADAPTER_ROLE,
@@ -321,7 +322,7 @@ contract UniversalDelegator is
     /// @inheritdoc IUniversalDelegator
     function forceDeallocate(address adapter, uint256 assets)
         public
-        onlyRole(DEALLOCATE_ROLE)
+        onlyRole(FORCE_DEALLOCATE_ROLE)
         nonReentrant
         returns (uint256 deallocated, uint256 pending)
     {
@@ -466,6 +467,7 @@ contract UniversalDelegator is
         _grantRoleIfNotZero(SWAP_ADAPTERS_ROLE, params.swapAdaptersRoleHolder);
         _grantRoleIfNotZero(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         _grantRoleIfNotZero(REMOVE_ADAPTER_ROLE, params.removeAdapterRoleHolder);
+        _grantRoleIfNotZero(FORCE_DEALLOCATE_ROLE, params.forceDeallocateRoleHolder);
         _grantRoleIfNotZero(SET_ADAPTER_LIMITS_ROLE, params.setAdapterLimitsRoleHolder);
         _grantRoleIfNotZero(SET_AUTO_ALLOCATE_ADAPTERS_ROLE, params.setAutoAllocateAdaptersRoleHolder);
 

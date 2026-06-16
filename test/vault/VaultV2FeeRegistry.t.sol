@@ -652,14 +652,15 @@ contract VaultV2BehaviorTest is Test {
     function _delegatorParams() internal view returns (bytes memory) {
         return abi.encode(
             IUniversalDelegator.InitParams({
-                defaultAdminRoleHolder: address(this),
-                addAdapterRoleHolder: address(this),
-                removeAdapterRoleHolder: address(this),
-                setAdapterLimitsRoleHolder: address(this),
-                setAutoAllocateAdaptersRoleHolder: address(this),
-                swapAdaptersRoleHolder: address(this),
                 allocateRoleHolder: address(this),
-                deallocateRoleHolder: address(this)
+                deallocateRoleHolder: address(this),
+                addAdapterRoleHolder: address(this),
+                swapAdaptersRoleHolder: address(this),
+                defaultAdminRoleHolder: address(this),
+                removeAdapterRoleHolder: address(this),
+                forceDeallocateRoleHolder: address(this),
+                setAdapterLimitsRoleHolder: address(this),
+                setAutoAllocateAdaptersRoleHolder: address(this)
             })
         );
     }

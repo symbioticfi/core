@@ -51,6 +51,7 @@ contract DeployVaultV2Script is DeployVaultV2Base {
                 delegatorParams: IUniversalDelegator.InitParams({
                     allocateRoleHolder: OWNER,
                     deallocateRoleHolder: OWNER,
+                    forceDeallocateRoleHolder: OWNER,
                     addAdapterRoleHolder: OWNER,
                     swapAdaptersRoleHolder: OWNER,
                     defaultAdminRoleHolder: OWNER,

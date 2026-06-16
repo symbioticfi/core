@@ -19,6 +19,8 @@ bytes32 constant ADD_ADAPTER_ROLE = 0xc29e756aabdeb9fb0e411860f152453e1129350b43
 bytes32 constant SWAP_ADAPTERS_ROLE = 0x1d53409af49f741b77991b0584075fbe3113d2af2e558244c183033fd9dd74ce;
 // keccak256("REMOVE_ADAPTER_ROLE")
 bytes32 constant REMOVE_ADAPTER_ROLE = 0xea290c8603ea61d0218a238127f9f470ebed6107d68e276ac9e0eef09c3a01ea;
+// keccak256("FORCE_DEALLOCATE_ROLE")
+bytes32 constant FORCE_DEALLOCATE_ROLE = 0x0f3203713f9a3f4a9748f1aee9bca713a30bc811b67a4b93434667911e0e92a5;
 // keccak256("SET_ADAPTER_LIMITS_ROLE")
 bytes32 constant SET_ADAPTER_LIMITS_ROLE = 0x8c729dc4be31fd24714d9aa5498f0c485d31935b8850fc1f2d8fce2bfa1f0e35;
 // keccak256("SET_AUTO_ALLOCATE_ADAPTERS_ROLE")
@@ -86,6 +88,7 @@ interface IUniversalDelegator is IMulticallable {
      * @param swapAdaptersRoleHolder Address of the initial SWAP_ADAPTERS_ROLE holder.
      * @param defaultAdminRoleHolder Address of the initial DEFAULT_ADMIN_ROLE holder.
      * @param removeAdapterRoleHolder Address of the initial REMOVE_ADAPTER_ROLE holder.
+     * @param forceDeallocateRoleHolder Address of the initial FORCE_DEALLOCATE_ROLE holder.
      * @param setAdapterLimitsRoleHolder Address of the initial SET_ADAPTER_LIMITS_ROLE holder.
      * @param setAutoAllocateAdaptersRoleHolder Address of the initial SET_AUTO_ALLOCATE_ADAPTERS_ROLE holder.
      */
@@ -96,6 +99,7 @@ interface IUniversalDelegator is IMulticallable {
         address swapAdaptersRoleHolder;
         address defaultAdminRoleHolder;
         address removeAdapterRoleHolder;
+        address forceDeallocateRoleHolder;
         address setAdapterLimitsRoleHolder;
         address setAutoAllocateAdaptersRoleHolder;
     }
@@ -272,6 +276,7 @@ interface IUniversalDelegator is IMulticallable {
      * @notice Add an adapter.
      * @param adapter Adapter address.
      * @return index Stable one-based adapter index.
+     * @dev Only an ADD_ADAPTER_ROLE holder can call this function.
      */
     function addAdapter(address adapter) external returns (uint16 index);
 
@@ -279,6 +284,7 @@ interface IUniversalDelegator is IMulticallable {
      * @notice Remove an adapter.
      * @param adapter Adapter address.
      * @dev Only updates the configured route and delegator accounting; callers must handle adapter assets and pending state before removal.
+     * @dev Only a REMOVE_ADAPTER_ROLE holder can call this function.
      */
     function removeAdapter(address adapter) external;
 
@@ -287,6 +293,7 @@ interface IUniversalDelegator is IMulticallable {
      * @param adapter Adapter address.
      * @param assets Absolute asset limit.
      * @param share Share limit scaled by MAX_SHARE.
+     * @dev Only a SET_ADAPTER_LIMITS_ROLE holder can call this function.
      */
     function setLimits(address adapter, uint256 assets, uint256 share) external;
 
@@ -294,12 +301,14 @@ interface IUniversalDelegator is IMulticallable {
      * @notice Swap two adapters in the ordered adapter route.
      * @param adapter1 First adapter address.
      * @param adapter2 Second adapter address.
+     * @dev Only a SWAP_ADAPTERS_ROLE holder can call this function.
      */
     function swapAdapters(address adapter1, address adapter2) external;
 
     /**
      * @notice Set the ordered auto-allocation route.
      * @param adapters Adapter addresses.
+     * @dev Only a SET_AUTO_ALLOCATE_ADAPTERS_ROLE holder can call this function.
      */
     function setAutoAllocateAdapters(address[] calldata adapters) external;
 
@@ -308,6 +317,7 @@ interface IUniversalDelegator is IMulticallable {
      * @param adapter Adapter address.
      * @param assets Assets to allocate.
      * @return allocated Allocated assets.
+     * @dev Only an ALLOCATE_ROLE holder can call this function.
      */
     function allocate(address adapter, uint256 assets) external returns (uint256 allocated);
 
@@ -315,6 +325,7 @@ interface IUniversalDelegator is IMulticallable {
      * @notice Allocate assets through the configured allocation route.
      * @param assets Assets to allocate.
      * @return allocated Allocated assets.
+     * @dev Only an ALLOCATE_ROLE holder can call this function.
      */
     function allocateAll(uint256 assets) external returns (uint256 allocated);
 
@@ -323,6 +334,7 @@ interface IUniversalDelegator is IMulticallable {
      * @param adapter Adapter address.
      * @param assets Assets to allocate.
      * @return allocated Allocated assets.
+     * @dev Only an ALLOCATE_ROLE holder can call this function.
      */
     function allocateExact(address adapter, uint256 assets) external returns (uint256 allocated);
 
@@ -331,6 +343,7 @@ interface IUniversalDelegator is IMulticallable {
      * @param adapter Adapter address.
      * @param assets Assets to deallocate.
      * @return deallocated Deallocated assets.
+     * @dev Only a DEALLOCATE_ROLE holder can call this function.
      */
     function deallocate(address adapter, uint256 assets) external returns (uint256 deallocated);
 
@@ -338,6 +351,7 @@ interface IUniversalDelegator is IMulticallable {
      * @notice Deallocate assets through the configured deallocation route.
      * @param assets Assets to deallocate.
      * @return deallocated Deallocated assets.
+     * @dev Only a DEALLOCATE_ROLE holder can call this function.
      */
     function deallocateAll(uint256 assets) external returns (uint256 deallocated);
 
@@ -345,6 +359,7 @@ interface IUniversalDelegator is IMulticallable {
      * @notice Deallocate exact assets through the configured route.
      * @param assets Assets to deallocate.
      * @return deallocated Deallocated assets.
+     * @dev Only a DEALLOCATE_ROLE holder can call this function.
      */
     function deallocateExact(uint256 assets) external returns (uint256 deallocated);
 
@@ -354,6 +369,7 @@ interface IUniversalDelegator is IMulticallable {
      * @param assets Assets to deallocate.
      * @return deallocated Assets deallocated now.
      * @return pending Assets requested for delayed deallocation.
+     * @dev Only a FORCE_DEALLOCATE_ROLE holder can call this function.
      */
     function forceDeallocate(address adapter, uint256 assets) external returns (uint256 deallocated, uint256 pending);
 
