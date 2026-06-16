@@ -21,10 +21,8 @@ import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFacto
 import {VaultFactory} from "../../../src/contracts/VaultFactory.sol";
 
 import {IAdapterRegistry} from "../../../src/interfaces/IAdapterRegistry.sol";
-import {IAaveV3Adapter} from "../../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
 import {ILiquidLaneAdapter} from "../../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
-import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IMidasRedemptionVault} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 import {
     IUniversalDelegator,
@@ -393,10 +391,7 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         fullAdapters.appAdapterFactory = address(new AdapterFactory(params.owner));
         fullAdapters.appAdapterImplementation = address(
             new AppAdapter(
-                address(core.vaultFactory),
-                fullAdapters.appAdapterFactory,
-                cowSwapSettlement,
-                address(core.networkMiddlewareService)
+                address(core.vaultFactory), fullAdapters.appAdapterFactory, address(core.networkMiddlewareService)
             )
         );
         AdapterFactory(fullAdapters.appAdapterFactory).whitelist(fullAdapters.appAdapterImplementation);
@@ -437,13 +432,7 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
 
         fullAdapters.aaveAdapterFactory = address(new AdapterFactory(params.owner));
         fullAdapters.aaveAdapterImplementation = address(
-            new AaveV3Adapter(
-                fullAdapters.mockAavePool,
-                address(core.vaultFactory),
-                fullAdapters.aaveAdapterFactory,
-                params.owner,
-                cowSwapSettlement
-            )
+            new AaveV3Adapter(fullAdapters.mockAavePool, address(core.vaultFactory), fullAdapters.aaveAdapterFactory)
         );
         AdapterFactory(fullAdapters.aaveAdapterFactory).whitelist(fullAdapters.aaveAdapterImplementation);
 
@@ -482,8 +471,6 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
             new MorphoVaultV2Adapter(
                 address(core.vaultFactory),
                 fullAdapters.morphoAdapterFactory,
-                params.owner,
-                cowSwapSettlement,
                 fullAdapters.mockMorphoVaultFactory,
                 fullAdapters.mockMorphoAdapterRegistry
             )
@@ -528,7 +515,6 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         address burner,
         uint96 subnetworkId
     ) internal returns (address) {
-        address[] memory converters = new address[](0);
         return AdapterFactory(factory)
             .create(
                 1,
@@ -540,7 +526,6 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
                         burner: burner,
                         duration: 1 days,
                         operator: params.marketMaker,
-                        converters: converters,
                         subnetwork: _testnetSubnetwork(params.owner, subnetworkId)
                     })
                     )
@@ -549,25 +534,14 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
     }
 
     function _createAaveAdapter(address factory, address owner, address vault) internal returns (address) {
-        address[] memory converters = new address[](0);
-        return AdapterFactory(factory)
-            .create(1, owner, abi.encode(vault, abi.encode(IAaveV3Adapter.InitParams({converters: converters}))));
+        return AdapterFactory(factory).create(1, owner, abi.encode(vault, ""));
     }
 
     function _createMorphoAdapter(address factory, address owner, address vault, address morphoVault)
         internal
         returns (address)
     {
-        address[] memory converters = new address[](0);
-        return AdapterFactory(factory)
-            .create(
-                1,
-                owner,
-                abi.encode(
-                    vault,
-                    abi.encode(IMorphoVaultV2Adapter.InitParams({morphoVault: morphoVault, converters: converters}))
-                )
-            );
+        return AdapterFactory(factory).create(1, owner, abi.encode(vault, abi.encode(morphoVault)));
     }
 
     function _attachAdapter(

@@ -17,16 +17,6 @@ interface IAaveV3Adapter is IAdapter {
      */
     error InvalidAToken();
 
-    /* STRUCTS */
-
-    /**
-     * @notice Initialization parameters for the Aave V3 adapter.
-     * @param converters Initial converters exempt from the prepared-request delay.
-     */
-    struct InitParams {
-        address[] converters;
-    }
-
     /* FUNCTIONS */
 
     /**

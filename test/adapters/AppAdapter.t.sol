@@ -31,8 +31,6 @@ contract AppAdapterTest is Test {
     address internal operator = makeAddr("operator");
     address internal curator = makeAddr("curator");
     address internal burner = makeAddr("burner");
-    address internal relayer = makeAddr("relayer");
-    address internal settlement = makeAddr("settlement");
     uint48 internal duration = 10;
 
     function setUp() public {
@@ -49,9 +47,8 @@ contract AppAdapterTest is Test {
         subnetwork = network.subnetwork(1);
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         AppAdapter implementation =
-            new AppAdapter(address(vaultFactory), address(factory), settlement, address(networkMiddlewareService));
+            new AppAdapter(address(vaultFactory), address(factory), address(networkMiddlewareService));
         factory.whitelist(address(implementation));
 
         adapter = _createAdapter();
@@ -70,7 +67,6 @@ contract AppAdapterTest is Test {
     function test_InitializeStoresConfiguredBurner() public view {
         assertEq(adapter.burner(), burner);
         assertEq(AppAdapter(address(adapter)).owner(), curator);
-        assertEq(adapter.converters(0), curator);
     }
 
     function test_InitializeRejectsZeroBurner() public {
@@ -88,21 +84,6 @@ contract AppAdapterTest is Test {
 
         vm.expectRevert(IAppAdapter.InvalidDuration.selector);
         factory.create(1, curator, _initData(subnetwork, operator, 0, burner));
-    }
-
-    function test_RewardTransfersAssetsFromCallerToAdapter() public {
-        address rewarder = makeAddr("rewarder");
-        uint256 amount = 123;
-
-        assetToken.transfer(rewarder, amount);
-
-        vm.startPrank(rewarder);
-        assetToken.approve(address(adapter), amount);
-        adapter.reward(address(assetToken), amount);
-        vm.stopPrank();
-
-        assertEq(assetToken.balanceOf(rewarder), 0);
-        assertEq(assetToken.balanceOf(address(adapter)), amount);
     }
 
     function test_DeallocationPreservesStakeUntilDurationAndSettlesAfterDuration() public {
@@ -555,9 +536,8 @@ contract AppAdapterTest is Test {
     }
 
     function test_MigrateRevertsBecauseUnsupported() public {
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         AppAdapter implementation =
-            new AppAdapter(address(vaultFactory), address(factory), settlement, address(networkMiddlewareService));
+            new AppAdapter(address(vaultFactory), address(factory), address(networkMiddlewareService));
         factory.whitelist(address(implementation));
         uint64 version = factory.lastVersion();
 
@@ -597,17 +577,11 @@ contract AppAdapterTest is Test {
         view
         returns (bytes memory)
     {
-        address[] memory converters = new address[](1);
-        converters[0] = curator;
         return abi.encode(
             address(vault),
             abi.encode(
                 IAppAdapter.InitParams({
-                    subnetwork: initSubnetwork,
-                    operator: initOperator,
-                    duration: initDuration,
-                    burner: initBurner,
-                    converters: converters
+                    subnetwork: initSubnetwork, operator: initOperator, duration: initDuration, burner: initBurner
                 })
             )
         );

@@ -3,8 +3,6 @@
 pragma solidity ^0.8.28;
 
 import {Adapter} from "./Adapter.sol";
-import {CoWSwapConverter} from "./common/CoWSwapConverter.sol";
-import {MerklClaimer} from "./common/MerklClaimer.sol";
 
 import {IAaveV3Adapter, REFERRAL_CODE} from "../../interfaces/adapters/IAaveV3Adapter.sol";
 import {IAaveV3Pool} from "../../interfaces/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
@@ -17,7 +15,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title AaveV3Adapter
 /// @notice VaultV2 adapter for Aave V3 supply positions.
-contract AaveV3Adapter is Adapter, CoWSwapConverter, MerklClaimer, IAaveV3Adapter {
+contract AaveV3Adapter is Adapter, IAaveV3Adapter {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -36,13 +34,7 @@ contract AaveV3Adapter is Adapter, CoWSwapConverter, MerklClaimer, IAaveV3Adapte
 
     /* CONSTRUCTOR */
 
-    constructor(
-        address aavePool,
-        address vaultFactory,
-        address adapterFactory,
-        address merklDistributor,
-        address cowSwapSettlement
-    ) Adapter(vaultFactory, adapterFactory) CoWSwapConverter(cowSwapSettlement) MerklClaimer(merklDistributor) {
+    constructor(address aavePool, address vaultFactory, address adapterFactory) Adapter(vaultFactory, adapterFactory) {
         AAVE_POOL = aavePool;
     }
 
@@ -51,19 +43,6 @@ contract AaveV3Adapter is Adapter, CoWSwapConverter, MerklClaimer, IAaveV3Adapte
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
         return freeAssets() + totalATokens;
-    }
-
-    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
-
-    /// @inheritdoc CoWSwapConverter
-    function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data) public virtual override {
-        if (tokenIn == aToken || tokenIn == IERC4626(vault).asset()) {
-            revert InvalidTokenIn();
-        }
-        if (tokenOut != IERC4626(vault).asset()) {
-            revert InvalidTokenOut();
-        }
-        super.convert(tokenIn, amountIn, tokenOut, data);
     }
 
     /* INTERNAL FUNCTIONS */
@@ -96,11 +75,7 @@ contract AaveV3Adapter is Adapter, CoWSwapConverter, MerklClaimer, IAaveV3Adapte
     /* INITIALIZATION */
 
     /// @dev Approves the Aave pool to pull the adapter asset.
-    function __initialize(address, bytes memory data) internal override {
-        InitParams memory params = abi.decode(data, (InitParams));
-
-        __CoWSwapConverter_init(params.converters);
-
+    function __initialize(address, bytes memory) internal override {
         aToken = IAaveV3Pool(AAVE_POOL).getReserveAToken(IERC4626(vault).asset());
         if (aToken == address(0)) {
             revert InvalidAToken();

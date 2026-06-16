@@ -9,8 +9,6 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {IAaveV3Adapter} from "../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
-import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
-import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 
 import {Token} from "../mocks/Token.sol";
 import {MockAaveAToken, MockAavePool} from "../mocks/HoodiScenarioProtocolMocks.sol";
@@ -26,9 +24,6 @@ contract AaveV3AdapterTest is Test {
 
     address internal curator = makeAddr("curator");
     address internal delegator = makeAddr("delegator");
-    address internal rewards = makeAddr("rewards");
-    address internal settlement = makeAddr("settlement");
-    address internal relayer = makeAddr("relayer");
 
     function setUp() public {
         vaultFactory = new AaveV3AdapterRegistryMock();
@@ -40,9 +35,7 @@ contract AaveV3AdapterTest is Test {
         vault = new AaveV3AdapterVaultMock(address(assetToken), delegator);
         vaultFactory.add(address(vault));
 
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
-        AaveV3Adapter implementation =
-            new AaveV3Adapter(address(pool), address(vaultFactory), address(factory), rewards, settlement);
+        AaveV3Adapter implementation = new AaveV3Adapter(address(pool), address(vaultFactory), address(factory));
         factory.whitelist(address(implementation));
 
         adapter = IAaveV3Adapter(factory.create(1, curator, abi.encode(address(vault), _initData())));
@@ -77,17 +70,8 @@ contract AaveV3AdapterTest is Test {
         assertEq(adapter.aToken(), address(aToken));
     }
 
-    function test_ModulesExposeConverterAndMerklConfiguration() public view {
-        assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_SETTLEMENT(), settlement);
-        assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_VAULT_RELAYER(), relayer);
-        assertEq(IMerklClaimer(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
+    function test_OwnerReturnsCurator() public view {
         assertEq(AaveV3Adapter(address(adapter)).owner(), curator);
-        assertEq(ICoWSwapConverter(address(adapter)).converters(0), curator);
-    }
-
-    function test_ConvertRejectsATokenInput() public {
-        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
-        ICoWSwapConverter(address(adapter)).convert(address(aToken), 1, address(assetToken), "");
     }
 
     function test_AllocateAndDeallocateThroughAave() public {
@@ -182,10 +166,8 @@ contract AaveV3AdapterTest is Test {
         adapter.requestDeallocate(1);
     }
 
-    function _initData() internal view returns (bytes memory) {
-        address[] memory converters = new address[](1);
-        converters[0] = curator;
-        return abi.encode(IAaveV3Adapter.InitParams({converters: converters}));
+    function _initData() internal pure returns (bytes memory) {
+        return "";
     }
 }
 

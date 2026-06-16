@@ -81,18 +81,8 @@ contract DeploySingleTokenMorphoVaultTestnetScript is Script {
         data.morphoVault = address(new MockMorphoVaultHarness(config.asset, config.morphoAdapterRegistry));
         MockMorphoVaultFactory(config.morphoVaultFactory).setVault(data.morphoVault, true);
 
-        address[] memory converters = new address[](0);
         data.morphoAdapter = AdapterFactory(config.morphoAdapterFactory)
-            .create(
-                1,
-                config.owner,
-                abi.encode(
-                    data.vault,
-                    abi.encode(
-                        IMorphoVaultV2Adapter.InitParams({morphoVault: data.morphoVault, converters: converters})
-                    )
-                )
-            );
+            .create(1, config.owner, abi.encode(data.vault, abi.encode(data.morphoVault)));
 
         IAdapterRegistry(config.adapterRegistry).setWhitelistedStatus(data.vault, data.morphoAdapter, true);
         IUniversalDelegator(data.delegator).addAdapter(data.morphoAdapter);

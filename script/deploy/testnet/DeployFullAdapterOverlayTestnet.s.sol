@@ -9,9 +9,7 @@ import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
 import {MorphoVaultV2Adapter} from "../../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
 
 import {IAdapterRegistry} from "../../../src/interfaces/IAdapterRegistry.sol";
-import {IAaveV3Adapter} from "../../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
-import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IUniversalDelegator, MAX_SHARE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 
 import {
@@ -159,14 +157,8 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
         overlay.aUsdBurner = _createBurner(overlay.burnerRouterFactory, params.owner, params.aUsd, params.owner);
 
         overlay.appAdapterFactory = address(new AdapterFactory(params.owner));
-        overlay.appAdapterImplementation = address(
-            new AppAdapter(
-                params.vaultFactory,
-                overlay.appAdapterFactory,
-                overlay.cowSwapSettlement,
-                params.networkMiddlewareService
-            )
-        );
+        overlay.appAdapterImplementation =
+            address(new AppAdapter(params.vaultFactory, overlay.appAdapterFactory, params.networkMiddlewareService));
         AdapterFactory(overlay.appAdapterFactory).whitelist(overlay.appAdapterImplementation);
 
         overlay.usdcAppAdapter =
@@ -193,15 +185,8 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
         MockAavePoolDataProvider(overlay.mockAaveDataProvider).setReserveToken(params.aUsd, overlay.mockAaveAusdAToken);
 
         overlay.aaveAdapterFactory = address(new AdapterFactory(params.owner));
-        overlay.aaveAdapterImplementation = address(
-            new AaveV3Adapter(
-                overlay.mockAavePool,
-                params.vaultFactory,
-                overlay.aaveAdapterFactory,
-                params.owner,
-                overlay.cowSwapSettlement
-            )
-        );
+        overlay.aaveAdapterImplementation =
+            address(new AaveV3Adapter(overlay.mockAavePool, params.vaultFactory, overlay.aaveAdapterFactory));
         AdapterFactory(overlay.aaveAdapterFactory).whitelist(overlay.aaveAdapterImplementation);
 
         overlay.usdcAaveAdapter = _createAaveAdapter(overlay.aaveAdapterFactory, params.owner, params.usdcVault);
@@ -227,8 +212,6 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
             new MorphoVaultV2Adapter(
                 params.vaultFactory,
                 overlay.morphoAdapterFactory,
-                params.owner,
-                overlay.cowSwapSettlement,
                 overlay.mockMorphoVaultFactory,
                 overlay.mockMorphoAdapterRegistry
             )
@@ -273,7 +256,6 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
         address burner,
         uint96 subnetworkId
     ) internal returns (address) {
-        address[] memory converters = new address[](0);
         return AdapterFactory(factory)
             .create(
                 1,
@@ -285,7 +267,6 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
                         burner: burner,
                         duration: 1 days,
                         operator: params.marketMaker,
-                        converters: converters,
                         subnetwork: _testnetSubnetwork(params.owner, subnetworkId)
                     })
                     )
@@ -294,25 +275,14 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
     }
 
     function _createAaveAdapter(address factory, address owner, address vault) internal returns (address) {
-        address[] memory converters = new address[](0);
-        return AdapterFactory(factory)
-            .create(1, owner, abi.encode(vault, abi.encode(IAaveV3Adapter.InitParams({converters: converters}))));
+        return AdapterFactory(factory).create(1, owner, abi.encode(vault, ""));
     }
 
     function _createMorphoAdapter(address factory, address owner, address vault, address morphoVault)
         internal
         returns (address)
     {
-        address[] memory converters = new address[](0);
-        return AdapterFactory(factory)
-            .create(
-                1,
-                owner,
-                abi.encode(
-                    vault,
-                    abi.encode(IMorphoVaultV2Adapter.InitParams({morphoVault: morphoVault, converters: converters}))
-                )
-            );
+        return AdapterFactory(factory).create(1, owner, abi.encode(vault, abi.encode(morphoVault)));
     }
 
     function _attachAdapter(DeployParams memory params, address vault, address delegator, address adapter) internal {
