@@ -9,7 +9,6 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import {IAdapterRegistry} from "../../src/interfaces/IAdapterRegistry.sol";
 import {IRewards} from "../../src/interfaces/vault/IRewards.sol";
 import {MockMorphoVault} from "./MockMorphoVault.sol";
 
@@ -64,15 +63,35 @@ contract MockMorphoVaultFactoryUpgradeable is Initializable {
     }
 }
 
-contract MockMorphoAdapterRegistryUpgradeable is Initializable, OwnableUpgradeable, IAdapterRegistry {
-    mapping(address vault => mapping(address adapter => bool status)) public isWhitelisted;
+interface IMorphoAdapterRegistry {
+    function isInRegistry(address account) external view returns (bool);
+}
+
+contract MockMorphoAdapterRegistry is IMorphoAdapterRegistry {
+    mapping(address account => bool status) internal _isInRegistry;
+
+    function isInRegistry(address account) external view override returns (bool) {
+        return _isInRegistry[account];
+    }
+
+    function setInRegistry(address account, bool status) external {
+        _isInRegistry[account] = status;
+    }
+}
+
+contract MockMorphoAdapterRegistryUpgradeable is Initializable, OwnableUpgradeable, IMorphoAdapterRegistry {
+    mapping(address account => bool status) internal _isInRegistry;
 
     function initialize(address owner_) external initializer {
         __Ownable_init(owner_);
     }
 
-    function setWhitelistedStatus(address vault, address adapter, bool status) external onlyOwner {
-        isWhitelisted[vault][adapter] = status;
+    function isInRegistry(address account) external view override returns (bool) {
+        return _isInRegistry[account];
+    }
+
+    function setInRegistry(address account, bool status) external {
+        _isInRegistry[account] = status;
     }
 }
 

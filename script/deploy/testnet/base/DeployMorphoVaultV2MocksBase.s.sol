@@ -71,9 +71,11 @@ contract DeployMorphoVaultV2MocksBaseScript is Script {
         (data.morphoVaultImplementation, data.morphoVault) =
             MockMorphoVaultFactoryUpgradeable(data.morphoVaultFactory).createVault(data.collateral);
         data.morphoVaultProxyAdmin = _proxyAdmin(data.morphoVault);
+        MockMorphoAdapterRegistryUpgradeable(data.morphoAdapterRegistry).setInRegistry(data.morphoVault, true);
         _stopBroadcast();
 
         assert(MockMorphoAdapterRegistryUpgradeable(data.morphoAdapterRegistry).owner() == params.adapterRegistryOwner);
+        assert(MockMorphoAdapterRegistryUpgradeable(data.morphoAdapterRegistry).isInRegistry(data.morphoVault));
         assert(MockMorphoVaultFactoryUpgradeable(data.morphoVaultFactory).isVaultV2(data.morphoVault));
 
         Logs.log("Deployed MorphoVaultV2 mocks");

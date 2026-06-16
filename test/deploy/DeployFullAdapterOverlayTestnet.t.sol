@@ -125,6 +125,8 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
 
         assertTrue(MockMorphoVaultFactory(deployed.mockMorphoVaultFactory).isVaultV2(deployed.mockMorphoVaultUsdc));
         assertTrue(MockMorphoVaultFactory(deployed.mockMorphoVaultFactory).isVaultV2(deployed.mockMorphoVaultAusd));
+        _assertMorphoRegistryContains(deployed.mockMorphoAdapterRegistry, deployed.mockMorphoVaultUsdc);
+        _assertMorphoRegistryContains(deployed.mockMorphoAdapterRegistry, deployed.mockMorphoVaultAusd);
         assertEq(IMorphoVaultV2Adapter(deployed.usdcMorphoAdapter).morphoVault(), deployed.mockMorphoVaultUsdc);
         assertEq(IMorphoVaultV2Adapter(deployed.aUsdMorphoAdapter).morphoVault(), deployed.mockMorphoVaultAusd);
 
@@ -172,5 +174,12 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
     function _assertLimits(address delegator, address adapter) internal view {
         assertEq(IUniversalDelegator(delegator).absoluteLimitOf(adapter), type(uint128).max);
         assertEq(IUniversalDelegator(delegator).shareLimitOf(adapter), MAX_SHARE);
+    }
+
+    function _assertMorphoRegistryContains(address registry, address account) internal view {
+        (bool success, bytes memory data) =
+            registry.staticcall(abi.encodeWithSignature("isInRegistry(address)", account));
+        assertTrue(success);
+        assertTrue(abi.decode(data, (bool)));
     }
 }

@@ -3,7 +3,6 @@ pragma solidity ^0.8.28;
 
 import {Script} from "forge-std/Script.sol";
 
-import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
 import {AaveV3Adapter} from "../../../src/contracts/adapters/AaveV3Adapter.sol";
 import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
 import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
@@ -20,6 +19,7 @@ import {
     MockAavePool,
     MockAavePoolAddressesProvider,
     MockAavePoolDataProvider,
+    MockMorphoAdapterRegistry,
     MockMorphoVaultFactory,
     MockMorphoVaultHarness
 } from "../../../test/mocks/HoodiScenarioProtocolMocks.sol";
@@ -211,12 +211,14 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
     }
 
     function _deployMorphoStack(DeployParams memory params, OverlayDeployments memory overlay) internal {
-        overlay.mockMorphoAdapterRegistry = address(new AdapterRegistry(params.owner));
+        overlay.mockMorphoAdapterRegistry = address(new MockMorphoAdapterRegistry());
         overlay.mockMorphoVaultFactory = address(new MockMorphoVaultFactory());
         overlay.mockMorphoVaultUsdc =
             address(new MockMorphoVaultHarness(params.usdc, overlay.mockMorphoAdapterRegistry));
         overlay.mockMorphoVaultAusd =
             address(new MockMorphoVaultHarness(params.aUsd, overlay.mockMorphoAdapterRegistry));
+        MockMorphoAdapterRegistry(overlay.mockMorphoAdapterRegistry).setInRegistry(overlay.mockMorphoVaultUsdc, true);
+        MockMorphoAdapterRegistry(overlay.mockMorphoAdapterRegistry).setInRegistry(overlay.mockMorphoVaultAusd, true);
         MockMorphoVaultFactory(overlay.mockMorphoVaultFactory).setVault(overlay.mockMorphoVaultUsdc, true);
         MockMorphoVaultFactory(overlay.mockMorphoVaultFactory).setVault(overlay.mockMorphoVaultAusd, true);
 

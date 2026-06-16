@@ -9,7 +9,6 @@ import {TestnetVaultFactory} from "./TestnetVaultFactory.sol";
 import {Logs} from "../../utils/Logs.sol";
 import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
-import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
 import {AaveV3Adapter} from "../../../src/contracts/adapters/AaveV3Adapter.sol";
 import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
 import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
@@ -38,6 +37,7 @@ import {
     MockAavePool,
     MockAavePoolAddressesProvider,
     MockAavePoolDataProvider,
+    MockMorphoAdapterRegistry,
     MockMorphoVaultFactory,
     MockMorphoVaultHarness
 } from "../../../test/mocks/HoodiScenarioProtocolMocks.sol";
@@ -464,12 +464,16 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         LiquidLaneDeployments memory liquidLane,
         FullAdapterDeployments memory fullAdapters
     ) internal {
-        fullAdapters.mockMorphoAdapterRegistry = address(new AdapterRegistry(params.owner));
+        fullAdapters.mockMorphoAdapterRegistry = address(new MockMorphoAdapterRegistry());
         fullAdapters.mockMorphoVaultFactory = address(new MockMorphoVaultFactory());
         fullAdapters.mockMorphoVaultUsdc =
             address(new MockMorphoVaultHarness(tokens.usdc, fullAdapters.mockMorphoAdapterRegistry));
         fullAdapters.mockMorphoVaultAusd =
             address(new MockMorphoVaultHarness(tokens.aUsd, fullAdapters.mockMorphoAdapterRegistry));
+        MockMorphoAdapterRegistry(fullAdapters.mockMorphoAdapterRegistry)
+            .setInRegistry(fullAdapters.mockMorphoVaultUsdc, true);
+        MockMorphoAdapterRegistry(fullAdapters.mockMorphoAdapterRegistry)
+            .setInRegistry(fullAdapters.mockMorphoVaultAusd, true);
         MockMorphoVaultFactory(fullAdapters.mockMorphoVaultFactory).setVault(fullAdapters.mockMorphoVaultUsdc, true);
         MockMorphoVaultFactory(fullAdapters.mockMorphoVaultFactory).setVault(fullAdapters.mockMorphoVaultAusd, true);
 

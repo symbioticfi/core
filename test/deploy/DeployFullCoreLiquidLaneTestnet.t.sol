@@ -278,6 +278,12 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
             MockMorphoVaultFactory(data.fullAdapters.mockMorphoVaultFactory)
                 .isVaultV2(data.fullAdapters.mockMorphoVaultAusd)
         );
+        _assertMorphoRegistryContains(
+            data.fullAdapters.mockMorphoAdapterRegistry, data.fullAdapters.mockMorphoVaultUsdc
+        );
+        _assertMorphoRegistryContains(
+            data.fullAdapters.mockMorphoAdapterRegistry, data.fullAdapters.mockMorphoVaultAusd
+        );
         assertEq(
             IMorphoVaultV2Adapter(data.fullAdapters.usdcMorphoAdapter).morphoVault(),
             data.fullAdapters.mockMorphoVaultUsdc
@@ -332,6 +338,13 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
     function _assertDelegatorLimit(address delegator, address adapter, uint256 limit) internal view {
         assertEq(IUniversalDelegator(delegator).absoluteLimitOf(adapter), limit);
         assertEq(IUniversalDelegator(delegator).shareLimitOf(adapter), MAX_SHARE);
+    }
+
+    function _assertMorphoRegistryContains(address registry, address account) internal view {
+        (bool success, bytes memory data) =
+            registry.staticcall(abi.encodeWithSignature("isInRegistry(address)", account));
+        assertTrue(success);
+        assertTrue(abi.decode(data, (bool)));
     }
 
     function _assertVault(address vault, address asset, address delegator) internal view {
