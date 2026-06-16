@@ -6,11 +6,11 @@ import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 /// @title MigratableEntity
 /// @notice Base contract for controlled upgradeable entity migration lifecycle.
-abstract contract MigratableEntity is Initializable, OwnableUpgradeable, ReentrancyGuard, IMigratableEntity {
+abstract contract MigratableEntity is Initializable, OwnableUpgradeable, ReentrancyGuardTransient, IMigratableEntity {
     /// @inheritdoc IMigratableEntity
     address public immutable FACTORY;
 

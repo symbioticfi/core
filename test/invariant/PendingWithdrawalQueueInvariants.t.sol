@@ -33,11 +33,21 @@ contract PendingWithdrawalQueueInvariantsTest is Test {
         targetContract(address(handler));
     }
 
+    function test_DepositWhilePendingDoesNotRevert() public {
+        handler.depositWhilePending(1);
+
+        assertEq(handler.unexpectedActionRevertSelector(), bytes4(0));
+    }
+
     function invariant_NoAllocationWhileWithdrawalQueueHasPendingAssets() public view {
         assertEq(handler.allocatedWhilePending(), 0);
     }
 
     function invariant_NoInstantWithdrawalWhileWithdrawalQueueHasPendingAssets() public view {
         assertEq(handler.withdrawnWhilePending(), 0);
+    }
+
+    function invariant_PendingQueueMaintenanceActionsDoNotRevert() public view {
+        assertEq(handler.unexpectedActionRevertSelector(), bytes4(0));
     }
 }

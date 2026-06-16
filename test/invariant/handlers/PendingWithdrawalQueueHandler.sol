@@ -74,6 +74,7 @@ contract PendingWithdrawalQueueHandler is Test {
 
     uint256 public allocatedWhilePending;
     uint256 public withdrawnWhilePending;
+    bytes4 public unexpectedActionRevertSelector;
 
     VaultFactory internal vaultFactory;
     DelegatorFactory internal delegatorFactory;
@@ -104,7 +105,10 @@ contract PendingWithdrawalQueueHandler is Test {
         deal(address(collateral), DEPOSITOR, amount);
         vm.startPrank(DEPOSITOR);
         collateral.approve(address(vault), amount);
-        vault.deposit(amount, DEPOSITOR);
+        try vault.deposit(amount, DEPOSITOR) {}
+        catch {
+            _recordUnexpectedActionRevert(this.depositWhilePending.selector);
+        }
         vm.stopPrank();
 
         _accountAllocationIfStillPending(adapterAssetsBefore);
@@ -123,7 +127,10 @@ contract PendingWithdrawalQueueHandler is Test {
         deal(address(collateral), DEPOSITOR, assets);
         vm.startPrank(DEPOSITOR);
         collateral.approve(address(vault), assets);
-        try vault.mint(shares, DEPOSITOR) {} catch {}
+        try vault.mint(shares, DEPOSITOR) {}
+        catch {
+            _recordUnexpectedActionRevert(this.mintWhilePending.selector);
+        }
         vm.stopPrank();
 
         _accountAllocationIfStillPending(adapterAssetsBefore);
@@ -139,7 +146,12 @@ contract PendingWithdrawalQueueHandler is Test {
         uint256 amount = _pendingBound(amountSeed, pendingBefore);
         _addVaultFreeAssets(amount);
 
-        uint256 allocated = delegator.allocate(address(adapter), amount);
+        uint256 allocated;
+        try delegator.allocate(address(adapter), amount) returns (uint256 allocated_) {
+            allocated = allocated_;
+        } catch {
+            _recordUnexpectedActionRevert(this.allocateWhilePending.selector);
+        }
         if (queue.pendingAssets() > 0) {
             allocatedWhilePending += allocated;
         }
@@ -156,7 +168,12 @@ contract PendingWithdrawalQueueHandler is Test {
         uint256 amount = _pendingBound(amountSeed, pendingBefore);
         _addVaultFreeAssets(amount);
 
-        uint256 allocated = delegator.allocateAll(type(uint256).max);
+        uint256 allocated;
+        try delegator.allocateAll(type(uint256).max) returns (uint256 allocated_) {
+            allocated = allocated_;
+        } catch {
+            _recordUnexpectedActionRevert(this.allocateAllWhilePending.selector);
+        }
         if (queue.pendingAssets() > 0) {
             allocatedWhilePending += allocated;
         }
@@ -220,7 +237,10 @@ contract PendingWithdrawalQueueHandler is Test {
         uint256 shares = bound(sharesSeed, 1, balance);
         vm.startPrank(BOB);
         vault.approve(address(queue), shares);
-        try queue.requestRedeem(shares, BOB) {} catch {}
+        try queue.requestRedeem(shares, BOB) {}
+        catch {
+            _recordUnexpectedActionRevert(this.requestRedeemWhilePending.selector);
+        }
         vm.stopPrank();
     }
 
@@ -231,7 +251,10 @@ contract PendingWithdrawalQueueHandler is Test {
         }
 
         _addVaultFreeAssets(_pendingBound(freeAssetsSeed, pendingBefore));
-        try queue.fill() {} catch {}
+        try queue.fill() {}
+        catch {
+            _recordUnexpectedActionRevert(this.fillQueueWhilePending.selector);
+        }
     }
 
     function claimQueueWhilePending() external {
@@ -241,7 +264,10 @@ contract PendingWithdrawalQueueHandler is Test {
 
         try queue.ownerOf(0) returns (address owner) {
             vm.prank(owner);
-            try queue.claim(0, owner) {} catch {}
+            try queue.claim(0, owner) {}
+            catch {
+                _recordUnexpectedActionRevert(this.claimQueueWhilePending.selector);
+            }
         } catch {}
     }
 
@@ -250,7 +276,10 @@ contract PendingWithdrawalQueueHandler is Test {
             return;
         }
 
-        try delegator.sweepPending() {} catch {}
+        try delegator.sweepPending() {}
+        catch {
+            _recordUnexpectedActionRevert(this.sweepPendingWhilePending.selector);
+        }
     }
 
     function setLimitsWhilePending(uint256 assetsSeed, uint256 shareSeed) external {
@@ -260,7 +289,10 @@ contract PendingWithdrawalQueueHandler is Test {
 
         uint256 assets = bound(assetsSeed, 0, adapter.totalAssets() + MAX_ACTION_AMOUNT);
         uint256 share = bound(shareSeed, 0, MAX_SHARE);
-        try delegator.setLimits(address(adapter), assets, share) {} catch {}
+        try delegator.setLimits(address(adapter), assets, share) {}
+        catch {
+            _recordUnexpectedActionRevert(this.setLimitsWhilePending.selector);
+        }
     }
 
     function setAutoAllocateWhilePending(uint256 enabledSeed) external {
@@ -272,7 +304,10 @@ contract PendingWithdrawalQueueHandler is Test {
         if (adapters.length != 0) {
             adapters[0] = address(adapter);
         }
-        try delegator.setAutoAllocateAdapters(adapters) {} catch {}
+        try delegator.setAutoAllocateAdapters(adapters) {}
+        catch {
+            _recordUnexpectedActionRevert(this.setAutoAllocateWhilePending.selector);
+        }
     }
 
     function redeemWhilePending(uint256 sharesSeed, uint256 freeAssetsSeed) external {
@@ -475,6 +510,12 @@ contract PendingWithdrawalQueueHandler is Test {
     function _accountWithdrawalIfStillPending(uint256 bobBalanceBefore) internal {
         if (queue.pendingAssets() > 0 && collateral.balanceOf(BOB) > bobBalanceBefore) {
             withdrawnWhilePending += collateral.balanceOf(BOB) - bobBalanceBefore;
+        }
+    }
+
+    function _recordUnexpectedActionRevert(bytes4 selector) internal {
+        if (unexpectedActionRevertSelector == bytes4(0)) {
+            unexpectedActionRevertSelector = selector;
         }
     }
 }

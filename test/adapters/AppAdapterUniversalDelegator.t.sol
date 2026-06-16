@@ -25,6 +25,8 @@ import {
 import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
 import {Token} from "../mocks/Token.sol";
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 contract AppAdapterUniversalMigratableEntityMock is MigratableEntity {
     constructor(address factory) MigratableEntity(factory) {}
 }
@@ -45,6 +47,73 @@ contract AppAdapterUniversalNetworkMiddlewareServiceMock {
     function setMiddleware(address network, address middleware_) external {
         middleware[network] = middleware_;
     }
+}
+
+contract ReentrantDeallocateAdapterMock {
+    address public immutable asset;
+    address public immutable vault;
+    address public immutable attacker;
+
+    uint256 public totalAssets;
+    uint256 public sweepFreeAssets;
+    uint256 public reentrantDepositAssets;
+    uint256 public observedVaultAssetsDuringCallback;
+    uint256 public previewedReentrantShares;
+    uint256 public mintedReentrantShares;
+    bool public reentrantDepositAttempted;
+    bool public reentrantDepositSucceeded;
+    bytes public reentrantRevertData;
+
+    bool internal _deallocating;
+
+    constructor(address asset_, address vault_, address attacker_) {
+        asset = asset_;
+        vault = vault_;
+        attacker = attacker_;
+
+        IERC20(asset_).approve(vault_, type(uint256).max);
+    }
+
+    function arm(uint256 sweepFreeAssets_, uint256 reentrantDepositAssets_) external {
+        sweepFreeAssets = sweepFreeAssets_;
+        reentrantDepositAssets = reentrantDepositAssets_;
+    }
+
+    function allocatable() external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function freeAssets() external view returns (uint256) {
+        return _deallocating ? 0 : sweepFreeAssets;
+    }
+
+    function allocate(uint256 assets) external returns (uint256 allocated) {
+        totalAssets += assets;
+        return assets;
+    }
+
+    function deallocate(uint256 assets) external returns (uint256 deallocated) {
+        deallocated = assets < totalAssets ? assets : totalAssets;
+        totalAssets -= deallocated;
+        sweepFreeAssets = sweepFreeAssets > deallocated ? sweepFreeAssets - deallocated : 0;
+
+        observedVaultAssetsDuringCallback = VaultV2(vault).totalAssets();
+        previewedReentrantShares = VaultV2(vault).previewDeposit(reentrantDepositAssets);
+
+        if (!reentrantDepositAttempted && reentrantDepositAssets > 0) {
+            reentrantDepositAttempted = true;
+            _deallocating = true;
+            try VaultV2(vault).deposit(reentrantDepositAssets, attacker) returns (uint256 shares) {
+                reentrantDepositSucceeded = true;
+                mintedReentrantShares = shares;
+            } catch (bytes memory data) {
+                reentrantRevertData = data;
+            }
+            _deallocating = false;
+        }
+    }
+
+    function requestDeallocate(uint256) external {}
 }
 
 contract AppAdapterUniversalDelegatorTest is Test {
@@ -590,6 +659,88 @@ contract AppAdapterUniversalDelegatorTest is Test {
         assertEq(assetToken.balanceOf(address(this)), receiverBalanceBefore + expectedAssets);
     }
 
+    function test_DepositSweepsPendingQueueWithVaultFreeAssets() public {
+        WithdrawalQueue queue = _preparePendingQueueWithYield();
+        uint256 pendingSharesBefore = queue.pendingShares();
+        uint256 queueBalanceBefore = assetToken.balanceOf(address(queue));
+        uint256 assets = 50;
+
+        assetToken.approve(address(vault), assets);
+        uint256 mintedShares = vault.deposit(assets, address(this));
+
+        assertGt(mintedShares, 0);
+        _assertPendingQueueFilled(queue, pendingSharesBefore, queueBalanceBefore);
+    }
+
+    function test_MintSweepsPendingQueueWithVaultFreeAssets() public {
+        WithdrawalQueue queue = _preparePendingQueueWithYield();
+        uint256 pendingSharesBefore = queue.pendingShares();
+        uint256 queueBalanceBefore = assetToken.balanceOf(address(queue));
+        uint256 shares = 10;
+        uint256 expectedAssets = vault.previewMint(shares);
+
+        assetToken.approve(address(vault), expectedAssets);
+        uint256 assets = vault.mint(shares, address(this));
+
+        assertEq(assets, expectedAssets);
+        _assertPendingQueueFilled(queue, pendingSharesBefore, queueBalanceBefore);
+    }
+
+    function test_SweepPendingFillsQueueWithVaultFreeAssets() public {
+        WithdrawalQueue queue = _preparePendingQueueWithYield();
+        uint256 pendingSharesBefore = queue.pendingShares();
+        uint256 queueBalanceBefore = assetToken.balanceOf(address(queue));
+
+        uint256 pendingAssets = delegator.sweepPending();
+
+        assertEq(pendingAssets, 0);
+        _assertPendingQueueFilled(queue, pendingSharesBefore, queueBalanceBefore);
+    }
+
+    function test_DirectFillFillsQueueWithVaultFreeAssets() public {
+        WithdrawalQueue queue = _preparePendingQueueWithYield();
+        uint256 pendingSharesBefore = queue.pendingShares();
+        uint256 queueBalanceBefore = assetToken.balanceOf(address(queue));
+
+        (uint256 assetsFilled, uint256 sharesFilled) = queue.fill();
+
+        assertGt(assetsFilled, 0);
+        assertEq(sharesFilled, pendingSharesBefore);
+        _assertPendingQueueFilled(queue, pendingSharesBefore, queueBalanceBefore);
+    }
+
+    function test_SweepPendingBlocksReentrantDepositDuringAdapterDeallocation() public {
+        address attacker = makeAddr("attacker");
+        VaultV2 targetVault = _createVault();
+        UniversalDelegator targetDelegator = _createDelegator(targetVault);
+        targetVault.setDelegator(address(targetDelegator));
+
+        assetToken.approve(address(targetVault), 100);
+        targetVault.deposit(100, address(this));
+
+        ReentrantDeallocateAdapterMock reentrantAdapter =
+            new ReentrantDeallocateAdapterMock(address(assetToken), address(targetVault), attacker);
+        adapterRegistry.setWhitelistedStatus(address(targetVault), address(reentrantAdapter), true);
+        targetDelegator.addAdapter(address(reentrantAdapter));
+        targetDelegator.setLimits(address(reentrantAdapter), type(uint256).max, MAX_SHARE);
+        targetDelegator.allocate(address(reentrantAdapter), 100);
+
+        uint256 reentrantDepositAssets = 100;
+        uint256 deallocatedAssets = 50;
+        assetToken.transfer(address(reentrantAdapter), reentrantDepositAssets);
+        reentrantAdapter.arm(deallocatedAssets, reentrantDepositAssets);
+
+        uint256 pendingAssets = targetDelegator.sweepPending();
+
+        assertEq(pendingAssets, 0);
+        assertTrue(reentrantAdapter.reentrantDepositAttempted());
+        assertFalse(reentrantAdapter.reentrantDepositSucceeded());
+        assertEq(targetVault.balanceOf(attacker), 0);
+        assertEq(reentrantAdapter.observedVaultAssetsDuringCallback(), 50);
+        assertGt(reentrantAdapter.previewedReentrantShares(), reentrantDepositAssets);
+        assertEq(_revertSelector(reentrantAdapter.reentrantRevertData()), _reentrancyGuardRevertSelector());
+    }
+
     function _requestAllocatedWithdrawal(uint256 assets)
         internal
         returns (WithdrawalQueue queue, uint256 tokenId, uint256 shares)
@@ -655,6 +806,28 @@ contract AppAdapterUniversalDelegatorTest is Test {
         delegator.sweepPending();
         assets = vault.previewRedeem(shares);
         assertTrue(vm.revertToState(snapshotId));
+    }
+
+    function _assertPendingQueueFilled(WithdrawalQueue queue, uint256 pendingSharesBefore, uint256 queueBalanceBefore)
+        internal
+        view
+    {
+        assertEq(queue.pendingShares(), 0);
+        assertEq(queue.totalFilled(), pendingSharesBefore);
+        assertGt(assetToken.balanceOf(address(queue)), queueBalanceBefore);
+    }
+
+    function _revertSelector(bytes memory data) internal pure returns (bytes4 selector) {
+        if (data.length < 4) {
+            return bytes4(0);
+        }
+        assembly {
+            selector := mload(add(data, 0x20))
+        }
+    }
+
+    function _reentrancyGuardRevertSelector() internal pure returns (bytes4) {
+        return bytes4(keccak256("ReentrancyGuardReentrantCall()"));
     }
 
     function _createVault() internal returns (VaultV2) {

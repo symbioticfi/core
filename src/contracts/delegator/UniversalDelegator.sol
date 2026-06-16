@@ -254,7 +254,7 @@ contract UniversalDelegator is
         nonReentrant
         returns (uint256 allocated)
     {
-        if (sweepPending() > 0) {
+        if (_sweepPending() > 0) {
             return 0;
         }
         return _allocate(adapter, assets);
@@ -262,7 +262,7 @@ contract UniversalDelegator is
 
     /// @inheritdoc IUniversalDelegator
     function allocateAll(uint256 assets) public onlyRole(ALLOCATE_ROLE) nonReentrant returns (uint256 allocated) {
-        if (sweepPending() > 0) {
+        if (_sweepPending() > 0) {
             return 0;
         }
         return _allocateAll(assets);
@@ -275,7 +275,7 @@ contract UniversalDelegator is
         nonReentrant
         returns (uint256 allocated)
     {
-        if (sweepPending() > 0) {
+        if (_sweepPending() > 0) {
             return 0;
         }
         uint256 toDeallocate = assets.saturatingSub(VaultV2(vault).freeAssets());
@@ -296,13 +296,13 @@ contract UniversalDelegator is
             revert InvalidAdapter();
         }
         deallocated = _deallocate(adapter, assets);
-        sweepPending();
+        _sweepPending();
     }
 
     /// @inheritdoc IUniversalDelegator
     function deallocateAll(uint256 assets) public onlyRole(DEALLOCATE_ROLE) nonReentrant returns (uint256 deallocated) {
         deallocated = _deallocateAll(assets);
-        sweepPending();
+        _sweepPending();
     }
 
     /// @inheritdoc IUniversalDelegator
@@ -312,7 +312,7 @@ contract UniversalDelegator is
         nonReentrant
         returns (uint256 deallocated)
     {
-        if (sweepPending() > 0) {
+        if (_sweepPending() > 0) {
             return 0;
         }
         return _deallocateAll(assets);
@@ -344,7 +344,7 @@ contract UniversalDelegator is
             shareLimitOf[adapter]
         );
 
-        sweepPending();
+        _sweepPending();
     }
 
     /* PUBLIC FUNCTIONS (ADAPTER) */
@@ -367,7 +367,7 @@ contract UniversalDelegator is
         }
 
         // Skip allocation while pending assets remain.
-        if (sweepPending() > 0) {
+        if (_sweepPending() > 0) {
             return;
         }
 
@@ -375,7 +375,7 @@ contract UniversalDelegator is
     }
 
     /// @inheritdoc IUniversalDelegator
-    function onWithdraw(uint256 assets) public nonReentrant {
+    function onWithdraw(uint256 assets) public {
         if (vault != msg.sender) {
             revert NotVault();
         }
@@ -386,7 +386,12 @@ contract UniversalDelegator is
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
 
     /// @inheritdoc IUniversalDelegator
-    function sweepPending() public returns (uint256 pendingAssets) {
+    function sweepPending() public nonReentrant returns (uint256) {
+        return _sweepPending();
+    }
+
+    /// @dev Internal sweep implementation used by guarded entry points and already-guarded delegator flows.
+    function _sweepPending() public returns (uint256 pendingAssets) {
         address withdrawalQueue = VaultV2(vault).withdrawalQueue();
 
         // Try to sweep free assets as much as possible.
