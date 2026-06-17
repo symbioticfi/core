@@ -337,7 +337,7 @@ contract VaultV2 is
     function _update(address from, address to, uint256 value) internal override {
         if (from == address(0)) {
             // Overflow check required: The rest of the code assumes that totalSupply never overflows
-            _totalSupply.push(uint48(block.timestamp), _totalSupply.latest() + value);
+            _totalSupply.push(block.timestamp, _totalSupply.latest() + value);
         } else {
             uint256 fromBalance = _balances[from].latest();
             if (fromBalance < value) {
@@ -345,19 +345,19 @@ contract VaultV2 is
             }
             unchecked {
                 // Overflow not possible: value <= fromBalance <= totalSupply.
-                _balances[from].push(uint48(block.timestamp), fromBalance - value);
+                _balances[from].push(block.timestamp, fromBalance - value);
             }
         }
 
         if (to == address(0)) {
             unchecked {
                 // Overflow not possible: value <= totalSupply or value <= fromBalance <= totalSupply.
-                _totalSupply.push(uint48(block.timestamp), _totalSupply.latest() - value);
+                _totalSupply.push(block.timestamp, _totalSupply.latest() - value);
             }
         } else {
             unchecked {
                 // Overflow not possible: balance + value is at most totalSupply, which we know fits into a uint256.
-                _balances[to].push(uint48(block.timestamp), _balances[to].latest() + value);
+                _balances[to].push(block.timestamp, _balances[to].latest() + value);
             }
         }
 

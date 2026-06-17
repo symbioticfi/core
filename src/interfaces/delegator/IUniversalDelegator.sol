@@ -7,7 +7,7 @@ uint64 constant UNIVERSAL_DELEGATOR_TYPE = 4;
 
 uint256 constant MAX_SHARE = 1e18;
 
-uint256 constant MAX_ADAPTERS = 50;
+uint256 constant MAX_ADAPTERS = 20;
 
 // keccak256("ALLOCATE_ROLE")
 bytes32 constant ALLOCATE_ROLE = 0x3e716b9e768f9140a805a7bd2ea8ed6273ee028841754af21433cf2650718e90;

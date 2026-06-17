@@ -80,21 +80,21 @@ contract AppAdapter is Adapter, IAppAdapter {
     function _slashable() internal view returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.latest()];
         return curStake.initialStake.saturatingSub(curStake.slashed.latest())
-            .saturatingSub(curStake.debt.upperLookupRecent(uint48(block.timestamp)));
+            .saturatingSub(curStake.debt.upperLookupRecent(block.timestamp));
     }
 
     /// @inheritdoc IAppAdapter
     function stake() public view virtual returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.latest()];
         return curStake.initialStake.saturatingSub(curStake.slashed.latest())
-            .saturatingSub(curStake.debt.upperLookupRecent(uint48(block.timestamp) + duration - 1));
+            .saturatingSub(curStake.debt.upperLookupRecent(block.timestamp + duration - 1));
     }
 
     /// @inheritdoc IAppAdapter
     function stakeAt(uint48 timestamp) public view virtual returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.upperLookupRecent(timestamp)];
         return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
-            .saturatingSub(curStake.debt.upperLookupRecent(uint48(timestamp) + duration - 1));
+            .saturatingSub(curStake.debt.upperLookupRecent(timestamp + duration - 1));
     }
 
     /* PUBLIC FUNCTIONS (NETWORK) */
@@ -114,7 +114,7 @@ contract AppAdapter is Adapter, IAppAdapter {
         }
 
         Stake storage curStake = _stakes[_stakePos.latest()];
-        curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + amount);
+        curStake.slashed.push(block.timestamp, curStake.slashed.latest() + amount);
 
         // Decrease the adapter limits to avoid new allocations.
         IUniversalDelegator(delegator).decreaseLimits(amount, 0);
@@ -137,7 +137,7 @@ contract AppAdapter is Adapter, IAppAdapter {
         amount = Math.min(amount, _slashable());
 
         Stake storage curStake = _stakes[_stakePos.latest()];
-        curStake.slashed.push(uint48(block.timestamp), curStake.slashed.latest() + amount);
+        curStake.slashed.push(block.timestamp, curStake.slashed.latest() + amount);
 
         address delegator = IVaultV2(vault).delegator();
         // Stop new allocations by setting absolute limit to adjusted slashable amount.
@@ -197,7 +197,7 @@ contract AppAdapter is Adapter, IAppAdapter {
 
             // Keep increasing debt when the request grows.
             if (curStake.debt.latest() < targetDebt) {
-                curStake.debt.push(uint48(block.timestamp) + duration, targetDebt);
+                curStake.debt.push(block.timestamp + duration, targetDebt);
             }
             // Keep existing debt when the request shrinks but cannot release the amount yet.
         }
