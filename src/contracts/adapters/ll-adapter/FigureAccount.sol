@@ -39,11 +39,15 @@ contract FigureAccount is CooldownAccount, IFigureAccount {
 
     /// @dev Values held PRIME by converting it to wYLDS before valuing wYLDS.
     function _tokenToRedeemToAssets(uint256 amount) internal view override returns (uint256) {
-        return IFigureYieldVault(ASYNC_REDEEM_VAULT).convertToAssets(IERC4626(TOKEN_TO_REDEEM).convertToAssets(amount));
+        amount = IERC4626(TOKEN_TO_REDEEM).convertToAssets(amount);
+        return _asset == ASYNC_REDEEM_VAULT ? amount : IFigureYieldVault(ASYNC_REDEEM_VAULT).convertToAssets(amount);
     }
 
     /// @dev Returns held wYLDS value plus pending async redemption request value in vault assets.
     function _totalAssets() internal view override returns (uint256) {
+        if (_asset == ASYNC_REDEEM_VAULT) {
+            return 0;
+        }
         return pendingAssets()
             + IFigureYieldVault(ASYNC_REDEEM_VAULT).convertToAssets(IERC20(ASYNC_REDEEM_VAULT).balanceOf(address(this)));
     }
@@ -61,6 +65,9 @@ contract FigureAccount is CooldownAccount, IFigureAccount {
         uint256 primeBalance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         if (primeBalance > 0) {
             IERC4626(TOKEN_TO_REDEEM).redeem(primeBalance, address(this), address(this));
+        }
+        if (_asset == ASYNC_REDEEM_VAULT) {
+            return;
         }
 
         uint256 balance = IERC20(ASYNC_REDEEM_VAULT).balanceOf(address(this));

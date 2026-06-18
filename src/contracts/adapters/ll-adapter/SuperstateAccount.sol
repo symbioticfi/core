@@ -22,7 +22,7 @@ contract SuperstateAccount is SettlementAccount, ISuperstateAccount {
         address tokenToRedeem,
         uint48 settlementDuration,
         address cowSwapSettlement
-    ) SettlementAccount(oracle, factory, cooldown, tokenToRedeem, 0, 0, 0, settlementDuration, cowSwapSettlement) {}
+    ) SettlementAccount(oracle, factory, cooldown, tokenToRedeem, 0, settlementDuration, cowSwapSettlement) {}
 
     /* INTERNAL FUNCTIONS */
 

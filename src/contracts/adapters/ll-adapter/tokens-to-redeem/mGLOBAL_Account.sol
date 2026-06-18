@@ -2,38 +2,32 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {MidasCutoffAccount} from "../MidasAccount.sol";
+import {CompCutoffMidasAccount} from "../MidasAccount.sol";
 import {MidasOracle} from "../oracles/MidasOracle.sol";
 import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 
 import {IMidasRedemptionVault} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 import {IMidasTokenAccount} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasTokenAccount.sol";
 
-contract mGLOBAL_Account is MidasCutoffAccount, IMidasTokenAccount {
-    uint48 internal constant TOKEN_COOLDOWN = 6 days;
+contract mGLOBAL_Account is CompCutoffMidasAccount, IMidasTokenAccount {
+    uint48 internal constant TOKEN_COOLDOWN = 36 hours;
+    uint48 internal constant TOKEN_PRE_CUTOFF_WINDOW = 3 days;
     uint48 public constant MAX_WITHDRAWAL_DELAY = 65 days;
-    /// @dev 2026-06-26 00:00:00 UTC monthly request cutoff; the cutoff day is an unpublished ops
-    ///      detail, so the schedule is owner-maintained thereafter.
-    uint48 internal constant TOKEN_INITIAL_CUTOFF = 1_782_432_000;
-    uint48 internal constant TOKEN_INITIAL_CUTOFF_PERIOD = 30 days;
-    uint48 internal constant TOKEN_VALUATION_DELAY = 5 days;
-    uint48 internal constant TOKEN_SETTLEMENT_DURATION = 45 days;
+    uint48 internal constant TOKEN_INITIAL_CUTOFF = 1_785_024_000;
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant TOKEN_ADDRESS = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x1e0fd66753198c7b8bA64edEe8d41D8628Bf20D7;
 
     constructor(address factory, address cowSwapSettlement)
-        MidasCutoffAccount(
+        CompCutoffMidasAccount(
             address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
             factory,
             TOKEN_COOLDOWN,
+            TOKEN_INITIAL_CUTOFF,
             TOKEN_ADDRESS,
+            TOKEN_PRE_CUTOFF_WINDOW,
             MAINNET_USDC,
             REDEMPTION_VAULT_ADDRESS,
-            TOKEN_INITIAL_CUTOFF,
-            TOKEN_INITIAL_CUTOFF_PERIOD,
-            TOKEN_VALUATION_DELAY,
-            TOKEN_SETTLEMENT_DURATION,
             cowSwapSettlement
         )
     {}

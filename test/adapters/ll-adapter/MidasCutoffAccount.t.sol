@@ -3,19 +3,22 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 
-import {MidasCutoffAccount} from "../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
+import {CompCutoffMidasAccount} from "../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MidasCutoffAccountTest is Test {
     uint48 internal constant COOLDOWN = 6 days;
-    uint48 internal constant PERIOD = 30 days;
-    uint48 internal constant VALUATION_DELAY = 5 days;
-    uint48 internal constant SETTLEMENT_DURATION = 45 days;
+    uint48 internal constant PRE_CUTOFF_WINDOW = 3 days;
+    uint48 internal constant JULY_20_2026 = 1_784_505_600;
+    uint48 internal constant JULY_23_2026 = 1_784_764_800;
+    uint48 internal constant JULY_26_2026 = 1_785_024_000;
+    uint48 internal constant JULY_26_2026_PLUS_ONE = 1_785_024_001;
+    uint48 internal constant AUGUST_23_2026 = 1_787_443_200;
+    uint48 internal constant AUGUST_26_2026 = 1_787_702_400;
 
     address internal adapter = makeAddr("adapter");
     address internal cowSettlement = makeAddr("cowSettlement");
@@ -26,12 +29,13 @@ contract MidasCutoffAccountTest is Test {
     MockAggregator internal aggregator;
     MockMidasDataFeed internal dataFeed;
     MockMidasRedemptionVault internal redemptionVault;
-    MidasCutoffAccount internal account;
+    CompCutoffMidasAccount internal account;
 
     uint48 internal CUTOFF;
 
     function setUp() public {
-        CUTOFF = uint48(vm.getBlockTimestamp()) + 10 days;
+        vm.warp(JULY_23_2026);
+        CUTOFF = JULY_26_2026;
 
         usdc = new MockERC20("USD Coin", "USDC", 6);
         mGlobal = new MockERC20("Midas Global", "mGLOBAL", 18);
@@ -43,82 +47,87 @@ contract MidasCutoffAccountTest is Test {
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
-        MidasCutoffAccount implementation = new MidasCutoffAccount(
+        CompCutoffMidasAccount implementation = new CompCutoffMidasAccount(
             address(new MidasOracle(address(dataFeed))),
             address(factory),
             COOLDOWN,
+            CUTOFF,
             address(mGlobal),
+            PRE_CUTOFF_WINDOW,
             address(usdc),
             address(redemptionVault),
-            CUTOFF,
-            PERIOD,
-            VALUATION_DELAY,
-            SETTLEMENT_DURATION,
             cowSettlement
         );
         factory.whitelist(address(implementation));
-        account = MidasCutoffAccount(
+        account = CompCutoffMidasAccount(
             factory.create(1, address(this), abi.encode(address(new MockVault(address(usdc))), adapter))
         );
     }
 
-    function testRequestRegistersCohortAndValuesLive() public {
+    function testRequestRegistersBucketAndValuesLive() public {
         mGlobal.mint(address(account), 100e18);
         account.sync();
 
         assertEq(account.requestIds(0), 0);
-        (uint128 amount, uint128 frozenRate, uint48 cohortCutoff) = account.pendingCohorts(0);
-        assertEq(amount, 100e18);
-        assertEq(frozenRate, 0);
-        assertEq(cohortCutoff, CUTOFF);
+        assertEq(account.requestToBucket(0), 0);
         assertEq(account.totalAssets(), 93e6);
 
-        // pending value tracks the live oracle until the cohort rate freezes
         aggregator.setRound(0.95e8, vm.getBlockTimestamp());
         assertEq(account.totalAssets(), 95e6);
     }
 
-    function testFreezesAtFirstPrintAfterPricingDate() public {
+    function testMonthlyBucketConversionUsesTwentySixthCutoff() public view {
+        uint48 julyBucketIndex = account.timestampToBucket(JULY_20_2026);
+
+        assertEq(julyBucketIndex, 0);
+        assertEq(account.bucketToTimestamp(julyBucketIndex), 0);
+        assertEq(account.timestampToBucket(JULY_26_2026 - 1), julyBucketIndex);
+        assertEq(account.timestampToBucket(JULY_26_2026), 1);
+        assertEq(account.timestampToBucket(JULY_26_2026_PLUS_ONE), 1);
+        assertEq(account.bucketToTimestamp(account.timestampToBucket(JULY_26_2026_PLUS_ONE)), JULY_26_2026);
+        assertEq(account.bucketToTimestamp(2), AUGUST_26_2026);
+    }
+
+    function testDoesNotRequestBeforePreCutoffWindow() public {
+        address caller = makeAddr("caller");
+
+        vm.warp(JULY_20_2026);
+        mGlobal.mint(address(account), 100e18);
+
+        vm.prank(caller);
+        account.sync();
+
+        vm.expectRevert();
+        account.requestIds(0);
+        assertEq(mGlobal.balanceOf(address(account)), 100e18);
+
+        vm.warp(JULY_23_2026);
+        vm.prank(caller);
+        account.sync();
+
+        assertEq(account.requestIds(0), 0);
+        assertEq(account.requestToBucket(0), 0);
+    }
+
+    function testUsesLastOracleReportBeforeNextBucket() public {
         mGlobal.mint(address(account), 100e18);
         account.sync();
 
-        uint256 pricingTime = uint256(CUTOFF) + VALUATION_DELAY;
-
-        // a print from before the pricing date cannot freeze the cohort: it stays live
-        vm.warp(pricingTime + 1);
-        account.sync();
-        (, uint128 frozenRate,) = account.pendingCohorts(0);
-        assertEq(frozenRate, 0);
-        aggregator.setRound(0.9e8, pricingTime - 1);
-        assertEq(account.totalAssets(), 90e6);
-
-        // the first print at/after the pricing date freezes the cohort rate on the next sync
-        vm.warp(pricingTime + 2);
-        aggregator.setRound(0.94e8, pricingTime + 2);
-        account.sync();
-        (, frozenRate,) = account.pendingCohorts(0);
-        assertEq(frozenRate, 0.94e18);
-
-        // later prints no longer move the cohort value
-        aggregator.setRound(1e8, vm.getBlockTimestamp());
+        aggregator.setRound(2, 0.94e8, uint256(CUTOFF) - 1);
+        aggregator.setRound(3, 0.97e8, uint256(CUTOFF) + 1);
         assertEq(account.totalAssets(), 94e6);
     }
 
-    function testWriteOffAndLateFulfillment() public {
+    function testFulfilledRequestNotDoubleCountedBeforeSync() public {
         mGlobal.mint(address(account), 100e18);
         account.sync();
 
-        // unsettled past the settlement duration: the pending value is written off
-        vm.warp(uint256(CUTOFF) + VALUATION_DELAY + SETTLEMENT_DURATION);
-        assertEq(account.totalAssets(), 0);
-
-        // a late fulfillment still clears the request and realizes the received assets
         redemptionVault.process(0);
         usdc.mint(address(account), 93e6);
+        assertEq(account.totalAssets(), 93e6);
+
         account.sync();
 
-        (uint128 amount,,) = account.pendingCohorts(0);
-        assertEq(amount, 0);
         vm.expectRevert();
         account.requestIds(0);
         assertEq(account.totalAssets(), 93e6);
@@ -128,55 +137,19 @@ contract MidasCutoffAccountTest is Test {
         mGlobal.mint(address(account), 100e18);
         account.sync();
 
-        // a request submitted after the cutoff joins the next cohort (owner sync bypasses the cooldown)
-        vm.warp(uint256(CUTOFF) + 1);
+        // a request submitted in the next pre-cutoff window joins the next monthly bucket
+        vm.warp(AUGUST_23_2026);
         mGlobal.mint(address(account), 50e18);
         account.sync();
 
         assertEq(account.requestIds(1), 1);
-        (uint128 amount,, uint48 cohortCutoff) = account.pendingCohorts(1);
-        assertEq(amount, 50e18);
-        assertEq(cohortCutoff, CUTOFF + PERIOD);
-        assertEq(account.cutoff(), CUTOFF + PERIOD);
+        assertEq(account.requestToBucket(1), 1);
+        assertEq(account.bucketToTimestamp(account.requestToBucket(1)), JULY_26_2026);
     }
 
-    function testSetCutoffScheduleOnlyOwner() public {
-        address nonOwner = makeAddr("nonOwner");
-        vm.prank(nonOwner);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonOwner));
-        account.setCutoffSchedule(CUTOFF + 7 days, 91 days);
-
-        account.setCutoffSchedule(CUTOFF + 7 days, 91 days);
-        assertEq(account.cutoff(), CUTOFF + 7 days);
-        assertEq(account.cutoffPeriod(), 91 days);
-    }
-
-    function testFulfilledRequestNotDoubleCountedBeforeSync() public {
-        mGlobal.mint(address(account), 100e18);
-        account.sync();
-
-        // freeze the cohort at 0.94
-        uint256 pricingTime = uint256(CUTOFF) + VALUATION_DELAY;
-        vm.warp(pricingTime + 1);
-        aggregator.setRound(0.94e8, pricingTime + 1);
-        account.sync();
-        (, uint128 frozenRate,) = account.pendingCohorts(0);
-        assertEq(frozenRate, 0.94e18);
-        assertEq(account.totalAssets(), 94e6);
-
-        // Midas pays the USDC and marks the request processed atomically; before the next sync the
-        // stale frozen cohort must not be counted on top of the received assets
-        redemptionVault.process(0);
-        usdc.mint(address(account), 94e6);
-        assertEq(account.totalAssets(), 94e6);
-
-        // sync clears the request id and the cohort entry without changing the value
-        account.sync();
-        vm.expectRevert();
-        account.requestIds(0);
-        (uint128 amount,,) = account.pendingCohorts(0);
-        assertEq(amount, 0);
-        assertEq(account.totalAssets(), 94e6);
+    function testCurrentBucketReturnsCurrentMonthlyBucket() public view {
+        assertEq(account.bucketToTimestamp(account.currentBucket()), 0);
+        assertEq(account.nextCutoff(), CUTOFF);
     }
 
     function testRegistersVaultStoredNetAmount() public {
@@ -187,8 +160,7 @@ contract MidasCutoffAccountTest is Test {
         // the vault stores the net-of-fee amount, which defines the payout and thus the cohort value
         (,,, uint256 amountMToken,,) = redemptionVault.redeemRequests(0);
         assertEq(amountMToken, 99e18);
-        (uint128 amount,,) = account.pendingCohorts(0);
-        assertEq(amount, 99e18);
+        assertEq(account.requestToBucket(0), 0);
         assertEq(account.totalAssets(), 92.07e6);
     }
 
@@ -203,13 +175,9 @@ contract MidasCutoffAccountTest is Test {
         // sync prunes the canceled cohort and re-registers the returned tokens under a new request
         account.sync();
 
-        (uint128 amount,,) = account.pendingCohorts(0);
-        assertEq(amount, 0);
         assertEq(mGlobal.balanceOf(address(account)), 0);
         assertEq(account.requestIds(0), 1);
-        (uint128 newAmount,, uint48 cohortCutoff) = account.pendingCohorts(1);
-        assertEq(newAmount, 100e18);
-        assertEq(cohortCutoff, CUTOFF);
+        assertEq(account.requestToBucket(1), 0);
 
         // no value lost or double-counted: the re-submitted request is valued back at 93e6
         assertEq(account.totalAssets(), 93e6);
@@ -241,12 +209,28 @@ contract MockERC20 is ERC20 {
 }
 
 contract MockAggregator {
+    uint8 public constant decimals = 8;
+
     int256 public answer;
+    uint80 public latestRoundId;
     uint256 public updatedAt;
 
+    struct Round {
+        int256 answer;
+        uint256 updatedAt;
+    }
+
+    mapping(uint80 roundId => Round round) internal _rounds;
+
     function setRound(int256 answer_, uint256 updatedAt_) public {
+        setRound(latestRoundId + 1, answer_, updatedAt_);
+    }
+
+    function setRound(uint80 roundId, int256 answer_, uint256 updatedAt_) public {
         answer = answer_;
         updatedAt = updatedAt_;
+        latestRoundId = roundId;
+        _rounds[roundId] = Round({answer: answer_, updatedAt: updatedAt_});
     }
 
     function latestRoundData()
@@ -254,7 +238,16 @@ contract MockAggregator {
         view
         returns (uint80 roundId, int256 answer_, uint256 startedAt, uint256 updatedAt_, uint80 answeredInRound)
     {
-        return (1, answer, updatedAt, updatedAt, 1);
+        return getRoundData(latestRoundId);
+    }
+
+    function getRoundData(uint80 roundId)
+        public
+        view
+        returns (uint80, int256 answer_, uint256 startedAt, uint256 updatedAt_, uint80 answeredInRound)
+    {
+        Round memory round = _rounds[roundId];
+        return (roundId, round.answer, round.updatedAt, round.updatedAt, roundId);
     }
 }
 

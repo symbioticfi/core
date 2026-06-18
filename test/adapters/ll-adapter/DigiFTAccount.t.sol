@@ -18,7 +18,7 @@ contract DigiFTAccountTest is AccountsBase {
         tokenToRedeem.mint(address(account), 50 ether);
 
         assertEq(account.SUB_RED_MANAGEMENT(), address(mockSubRedManagement));
-        assertEq(account.SETTLEMENT_DURATION(), DIGIFT_SETTLEMENT_DURATION);
+        assertEq(account.POST_CUTOFF_WINDOW(), DIGIFT_SETTLEMENT_DURATION);
         assertEq(account.COOLDOWN(), 0);
         assertEq(account.totalAssets(), 50e6);
 
@@ -94,14 +94,14 @@ contract DigiFTAccountTest is AccountsBase {
 
         address subAccount = account.subAccounts(0);
 
-        // first tranche (60%): swept but the subaccount is retained until value-covered
+        // first tranche (60%): retained in the subaccount until value-covered
         asset.mint(address(mockSubRedManagement), 30e6);
         mockSubRedManagement.settle(asset, subAccount, 30e6);
         account.sync();
 
-        assertEq(asset.balanceOf(address(account)), 30e6);
+        assertEq(asset.balanceOf(address(account)), 0);
+        assertEq(asset.balanceOf(subAccount), 30e6);
         assertEq(account.subAccounts(0), subAccount);
-        assertEq(account.receivedValues(uint160(subAccount)), 30e6);
         assertEq(account.totalAssets(), 50e6);
 
         // second tranche (40%): coverage met, subaccount released
@@ -110,6 +110,7 @@ contract DigiFTAccountTest is AccountsBase {
         account.sync();
 
         assertEq(asset.balanceOf(address(account)), 50e6);
+        assertEq(asset.balanceOf(subAccount), 0);
         assertEq(account.totalAssets(), 50e6);
 
         vm.expectRevert();
@@ -132,7 +133,8 @@ contract DigiFTAccountTest is AccountsBase {
         mockSubRedManagement.settle(asset, subAccount, 20e6);
         account.sync();
 
-        assertEq(asset.balanceOf(address(account)), 20e6);
+        assertEq(asset.balanceOf(address(account)), 0);
+        assertEq(asset.balanceOf(subAccount), 20e6);
         assertEq(account.totalAssets(), 50e6);
 
         // unsettled past the settlement duration: the remaining receivable is written off
@@ -144,19 +146,17 @@ contract DigiFTAccountTest is AccountsBase {
         account.sync();
 
         assertEq(asset.balanceOf(address(account)), 20e6);
-        assertEq(account.subAccounts(0), subAccount);
         assertEq(account.totalAssets(), 20e6);
+        vm.expectRevert();
+        account.subAccounts(0);
 
-        // a late settlement covering the frozen cohort value is still swept and releases
+        // a late settlement is still rescueable
         asset.mint(address(mockSubRedManagement), 30e6);
         mockSubRedManagement.settle(asset, subAccount, 30e6);
-        account.sync();
+        account.rescueSubAccount(subAccount);
 
         assertEq(asset.balanceOf(address(account)), 50e6);
         assertEq(account.totalAssets(), 50e6);
-
-        vm.expectRevert();
-        account.subAccounts(0);
     }
 
     function testDigiFTAccountRollingModeAssignsPerRequestCohortsAndRequestsEverySync() public {
@@ -166,16 +166,16 @@ contract DigiFTAccountTest is AccountsBase {
         MockDigiFTSubRedManagement mockSubRedManagement = new MockDigiFTSubRedManagement();
         DigiFTAccount account = _deployDigiFT(tokenToRedeem, asset, oracle, address(mockSubRedManagement));
 
-        assertEq(account.cutoff(), 0);
-        assertEq(account.cutoffPeriod(), 0);
+        assertEq(account.currentBucket(), vm.getBlockTimestamp());
 
         tokenToRedeem.mint(address(account), 30 ether);
         account.sync();
 
         address firstSubAccount = account.subAccounts(0);
-        (uint128 firstAmount,, uint48 firstCutoff) = account.pendingCohorts(uint160(firstSubAccount));
+        (uint256 firstAmount, uint48 firstBucketIndex) = account.pendingCutoffs(uint160(firstSubAccount));
         assertEq(firstAmount, 30 ether);
-        assertEq(firstCutoff, uint48(vm.getBlockTimestamp()));
+        assertEq(firstBucketIndex, vm.getBlockTimestamp());
+        assertEq(account.bucketToTimestamp(firstBucketIndex), vm.getBlockTimestamp());
 
         // no cooldown: a later token arrival is tendered on the very next sync under its own cohort
         vm.warp(vm.getBlockTimestamp() + 12 hours);
@@ -184,9 +184,9 @@ contract DigiFTAccountTest is AccountsBase {
 
         address secondSubAccount = account.subAccounts(1);
         assertNotEq(secondSubAccount, firstSubAccount);
-        (uint128 secondAmount,, uint48 secondCutoff) = account.pendingCohorts(uint160(secondSubAccount));
+        (uint256 secondAmount, uint48 secondBucketIndex) = account.pendingCutoffs(uint160(secondSubAccount));
         assertEq(secondAmount, 20 ether);
-        assertEq(secondCutoff, uint48(vm.getBlockTimestamp()));
+        assertEq(secondBucketIndex, vm.getBlockTimestamp());
         assertEq(mockSubRedManagement.redeemCalls(), 2);
         assertEq(account.totalAssets(), 50e6);
     }
@@ -266,7 +266,7 @@ contract DigiFTAccountTest is AccountsBase {
 
         assertEq(account.TOKEN_TO_REDEEM(), BEQTY_TOKEN_ADDRESS);
         assertEq(account.SUB_RED_MANAGEMENT(), BEQTY_SUB_RED_MANAGEMENT_ADDRESS);
-        assertEq(account.SETTLEMENT_DURATION(), 7 days);
+        assertEq(account.POST_CUTOFF_WINDOW(), 7 days);
     }
 }
 

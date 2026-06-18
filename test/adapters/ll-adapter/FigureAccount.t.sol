@@ -40,4 +40,23 @@ contract FigureAccountTest is AccountsBase {
         assertEq(asset.balanceOf(address(account)), 125e6);
         assertEq(account.totalAssets(), 125e6);
     }
+
+    function testFigureAccountKeepsWyldsWhenVaultAssetMatches() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);
+        MockPrimeToken prime = new MockPrimeToken(wylds, 125e4);
+        MockOracle oracle = new MockOracle(1e18);
+        PRIME_Account account = _deployPrime(prime, wylds, oracle);
+
+        prime.mint(address(account), 100e6);
+
+        assertEq(account.totalAssets(), 125e6);
+
+        account.sync();
+
+        assertEq(prime.balanceOf(address(account)), 0);
+        assertEq(wylds.balanceOf(address(account)), 125e6);
+        assertEq(wylds.balanceOf(address(wylds)), 0);
+        assertEq(account.totalAssets(), 125e6);
+    }
 }

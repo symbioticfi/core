@@ -2,12 +2,12 @@
 pragma solidity ^0.8.28;
 
 /// @dev Mainnet-fork suite: requires `ETH_RPC_URL` (skipped otherwise). Last updated for the
-///      cutoff-based redemptions change: mGLOBAL is now a `MidasCutoffAccount` with a
-///      2026-06-26 00:00 UTC cutoff anchor, 30-day period, 5-day valuation delay and 45-day
+///      cutoff-based redemptions change: mGLOBAL is now a `CompCutoffMidasAccount` with a
+///      26th-of-month cutoff, 3-day pre-cutoff window, 5-day valuation delay and 45-day
 ///      settlement duration. Re-run on fork after any change to the Midas accounts.
 import {Test} from "forge-std/Test.sol";
 
-import {MidasAccount, MidasCutoffAccount} from "../../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
+import {CompCutoffMidasAccount, MidasAccount} from "../../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {
     CarryTradeUSDTRYLeverage_Account
@@ -107,7 +107,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(account.REDEMPTION_TOKEN(), redemptionToken);
         assertEq(account.REDEMPTION_VAULT(), redemptionVault);
         assertEq(account.ORACLE(), implementation.ORACLE());
-        assertEq(account.COOLDOWN(), _cooldown(spec.maxWithdrawalDelay));
+        assertEq(account.COOLDOWN(), _cooldown(index, spec.maxWithdrawalDelay));
         assertEq(account.converters(0), address(this));
         assertEq(account.adapter(), adapter);
         assertEq(account.vault(), address(vault));
@@ -119,14 +119,9 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(IAccount(address(account)).totalAssets(), 0);
 
         if (keccak256(bytes(spec.symbol)) == keccak256("mGLOBAL")) {
-            // mGLOBAL is a MidasCutoffAccount: initialization applies the constructor cutoff schedule
-            // verbatim (2026-06-26 00:00 UTC anchor, 30-day period); rolling only happens on request
-            // registration, so these hold at any fork timestamp.
-            MidasCutoffAccount cutoffAccount = MidasCutoffAccount(address(account));
-            assertEq(cutoffAccount.cutoff(), 1_782_432_000);
-            assertEq(cutoffAccount.cutoffPeriod(), 30 days);
-            assertEq(cutoffAccount.VALUATION_DELAY(), 5 days);
-            assertEq(cutoffAccount.SETTLEMENT_DURATION(), 45 days);
+            // mGLOBAL is a CompCutoffMidasAccount: bucket conversion is fixed to the 26th of each month.
+            CompCutoffMidasAccount cutoffAccount = CompCutoffMidasAccount(address(account));
+            assertEq(cutoffAccount.bucketToTimestamp(cutoffAccount.timestampToBucket(1_784_505_600)), 0);
         }
     }
 
@@ -202,7 +197,11 @@ contract MidasTokensToRedeemMainnetTest is Test {
         spec = TokenSpec(symbol, maxWithdrawalDelay);
     }
 
-    function _cooldown(uint48 maxWithdrawalDelay) internal pure returns (uint48) {
+    function _cooldown(uint256 index, uint48 maxWithdrawalDelay) internal pure returns (uint48) {
+        if (index == 2) {
+            return 36 hours;
+        }
+
         uint48 cooldownDays = maxWithdrawalDelay / 10 / 1 days;
         if (cooldownDays == 0) {
             return 1 days;

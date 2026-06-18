@@ -28,7 +28,7 @@ contract DigiFTAccount is SettlementAccount, IDigiFTAccount {
         address subRedManagement,
         uint48 settlementDuration,
         address cowSwapSettlement
-    ) SettlementAccount(oracle, factory, 0, tokenToRedeem, 0, 0, 0, settlementDuration, cowSwapSettlement) {
+    ) SettlementAccount(oracle, factory, 0, tokenToRedeem, 0, settlementDuration, cowSwapSettlement) {
         SUB_RED_MANAGEMENT = subRedManagement;
     }
 
@@ -52,7 +52,7 @@ contract DigiFTAccount is SettlementAccount, IDigiFTAccount {
         assembly {
             legacySubAccountsLength := sload(15)
         }
-        if (legacySubAccountsLength != 0) {
+        if (legacySubAccountsLength > 0) {
             revert MigrationWithLiveSubAccounts();
         }
         super._migrate(oldVersion, newVersion, data);

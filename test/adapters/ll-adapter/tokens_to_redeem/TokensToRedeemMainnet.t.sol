@@ -5,7 +5,7 @@ pragma solidity ^0.8.28;
 ///      infiniFi locked iUSD change (liUSD-4w/liUSD-13w on InfiniFiAccount): their redemption
 ///      notice is a gateway `startUnwinding` call keyed by the block timestamp. Previously
 ///      updated for the cutoff-based redemptions change (ACRED/USCC/bEQTY on SettlementAccount +
-///      CutoffPricer, mGLOBAL on MidasCutoffAccount): oracles passed to those accounts must
+///      CutoffAccount, mGLOBAL on CompCutoffMidasAccount): oracles passed to those accounts must
 ///      expose `getPriceData()`, and ACRED's notice is an ERC-20 transfer to the Securitize
 ///      redemption wallet. Re-run on fork after any change to those accounts.
 import {Test} from "forge-std/Test.sol";
@@ -66,6 +66,8 @@ import {MigratablesFactory} from "../../../../src/contracts/common/MigratablesFa
 import {IAsyncRedeemAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
 import {IAsyncRedeemVault} from "../../../../src/interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
 import {IAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
+import {ICutoffAccount} from "../../../../src/interfaces/adapters/ll-adapter/ICutoffAccount.sol";
+import {IERC7575Share} from "../../../../src/interfaces/adapters/ll-adapter/IERC7575Share.sol";
 import {IDigiFTAccount} from "../../../../src/interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol";
 import {IEtherFiAccount} from "../../../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
 import {IEtherFiLiquidityPool} from "../../../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiLiquidityPool.sol";
@@ -100,7 +102,6 @@ import {IParetoAccount} from "../../../../src/interfaces/adapters/ll-adapter/par
 import {IParetoCDO} from "../../../../src/interfaces/adapters/ll-adapter/pareto/IParetoCDO.sol";
 import {ISecuritizeAccount} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeAccount.sol";
 import {ISuperstateAccount} from "../../../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol";
-import {ISuperstateToken} from "../../../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateToken.sol";
 import {ISthUSD} from "../../../../src/interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
 import {IThreeJaneSUSD3} from "../../../../src/interfaces/adapters/ll-adapter/threejane/IThreeJaneSUSD3.sol";
 
@@ -239,6 +240,8 @@ contract TokensToRedeemMainnetTest is Test {
         factory.whitelist(address(implementation));
         IAccount account =
             IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(asset)), adapter)));
+
+        _warpToRedemptionWindow(index, account);
 
         uint256 amount = _redemptionAmount(index, spec.token);
         deal(spec.token, address(account), amount);
@@ -380,9 +383,17 @@ contract TokensToRedeemMainnetTest is Test {
         revert();
     }
 
+    function _warpToRedemptionWindow(uint256 index, IAccount account) internal {
+        if (index == 18) {
+            uint48 cutoffTimestamp =
+                ICutoffAccount(address(account)).bucketToTimestamp(ICutoffAccount(address(account)).currentBucket());
+            vm.warp(uint256(cutoffTimestamp) - 1 days);
+        }
+    }
+
     function _assetFor(uint256 index, address token) internal view returns (address) {
         if (
-            _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 37 || index == 38
+            _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 37 || _isSecuritize(index)
                 || index == 40 || _isInfiniFi(index)
         ) {
             return USDC;
@@ -411,10 +422,13 @@ contract TokensToRedeemMainnetTest is Test {
         return index == 41 || index == 42;
     }
 
+    function _isSecuritize(uint256 index) internal pure returns (bool) {
+        return index == 38;
+    }
+
     function _isKnownMainnetSyncRestricted(uint256 index) internal pure returns (bool) {
-        return _isCentrifuge(index) || index == 2 || index == 5 || index == 7 || index == 12 || index == 13
-            || index == 16 || index == 17 || index == 18 || index == 20 || index == 21 || index == 25 || index == 27
-            || index == 29 || index == 30 || index == 37 || index == 38 || index == 39 || index == 40;
+        return _isCentrifuge(index) || _isMidas(index) || index == 2 || index == 5 || index == 7 || index == 37
+            || _isSecuritize(index) || index == 39 || index == 40;
     }
 
     function _assertKnownMainnetSyncRestriction(
@@ -462,7 +476,7 @@ contract TokensToRedeemMainnetTest is Test {
         }
         if (_isCentrifuge(index)) {
             vm.expectCall(
-                token,
+                _asyncRedeemVault(token, asset),
                 abi.encodeWithSelector(
                     IAsyncRedeemVault.requestRedeem.selector, amount, address(account), address(account)
                 )
@@ -509,7 +523,7 @@ contract TokensToRedeemMainnetTest is Test {
             );
             return;
         }
-        if (index == 38) {
+        if (_isSecuritize(index)) {
             // redemption notice is an ERC-20 transfer to the Securitize redemption wallet
             vm.expectCall(
                 token, abi.encodeWithSelector(IERC20.transfer.selector, 0xbb543C77436645C8b95B64eEc39E3C0d48D4842b)
@@ -524,7 +538,6 @@ contract TokensToRedeemMainnetTest is Test {
             return;
         }
         if (index == 40) {
-            vm.expectCall(token, abi.encodeWithSelector(ISuperstateToken.offchainRedeem.selector));
             return;
         }
         if (_isInfiniFi(index)) {
@@ -621,7 +634,7 @@ contract TokensToRedeemMainnetTest is Test {
             _assertParetoRedemption(account, symbol);
             return;
         }
-        if (index == 38) {
+        if (_isSecuritize(index)) {
             _assertSecuritizeRedemption(account, symbol);
             return;
         }
@@ -656,10 +669,19 @@ contract TokensToRedeemMainnetTest is Test {
         internal
         view
     {
+        address asyncRedeemVault = _asyncRedeemVault(token, USDC);
         uint256 requestId = IAsyncRedeemAccount(address(account)).requestIds(0);
-        assertGt(IAsyncRedeemVault(token).pendingRedeemRequest(requestId, address(account)), 0, symbol);
-        assertLe(IAsyncRedeemVault(token).pendingRedeemRequest(requestId, address(account)), amount, symbol);
+        assertGt(IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestId, address(account)), 0, symbol);
+        assertLe(IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestId, address(account)), amount, symbol);
         assertGt(account.totalAssets(), 0, symbol);
+    }
+
+    function _asyncRedeemVault(address token, address asset) internal view returns (address) {
+        try IERC7575Share(token).vault(asset) returns (address asyncRedeemVault) {
+            return asyncRedeemVault == address(0) ? token : asyncRedeemVault;
+        } catch {}
+
+        return token;
     }
 
     function _assertMakinaRedemption(IAccount account, uint256 amount, string memory symbol) internal view {
@@ -731,8 +753,8 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _assertSecuritizeRedemption(IAccount account, string memory symbol) internal view {
-        address subAccount = ISecuritizeAccount(address(account)).subAccounts(0);
-        assertGt(subAccount.code.length, 0, symbol);
+        (uint256 amount,) = ISecuritizeAccount(address(account)).pendingCutoffs(0);
+        assertGt(amount, 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
 
@@ -799,7 +821,7 @@ contract MainnetConstantOracle {
         return 1e18;
     }
 
-    /// @dev Settlement accounts (ACRED/USCC/bEQTY) and other CutoffPricer hosts read
+    /// @dev Settlement accounts (ACRED/USCC/bEQTY) and other CutoffAccount hosts read
     ///      `getPriceData()` on sync/totalAssets; a fresh `updatedAt` keeps cohort freezing live.
     function getPriceData() external view returns (uint256 price, uint48 updatedAt) {
         return (1e18, uint48(block.timestamp));

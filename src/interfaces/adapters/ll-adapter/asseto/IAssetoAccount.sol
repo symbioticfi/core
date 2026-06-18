@@ -5,10 +5,17 @@ import {ICooldownAccount} from "../ICooldownAccount.sol";
 import {ICutoffAccount} from "../ICutoffAccount.sol";
 
 /**
- * @title ISecuritizeAccount
- * @notice Interface for Securitize liquidity lane accounts.
+ * @title IAssetoAccount
+ * @notice Interface for Asseto off-chain settlement accounts.
  */
-interface ISecuritizeAccount is ICooldownAccount, ICutoffAccount {
+interface IAssetoAccount is ICooldownAccount, ICutoffAccount {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when the Asseto manager is not configured for the token-to-redeem.
+     */
+    error InvalidAsset();
+
     /* EVENTS */
 
     /**
@@ -17,6 +24,20 @@ interface ISecuritizeAccount is ICooldownAccount, ICutoffAccount {
      * @param rate The frozen rate in the host's oracle precision.
      */
     event FreezeBucket(uint48 indexed bucket, uint256 rate);
+
+    /* STRUCTS */
+
+    /**
+     * @notice Initialization parameters for an Asseto account clone.
+     * @param vault The vault bound to the account.
+     * @param adapter The adapter bound to the account.
+     * @param offChainDestination The Asseto off-chain destination identifier.
+     */
+    struct InitParams {
+        address vault;
+        address adapter;
+        bytes32 offChainDestination;
+    }
 
     /* FUNCTIONS */
 
@@ -53,8 +74,14 @@ interface ISecuritizeAccount is ICooldownAccount, ICutoffAccount {
     function pendingCutoffs(uint256 key) external view returns (uint256 amount, uint48 bucket);
 
     /**
-     * @notice Returns the Securitize redemption wallet receiving redemption notices.
-     * @return redemptionWallet The redemption wallet address.
+     * @notice Returns the Asseto manager contract.
+     * @return manager The manager address.
      */
-    function REDEMPTION_WALLET() external view returns (address redemptionWallet);
+    function MANAGER() external view returns (address manager);
+
+    /**
+     * @notice Returns the Asseto off-chain destination identifier.
+     * @return destination The destination identifier.
+     */
+    function offChainDestination() external view returns (bytes32 destination);
 }

@@ -550,6 +550,35 @@ contract MockPrimeToken is MockERC20 {
     }
 }
 
+contract MockERC4626RedeemToken is MockERC20 {
+    address internal immutable _asset;
+    uint256 internal immutable _assetsPerShare;
+
+    constructor(MockERC20 asset_, string memory name_, string memory symbol_, uint8 decimals_, uint256 assetsPerShare_)
+        MockERC20(name_, symbol_, decimals_)
+    {
+        _asset = address(asset_);
+        _assetsPerShare = assetsPerShare_;
+    }
+
+    function asset() external view returns (address) {
+        return _asset;
+    }
+
+    function convertToAssets(uint256 shares) external view returns (uint256 assets) {
+        assets = shares * _assetsPerShare / 10 ** decimals();
+    }
+
+    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
+        if (msg.sender != owner) {
+            _spendAllowance(owner, msg.sender, shares);
+        }
+        _burn(owner, shares);
+        assets = shares * _assetsPerShare / 10 ** decimals();
+        MockERC20(_asset).mint(receiver, assets);
+    }
+}
+
 contract MockThreeJaneSUSD3 is MockERC20 {
     Vm internal constant VM = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 

@@ -5,18 +5,17 @@ pragma solidity ^0.8.28;
 import {CooldownAccount} from "./common/CooldownAccount.sol";
 import {CutoffAccount} from "./common/CutoffAccount.sol";
 
+import {IAssetoAccount} from "../../../interfaces/adapters/ll-adapter/asseto/IAssetoAccount.sol";
+import {IAssetoManager} from "../../../interfaces/adapters/ll-adapter/asseto/IAssetoManager.sol";
 import {ICutoffAccount} from "../../../interfaces/adapters/ll-adapter/ICutoffAccount.sol";
 import {IPriceDataOracle} from "../../../interfaces/adapters/ll-adapter/IPriceDataOracle.sol";
-import {ISecuritizeAccount} from "../../../interfaces/adapters/ll-adapter/securitize/ISecuritizeAccount.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-/// @title SecuritizeAccount
-/// @notice Account for Securitize off-chain settlement redemptions with windowed repurchases.
-/// @dev The redemption notice is an ERC-20 transfer to the issuer's redemption wallet; settlement
-///      returns vault assets directly to this account.
-abstract contract SecuritizeAccount is CooldownAccount, CutoffAccount, ISecuritizeAccount {
+/// @title AssetoAccount
+/// @notice Account for Asseto off-chain settlement redemptions grouped by cutoff buckets.
+contract AssetoAccount is CooldownAccount, CutoffAccount, IAssetoAccount {
     using SafeERC20 for IERC20;
 
     /* STRUCTS */
@@ -36,49 +35,75 @@ abstract contract SecuritizeAccount is CooldownAccount, CutoffAccount, ISecuriti
 
     /* IMMUTABLES */
 
-    /// @inheritdoc ISecuritizeAccount
-    address public immutable REDEMPTION_WALLET;
-    /// @inheritdoc ISecuritizeAccount
+    /// @inheritdoc IAssetoAccount
+    address public immutable MANAGER;
+    /// @inheritdoc IAssetoAccount
     uint48 public immutable VALUATION_DELAY;
-    /// @inheritdoc ISecuritizeAccount
+    /// @inheritdoc IAssetoAccount
     uint48 public immutable POST_CUTOFF_WINDOW;
 
     /* STATE VARIABLES */
 
-    /// @inheritdoc ISecuritizeAccount
+    /// @inheritdoc IAssetoAccount
+    bytes32 public offChainDestination;
+    /// @inheritdoc IAssetoAccount
     mapping(uint48 bucket => Bucket data) public buckets;
-    /// @inheritdoc ISecuritizeAccount
+    /// @inheritdoc IAssetoAccount
     mapping(uint256 key => PendingCutoff data) public pendingCutoffs;
+
     /// @dev Pending cutoff keys tracked by this account.
     uint256[] internal _pendingKeys;
-    /// @dev Next pending cutoff key.
-    uint256 internal _nextPendingKey;
 
     /* CONSTRUCTOR */
 
-    /// @notice Creates the Securitize account implementation.
+    /// @notice Creates the Asseto account implementation.
     constructor(
         address oracle,
         address factory,
         uint48 cooldown,
         address tokenToRedeem,
-        address redemptionWallet,
+        address manager,
         uint48 valuationDelay,
         uint48 postCutoffWindow,
         address cowSwapSettlement
     )
         CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
     {
-        REDEMPTION_WALLET = redemptionWallet;
+        MANAGER = manager;
         VALUATION_DELAY = valuationDelay;
         POST_CUTOFF_WINDOW = postCutoffWindow;
     }
 
+    /* VIEW FUNCTIONS */
+
+    /// @inheritdoc CutoffAccount
+    function timestampToBucket(uint48 timestamp)
+        public
+        pure
+        override(CutoffAccount, ICutoffAccount)
+        returns (uint48 bucket)
+    {
+        return timestamp;
+    }
+
+    /// @inheritdoc CutoffAccount
+    function bucketToTimestamp(uint48 bucket)
+        public
+        pure
+        override(CutoffAccount, ICutoffAccount)
+        returns (uint48 timestamp)
+    {
+        return bucket;
+    }
+
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns pending cutoff value not already covered by same-account settlement assets.
+    /// @dev Returns pending cutoff value not already covered by received settlement tokens.
     function _totalAssets() internal view override returns (uint256 assets) {
-        uint256 remainingAssets = IERC20(_asset).balanceOf(address(this));
+        uint256 remainingAssets = _settlementAssets();
+        if (IAssetoManager(MANAGER).collateral() != _asset) {
+            assets = remainingAssets;
+        }
 
         for (uint256 i; i < _pendingKeys.length; ++i) {
             (uint256 value,) = _cutoffValue(_pendingKeys[i]);
@@ -91,9 +116,9 @@ abstract contract SecuritizeAccount is CooldownAccount, CutoffAccount, ISecuriti
         }
     }
 
-    /// @dev Freezes rates and clears pending entries covered by received settlement assets or written off.
+    /// @dev Finalizes pending entries covered by settlement tokens or written off.
     function _finalizeRequests() internal override {
-        uint256 remainingAssets = IERC20(_asset).balanceOf(address(this));
+        uint256 remainingAssets = _settlementAssets();
 
         for (uint256 i = _pendingKeys.length; i > 0; --i) {
             uint256 index = i - 1;
@@ -130,17 +155,37 @@ abstract contract SecuritizeAccount is CooldownAccount, CutoffAccount, ISecuriti
         }
     }
 
-    /// @dev Transfers held Securitize tokens to the redemption wallet as the redemption notice.
+    /// @dev Finalizes existing requests and submits a new request when the manager minimum and cooldown permit.
+    function _sync() internal override {
+        _finalizeRequests();
+
+        if (
+            IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)) >= IAssetoManager(MANAGER).minimumRedemptionAmount()
+                && (msg.sender == owner()
+                    || lastRequestTimestamp == 0
+                    || block.timestamp >= lastRequestTimestamp + COOLDOWN)
+        ) {
+            _requestRedeem();
+            lastRequestTimestamp = uint48(block.timestamp);
+        }
+    }
+
+    /// @dev Burns held Asseto tokens through the manager for off-chain settlement.
     function _requestRedeem() internal override {
         uint256 amount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        uint256 key = _nextPendingKey++;
+        uint256 maximumRedemptionAmount = IAssetoManager(MANAGER).maximumRedemptionAmount();
+        if (amount > maximumRedemptionAmount) {
+            amount = maximumRedemptionAmount;
+        }
+
+        uint256 key = IAssetoManager(MANAGER).redemptionRequestCounter();
 
         _pendingKeys.push(key);
         uint48 bucket = currentBucket();
         pendingCutoffs[key] = PendingCutoff({amount: amount, bucket: bucket});
         buckets[bucket].totalTokenToRedeem += amount;
         buckets[bucket].pendingTokenToRedeem += amount;
-        IERC20(TOKEN_TO_REDEEM).safeTransfer(REDEMPTION_WALLET, amount);
+        IAssetoManager(MANAGER).requestRedemptionServicedOffchain(amount, offChainDestination);
     }
 
     /// @dev Returns a pending cutoff entry's value and whether it is past its counting window.
@@ -165,82 +210,26 @@ abstract contract SecuritizeAccount is CooldownAccount, CutoffAccount, ISecuriti
 
         value = _tokenToRedeemToAssets(pendingCutoff.amount, rate);
     }
-}
 
-/// @title AcredSecuritizeAccount
-/// @notice ACRED account with the published quarterly repurchase cutoff schedule.
-contract AcredSecuritizeAccount is SecuritizeAccount {
-    /* CONSTANTS */
-
-    /// @dev 2026-05-01 00:00:00 UTC, the day after the 2026 Q1 repurchase request deadline.
-    uint48 internal constant CUTOFF_0 = 1_777_593_600;
-    /// @dev 2026-08-01 00:00:00 UTC, the day after the 2026 Q2 repurchase request deadline.
-    uint48 internal constant CUTOFF_1 = 1_785_542_400;
-    /// @dev 2026-10-31 00:00:00 UTC, the day after the 2026 Q3 repurchase request deadline.
-    uint48 internal constant CUTOFF_2 = 1_793_404_800;
-    /// @dev 2027-01-30 00:00:00 UTC, the day after the 2026 Q4 repurchase request deadline.
-    uint48 internal constant CUTOFF_3 = 1_801_267_200;
-
-    /* CONSTRUCTOR */
-
-    /// @notice Creates the ACRED Securitize account implementation.
-    constructor(
-        address oracle,
-        address factory,
-        address tokenToRedeem,
-        address redemptionWallet,
-        uint48 valuationDelay,
-        uint48 postCutoffWindow,
-        address cowSwapSettlement
-    )
-        SecuritizeAccount(
-            oracle, factory, 0, tokenToRedeem, redemptionWallet, valuationDelay, postCutoffWindow, cowSwapSettlement
-        )
-    {}
-
-    /* VIEW FUNCTIONS */
-
-    /// @inheritdoc CutoffAccount
-    function timestampToBucket(uint48 timestamp)
-        public
-        pure
-        override(CutoffAccount, ICutoffAccount)
-        returns (uint48 bucket)
-    {
-        if (timestamp <= CUTOFF_0) {
-            return 0;
-        }
-        if (timestamp <= CUTOFF_1) {
-            return 1;
-        }
-        if (timestamp <= CUTOFF_2) {
-            return 2;
-        }
-        if (timestamp <= CUTOFF_3) {
-            return 3;
-        }
-        revert InvalidCutoff();
+    /// @dev Returns received settlement tokens normalized to vault-asset decimals.
+    function _settlementAssets() internal view returns (uint256) {
+        address settlementToken = IAssetoManager(MANAGER).collateral();
+        uint256 amount = IERC20(settlementToken).balanceOf(address(this));
+        return settlementToken == _asset ? amount : _redemptionTokenToAssets(settlementToken, amount);
     }
 
-    /// @inheritdoc CutoffAccount
-    function bucketToTimestamp(uint48 bucket)
-        public
-        pure
-        override(CutoffAccount, ICutoffAccount)
-        returns (uint48 timestamp)
-    {
-        if (bucket == 0) {
-            return CUTOFF_0;
+    /* INITIALIZATION */
+
+    /// @dev Initializes the account for an adapter, vault, and Asseto off-chain destination.
+    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
+        InitParams memory params = abi.decode(data, (InitParams));
+
+        super._initialize(initialVersion, initOwner, abi.encode(params.vault, params.adapter));
+        if (IAssetoManager(MANAGER).rwa() != TOKEN_TO_REDEEM) {
+            revert InvalidAsset();
         }
-        if (bucket == 1) {
-            return CUTOFF_1;
-        }
-        if (bucket == 2) {
-            return CUTOFF_2;
-        }
-        if (bucket == 3) {
-            return CUTOFF_3;
-        }
-        revert InvalidCutoff();
+
+        offChainDestination = params.offChainDestination;
+        IERC20(TOKEN_TO_REDEEM).forceApprove(MANAGER, type(uint256).max);
     }
 }

@@ -12,7 +12,6 @@ import {
 import {IInfiniFiUnwindingModule} from "../../../interfaces/adapters/ll-adapter/infinifi/IInfiniFiUnwindingModule.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title InfiniFiAccount
@@ -22,7 +21,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 ///      iUSD is valued at par like the protocol's fixed $1 oracle does.
 contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
     using SafeERC20 for IERC20;
-    using SafeCast for uint256;
 
     /* IMMUTABLES */
 
@@ -118,7 +116,7 @@ contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
                 uint256 enqueued =
                     IInfiniFiRedeemController(REDEEM_CONTROLLER).totalEnqueuedRedemptions() - enqueuedBefore;
                 if (enqueued > 0) {
-                    redemptionTickets.push(RedemptionTicket({queueIndex: queueEnd, amount: enqueued.toUint128()}));
+                    redemptionTickets.push(RedemptionTicket({queueIndex: queueEnd, amount: enqueued}));
                 }
             } catch {}
         }

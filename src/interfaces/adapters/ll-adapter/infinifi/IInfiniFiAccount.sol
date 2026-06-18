@@ -24,7 +24,7 @@ interface IInfiniFiAccount is ICooldownAccount {
      */
     struct RedemptionTicket {
         uint128 queueIndex;
-        uint128 amount;
+        uint256 amount;
     }
 
     /* FUNCTIONS */
@@ -72,5 +72,5 @@ interface IInfiniFiAccount is ICooldownAccount {
      * @return queueIndex The ticket's index in the redeem controller's queue.
      * @return amount The enqueued iUSD amount.
      */
-    function redemptionTickets(uint256 index) external view returns (uint128 queueIndex, uint128 amount);
+    function redemptionTickets(uint256 index) external view returns (uint128 queueIndex, uint256 amount);
 }

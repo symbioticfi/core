@@ -165,7 +165,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 295);
+        assertEq(totalMaxAverageRequests, 286);
     }
 
     function testBenchmarkOnboardsAllTokensToLiquidLaneAdapter() public {
@@ -816,7 +816,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             return IERC20(IParetoAccount(account).RECEIPT_TOKEN()).balanceOf(account) > 0 ? 1 : 0;
         }
         if (index == 38) {
-            return _securitizeSubAccountsLength(account);
+            (uint256 amount,) = ISecuritizeAccount(account).pendingCutoffs(0);
+            return amount > 0 ? 1 : 0;
         }
         if (index == 39) {
             return _noonRequestIdsLength(account);
@@ -920,16 +921,6 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         }
     }
 
-    function _securitizeSubAccountsLength(address account) internal view returns (uint256 length) {
-        while (true) {
-            try ISecuritizeAccount(account).subAccounts(length) returns (address) {
-                ++length;
-            } catch {
-                return length;
-            }
-        }
-    }
-
     function _superstateSubAccountsLength(address account) internal view returns (uint256 length) {
         while (true) {
             try ISuperstateAccount(account).subAccounts(length) returns (address) {
@@ -961,8 +952,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         specs[15] = _spec("mEVUSD", 3 days);
         specs[16] = _spec("mFARM", 7 days);
         specs[17] = _spec("mFONE", 35 days);
-        // mGLOBAL cohort worst case: 30-day wait to cutoff + 5-day valuation delay + 45-day settlement.
-        specs[18] = _spec("mGLOBAL", 80 days);
+        // mGLOBAL cohort worst case: 30-day wait to cutoff + next monthly cutoff + 7-day post-cutoff window.
+        specs[18] = _spec("mGLOBAL", 67 days);
         specs[19] = _spec("mHYPER", 3 days);
         specs[20] = _spec("mHyperBTC", 7 days);
         specs[21] = _spec("mHyperETH", 7 days);
@@ -982,8 +973,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         specs[35] = _spec("weETH", 14 days);
         specs[36] = _spec("wstETH", 5 days);
         specs[37] = _spec("AA_FalconXUSDC", 30 days);
-        // ACRED cohort worst case: 91-day wait to cutoff + 4-day valuation delay + 30-day settlement.
-        specs[38] = _spec("ACRED", 125 days);
+        // ACRED cohort worst case: 91-day wait to cutoff + 30-day post-cutoff window.
+        specs[38] = _spec("ACRED", 121 days);
         specs[39] = _spec("sUSN", 7 days);
         specs[40] = _spec("USCC", 3 days);
         // liUSD positions unwind from the next weekly epoch for N epochs: 4w worst case is 35 days
@@ -1227,7 +1218,7 @@ contract BenchmarkConstantOracle {
         return 1e18;
     }
 
-    /// @dev Settlement accounts (ACRED/USCC/bEQTY) and other CutoffPricer hosts read
+    /// @dev Settlement accounts (USCC/bEQTY), ACRED and other CutoffAccount hosts read
     ///      `getPriceData()` on sync/totalAssets; a fresh `updatedAt` keeps cohort freezing live.
     function getPriceData() external view returns (uint256 price, uint48 updatedAt) {
         return (1e18, uint48(block.timestamp));

@@ -195,7 +195,7 @@ contract InfiniFiAccountTest is Test {
 
         assertEq(iusd.balanceOf(address(account)), 0);
         assertEq(usdc.balanceOf(address(account)), 0);
-        (uint128 queueIndex, uint128 amount) = account.redemptionTickets(0);
+        (uint128 queueIndex, uint256 amount) = account.redemptionTickets(0);
         assertEq(queueIndex, 0);
         assertEq(amount, 100e18);
         assertEq(account.totalAssets(), 100e6);
@@ -225,7 +225,7 @@ contract InfiniFiAccountTest is Test {
 
         // 40 USDC paid instantly, the 60 iUSD remainder enqueued and valued at par
         assertEq(usdc.balanceOf(address(account)), 40e6);
-        (, uint128 amount) = account.redemptionTickets(0);
+        (, uint256 amount) = account.redemptionTickets(0);
         assertEq(amount, 60e18);
         assertEq(account.totalAssets(), 100e6);
     }
@@ -274,7 +274,7 @@ contract InfiniFiAccountTest is Test {
         vm.warp(ts + UNWINDING_DURATION);
         account.sync();
 
-        (uint128 queueIndex, uint128 amount) = account.redemptionTickets(0);
+        (uint128 queueIndex, uint256 amount) = account.redemptionTickets(0);
         assertEq(queueIndex, 1);
         assertEq(amount, 100e18);
         assertEq(account.totalAssets(), 100e6);
@@ -480,7 +480,7 @@ contract MockInfiniFiRedeemController {
     uint256 public totalPendingClaims;
     uint256 public fundingRate = 1e18;
 
-    mapping(uint128 index => uint128 amount) public ticketAmounts;
+    mapping(uint128 index => uint256 amount) public ticketAmounts;
     mapping(uint128 index => address recipient) public ticketRecipients;
     mapping(address recipient => uint256 assets) public userPendingClaims;
 
@@ -532,7 +532,7 @@ contract MockInfiniFiRedeemController {
         while (remaining > 0 && _begin < _end) {
             uint256 required = _toAssets(ticketAmounts[_begin]) * fundingRate / 1e18;
             if (required > remaining) {
-                uint128 receiptFunded = uint128(_toReceipt(remaining * 1e18 / fundingRate));
+                uint256 receiptFunded = _toReceipt(remaining * 1e18 / fundingRate);
                 ticketAmounts[_begin] -= receiptFunded;
                 totalEnqueuedRedemptions -= receiptFunded;
                 userPendingClaims[ticketRecipients[_begin]] += remaining;
@@ -561,7 +561,7 @@ contract MockInfiniFiRedeemController {
     }
 
     function _enqueue(address recipient, uint256 amount) internal {
-        ticketAmounts[_end] = uint128(amount);
+        ticketAmounts[_end] = amount;
         ticketRecipients[_end] = recipient;
         ++_end;
         totalEnqueuedRedemptions += amount;

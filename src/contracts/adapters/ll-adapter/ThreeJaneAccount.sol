@@ -8,6 +8,7 @@ import {IThreeJaneAccount} from "../../../interfaces/adapters/ll-adapter/threeja
 import {IThreeJaneSUSD3} from "../../../interfaces/adapters/ll-adapter/threejane/IThreeJaneSUSD3.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 /// @title ThreeJaneAccount
 /// @notice Account for 3Jane sUSD3 cooldown redemptions.
@@ -45,6 +46,13 @@ contract ThreeJaneAccount is Account, IThreeJaneAccount {
                 if (assets > 0) {
                     IThreeJaneSUSD3(TOKEN_TO_REDEEM).withdraw(assets, address(this), address(this));
                 }
+                address redeemAsset = IThreeJaneSUSD3(TOKEN_TO_REDEEM).asset();
+                if (redeemAsset != _asset) {
+                    uint256 balance = IERC20(redeemAsset).balanceOf(address(this));
+                    if (balance > 0) {
+                        IERC4626(redeemAsset).redeem(balance, address(this), address(this));
+                    }
+                }
                 return;
             }
         }
@@ -64,8 +72,15 @@ contract ThreeJaneAccount is Account, IThreeJaneAccount {
     /// @dev Initializes the account for an adapter and vault.
     function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
         super._initialize(initialVersion, initOwner, data);
-        if (IThreeJaneSUSD3(TOKEN_TO_REDEEM).asset() != _asset) {
-            revert InvalidAsset();
+        address redeemAsset = IThreeJaneSUSD3(TOKEN_TO_REDEEM).asset();
+        if (redeemAsset != _asset) {
+            try IERC4626(redeemAsset).asset() returns (address asset) {
+                if (asset != _asset) {
+                    revert InvalidAsset();
+                }
+            } catch {
+                revert InvalidAsset();
+            }
         }
     }
 }

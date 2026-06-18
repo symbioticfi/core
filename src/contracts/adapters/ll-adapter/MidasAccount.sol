@@ -3,14 +3,16 @@
 pragma solidity ^0.8.28;
 
 import {CooldownAccount} from "./common/CooldownAccount.sol";
-import {CutoffPricer} from "./common/CutoffPricer.sol";
+import {CutoffAccount} from "./common/CutoffAccount.sol";
 
 import {IMidasAccount, REQUEST_STATUS_PENDING} from "../../../interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
+import {IMidasDataFeed, IMidasOracle} from "../../../interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
 import {IMidasRedemptionVault} from "../../../interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
-import {IPriceDataOracle} from "../../../interfaces/adapters/ll-adapter/IPriceDataOracle.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {AggregatorV3Interface} from "./oracles/libraries/ChainlinkPriceFeed.sol";
+import {DateTimeLib} from "solady/utils/DateTimeLib.sol";
 
 /// @title MidasAccount
 /// @notice Base account for Midas redemption integrations.
@@ -161,10 +163,28 @@ contract MidasNonCompAccount is MidasAccount {
     }
 }
 
-/// @title MidasCutoffAccount
+/// @title CompCutoffMidasAccount
 /// @notice Midas account for cutoff-cohort redemptions: pending requests compound until the cohort
 ///         pricing date, then freeze at the first vault-feed print at/after it.
-contract MidasCutoffAccount is MidasAccount, CutoffPricer {
+contract CompCutoffMidasAccount is MidasAccount, CutoffAccount {
+    /* IMMUTABLES */
+
+    /// @dev Cutoff day for monthly schedules.
+    uint256 public immutable CUTOFF_DAY;
+    /// @dev Initial cutoff year for monthly schedules.
+    uint256 public immutable INITIAL_YEAR;
+    /// @dev Initial cutoff month for monthly schedules.
+    uint256 public immutable INITIAL_MONTH;
+    /// @dev Initial cutoff timestamp.
+    uint48 internal immutable INITIAL_CUTOFF;
+    /// @dev Window before a cutoff during which new requests may be submitted.
+    uint48 internal immutable PRE_CUTOFF_WINDOW;
+
+    /* STATE VARIABLES */
+
+    /// @dev Redemption request bucket.
+    mapping(uint64 requestId => uint48 bucket) public requestToBucket;
+
     /* CONSTRUCTOR */
 
     /// @notice Creates the cutoff-cohort Midas account implementation.
@@ -172,87 +192,89 @@ contract MidasCutoffAccount is MidasAccount, CutoffPricer {
         address oracle,
         address factory,
         uint48 cooldown,
+        uint48 initialCutoff,
         address tokenToRedeem,
+        uint48 preCutoffWindow,
         address redemptionToken,
         address redemptionVault,
-        uint48 initialCutoff,
-        uint48 initialCutoffPeriod,
-        uint48 valuationDelay,
-        uint48 settlementDuration,
         address cowSwapSettlement
-    )
-        MidasAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, redemptionVault, cowSwapSettlement)
-        CutoffPricer(initialCutoff, initialCutoffPeriod, valuationDelay, settlementDuration)
-    {}
+    ) MidasAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, redemptionVault, cowSwapSettlement) {
+        INITIAL_CUTOFF = initialCutoff;
+        PRE_CUTOFF_WINDOW = preCutoffWindow;
+        (INITIAL_YEAR, INITIAL_MONTH, CUTOFF_DAY) = DateTimeLib.timestampToDate(initialCutoff);
+    }
 
-    /* PUBLIC FUNCTIONS (OWNER) */
+    /* VIEW FUNCTIONS */
 
-    /// @notice Updates the cutoff schedule. Only callable by the owner.
-    function setCutoffSchedule(uint48 nextCutoff, uint48 period) public onlyOwner {
-        _setCutoffSchedule(nextCutoff, period);
+    /// @inheritdoc CutoffAccount
+    function timestampToBucket(uint48 timestamp) public view override returns (uint48 bucket) {
+        if (timestamp < INITIAL_CUTOFF) {
+            return 0;
+        }
+
+        (uint256 year, uint256 month,) = DateTimeLib.timestampToDate(timestamp);
+        bucket = uint48((year - INITIAL_YEAR) * 12 + month - INITIAL_MONTH);
+        if (timestamp >= DateTimeLib.dateToTimestamp(year, month, CUTOFF_DAY)) {
+            ++bucket;
+        }
+    }
+
+    /// @inheritdoc CutoffAccount
+    function bucketToTimestamp(uint48 bucket) public view override returns (uint48 timestamp) {
+        if (bucket == 0) {
+            return 0;
+        }
+
+        uint256 month = INITIAL_MONTH + bucket - 2;
+        return uint48(DateTimeLib.dateToTimestamp(INITIAL_YEAR + month / 12, month % 12 + 1, CUTOFF_DAY));
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Submits inventory to the Midas redemption vault and registers the request's cohort
-    ///      with the vault-stored net-of-fee amount, which defines the payout.
-    ///      Midas request ids are vault-global and monotonically increasing, so cohort keys are unique.
-    function _requestRedeem() internal override {
-        super._requestRedeem();
+    /// @dev Finalizes existing requests and submits a new request only inside the pre-cutoff window.
+    function _sync() internal virtual override {
+        _finalizeRequests();
 
-        uint64 requestId = requestIds[requestIds.length - 1];
-        (,,, uint256 amountMToken,,) = IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestId);
-        _registerPending(requestId, amountMToken);
+        if (
+            (msg.sender == owner()
+                    || (block.timestamp + PRE_CUTOFF_WINDOW >= nextCutoff()
+                        && (lastRequestTimestamp == 0 || block.timestamp >= lastRequestTimestamp + COOLDOWN)))
+                && IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)) > 0
+        ) {
+            _requestRedeem();
+            lastRequestTimestamp = uint48(block.timestamp);
+        }
     }
 
-    /// @dev Freezes cohort rates and clears Midas redemption requests that are no longer pending.
-    function _finalizeRequests() internal override {
-        for (uint256 i = requestIds.length; i > 0; --i) {
-            uint256 index = i - 1;
-            uint64 requestId = requestIds[index];
-
-            _tryFreezePending(requestId);
-
-            (,, uint8 status,,,) = IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestId);
-            if (status == REQUEST_STATUS_PENDING) {
-                continue;
-            }
-
-            _clearPending(requestId);
-            requestIds[index] = requestIds[requestIds.length - 1];
-            requestIds.pop();
-        }
+    function _requestRedeem() internal virtual override {
+        super._requestRedeem();
+        requestToBucket[requestIds[requestIds.length - 1]] = currentBucket();
     }
 
     /// @dev Returns pending request value priced by cutoff cohorts. Fulfilled-but-unsynced requests are
     ///      skipped: Midas pays the assets and marks the request processed atomically, and the stale
     ///      cohort entry is only cleared on the next sync.
     function _pendingAssets() internal view override returns (uint256 assets) {
+        address aggregator = IMidasDataFeed(IMidasOracle(ORACLE).DATA_FEED()).aggregator();
         for (uint256 i; i < requestIds.length; ++i) {
             uint64 requestId = requestIds[i];
-            (,, uint8 status,,,) = IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestId);
-            if (status != REQUEST_STATUS_PENDING) {
-                continue;
+            (,, uint8 status, uint256 amountMToken,,) =
+                IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestId);
+            if (status == REQUEST_STATUS_PENDING) {
+                (uint80 roundId, int256 answer,, uint256 timestamp,) =
+                    AggregatorV3Interface(aggregator).latestRoundData();
+                uint48 nextBucketTimestamp = bucketToTimestamp(requestToBucket[requestId] + 1);
+                while (timestamp >= nextBucketTimestamp) {
+                    --roundId;
+                    (, answer,, timestamp,) = AggregatorV3Interface(aggregator).getRoundData(roundId);
+                }
+                if (answer <= 0) {
+                    revert InvalidCutoffPrice();
+                }
+                assets += _tokenToRedeemToAssets(
+                    amountMToken, uint256(answer) * 10 ** (18 - AggregatorV3Interface(aggregator).decimals())
+                );
             }
-            assets += _pendingValue(requestId);
         }
-    }
-
-    /// @inheritdoc CutoffPricer
-    function _cutoffPriceData() internal view override returns (uint256 price, uint48 updatedAt) {
-        return IPriceDataOracle(ORACLE).getPriceData();
-    }
-
-    /// @inheritdoc CutoffPricer
-    function _cutoffToAssets(uint256 amount, uint256 rate) internal view override returns (uint256 assets) {
-        return _tokenToRedeemToAssets(amount, rate);
-    }
-
-    /* INITIALIZATION */
-
-    /// @dev Initializes the account and applies the cutoff schedule.
-    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
-        super._initialize(initialVersion, initOwner, data);
-        __CutoffPricer_init();
     }
 }

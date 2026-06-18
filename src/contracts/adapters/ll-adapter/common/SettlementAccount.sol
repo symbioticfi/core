@@ -3,42 +3,55 @@
 pragma solidity ^0.8.28;
 
 import {CooldownAccount} from "./CooldownAccount.sol";
-import {CutoffPricer} from "./CutoffPricer.sol";
+import {CutoffAccount} from "./CutoffAccount.sol";
 
+import {ICutoffAccount} from "../../../../interfaces/adapters/ll-adapter/ICutoffAccount.sol";
 import {IPriceDataOracle} from "../../../../interfaces/adapters/ll-adapter/IPriceDataOracle.sol";
 import {ISettlementAccount} from "../../../../interfaces/adapters/ll-adapter/ISettlementAccount.sol";
 import {ISettlementSubAccount} from "../../../../interfaces/adapters/ll-adapter/ISettlementSubAccount.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title SettlementAccount
 /// @notice Base account settling redemptions through per-request subaccounts priced by cutoff cohorts.
-/// @dev Settlement is value-covered: a subaccount is released only once its cohort rate is frozen and
-///      cumulative swept value (assets plus tokens at sweep-time rates) covers the frozen cohort value.
-///      Coverage is always measured against the full frozen value, so dust donations are harmless (they
-///      reduce the remaining receivable one-for-one but can never release a subaccount) and multi-tranche
-///      settlements and post-write-off late settlements stay sweepable. Write-off only zeroes valuation,
-///      not the stored frozen value, so written-off frozen subaccounts still release on full coverage;
-///      never-frozen written-off subaccounts have no frozen rate to define coverage and stay tracked
-///      indefinitely (valued at zero, swept each sync), keeping any late settlement recoverable. A
-///      frozen subaccount whose cumulative receipts stay below the frozen cohort value (e.g. settlement
-///      NAV slightly under the frozen print) is likewise retained indefinitely; anyone can top up the
-///      shortfall by transferring assets to the subaccount, which triggers release (the top-up itself
-///      sweeps to the vault).
-abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlementAccount {
+/// @dev Partial settlements stay isolated in the subaccount until they cover the frozen cohort value or
+///      the cohort is written off; released subaccounts remain rescueable for late funds.
+abstract contract SettlementAccount is CooldownAccount, CutoffAccount, ISettlementAccount {
     using SafeERC20 for IERC20;
-    using Math for uint256;
+
+    /* STRUCTS */
+
+    /// @dev Cutoff bucket accounting.
+    struct Bucket {
+        uint256 totalTokenToRedeem;
+        uint256 pendingTokenToRedeem;
+        uint256 rate;
+    }
+
+    /// @dev Pending cutoff entry.
+    struct PendingCutoff {
+        uint256 amount;
+        uint48 bucket;
+    }
+
+    /* IMMUTABLES */
+
+    /// @inheritdoc ISettlementAccount
+    uint48 public immutable VALUATION_DELAY;
+    /// @inheritdoc ISettlementAccount
+    uint48 public immutable POST_CUTOFF_WINDOW;
 
     /* STATE VARIABLES */
 
     /// @inheritdoc ISettlementAccount
     address[] public subAccounts;
     /// @inheritdoc ISettlementAccount
-    mapping(uint256 key => uint256 assets) public receivedValues;
+    mapping(uint48 bucket => Bucket data) public buckets;
     /// @inheritdoc ISettlementAccount
     mapping(address subAccount => bool created) public isSubAccount;
+    /// @inheritdoc ISettlementAccount
+    mapping(uint256 key => PendingCutoff data) public pendingCutoffs;
 
     /* CONSTRUCTOR */
 
@@ -48,21 +61,14 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
         address factory,
         uint48 cooldown,
         address tokenToRedeem,
-        uint48 initialCutoff,
-        uint48 initialCutoffPeriod,
         uint48 valuationDelay,
-        uint48 settlementDuration,
+        uint48 postCutoffWindow,
         address cowSwapSettlement
     )
         CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
-        CutoffPricer(initialCutoff, initialCutoffPeriod, valuationDelay, settlementDuration)
-    {}
-
-    /* PUBLIC FUNCTIONS (OWNER) */
-
-    /// @inheritdoc ISettlementAccount
-    function setCutoffSchedule(uint48 nextCutoff, uint48 period) public onlyOwner {
-        _setCutoffSchedule(nextCutoff, period);
+    {
+        VALUATION_DELAY = valuationDelay;
+        POST_CUTOFF_WINDOW = postCutoffWindow;
     }
 
     /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
@@ -80,72 +86,81 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
         ISettlementSubAccount(subAccount).sync();
     }
 
+    /* VIEW FUNCTIONS */
+
+    /// @inheritdoc CutoffAccount
+    function timestampToBucket(uint48 timestamp)
+        public
+        pure
+        virtual
+        override(CutoffAccount, ICutoffAccount)
+        returns (uint48 bucket)
+    {
+        return timestamp;
+    }
+
+    /// @inheritdoc CutoffAccount
+    function bucketToTimestamp(uint48 bucket)
+        public
+        pure
+        virtual
+        override(CutoffAccount, ICutoffAccount)
+        returns (uint48 timestamp)
+    {
+        return bucket;
+    }
+
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns subaccount holdings plus any remaining pending receivable not yet realized.
+    /// @dev Returns each subaccount's pending value or isolated holdings, whichever is larger.
     function _totalAssets() internal view override returns (uint256 assets) {
-        uint256 length = subAccounts.length;
-        for (uint256 i; i < length; ++i) {
+        for (uint256 i; i < subAccounts.length; ++i) {
             address subAccount = subAccounts[i];
-
-            uint256 holdings = IERC20(_asset).balanceOf(subAccount);
-            uint256 tokenBalance = IERC20(TOKEN_TO_REDEEM).balanceOf(subAccount);
-            if (tokenBalance > 0) {
-                holdings += _tokenToRedeemToAssets(tokenBalance);
-            }
-
-            assets += holdings + _remainingValue(uint160(subAccount)).saturatingSub(holdings);
+            uint256 holdings = _subAccountAssets(subAccount);
+            (uint256 value,) = _cutoffValue(uint160(subAccount));
+            assets += holdings > value ? holdings : value;
         }
     }
 
-    /// @dev Returns the unsettled portion of a subaccount's receivable (0 once written off).
-    function _remainingValue(uint256 key) internal view returns (uint256 remaining) {
-        (uint256 value, bool writtenOff) = _cohortValue(key);
-        return writtenOff ? 0 : value.saturatingSub(receivedValues[key]);
-    }
-
-    /// @dev Freezes cohort rates, sweeps subaccounts, and clears value-covered ones. A subaccount is
-    ///      released only once its cohort rate is frozen and cumulative swept value covers the frozen
-    ///      cohort value: a frozen rate is required to define "covered" (pre-freeze rate drift cannot
-    ///      release a subaccount early, and a written-off never-frozen entry reports a zero cohort value
-    ///      that any dust donation would otherwise satisfy, stranding late real settlements). Write-off
-    ///      keeps the stored frozen value, so written-off frozen entries still release on full coverage,
-    ///      while never-frozen written-off entries stay tracked (valued at zero, swept each sync).
-    ///      Coverage is only evaluated for frozen entries, so sweeping a subaccount's asset settlement
-    ///      never depends on the live oracle.
+    /// @dev Freezes cohort rates and releases subaccounts that are covered or written off.
     function _finalizeRequests() internal override {
         for (uint256 i = subAccounts.length; i > 0; --i) {
             uint256 index = i - 1;
             address subAccount = subAccounts[index];
             uint256 key = uint160(subAccount);
+            PendingCutoff storage pendingCutoff = pendingCutoffs[key];
+            Bucket storage bucket = buckets[pendingCutoff.bucket];
 
-            _tryFreezePending(key);
-
-            (uint256 sweptAssets, uint256 sweptTokenAmount) = ISettlementSubAccount(subAccount).sync();
-            uint256 sweptValue = sweptAssets;
-            if (sweptTokenAmount > 0) {
-                // Re-minted tokens are credited at the live sweep-time rate; if it differs from the
-                // frozen cohort rate the remaining receivable is off by the (bounded) rate drift on the
-                // re-minted portion, and any phantom remainder self-heals at write-off.
-                sweptValue += _tokenToRedeemToAssets(sweptTokenAmount);
-            }
-            if (sweptValue > 0) {
-                receivedValues[key] += sweptValue;
-
-                emit SweepSubAccount(subAccount, sweptAssets, sweptTokenAmount);
-            }
-
-            if (_isFrozen(key)) {
-                (uint256 value,) = _cohortValue(key);
-                if (receivedValues[key] >= value) {
-                    _clearPending(key);
-                    delete receivedValues[key];
-                    subAccounts[index] = subAccounts[subAccounts.length - 1];
-                    subAccounts.pop();
-
-                    emit ReleaseSubAccount(subAccount);
+            if (pendingCutoff.amount > 0 && bucket.rate == 0) {
+                uint256 pricingTimestamp = uint256(bucketToTimestamp(pendingCutoff.bucket)) + VALUATION_DELAY;
+                if (
+                    block.timestamp >= pricingTimestamp
+                        && block.timestamp < uint256(bucketToTimestamp(pendingCutoff.bucket)) + POST_CUTOFF_WINDOW
+                ) {
+                    (uint256 price, uint48 updatedAt) = IPriceDataOracle(ORACLE).getPriceData();
+                    if (price > 0 && updatedAt >= pricingTimestamp) {
+                        bucket.rate = price;
+                        emit FreezeBucket(pendingCutoff.bucket, price);
+                    }
                 }
             }
+
+            (uint256 value, bool writtenOff) = _cutoffValue(key);
+            if (!writtenOff && (bucket.rate == 0 || _subAccountAssets(subAccount) < value)) {
+                continue;
+            }
+
+            (uint256 sweptAssets, uint256 sweptTokenAmount) = ISettlementSubAccount(subAccount).sync();
+
+            bucket.pendingTokenToRedeem -= pendingCutoff.amount;
+            delete pendingCutoffs[key];
+            subAccounts[index] = subAccounts[subAccounts.length - 1];
+            subAccounts.pop();
+
+            if (sweptAssets > 0 || sweptTokenAmount > 0) {
+                emit SweepSubAccount(subAccount, sweptAssets, sweptTokenAmount);
+            }
+            emit ReleaseSubAccount(subAccount);
         }
     }
 
@@ -156,7 +171,10 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
 
         isSubAccount[subAccount] = true;
         subAccounts.push(subAccount);
-        _registerPending(uint160(subAccount), amount);
+        uint48 bucket = currentBucket();
+        pendingCutoffs[uint160(subAccount)] = PendingCutoff({amount: amount, bucket: bucket});
+        buckets[bucket].totalTokenToRedeem += amount;
+        buckets[bucket].pendingTokenToRedeem += amount;
         IERC20(TOKEN_TO_REDEEM).safeTransfer(subAccount, amount);
         ISettlementSubAccount(subAccount).requestRedeem();
     }
@@ -164,31 +182,46 @@ abstract contract SettlementAccount is CooldownAccount, CutoffPricer, ISettlemen
     /// @dev Deploys the issuer-specific request-holder subaccount.
     function _createSubAccount() internal virtual returns (address subAccount);
 
-    /// @inheritdoc CutoffPricer
-    function _cutoffPriceData() internal view override returns (uint256 price, uint48 updatedAt) {
-        return IPriceDataOracle(ORACLE).getPriceData();
+    /// @dev Returns a subaccount's isolated vault-asset value.
+    function _subAccountAssets(address subAccount) internal view returns (uint256 assets) {
+        assets = IERC20(_asset).balanceOf(subAccount);
+        uint256 tokenBalance = IERC20(TOKEN_TO_REDEEM).balanceOf(subAccount);
+        if (tokenBalance > 0) {
+            assets += _tokenToRedeemToAssets(tokenBalance);
+        }
     }
 
-    /// @inheritdoc CutoffPricer
-    function _cutoffToAssets(uint256 amount, uint256 rate) internal view override returns (uint256 assets) {
-        return _tokenToRedeemToAssets(amount, rate);
+    /// @dev Returns a pending cutoff entry's value and whether it is past its counting window.
+    function _cutoffValue(uint256 key) internal view returns (uint256 value, bool writtenOff) {
+        PendingCutoff memory pendingCutoff = pendingCutoffs[key];
+        if (pendingCutoff.amount == 0) {
+            return (0, false);
+        }
+
+        writtenOff = block.timestamp >= uint256(bucketToTimestamp(pendingCutoff.bucket)) + POST_CUTOFF_WINDOW;
+        if (writtenOff) {
+            return (0, true);
+        }
+
+        uint256 rate = buckets[pendingCutoff.bucket].rate;
+        if (rate == 0) {
+            (rate,) = IPriceDataOracle(ORACLE).getPriceData();
+            if (rate == 0) {
+                revert InvalidCutoffPrice();
+            }
+        }
+
+        value = _tokenToRedeemToAssets(pendingCutoff.amount, rate);
     }
 
     /* INITIALIZATION */
 
-    /// @dev Initializes the account and applies the cutoff schedule.
-    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal virtual override {
-        super._initialize(initialVersion, initOwner, data);
-        __CutoffPricer_init();
-    }
-
     /// @dev Blocks migration while subaccounts are still tracked: a live pipeline cannot be assumed
     ///      ABI- or storage-compatible across implementations (legacy subaccounts had a void `sync()`,
     ///      and legacy layouts stored the subaccount array at a different slot), so migration is only
-    ///      safe from an empty pipeline. Migrated instances must also have their cutoff schedule set via
-    ///      `setCutoffSchedule`, since `__CutoffPricer_init` only runs on fresh initialization.
+    ///      safe from an empty pipeline.
     function _migrate(uint64 oldVersion, uint64 newVersion, bytes calldata data) internal virtual override {
-        if (subAccounts.length != 0) {
+        if (subAccounts.length > 0) {
             revert MigrationWithLiveSubAccounts();
         }
         super._migrate(oldVersion, newVersion, data);

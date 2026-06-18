@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IPriceDataOracle} from "../IPriceDataOracle.sol";
+import {IOracle} from "../IOracle.sol";
 
 /**
  * @title IMidasDataFeed
@@ -27,7 +27,7 @@ interface IMidasDataFeed {
  * @title IMidasOracle
  * @notice Interface for Midas-backed liquidity lane token oracles.
  */
-interface IMidasOracle is IPriceDataOracle {
+interface IMidasOracle is IOracle {
     /* FUNCTIONS */
 
     /**

@@ -50,6 +50,27 @@ contract ThreeJaneAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 1001e6);
     }
 
+    function testThreeJaneAccountRedeemsUSD3WhenVaultAssetDiffers() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
+        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1_001_000, 1 days, 2 days);
+        MockOracle oracle = new MockOracle(1_001_000_000_000_000_000);
+        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, oracle);
+
+        tokenToRedeem.mint(address(account), 1000e6);
+
+        assertEq(account.totalAssets(), 1001e6);
+
+        account.sync();
+        vm.warp(vm.getBlockTimestamp() + 1 days);
+        account.sync();
+
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(usd3.balanceOf(address(account)), 0);
+        assertEq(usdc.balanceOf(address(account)), 1001e6);
+        assertEq(account.totalAssets(), 1001e6);
+    }
+
     function testThreeJaneAccountWaitsForInitialLockBeforeCooldown() public {
         MockERC20 asset = new MockERC20("3Jane USD3", "USD3", 6);
         MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(asset, 1e6, 1 days, 2 days);

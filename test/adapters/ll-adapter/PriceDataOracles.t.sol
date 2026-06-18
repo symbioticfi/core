@@ -47,16 +47,13 @@ contract MockMidasDataFeed {
 }
 
 contract PriceDataOraclesTest is Test {
-    function testMidasOracleReturnsPriceAndAggregatorUpdatedAt() public {
+    function testMidasOracleReturnsFeedPrice() public {
         MockAggregatorV3 aggregator = new MockAggregatorV3(8);
         MockMidasDataFeed dataFeed = new MockMidasDataFeed(address(aggregator));
         dataFeed.setAnswer(0.93e18);
-        aggregator.setRound(0.93e8, 1_750_000_000);
 
         MidasOracle oracle = new MidasOracle(address(dataFeed));
-        (uint256 price, uint48 updatedAt) = oracle.getPriceData();
-        assertEq(price, 0.93e18);
-        assertEq(updatedAt, 1_750_000_000);
+        assertEq(oracle.getPrice(), 0.93e18);
     }
 
     function testChainlinkOracleReturnsOldestUpdatedAtOfTwoAggregators() public {
