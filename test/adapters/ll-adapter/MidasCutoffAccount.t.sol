@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 
-import {CompCutoffMidasAccount} from "../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
+import {CutoffMidasAccount} from "../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 
@@ -29,7 +29,7 @@ contract MidasCutoffAccountTest is Test {
     MockAggregator internal aggregator;
     MockMidasDataFeed internal dataFeed;
     MockMidasRedemptionVault internal redemptionVault;
-    CompCutoffMidasAccount internal account;
+    CutoffMidasAccount internal account;
 
     uint48 internal CUTOFF;
 
@@ -47,7 +47,7 @@ contract MidasCutoffAccountTest is Test {
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
-        CompCutoffMidasAccount implementation = new CompCutoffMidasAccount(
+        CutoffMidasAccount implementation = new CutoffMidasAccount(
             address(new MidasOracle(address(dataFeed))),
             address(factory),
             COOLDOWN,
@@ -59,7 +59,7 @@ contract MidasCutoffAccountTest is Test {
             cowSettlement
         );
         factory.whitelist(address(implementation));
-        account = CompCutoffMidasAccount(
+        account = CutoffMidasAccount(
             factory.create(1, address(this), abi.encode(address(new MockVault(address(usdc))), adapter))
         );
     }

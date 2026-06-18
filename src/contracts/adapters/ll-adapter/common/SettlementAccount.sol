@@ -64,9 +64,7 @@ abstract contract SettlementAccount is CooldownAccount, CutoffAccount, ISettleme
         uint48 valuationDelay,
         uint48 postCutoffWindow,
         address cowSwapSettlement
-    )
-        CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
-    {
+    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
         VALUATION_DELAY = valuationDelay;
         POST_CUTOFF_WINDOW = postCutoffWindow;
     }

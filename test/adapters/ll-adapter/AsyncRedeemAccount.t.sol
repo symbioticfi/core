@@ -3,6 +3,8 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
+import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
+
 contract AsyncRedeemAccountTest is AccountsBase {
     function testAsyncRedeemOracleUsesAsyncVaultConversion() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
@@ -234,5 +236,55 @@ contract AsyncRedeemAccountTest is AccountsBase {
             new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
             DEJAAA_TOKEN_ADDRESS
         );
+    }
+
+    function testCentrifugeTokenAccountsUseCentrifugeAccountBase() public {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        MockOracle oracle = new MockOracle(1e18);
+
+        _mockDecimals(JTRSY_TOKEN_ADDRESS, 18);
+        _mockDecimals(JAAA_TOKEN_ADDRESS, 18);
+        _mockDecimals(ACRDX_TOKEN_ADDRESS, 18);
+        _mockDecimals(DECRDX_TOKEN_ADDRESS, 18);
+        _mockDecimals(DEJTRSY_TOKEN_ADDRESS, 18);
+        _mockDecimals(DEJAAA_TOKEN_ADDRESS, 18);
+
+        assertEq(
+            IAccount(_centrifugeAccountAddress(new JTRSY_Account(address(oracle), address(factory), cowSwapSettlement)))
+                .TOKEN_TO_REDEEM(),
+            JTRSY_TOKEN_ADDRESS
+        );
+        assertEq(
+            IAccount(_centrifugeAccountAddress(new JAAA_Account(address(oracle), address(factory), cowSwapSettlement)))
+                .TOKEN_TO_REDEEM(),
+            JAAA_TOKEN_ADDRESS
+        );
+        assertEq(
+            IAccount(_centrifugeAccountAddress(new ACRDX_Account(address(oracle), address(factory), cowSwapSettlement)))
+                .TOKEN_TO_REDEEM(),
+            ACRDX_TOKEN_ADDRESS
+        );
+        assertEq(
+            IAccount(
+                    _centrifugeAccountAddress(new deCRDX_Account(address(oracle), address(factory), cowSwapSettlement))
+                ).TOKEN_TO_REDEEM(),
+            DECRDX_TOKEN_ADDRESS
+        );
+        assertEq(
+            IAccount(
+                    _centrifugeAccountAddress(new deJTRSY_Account(address(oracle), address(factory), cowSwapSettlement))
+                ).TOKEN_TO_REDEEM(),
+            DEJTRSY_TOKEN_ADDRESS
+        );
+        assertEq(
+            IAccount(
+                    _centrifugeAccountAddress(new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement))
+                ).TOKEN_TO_REDEEM(),
+            DEJAAA_TOKEN_ADDRESS
+        );
+    }
+
+    function _centrifugeAccountAddress(CentrifugeAccount account) internal pure returns (address) {
+        return address(account);
     }
 }

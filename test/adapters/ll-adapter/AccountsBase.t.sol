@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 
 import {ACRDX_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
-import {AsyncRedeemAccount} from "../../../src/contracts/adapters/ll-adapter/common/AsyncRedeemAccount.sol";
+import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
 import {DigiFTAccount} from "../../../src/contracts/adapters/ll-adapter/DigiFTAccount.sol";
 import {DUSD_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
 import {GaibAccount} from "../../../src/contracts/adapters/ll-adapter/GaibAccount.sol";
@@ -847,6 +847,10 @@ contract MockAsyncRedeemVault is MockERC20 {
         return shares * assetsPerShare / 10 ** decimals();
     }
 
+    function vault(address asset_) external view returns (address) {
+        return asset_ == address(asset) ? address(this) : address(0);
+    }
+
     function previewWithdraw(uint256 shares) external view returns (uint256 assets) {
         if (revertPreviewWithdraw) {
             revert();
@@ -1150,8 +1154,8 @@ contract AccountsCoWSwapSettlementMock {
     }
 }
 
-contract TestAsyncRedeemAccount is AsyncRedeemAccount {
+contract TestAsyncRedeemAccount is CentrifugeAccount {
     constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
-        AsyncRedeemAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
+        CentrifugeAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
     {}
 }

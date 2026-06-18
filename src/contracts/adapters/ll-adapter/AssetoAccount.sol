@@ -66,9 +66,7 @@ contract AssetoAccount is CooldownAccount, CutoffAccount, IAssetoAccount {
         uint48 valuationDelay,
         uint48 postCutoffWindow,
         address cowSwapSettlement
-    )
-        CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
-    {
+    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
         MANAGER = manager;
         VALUATION_DELAY = valuationDelay;
         POST_CUTOFF_WINDOW = postCutoffWindow;

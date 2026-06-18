@@ -66,9 +66,7 @@ abstract contract SecuritizeAccount is CooldownAccount, CutoffAccount, ISecuriti
         uint48 valuationDelay,
         uint48 postCutoffWindow,
         address cowSwapSettlement
-    )
-        CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
-    {
+    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
         REDEMPTION_WALLET = redemptionWallet;
         VALUATION_DELAY = valuationDelay;
         POST_CUTOFF_WINDOW = postCutoffWindow;

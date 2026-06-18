@@ -2,14 +2,14 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {CompCutoffMidasAccount} from "../MidasAccount.sol";
+import {CutoffMidasAccount} from "../MidasAccount.sol";
 import {MidasOracle} from "../oracles/MidasOracle.sol";
 import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 
 import {IMidasRedemptionVault} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 import {IMidasTokenAccount} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasTokenAccount.sol";
 
-contract mGLOBAL_Account is CompCutoffMidasAccount, IMidasTokenAccount {
+contract mGLOBAL_Account is CutoffMidasAccount, IMidasTokenAccount {
     uint48 internal constant TOKEN_COOLDOWN = 36 hours;
     uint48 internal constant TOKEN_PRE_CUTOFF_WINDOW = 3 days;
     uint48 public constant MAX_WITHDRAWAL_DELAY = 65 days;
@@ -19,7 +19,7 @@ contract mGLOBAL_Account is CompCutoffMidasAccount, IMidasTokenAccount {
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x1e0fd66753198c7b8bA64edEe8d41D8628Bf20D7;
 
     constructor(address factory, address cowSwapSettlement)
-        CompCutoffMidasAccount(
+        CutoffMidasAccount(
             address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
             factory,
             TOKEN_COOLDOWN,

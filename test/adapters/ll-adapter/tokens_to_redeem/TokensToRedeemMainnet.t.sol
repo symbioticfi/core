@@ -5,7 +5,7 @@ pragma solidity ^0.8.28;
 ///      infiniFi locked iUSD change (liUSD-4w/liUSD-13w on InfiniFiAccount): their redemption
 ///      notice is a gateway `startUnwinding` call keyed by the block timestamp. Previously
 ///      updated for the cutoff-based redemptions change (ACRED/USCC/bEQTY on SettlementAccount +
-///      CutoffAccount, mGLOBAL on CompCutoffMidasAccount): oracles passed to those accounts must
+///      CutoffAccount, mGLOBAL on CutoffMidasAccount): oracles passed to those accounts must
 ///      expose `getPriceData()`, and ACRED's notice is an ERC-20 transfer to the Securitize
 ///      redemption wallet. Re-run on fork after any change to those accounts.
 import {Test} from "forge-std/Test.sol";
@@ -62,7 +62,13 @@ import {USCC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens
 import {weETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {AsyncRedeemOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/AsyncRedeemOracle.sol";
+import {AdapterFactory} from "../../../../src/contracts/adapters/AdapterFactory.sol";
+import {LiquidLaneAdapter} from "../../../../src/contracts/adapters/LiquidLaneAdapter.sol";
+import {AccountRegistry} from "../../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
 import {MigratablesFactory} from "../../../../src/contracts/common/MigratablesFactory.sol";
+import {Registry} from "../../../../src/contracts/common/Registry.sol";
+import {ILiquidLaneAdapter} from "../../../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
+import {IAdapter} from "../../../../src/interfaces/adapters/IAdapter.sol";
 import {IAsyncRedeemAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
 import {IAsyncRedeemVault} from "../../../../src/interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
 import {IAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
@@ -115,11 +121,25 @@ contract TokensToRedeemMainnetTest is Test {
         address token;
     }
 
+    struct CentrifugeCycle {
+        address token;
+        address account;
+        address llAdapter;
+        address vault;
+        address delegator;
+        address asyncRedeemVault;
+    }
+
     address internal constant ACRDX = 0x9477724Bb54AD5417de8Baff29e59DF3fB4DA74f;
     address internal constant ACRED = 0x17418038ecF73BA4026c4f428547BF099706F27B;
     address internal constant AA_FALCONX = 0xC26A6Fa2C37b38E549a4a1807543801Db684f99C;
     address internal constant BEQTY = 0xEaFD6D38f41f882BCFd5fEaABccCc714B983b701;
     address internal constant CARRY_TRADE_USD_TRY_LEVERAGE = 0x2bf11d2E04Bc40daa95c24B8b90EC4F5c57Dd326;
+    address internal constant CENTRIFUGE_ASYNC_MANAGER = 0xF48256AbDDf96EcDDc4B3DbD23E8C1921f9761Ae;
+    address internal constant CENTRIFUGE_HOOK_WARD_1 = 0x7Ed48C31f2fdC40d37407cBaBf0870B2b688368f;
+    address internal constant CENTRIFUGE_HOOK_WARD_2 = 0xEC3582fcDc34078a4B7a8c75a5a3AE46f48525aB;
+    address internal constant CENTRIFUGE_MANAGER_WARD = 0x7Ed48C31f2fdC40d37407cBaBf0870B2b688368f;
+    address internal constant CENTRIFUGE_SPOKE = 0xEC3582fcDc34078a4B7a8c75a5a3AE46f48525aB;
     address internal constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address internal constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
     address internal constant DECRDX = 0x9E2679eABFF131b8b1b48fF7566140794E0eEdc4;
@@ -204,6 +224,23 @@ contract TokensToRedeemMainnetTest is Test {
         }
     }
 
+    function testCentrifugeMainnetFullSwapRedemptionCycles() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Centrifuge cycle");
+        vm.createSelectFork(mainnetRpcUrl);
+
+        uint256[6] memory indexes = [uint256(0), 3, 4, 8, 9, 10];
+        TokenSpec[] memory specs = _tokenSpecs();
+
+        for (uint256 i; i < indexes.length; ++i) {
+            emit log_named_string("centrifuge cycle", specs[indexes[i]].symbol);
+
+            CentrifugeCycle memory cycle = _setUpCentrifugeCycle(indexes[i], specs[indexes[i]].token);
+            (uint256 amountIn, uint256 amountOut, uint256 expectedAssets) = _swapAndAssertPendingCentrifuge(cycle);
+            _fulfillCentrifugeRedeem(cycle.account, cycle.asyncRedeemVault, amountIn, expectedAssets);
+            _assertFinalizedAndDeallocateCentrifuge(cycle, amountOut, expectedAssets);
+        }
+    }
+
     function _assertTokenAccount(uint256 index, TokenSpec memory spec) internal {
         emit log_named_string("token", spec.symbol);
 
@@ -253,6 +290,149 @@ contract TokensToRedeemMainnetTest is Test {
         } catch (bytes memory reason) {
             _assertKnownMainnetSyncRestriction(index, account, spec.token, amount, reason, spec.symbol);
         }
+    }
+
+    function _setUpCentrifugeCycle(uint256 index, address token) internal returns (CentrifugeCycle memory cycle) {
+        cycle.token = token;
+
+        address vaultFactory = address(new TokensMainnetVaultRegistry());
+        cycle.vault = address(new TokensMainnetLiquidLaneVault(USDC));
+        cycle.delegator = address(new TokensMainnetDelegator(cycle.vault));
+        address adapterFactory = address(new AdapterFactory(address(this)));
+        address accountFactory = address(new MigratablesFactory(address(this)));
+        address accountRegistry = address(new AccountRegistry(address(this)));
+
+        TokensMainnetVaultRegistry(vaultFactory).add(cycle.vault);
+        TokensMainnetLiquidLaneVault(cycle.vault).setDelegator(cycle.delegator);
+
+        address adapterImplementation = address(new LiquidLaneAdapter(vaultFactory, adapterFactory, accountRegistry));
+        address accountImplementation = address(_deployImplementation(index, accountFactory));
+
+        AdapterFactory(adapterFactory).whitelist(adapterImplementation);
+        MigratablesFactory(accountFactory).whitelist(accountImplementation);
+        AccountRegistry(accountRegistry).setAccountFactory(USDC, token, accountFactory);
+
+        ILiquidLaneAdapter.InitParams memory params =
+            ILiquidLaneAdapter.InitParams({pauser: address(this), unpauser: address(this)});
+        cycle.llAdapter =
+            AdapterFactory(adapterFactory).create(1, address(this), abi.encode(cycle.vault, abi.encode(params)));
+
+        LiquidLaneAdapter(cycle.llAdapter).addTokenToRedeem(token);
+        LiquidLaneAdapter(cycle.llAdapter).setLimit(token, type(uint256).max);
+
+        cycle.account = LiquidLaneAdapter(cycle.llAdapter).accounts(token);
+        cycle.asyncRedeemVault = _asyncRedeemVault(token, USDC);
+
+        _permissionCentrifugeMember(token, cycle.llAdapter);
+        _permissionCentrifugeMember(token, cycle.account);
+    }
+
+    function _swapAndAssertPendingCentrifuge(CentrifugeCycle memory cycle)
+        internal
+        returns (uint256 amountIn, uint256 amountOut, uint256 expectedAssets)
+    {
+        amountIn = 10 ** IERC20Metadata(cycle.token).decimals();
+        amountOut = LiquidLaneAdapter(cycle.llAdapter).getAmountOut(cycle.token, amountIn);
+        expectedAssets = IAsyncRedeemVault(cycle.asyncRedeemVault).convertToAssets(amountIn);
+        address recipient = makeAddr("centrifugeRecipient");
+        uint256 recipientBalance = IERC20(USDC).balanceOf(recipient);
+
+        _dealCentrifugeShare(cycle.token, cycle.llAdapter, amountIn);
+        deal(USDC, cycle.vault, amountOut);
+
+        LiquidLaneAdapter(cycle.llAdapter).swap(ILiquidLaneAdapter.Swap(recipient, cycle.token, amountIn, amountOut));
+
+        uint256 requestId = IAsyncRedeemAccount(cycle.account).requestIds(0);
+
+        assertEq(requestId, 0);
+        assertEq(IERC20(cycle.token).balanceOf(cycle.account), 0);
+        assertEq(IERC20(cycle.token).balanceOf(cycle.llAdapter), 0);
+        assertEq(IERC20(USDC).balanceOf(recipient), recipientBalance + amountOut);
+        assertEq(IAccount(cycle.account).totalAssets(), expectedAssets);
+        assertEq(IAsyncRedeemVault(cycle.asyncRedeemVault).pendingRedeemRequest(requestId, cycle.account), amountIn);
+        assertEq(IAsyncRedeemVault(cycle.asyncRedeemVault).claimableRedeemRequest(requestId, cycle.account), 0);
+    }
+
+    function _fulfillCentrifugeRedeem(address account, address asyncRedeemVault, uint256 shares, uint256 assets)
+        internal
+    {
+        uint64 poolId = IMainnetCentrifugeVault(asyncRedeemVault).poolId();
+        bytes16 scId = IMainnetCentrifugeVault(asyncRedeemVault).scId();
+        uint128 assetId = IMainnetCentrifugeSpoke(CENTRIFUGE_SPOKE).assetToId(USDC, 0);
+
+        _fundCentrifugeEscrow(poolId, scId, assets);
+        _callbackCentrifugeRevoked(poolId, scId, assetId, shares, assets);
+        _callbackCentrifugeFulfilled(poolId, scId, assetId, account, shares, assets);
+
+        assertEq(IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(0, account), 0);
+        assertEq(IAsyncRedeemVault(asyncRedeemVault).maxWithdraw(account), assets);
+        assertGt(IAsyncRedeemVault(asyncRedeemVault).claimableRedeemRequest(0, account), 0);
+    }
+
+    function _callbackCentrifugeRevoked(uint64 poolId, bytes16 scId, uint128 assetId, uint256 shares, uint256 assets)
+        internal
+    {
+        uint128 pricePoolPerShare = IMainnetCentrifugeSpoke(CENTRIFUGE_SPOKE).pricePoolPerShare(poolId, scId, false);
+        vm.prank(CENTRIFUGE_MANAGER_WARD);
+        IMainnetCentrifugeAsyncManager(CENTRIFUGE_ASYNC_MANAGER)
+            .callback(
+                poolId, scId, assetId, abi.encodePacked(uint8(3), uint128(assets), uint128(shares), pricePoolPerShare)
+            );
+    }
+
+    function _callbackCentrifugeFulfilled(
+        uint64 poolId,
+        bytes16 scId,
+        uint128 assetId,
+        address account,
+        uint256 shares,
+        uint256 assets
+    ) internal {
+        vm.prank(CENTRIFUGE_MANAGER_WARD);
+        IMainnetCentrifugeAsyncManager(CENTRIFUGE_ASYNC_MANAGER)
+            .callback(
+                poolId,
+                scId,
+                assetId,
+                abi.encodePacked(uint8(5), bytes32(bytes20(account)), uint128(assets), uint128(shares), uint128(0))
+            );
+    }
+
+    function _fundCentrifugeEscrow(uint64 poolId, bytes16 scId, uint256 assets) internal {
+        address balanceSheet = IMainnetCentrifugeAsyncManager(CENTRIFUGE_ASYNC_MANAGER).balanceSheet();
+        address poolEscrow = IMainnetCentrifugeBalanceSheet(balanceSheet).escrow(poolId);
+        uint256 availableAssets = IMainnetCentrifugePoolEscrow(poolEscrow).availableBalanceOf(scId, USDC, 0);
+
+        if (availableAssets < assets) {
+            vm.prank(balanceSheet);
+            IMainnetCentrifugePoolEscrow(poolEscrow).deposit(scId, USDC, 0, uint128(assets - availableAssets));
+        }
+        if (IERC20(USDC).balanceOf(poolEscrow) < assets) {
+            deal(USDC, poolEscrow, assets);
+        }
+    }
+
+    function _assertFinalizedAndDeallocateCentrifuge(
+        CentrifugeCycle memory cycle,
+        uint256 amountOut,
+        uint256 expectedAssets
+    ) internal {
+        IAccount(cycle.account).sync();
+
+        vm.expectRevert();
+        IAsyncRedeemAccount(cycle.account).requestIds(0);
+
+        assertEq(IERC20(USDC).balanceOf(cycle.account), expectedAssets);
+        assertEq(IAccount(cycle.account).totalAssets(), expectedAssets);
+        assertEq(LiquidLaneAdapter(cycle.llAdapter).totalAssets(), expectedAssets);
+        assertEq(LiquidLaneAdapter(cycle.llAdapter).freeAssets(), expectedAssets);
+
+        uint256 deallocated = TokensMainnetDelegator(cycle.delegator).deallocate(cycle.llAdapter, amountOut);
+
+        assertEq(deallocated, expectedAssets);
+        assertEq(IERC20(USDC).balanceOf(cycle.vault), expectedAssets);
+        assertEq(LiquidLaneAdapter(cycle.llAdapter).totalAssets(), 0);
+        assertEq(LiquidLaneAdapter(cycle.llAdapter).freeAssets(), 0);
     }
 
     function _tokenSpecs() internal pure returns (TokenSpec[] memory specs) {
@@ -677,11 +857,37 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _asyncRedeemVault(address token, address asset) internal view returns (address) {
-        try IERC7575Share(token).vault(asset) returns (address asyncRedeemVault) {
-            return asyncRedeemVault == address(0) ? token : asyncRedeemVault;
-        } catch {}
+        return IERC7575Share(token).vault(asset);
+    }
 
-        return token;
+    function _dealCentrifugeShare(address token, address account, uint256 amount) internal {
+        vm.record();
+        IERC20(token).balanceOf(account);
+        (bytes32[] memory reads,) = vm.accesses(token);
+
+        bytes32 balanceSlot = reads[0];
+        bytes32 packedBalance = vm.load(token, balanceSlot);
+        vm.store(token, balanceSlot, bytes32((uint256(packedBalance) & ~uint256(type(uint128).max)) | amount));
+    }
+
+    function _permissionCentrifugeMember(address token, address account) internal {
+        address hook = IMainnetCentrifugeShareToken(token).hook();
+        bytes memory callData = abi.encodeWithSelector(
+            IMainnetCentrifugeTransferHook.updateMember.selector, token, account, type(uint64).max
+        );
+
+        vm.prank(CENTRIFUGE_HOOK_WARD_1);
+        (bool success, bytes memory reason) = hook.call(callData);
+        if (success) {
+            return;
+        }
+
+        vm.prank(CENTRIFUGE_HOOK_WARD_2);
+        (success, reason) = hook.call(callData);
+        if (!success) {
+            emit log_named_bytes("centrifuge permission revert", reason);
+            fail("centrifuge permission");
+        }
     }
 
     function _assertMakinaRedemption(IAccount account, uint256 amount, string memory symbol) internal view {
@@ -808,12 +1014,120 @@ contract TokensToRedeemMainnetTest is Test {
     }
 }
 
+contract TokensMainnetVaultRegistry is Registry {
+    function add(address entity) external {
+        _addEntity(entity);
+    }
+}
+
+contract TokensMainnetLiquidLaneVault {
+    address public immutable asset;
+    address public delegator;
+
+    constructor(address asset_) {
+        asset = asset_;
+    }
+
+    function setDelegator(address newDelegator) external {
+        delegator = newDelegator;
+    }
+
+    function freeAssets() external view returns (uint256) {
+        return IERC20(asset).balanceOf(address(this));
+    }
+
+    function withdrawable() external view returns (uint256) {
+        return IERC20(asset).balanceOf(address(this));
+    }
+
+    function pull(uint256 assets, address receiver) external {
+        if (msg.sender != delegator) {
+            revert();
+        }
+        IERC20(asset).transfer(receiver, assets);
+    }
+
+    function push(uint256 assets, address owner) external {
+        if (msg.sender != delegator) {
+            revert();
+        }
+        IERC20(asset).transferFrom(owner, address(this), assets);
+    }
+}
+
+contract TokensMainnetDelegator {
+    address public immutable vault;
+
+    constructor(address vault_) {
+        vault = vault_;
+    }
+
+    function limitOf(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    function sweepPending() external pure returns (uint256) {
+        return 0;
+    }
+
+    function allocateExact(address adapter, uint256 assets) external returns (uint256 allocated) {
+        TokensMainnetLiquidLaneVault(vault).pull(assets, adapter);
+        allocated = IAdapter(adapter).allocate(assets);
+        if (allocated < assets) {
+            TokensMainnetLiquidLaneVault(vault).push(assets - allocated, adapter);
+        }
+    }
+
+    function deallocate(address adapter, uint256 assets) external returns (uint256 deallocated) {
+        deallocated = IAdapter(adapter).deallocate(assets);
+        if (deallocated > 0) {
+            TokensMainnetLiquidLaneVault(vault).push(deallocated, adapter);
+        }
+    }
+}
+
 contract MainnetAssetVault {
     address public immutable asset;
 
     constructor(address asset_) {
         asset = asset_;
     }
+}
+
+interface IMainnetCentrifugeAsyncManager {
+    function balanceSheet() external view returns (address);
+
+    function callback(uint64 poolId, bytes16 scId, uint128 assetId, bytes calldata payload) external;
+}
+
+interface IMainnetCentrifugeBalanceSheet {
+    function escrow(uint64 poolId) external view returns (address);
+}
+
+interface IMainnetCentrifugePoolEscrow {
+    function availableBalanceOf(bytes16 scId, address asset, uint256 tokenId) external view returns (uint128);
+
+    function deposit(bytes16 scId, address asset, uint256 tokenId, uint128 value) external;
+}
+
+interface IMainnetCentrifugeShareToken {
+    function hook() external view returns (address);
+}
+
+interface IMainnetCentrifugeSpoke {
+    function assetToId(address asset, uint256 tokenId) external view returns (uint128 assetId);
+
+    function pricePoolPerShare(uint64 poolId, bytes16 scId, bool checkValidity) external view returns (uint128 price);
+}
+
+interface IMainnetCentrifugeTransferHook {
+    function updateMember(address token, address user, uint64 validUntil) external;
+}
+
+interface IMainnetCentrifugeVault {
+    function poolId() external view returns (uint64);
+
+    function scId() external view returns (bytes16);
 }
 
 contract MainnetConstantOracle {

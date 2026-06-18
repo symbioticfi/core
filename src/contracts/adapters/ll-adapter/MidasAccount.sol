@@ -5,13 +5,15 @@ pragma solidity ^0.8.28;
 import {CooldownAccount} from "./common/CooldownAccount.sol";
 import {CutoffAccount} from "./common/CutoffAccount.sol";
 
+import {AggregatorV3Interface} from "./oracles/libraries/ChainlinkPriceFeed.sol";
+
 import {IMidasAccount, REQUEST_STATUS_PENDING} from "../../../interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
 import {IMidasDataFeed, IMidasOracle} from "../../../interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
 import {IMidasRedemptionVault} from "../../../interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {AggregatorV3Interface} from "./oracles/libraries/ChainlinkPriceFeed.sol";
+
 import {DateTimeLib} from "solady/utils/DateTimeLib.sol";
 
 /// @title MidasAccount
@@ -163,10 +165,10 @@ contract MidasNonCompAccount is MidasAccount {
     }
 }
 
-/// @title CompCutoffMidasAccount
+/// @title CutoffMidasAccount
 /// @notice Midas account for cutoff-cohort redemptions: pending requests compound until the cohort
 ///         pricing date, then freeze at the first vault-feed print at/after it.
-contract CompCutoffMidasAccount is MidasAccount, CutoffAccount {
+contract CutoffMidasAccount is MidasAccount, CutoffAccount {
     /* IMMUTABLES */
 
     /// @dev Cutoff day for monthly schedules.
