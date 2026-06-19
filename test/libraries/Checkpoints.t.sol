@@ -158,6 +158,33 @@ contract CheckpointsTrace208Test is Test {
         assertEq(resultWithHint, resultWithoutHint);
     }
 
+
+    function testUpperLookupRecentWithMalformedHintFallsBack() public {
+        _ckpts.push(10, 100);
+        _ckpts.push(20, 200);
+
+        bytes memory malformedHint = hex"01";
+
+        assertEq(_ckpts.upperLookupRecent(15, malformedHint), _ckpts.upperLookupRecent(15));
+    }
+
+    function testUpperLookupRecentCheckpointWithMalformedHintFallsBack() public {
+        _ckpts.push(10, 100);
+        _ckpts.push(20, 200);
+
+        bytes memory malformedHint = hex"01";
+
+        (bool existsWithHint, uint48 keyWithHint, uint208 valueWithHint, uint32 indexWithHint) =
+            _ckpts.upperLookupRecentCheckpoint(15, malformedHint);
+        (bool existsWithoutHint, uint48 keyWithoutHint, uint208 valueWithoutHint, uint32 indexWithoutHint) =
+            _ckpts.upperLookupRecentCheckpoint(15);
+
+        assertEq(existsWithHint, existsWithoutHint);
+        assertEq(keyWithHint, keyWithoutHint);
+        assertEq(valueWithHint, valueWithoutHint);
+        assertEq(indexWithHint, indexWithoutHint);
+    }
+
     // Test upperLookupRecentCheckpoint without hint
     function testUpperLookupRecentCheckpoint(uint48[] memory keys, uint208[] memory values, uint48 lookup) public {
         vm.assume(values.length > 0 && values.length <= keys.length);
@@ -465,6 +492,33 @@ contract CheckpointsTrace256Test is Test {
         uint256 resultWithoutHint = _ckpts.upperLookupRecent(lookup);
 
         assertEq(resultWithHint, resultWithoutHint);
+    }
+
+
+    function testUpperLookupRecentWithMalformedHintFallsBack() public {
+        _ckpts.push(10, 100);
+        _ckpts.push(20, 200);
+
+        bytes memory malformedHint = hex"01";
+
+        assertEq(_ckpts.upperLookupRecent(15, malformedHint), _ckpts.upperLookupRecent(15));
+    }
+
+    function testUpperLookupRecentCheckpointWithMalformedHintFallsBack() public {
+        _ckpts.push(10, 100);
+        _ckpts.push(20, 200);
+
+        bytes memory malformedHint = hex"01";
+
+        (bool existsWithHint, uint48 keyWithHint, uint256 valueWithHint, uint32 indexWithHint) =
+            _ckpts.upperLookupRecentCheckpoint(15, malformedHint);
+        (bool existsWithoutHint, uint48 keyWithoutHint, uint256 valueWithoutHint, uint32 indexWithoutHint) =
+            _ckpts.upperLookupRecentCheckpoint(15);
+
+        assertEq(existsWithHint, existsWithoutHint);
+        assertEq(keyWithHint, keyWithoutHint);
+        assertEq(valueWithHint, valueWithoutHint);
+        assertEq(indexWithHint, indexWithoutHint);
     }
 
     // Test upperLookupRecentCheckpoint without hint

@@ -57,7 +57,7 @@ library Checkpoints {
      * (index of the checkpoint with a key lower or equal than the search key).
      */
     function upperLookupRecent(Trace208 storage self, uint48 key, bytes memory hint_) internal view returns (uint208) {
-        if (hint_.length == 0) {
+        if (hint_.length != 32) {
             return upperLookupRecent(self, key);
         }
 
@@ -119,7 +119,7 @@ library Checkpoints {
         view
         returns (bool, uint48, uint208, uint32)
     {
-        if (hint_.length == 0) {
+        if (hint_.length != 32) {
             return upperLookupRecentCheckpoint(self, key);
         }
 
@@ -215,7 +215,7 @@ library Checkpoints {
      * (index of the checkpoint with a key lower or equal than the search key).
      */
     function upperLookupRecent(Trace256 storage self, uint48 key, bytes memory hint_) internal view returns (uint256) {
-        if (hint_.length == 0) {
+        if (hint_.length != 32) {
             return upperLookupRecent(self, key);
         }
 
@@ -277,7 +277,7 @@ library Checkpoints {
         view
         returns (bool, uint48, uint256, uint32)
     {
-        if (hint_.length == 0) {
+        if (hint_.length != 32) {
             return upperLookupRecentCheckpoint(self, key);
         }
 
