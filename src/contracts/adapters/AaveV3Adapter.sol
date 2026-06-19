@@ -29,9 +29,6 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
     /// @inheritdoc IAaveV3Adapter
     address public aToken;
 
-    /// @inheritdoc IAaveV3Adapter
-    uint256 public totalATokens;
-
     /* CONSTRUCTOR */
 
     constructor(address aavePool, address vaultFactory, address adapterFactory) Adapter(vaultFactory, adapterFactory) {
@@ -42,7 +39,7 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
 
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
-        return freeAssets() + totalATokens;
+        return freeAssets() + IERC20(aToken).balanceOf(address(this));
     }
 
     /* INTERNAL FUNCTIONS */
@@ -50,7 +47,6 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
     /// @dev Supplies asset from the calling vault into Aave.
     function _allocate(uint256 amount) internal override returns (uint256) {
         try IAaveV3Pool(AAVE_POOL).supply(IERC4626(vault).asset(), amount, address(this), REFERRAL_CODE) {
-            totalATokens += amount;
             return amount;
         } catch {}
         return 0;
@@ -59,14 +55,17 @@ contract AaveV3Adapter is Adapter, IAaveV3Adapter {
     /// @dev Withdraws asset for the calling vault from Aave when liquidity is available.
     function _deallocate(uint256 amount) internal override returns (uint256) {
         amount = Math.min(
-            amount, Math.min(totalATokens, IAaveV3Pool(AAVE_POOL).getVirtualUnderlyingBalance(IERC4626(vault).asset()))
+            amount,
+            Math.min(
+                IERC20(aToken).balanceOf(address(this)),
+                IAaveV3Pool(AAVE_POOL).getVirtualUnderlyingBalance(IERC4626(vault).asset())
+            )
         );
         if (amount == 0) {
             return 0;
         }
 
         try IAaveV3Pool(AAVE_POOL).withdraw(IERC4626(vault).asset(), amount, address(this)) returns (uint256) {
-            totalATokens -= amount;
             return amount;
         } catch {}
         return 0;
