@@ -36,13 +36,18 @@ contract OpenEdenAccount is CooldownAccount, IOpenEdenAccount {
 
     /* INTERNAL FUNCTIONS */
 
+    /// @dev Values HYBOND through the HYBONDExpress redemption preview.
+    function _tokenToRedeemToAssets(uint256 amount) internal view override returns (uint256 assets) {
+        (,, assets) = IOpenEdenExpress(EXPRESS).previewRedeem(amount);
+    }
+
     /// @dev Returns pending and final queued HYBOND redemption value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
         uint256 tokenAmount = IOpenEdenExpress(EXPRESS).pendingRedeemInfo(address(this))
             + IOpenEdenExpress(EXPRESS).redeemInfo(address(this));
 
         if (tokenAmount > 0) {
-            (,, assets) = IOpenEdenExpress(EXPRESS).previewRedeem(tokenAmount);
+            assets = _tokenToRedeemToAssets(tokenAmount);
         }
     }
 

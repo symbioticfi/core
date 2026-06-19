@@ -8,25 +8,6 @@ import {ICooldownAccount} from "../ICooldownAccount.sol";
  * @notice Interface for infiniFi liquidity lane accounts.
  */
 interface IInfiniFiAccount is ICooldownAccount {
-    /* ERRORS */
-
-    /**
-     * @notice Raised when the redeem controller's asset is not the vault asset.
-     */
-    error InvalidAsset();
-
-    /* STRUCTS */
-
-    /**
-     * @notice Redemption queue ticket opened by this account.
-     * @param queueIndex The ticket's index in the redeem controller's queue.
-     * @param amount The enqueued iUSD amount.
-     */
-    struct RedemptionTicket {
-        uint128 queueIndex;
-        uint256 amount;
-    }
-
     /* FUNCTIONS */
 
     /**
@@ -40,12 +21,6 @@ interface IInfiniFiAccount is ICooldownAccount {
      * @return unwindingModule The unwinding module address.
      */
     function UNWINDING_MODULE() external view returns (address unwindingModule);
-
-    /**
-     * @notice Returns the infiniFi redeem controller.
-     * @return redeemController The redeem controller address.
-     */
-    function REDEEM_CONTROLLER() external view returns (address redeemController);
 
     /**
      * @notice Returns the iUSD receipt token paid out by completed unwindings.
@@ -65,12 +40,4 @@ interface IInfiniFiAccount is ICooldownAccount {
      * @return timestamp The unwinding start timestamp keying the position.
      */
     function unwindingTimestamps(uint256 index) external view returns (uint48 timestamp);
-
-    /**
-     * @notice Returns an open redemption queue ticket by index.
-     * @param index The ticket index.
-     * @return queueIndex The ticket's index in the redeem controller's queue.
-     * @return amount The enqueued iUSD amount.
-     */
-    function redemptionTickets(uint256 index) external view returns (uint128 queueIndex, uint256 amount);
 }

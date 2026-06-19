@@ -170,7 +170,7 @@ contract ProviderAccountsTest is AccountsBase {
 
         hybond.mint(address(account), 2 ether);
 
-        assertEq(account.totalAssets(), 2_400_000);
+        assertEq(account.totalAssets(), 2_397_600);
 
         account.sync();
 

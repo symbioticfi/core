@@ -50,7 +50,6 @@ contract InfiniFiAccountTest is Test {
             address(liusd),
             address(gateway),
             address(unwindingModule),
-            address(redeemController),
             address(iusd),
             UNWINDING_EPOCHS,
             cowSettlement
@@ -59,28 +58,6 @@ contract InfiniFiAccountTest is Test {
         account = InfiniFiAccount(
             factory.create(1, address(this), abi.encode(address(new MockVault(address(usdc))), adapter))
         );
-    }
-
-    function testRejectsVaultAssetMismatch() public {
-        MockERC20 wrongAsset = new MockERC20("Wrong USD", "wUSD", 6);
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        InfiniFiAccount implementation = new InfiniFiAccount(
-            address(oracle),
-            address(factory),
-            COOLDOWN,
-            address(liusd),
-            address(gateway),
-            address(unwindingModule),
-            address(redeemController),
-            address(iusd),
-            UNWINDING_EPOCHS,
-            cowSettlement
-        );
-        factory.whitelist(address(implementation));
-        bytes memory data = abi.encode(address(new MockVault(address(wrongAsset))), adapter);
-
-        vm.expectRevert(IInfiniFiAccount.InvalidAsset.selector);
-        factory.create(1, address(this), data);
     }
 
     function testRequestStartsUnwindingAndRecordsTimestampOnce() public {
@@ -184,37 +161,20 @@ contract InfiniFiAccountTest is Test {
         assertEq(account.totalAssets(), 100e6);
     }
 
-    function testQueuePathValuesTicketsAtParAndClaims() public {
+    function testNoLiquidityKeepsIusdHeldAtPar() public {
         uint256 ts = vm.getBlockTimestamp();
         liusd.mint(address(account), 100e18);
         account.sync();
 
-        // no idle liquidity: the redeem enqueues a ticket for the full iUSD amount
         vm.warp(ts + UNWINDING_DURATION);
         account.sync();
 
-        assertEq(iusd.balanceOf(address(account)), 0);
+        assertEq(iusd.balanceOf(address(account)), 100e18);
         assertEq(usdc.balanceOf(address(account)), 0);
-        (uint128 queueIndex, uint256 amount) = account.redemptionTickets(0);
-        assertEq(queueIndex, 0);
-        assertEq(amount, 100e18);
-        assertEq(account.totalAssets(), 100e6);
-
-        // funding pays the ticket into a pending claim; before the next sync the claim replaces
-        // the queued value without double counting
-        redeemController.fund(100e6);
-        assertEq(redeemController.userPendingClaims(address(account)), 100e6);
-        assertEq(account.totalAssets(), 100e6);
-
-        // sync claims the funded ticket and prunes it
-        account.sync();
-        assertEq(usdc.balanceOf(address(account)), 100e6);
-        vm.expectRevert();
-        account.redemptionTickets(0);
         assertEq(account.totalAssets(), 100e6);
     }
 
-    function testPartialLiquiditySplitsInstantAndQueuedRedemption() public {
+    function testPartialLiquidityKeepsIusdHeldAtPar() public {
         uint256 ts = vm.getBlockTimestamp();
         liusd.mint(address(account), 100e18);
         account.sync();
@@ -223,44 +183,12 @@ contract InfiniFiAccountTest is Test {
         vm.warp(ts + UNWINDING_DURATION);
         account.sync();
 
-        // 40 USDC paid instantly, the 60 iUSD remainder enqueued and valued at par
-        assertEq(usdc.balanceOf(address(account)), 40e6);
-        (, uint256 amount) = account.redemptionTickets(0);
-        assertEq(amount, 60e18);
+        assertEq(iusd.balanceOf(address(account)), 100e18);
+        assertEq(usdc.balanceOf(address(account)), 0);
         assertEq(account.totalAssets(), 100e6);
     }
 
-    function testPartialFundingTransientCountsParOnTopOfClaim() public {
-        uint256 ts = vm.getBlockTimestamp();
-        liusd.mint(address(account), 100e18);
-        account.sync();
-
-        // no idle liquidity: the full 100 iUSD is enqueued as a single ticket
-        vm.warp(ts + UNWINDING_DURATION);
-        account.sync();
-        assertEq(account.totalAssets(), 100e6);
-
-        // partial funding leaves the queue cursor on our ticket: the full par leg transiently
-        // counts on top of the partial claim — the documented bounded overstatement
-        redeemController.fund(40e6);
-        assertEq(redeemController.userPendingClaims(address(account)), 40e6);
-        assertEq(account.totalAssets(), 140e6);
-
-        // funding the rest moves the cursor past the ticket: the par leg drops, the claim remains
-        redeemController.fund(60e6);
-        assertEq(redeemController.userPendingClaims(address(account)), 100e6);
-        assertEq(account.totalAssets(), 100e6);
-
-        // sync claims the funded ticket, prunes it and realizes the assets
-        account.sync();
-        assertEq(usdc.balanceOf(address(account)), 100e6);
-        vm.expectRevert();
-        account.redemptionTickets(0);
-        assertEq(account.totalAssets(), 100e6);
-    }
-
-    function testTicketAtNonzeroQueueIndex() public {
-        // a third party enqueues first, so the account's ticket lands at queue index 1
+    function testExistingQueueKeepsIusdHeldAtPar() public {
         address thirdParty = makeAddr("thirdParty");
         iusd.mint(thirdParty, 50e18);
         vm.startPrank(thirdParty);
@@ -274,50 +202,49 @@ contract InfiniFiAccountTest is Test {
         vm.warp(ts + UNWINDING_DURATION);
         account.sync();
 
-        (uint128 queueIndex, uint256 amount) = account.redemptionTickets(0);
-        assertEq(queueIndex, 1);
-        assertEq(amount, 100e18);
-        assertEq(account.totalAssets(), 100e6);
-
-        // funding the third-party entry moves the cursor onto our ticket: still valued at par
-        redeemController.fund(50e6);
-        assertEq(redeemController.userPendingClaims(address(account)), 0);
-        assertEq(account.totalAssets(), 100e6);
-
-        // funding our ticket switches valuation from par to the pending claim
-        redeemController.fund(100e6);
-        assertEq(redeemController.userPendingClaims(address(account)), 100e6);
-        assertEq(account.totalAssets(), 100e6);
-
-        // sync claims the funded ticket, prunes it and realizes the assets
-        account.sync();
-        assertEq(usdc.balanceOf(address(account)), 100e6);
-        vm.expectRevert();
-        account.redemptionTickets(0);
+        assertEq(iusd.balanceOf(address(account)), 100e18);
+        assertEq(usdc.balanceOf(address(account)), 0);
         assertEq(account.totalAssets(), 100e6);
     }
 
-    function testDepegClaimBelowParDropsParLeg() public {
+    function testHeldIusdRedeemsWhenFullyLiquid() public {
+        iusd.mint(address(account), 100e18);
+        usdc.mint(address(redeemController), 100e6);
+
+        account.sync();
+
+        assertEq(iusd.balanceOf(address(account)), 0);
+        assertEq(usdc.balanceOf(address(account)), 100e6);
+        assertEq(account.totalAssets(), 100e6);
+    }
+
+    function testHeldIusdStaysHeldWhenNotFullyLiquid() public {
+        iusd.mint(address(account), 100e18);
+        usdc.mint(address(redeemController), 90e6);
+
+        account.sync();
+
+        assertEq(iusd.balanceOf(address(account)), 100e18);
+        assertEq(usdc.balanceOf(address(account)), 0);
+        assertEq(account.totalAssets(), 100e6);
+    }
+
+    function testHeldIusdRedeemsAfterLiquidityArrives() public {
         uint256 ts = vm.getBlockTimestamp();
         liusd.mint(address(account), 100e18);
         account.sync();
 
-        // no idle liquidity: the full 100 iUSD is enqueued and valued at par
         vm.warp(ts + UNWINDING_DURATION);
         account.sync();
         assertEq(account.totalAssets(), 100e6);
+        assertEq(iusd.balanceOf(address(account)), 100e18);
 
-        // the ticket is funded below par: once the cursor passes it, the par leg drops and the
-        // valuation uses the actual pending claim instead
-        redeemController.setFundingRate(0.9e18);
-        redeemController.fund(90e6);
-        assertEq(redeemController.userPendingClaims(address(account)), 90e6);
-        assertEq(account.totalAssets(), 90e6);
-
-        // sync realizes the depegged claim
+        usdc.mint(address(redeemController), 100e6);
         account.sync();
-        assertEq(usdc.balanceOf(address(account)), 90e6);
-        assertEq(account.totalAssets(), 90e6);
+
+        assertEq(iusd.balanceOf(address(account)), 0);
+        assertEq(usdc.balanceOf(address(account)), 100e6);
+        assertEq(account.totalAssets(), 100e6);
     }
 
     function testSyncToleratesUnaccruedLosses() public {
@@ -373,7 +300,6 @@ contract InfiniFiAccountTest is Test {
             InfiniFiAccount tokenAccount = InfiniFiAccount(accounts[i]);
             assertEq(tokenAccount.GATEWAY(), 0x3f04b65Ddbd87f9CE0A2e7Eb24d80e7fb87625b5);
             assertEq(tokenAccount.UNWINDING_MODULE(), 0x7092A43aE5407666C78dBEA657a1891f42b3dFcc);
-            assertEq(tokenAccount.REDEEM_CONTROLLER(), 0xCb1747E89a43DEdcF4A2b831a0D94859EFeC7601);
             assertEq(tokenAccount.IUSD(), 0x48f9e38f3070AD8945DFEae3FA70987722E3D89c);
             assertEq(ChainlinkOracle(tokenAccount.ORACLE()).AGGREGATOR_1(), address(0));
             assertEq(ChainlinkOracle(tokenAccount.ORACLE()).STALENESS_DURATION_0(), 30 days);

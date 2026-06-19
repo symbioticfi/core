@@ -9,12 +9,6 @@ interface IInfiniFiGateway {
     /* FUNCTIONS */
 
     /**
-     * @notice Claims the caller's funded redemption queue entries, paying out vault assets.
-     * @dev Reverts when the caller has no funded pending claims.
-     */
-    function claimRedemption() external;
-
-    /**
      * @notice Redeems iUSD for the underlying asset at the protocol oracle rate.
      * @dev Pulls iUSD from the caller. Pays instantly when the redeem controller holds idle
      *      liquidity and its queue is empty, otherwise enqueues a FIFO redemption ticket for `to`

@@ -6,9 +6,6 @@ import {CooldownAccount} from "./common/CooldownAccount.sol";
 
 import {IInfiniFiAccount} from "../../../interfaces/adapters/ll-adapter/infinifi/IInfiniFiAccount.sol";
 import {IInfiniFiGateway} from "../../../interfaces/adapters/ll-adapter/infinifi/IInfiniFiGateway.sol";
-import {
-    IInfiniFiRedeemController
-} from "../../../interfaces/adapters/ll-adapter/infinifi/IInfiniFiRedeemController.sol";
 import {IInfiniFiUnwindingModule} from "../../../interfaces/adapters/ll-adapter/infinifi/IInfiniFiUnwindingModule.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -16,9 +13,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title InfiniFiAccount
 /// @notice Account for infiniFi locked iUSD (liUSD) unwinding redemptions.
-/// @dev Valuation is live everywhere by design: unwinding positions keep earning and slashing is
-///      reflected through the unwinding module's live balances, while held, queued and claimable
-///      iUSD is valued at par like the protocol's fixed $1 oracle does.
+/// @dev Unwind liUSD to iUSD, then redeem iUSD only when the gateway can pay it instantly.
 contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
     using SafeERC20 for IERC20;
 
@@ -29,8 +24,6 @@ contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
     /// @inheritdoc IInfiniFiAccount
     address public immutable UNWINDING_MODULE;
     /// @inheritdoc IInfiniFiAccount
-    address public immutable REDEEM_CONTROLLER;
-    /// @inheritdoc IInfiniFiAccount
     address public immutable IUSD;
     /// @inheritdoc IInfiniFiAccount
     uint32 public immutable UNWINDING_EPOCHS;
@@ -39,9 +32,6 @@ contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
 
     /// @inheritdoc IInfiniFiAccount
     uint48[] public unwindingTimestamps;
-
-    /// @inheritdoc IInfiniFiAccount
-    RedemptionTicket[] public redemptionTickets;
 
     /* CONSTRUCTOR */
 
@@ -53,45 +43,30 @@ contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
         address tokenToRedeem,
         address gateway,
         address unwindingModule,
-        address redeemController,
         address iusd,
         uint32 unwindingEpochs,
         address cowSwapSettlement
     ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
         GATEWAY = gateway;
         UNWINDING_MODULE = unwindingModule;
-        REDEEM_CONTROLLER = redeemController;
         IUSD = iusd;
         UNWINDING_EPOCHS = unwindingEpochs;
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns pending unwinding, held iUSD, queued redemption and claimable value in vault assets.
-    ///      Queued tickets are valued at par until the redeem controller's queue cursor passes them;
-    ///      funded tickets are valued through their pending claims instead, so a front-of-queue ticket
-    ///      funded partially is transiently counted at par on top of its partial claim until popped.
+    /// @dev Returns pending unwinding and held iUSD value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
         uint256 receiptAmount = IERC20(IUSD).balanceOf(address(this));
-
         for (uint256 i; i < unwindingTimestamps.length; ++i) {
             receiptAmount += IInfiniFiUnwindingModule(UNWINDING_MODULE).balanceOf(address(this), unwindingTimestamps[i]);
         }
-
-        (uint128 queueBegin,) = IInfiniFiRedeemController(REDEEM_CONTROLLER).queue();
-        for (uint256 i; i < redemptionTickets.length; ++i) {
-            if (redemptionTickets[i].queueIndex >= queueBegin) {
-                receiptAmount += redemptionTickets[i].amount;
-            }
-        }
-
         if (receiptAmount > 0) {
-            assets += _redemptionTokenToAssets(IUSD, receiptAmount);
+            assets = _redemptionTokenToAssets(IUSD, receiptAmount);
         }
-        assets += IInfiniFiRedeemController(REDEEM_CONTROLLER).userPendingClaims(address(this));
     }
 
-    /// @dev Completes matured unwindings, redeems held iUSD and claims funded queue tickets.
+    /// @dev Completes matured unwindings and redeems held iUSD only when fully payable instantly.
     ///      The gateway reverts withdrawals and redemptions for immature positions and while protocol
     ///      losses are unaccrued, so both calls are try/catch-tolerated and retried on later syncs.
     function _finalizeRequests() internal override {
@@ -106,33 +81,9 @@ contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
 
         uint256 receiptAmount = IERC20(IUSD).balanceOf(address(this));
         if (receiptAmount > 0) {
-            (, uint128 queueEnd) = IInfiniFiRedeemController(REDEEM_CONTROLLER).queue();
-            uint256 enqueuedBefore = IInfiniFiRedeemController(REDEEM_CONTROLLER).totalEnqueuedRedemptions();
-
-            // minAssetsOut is 0: every redeem path prices atomically at the protocol oracle rate, the
-            // queue path returns 0 assets out by design and pays at the funding-time rate regardless
-            try IInfiniFiGateway(GATEWAY).redeem(address(this), receiptAmount, 0) {
-                // assumes redeem never decreases totalEnqueuedRedemptions in-call (a violation reverts via underflow)
-                uint256 enqueued =
-                    IInfiniFiRedeemController(REDEEM_CONTROLLER).totalEnqueuedRedemptions() - enqueuedBefore;
-                if (enqueued > 0) {
-                    redemptionTickets.push(RedemptionTicket({queueIndex: queueEnd, amount: enqueued}));
-                }
-            } catch {}
-        }
-
-        (uint128 queueBegin,) = IInfiniFiRedeemController(REDEEM_CONTROLLER).queue();
-        for (uint256 i = redemptionTickets.length; i > 0; --i) {
-            uint256 index = i - 1;
-
-            if (redemptionTickets[index].queueIndex < queueBegin) {
-                redemptionTickets[index] = redemptionTickets[redemptionTickets.length - 1];
-                redemptionTickets.pop();
-            }
-        }
-
-        if (IInfiniFiRedeemController(REDEEM_CONTROLLER).userPendingClaims(address(this)) > 0) {
-            try IInfiniFiGateway(GATEWAY).claimRedemption() {} catch {}
+            try IInfiniFiGateway(GATEWAY)
+                .redeem(address(this), receiptAmount, _redemptionTokenToAssets(IUSD, receiptAmount)) {}
+                catch {}
         }
     }
 
@@ -154,9 +105,6 @@ contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
     /// @dev Initializes the account for an adapter and vault.
     function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
         super._initialize(initialVersion, initOwner, data);
-        if (IInfiniFiRedeemController(REDEEM_CONTROLLER).assetToken() != _asset) {
-            revert InvalidAsset();
-        }
         IERC20(TOKEN_TO_REDEEM).forceApprove(GATEWAY, type(uint256).max);
         IERC20(IUSD).forceApprove(GATEWAY, type(uint256).max);
     }
