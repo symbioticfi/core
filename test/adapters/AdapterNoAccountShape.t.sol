@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {AaveV3Adapter} from "../../src/contracts/adapters/AaveV3Adapter.sol";
 import {ERC4626Adapter} from "../../src/contracts/adapters/ERC4626Adapter.sol";
 import {MorphoVaultV2Adapter} from "../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
+import {ThreeFAdapter} from "../../src/contracts/adapters/ThreeFAdapter.sol";
 
 contract AdapterNoAccountShapeTest is Test {
     function test_ConstructorsDoNotRequireAccountBeacon() public {
@@ -15,6 +16,7 @@ contract AdapterNoAccountShapeTest is Test {
         address rewards = makeAddr("rewards");
         address settlement = makeAddr("settlement");
         address relayer = makeAddr("relayer");
+        address requestWhitelist = makeAddr("requestWhitelist");
         address morphoVaultFactory = makeAddr("morphoVaultFactory");
         address morphoAdapterRegistry = makeAddr("morphoAdapterRegistry");
 
@@ -23,5 +25,6 @@ contract AdapterNoAccountShapeTest is Test {
         new AaveV3Adapter(aavePool, vaultFactory, adapterFactory);
         new ERC4626Adapter(vaultFactory, adapterFactory, rewards, settlement);
         new MorphoVaultV2Adapter(vaultFactory, adapterFactory, morphoVaultFactory, morphoAdapterRegistry);
+        new ThreeFAdapter(requestWhitelist, adapterFactory, vaultFactory, 50);
     }
 }

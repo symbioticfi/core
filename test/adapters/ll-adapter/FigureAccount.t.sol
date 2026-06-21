@@ -30,15 +30,84 @@ contract FigureAccountTest is AccountsBase {
 
         account.sync();
 
+        address subAccount = account.subAccounts(0);
+
         assertEq(prime.balanceOf(address(account)), 0);
         assertEq(wylds.balanceOf(address(wylds)), 125e6);
+        assertEq(wylds.balanceOf(subAccount), 0);
         assertEq(account.totalAssets(), 125e6);
 
-        wylds.completeFigureRedeem(address(account));
+        wylds.completeFigureRedeem(subAccount);
         account.sync();
 
         assertEq(asset.balanceOf(address(account)), 125e6);
         assertEq(account.totalAssets(), 125e6);
+    }
+
+    function testFigureAccountCreatesSubAccountPerCloseRequest() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);
+        MockPrimeToken prime = new MockPrimeToken(wylds, 125e4);
+        AsyncRedeemOracle oracle = new AsyncRedeemOracle(address(wylds));
+        PRIME_Account account = _deployPrime(prime, asset, oracle);
+
+        prime.mint(address(account), 100e6);
+        account.sync();
+
+        address firstSubAccount = account.subAccounts(0);
+
+        prime.mint(address(account), 40e6);
+        account.sync();
+
+        address secondSubAccount = account.subAccounts(1);
+
+        (uint256 firstShares, uint256 firstAssets,) = wylds.pendingRedemptions(firstSubAccount);
+        (uint256 secondShares, uint256 secondAssets,) = wylds.pendingRedemptions(secondSubAccount);
+        assertNotEq(secondSubAccount, firstSubAccount);
+        assertEq(firstShares, 125e6);
+        assertEq(firstAssets, 125e6);
+        assertEq(secondShares, 50e6);
+        assertEq(secondAssets, 50e6);
+        assertEq(account.totalAssets(), 175e6);
+
+        wylds.completeFigureRedeem(firstSubAccount);
+        account.sync();
+
+        assertEq(asset.balanceOf(address(account)), 125e6);
+        assertEq(account.subAccounts(0), secondSubAccount);
+        assertEq(account.totalAssets(), 175e6);
+
+        wylds.completeFigureRedeem(secondSubAccount);
+        account.sync();
+
+        assertEq(asset.balanceOf(address(account)), 175e6);
+        vm.expectRevert();
+        account.subAccounts(0);
+        assertEq(account.totalAssets(), 175e6);
+    }
+
+    function testFigureSubAccountOnlyExposesRequestAndFinalizeRedeem() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);
+        MockPrimeToken prime = new MockPrimeToken(wylds, 125e4);
+        AsyncRedeemOracle oracle = new AsyncRedeemOracle(address(wylds));
+        PRIME_Account account = _deployPrime(prime, asset, oracle);
+
+        prime.mint(address(account), 100e6);
+        account.sync();
+
+        address subAccount = account.subAccounts(0);
+
+        (bool success,) = subAccount.staticcall(abi.encodeWithSignature("totalAssets()"));
+        assertFalse(success);
+
+        wylds.completeFigureRedeem(subAccount);
+
+        vm.prank(address(account));
+        (success,) = subAccount.call(abi.encodeWithSignature("finalizeRedeem()"));
+        assertTrue(success);
+
+        assertEq(asset.balanceOf(address(account)), 125e6);
     }
 
     function testFigureAccountKeepsWyldsWhenVaultAssetMatches() public {

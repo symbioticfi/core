@@ -787,7 +787,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             return _asyncRequestIdsLength(account);
         }
         if (index == 5) {
-            return IFigureAccount(account).pendingAssets() > 0 ? 1 : 0;
+            return _figureSubAccountsLength(account);
         }
         if (index == 2) {
             return _makinaRequestIdsLength(account);
@@ -844,6 +844,16 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     function _asyncRequestIdsLength(address account) internal view returns (uint256 length) {
         while (true) {
             try IAsyncRedeemAccount(account).requestIds(length) returns (uint64) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _figureSubAccountsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try IFigureAccount(account).subAccounts(length) returns (address) {
                 ++length;
             } catch {
                 return length;

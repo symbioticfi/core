@@ -11,8 +11,9 @@ interface IFigureAccount is ICooldownAccount {
     /* FUNCTIONS */
 
     /**
-     * @notice Returns pending wYLDS redemption request value in vault assets.
-     * @return assets The pending vault-asset value.
+     * @notice Returns a Figure request-holder subaccount by index.
+     * @param index The subaccount index.
+     * @return subAccount The subaccount address.
      */
-    function pendingAssets() external view returns (uint256 assets);
+    function subAccounts(uint256 index) external view returns (address subAccount);
 }

@@ -224,6 +224,18 @@ contract TokensToRedeemMainnetTest is Test {
         }
     }
 
+    function testAllTokenAccountsRunMainnetCloseRedemptionSequences() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet close redemption checks");
+        vm.createSelectFork(mainnetRpcUrl);
+
+        TokenSpec[] memory specs = _tokenSpecs();
+        assertEq(specs.length, 43);
+
+        for (uint256 i; i < specs.length; ++i) {
+            _assertCloseRedemptionSequence(i, specs[i]);
+        }
+    }
+
     function testCentrifugeMainnetFullSwapRedemptionCycles() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Centrifuge cycle");
         vm.createSelectFork(mainnetRpcUrl);
@@ -289,6 +301,42 @@ contract TokensToRedeemMainnetTest is Test {
             _assertRedemptionPostState(index, account, spec.token, asset, amount, spec.symbol);
         } catch (bytes memory reason) {
             _assertKnownMainnetSyncRestriction(index, account, spec.token, amount, reason, spec.symbol);
+        }
+    }
+
+    function _assertCloseRedemptionSequence(uint256 index, TokenSpec memory spec) internal {
+        emit log_named_string("close redeem token", spec.symbol);
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        IAccount implementation = _deployImplementation(index, address(factory));
+        address asset = _assetFor(index, spec.token);
+
+        factory.whitelist(address(implementation));
+        IAccount account =
+            IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(asset)), adapter)));
+
+        _warpToRedemptionWindow(index, account);
+        if (_isCentrifuge(index)) {
+            _permissionCentrifugeMember(spec.token, address(account));
+        }
+
+        uint256 amount = _redemptionAmount(index, spec.token);
+        _dealTokenToAccount(index, spec.token, address(account), amount);
+
+        try account.sync() {}
+        catch (bytes memory reason) {
+            _assertKnownMainnetSyncRestriction(index, account, spec.token, amount, reason, spec.symbol);
+            return;
+        }
+
+        vm.warp(vm.getBlockTimestamp() + 1);
+        _dealTokenToAccount(index, spec.token, address(account), amount);
+
+        try account.sync() {
+            _assertCloseRedemptionPostState(index, account, spec.token, amount, spec.symbol);
+        } catch (bytes memory reason) {
+            emit log_named_bytes("second close sync revert", reason);
+            fail(spec.symbol);
         }
     }
 
@@ -435,6 +483,15 @@ contract TokensToRedeemMainnetTest is Test {
         assertEq(LiquidLaneAdapter(cycle.llAdapter).freeAssets(), 0);
     }
 
+    function _dealTokenToAccount(uint256 index, address token, address account, uint256 amount) internal {
+        if (_isCentrifuge(index)) {
+            _dealCentrifugeShare(token, account, IERC20(token).balanceOf(account) + amount);
+            return;
+        }
+
+        deal(token, account, IERC20(token).balanceOf(account) + amount);
+    }
+
     function _tokenSpecs() internal pure returns (TokenSpec[] memory specs) {
         specs = new TokenSpec[](43);
         specs[0] = TokenSpec("ACRDX", ACRDX);
@@ -567,7 +624,9 @@ contract TokensToRedeemMainnetTest is Test {
         if (index == 18) {
             uint48 cutoffTimestamp =
                 ICutoffAccount(address(account)).bucketToTimestamp(ICutoffAccount(address(account)).currentBucket());
-            vm.warp(uint256(cutoffTimestamp) - 1 days);
+            if (cutoffTimestamp > 1 days) {
+                vm.warp(uint256(cutoffTimestamp) - 1 days);
+            }
         }
     }
 
@@ -833,6 +892,109 @@ contract TokensToRedeemMainnetTest is Test {
         _assertLidoRedemption(account, symbol);
     }
 
+    function _assertCloseRedemptionPostState(
+        uint256 index,
+        IAccount account,
+        address token,
+        uint256 amount,
+        string memory symbol
+    ) internal view {
+        if (_isMidas(index)) {
+            IMidasAccount(address(account)).requestIds(1);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (_isCentrifuge(index)) {
+            uint256 requestId = IAsyncRedeemAccount(address(account)).requestIds(0);
+            assertEq(
+                IAsyncRedeemVault(_asyncRedeemVault(token, USDC)).pendingRedeemRequest(requestId, address(account)),
+                2 * amount,
+                symbol
+            );
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 2) {
+            IMakinaAccount(address(account)).requestIds(1);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 5) {
+            address firstSubAccount = IFigureAccount(address(account)).subAccounts(0);
+            address secondSubAccount = IFigureAccount(address(account)).subAccounts(1);
+            assertNotEq(secondSubAccount, firstSubAccount, symbol);
+            assertGt(firstSubAccount.code.length, 0, symbol);
+            assertGt(secondSubAccount.code.length, 0, symbol);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 7) {
+            IDigiFTAccount(address(account)).subAccounts(1);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 32) {
+            IGaibAccount(address(account)).subAccounts(1);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 33) {
+            (,, uint256 shares) = IThreeJaneSUSD3(token).getCooldownStatus(address(account));
+            assertEq(shares, amount, symbol);
+            assertEq(IERC20(token).balanceOf(address(account)), 2 * amount, symbol);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 34) {
+            (, uint256 shares,) = ISthUSD(token).currentRedeemRequest(address(account));
+            assertGt(shares, 0, symbol);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 35) {
+            if (IERC20(WETH).balanceOf(address(account)) == 0) {
+                IEtherFiAccount(payable(address(account))).requestIds(1);
+            }
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 36) {
+            ILidoAccount(payable(address(account))).requestIds(1);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 37) {
+            assertGt(IERC20(IParetoAccount(address(account)).RECEIPT_TOKEN()).balanceOf(address(account)), 0, symbol);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (_isSecuritize(index)) {
+            (uint256 amount0,) = ISecuritizeAccount(address(account)).pendingCutoffs(0);
+            (uint256 amount1,) = ISecuritizeAccount(address(account)).pendingCutoffs(1);
+            assertGt(amount0, 0, symbol);
+            assertGt(amount1, 0, symbol);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 39) {
+            INoonAccount(address(account)).requestIds(1);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 40) {
+            ISuperstateAccount(address(account)).subAccounts(1);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (_isInfiniFi(index)) {
+            IInfiniFiAccount(address(account)).unwindingTimestamps(1);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+
+        assertGt(account.totalAssets(), 0, symbol);
+    }
+
     function _assertMidasRedemption(IAccount account, uint256 amount, string memory symbol) internal view {
         uint256 requestId = IMidasAccount(address(account)).requestIds(0);
         (address sender,, uint8 status, uint256 amountMToken,,) =
@@ -898,9 +1060,10 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _assertFigureRedemption(IAccount account, address token, string memory symbol) internal view {
-        (uint256 shares,,) = IFigureYieldVault(IERC4626(token).asset()).pendingRedemptions(address(account));
+        address subAccount = IFigureAccount(address(account)).subAccounts(0);
+        (uint256 shares,,) = IFigureYieldVault(IERC4626(token).asset()).pendingRedemptions(subAccount);
         assertGt(shares, 0, symbol);
-        assertGt(IFigureAccount(address(account)).pendingAssets(), 0, symbol);
+        assertGt(subAccount.code.length, 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
 

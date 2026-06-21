@@ -84,6 +84,40 @@ contract OpenEdenAccountMainnetTest is Test {
         }
     }
 
+    function testOpenEdenAccountQueuesCloseMainnetHYBONDRequests() public {
+        _forkMainnet();
+
+        address factory = address(new MigratablesFactory(address(this)));
+        address implementation = address(
+            new OpenEdenAccount(
+                HYBOND_PRICE_ORACLE, factory, TOKEN_COOLDOWN, HYBOND, HYBOND_EXPRESS, COW_SWAP_SETTLEMENT
+            )
+        );
+
+        MigratablesFactory(factory).whitelist(implementation);
+        address account = MigratablesFactory(factory)
+            .create(1, address(this), abi.encode(address(new OpenEdenMainnetVault()), adapter));
+
+        uint256 amount = 1 ether;
+        deal(HYBOND, account, amount);
+
+        try IAccount(account).sync() {}
+        catch {
+            assertEq(IERC20(HYBOND).balanceOf(account), amount);
+            return;
+        }
+
+        vm.warp(vm.getBlockTimestamp() + 1);
+        deal(HYBOND, account, amount);
+        IAccount(account).sync();
+
+        (,, uint256 expectedAssets) = IOpenEdenExpress(HYBOND_EXPRESS).previewRedeem(2 * amount);
+
+        assertEq(IERC20(HYBOND).balanceOf(account), 0);
+        assertEq(IOpenEdenExpress(HYBOND_EXPRESS).pendingRedeemInfo(account), 2 * amount);
+        assertEq(IAccount(account).totalAssets(), expectedAssets);
+    }
+
     function _forkMainnet() internal {
         if (bytes(mainnetRpcUrl).length == 0) {
             vm.skip(true, "ETH_RPC_URL is required for OpenEden mainnet checks");
