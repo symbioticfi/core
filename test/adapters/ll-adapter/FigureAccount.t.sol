@@ -86,6 +86,25 @@ contract FigureAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 175e6);
     }
 
+    function testFigureAccountDoesNotPruneActiveZeroAssetRequest() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 0);
+        MockPrimeToken prime = new MockPrimeToken(wylds, 1e6);
+        AsyncRedeemOracle oracle = new AsyncRedeemOracle(address(wylds));
+        PRIME_Account account = _deployPrime(prime, asset, oracle);
+
+        prime.mint(address(account), 1e6);
+        account.sync();
+
+        address subAccount = account.subAccounts(0);
+        (, uint256 pendingAssets,) = wylds.pendingRedemptions(subAccount);
+        assertEq(pendingAssets, 0);
+
+        account.sync();
+
+        assertEq(account.subAccounts(0), subAccount);
+    }
+
     function testFigureSubAccountOnlyExposesRequestAndFinalizeRedeem() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);

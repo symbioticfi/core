@@ -79,9 +79,8 @@ contract FigureAccount is CooldownAccount, IFigureAccount {
             uint256 index = i - 1;
             address subAccount = subAccounts[index];
 
-            
-            (, uint256 pendingAssets,) = IFigureYieldVault(ASYNC_REDEEM_VAULT).pendingRedemptions(subAccount);
-            if (pendingAssets == 0) {
+            (uint256 pendingShares,,) = IFigureYieldVault(ASYNC_REDEEM_VAULT).pendingRedemptions(subAccount);
+            if (pendingShares == 0) {
                 IFigureSubAccount(subAccount).finalizeRedeem();
                 subAccounts[index] = subAccounts[subAccounts.length - 1];
                 subAccounts.pop();
