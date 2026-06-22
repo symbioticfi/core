@@ -10,6 +10,8 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IMorphoVaultV2} from "../../src/interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
+import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 
 import {Token} from "../mocks/Token.sol";
 
@@ -28,6 +30,9 @@ contract MorphoVaultV2AdapterTest is Test {
     address internal curator = makeAddr("curator");
     address internal delegator = makeAddr("delegator");
     address internal morphoAdapterRegistry = makeAddr("morphoAdapterRegistry");
+    address internal rewards = makeAddr("rewards");
+    address internal settlement = makeAddr("settlement");
+    address internal relayer = makeAddr("relayer");
 
     function setUp() public {
         vaultFactory = new MorphoAdapterRegistryMock();
@@ -39,8 +44,14 @@ contract MorphoVaultV2AdapterTest is Test {
         vaultFactory.add(address(vault));
         morphoVaultFactory.setVault(address(morphoVault), true);
 
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         MorphoVaultV2Adapter implementation = new MorphoVaultV2Adapter(
-            address(vaultFactory), address(factory), address(morphoVaultFactory), morphoAdapterRegistry
+            address(vaultFactory),
+            address(factory),
+            rewards,
+            settlement,
+            address(morphoVaultFactory),
+            morphoAdapterRegistry
         );
         factory.whitelist(address(implementation));
 
@@ -53,8 +64,17 @@ contract MorphoVaultV2AdapterTest is Test {
         assertEq(adapter.totalAssets(), 0);
     }
 
-    function test_OwnerReturnsCurator() public view {
+    function test_ModulesExposeConverterAndMerklConfiguration() public view {
+        assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_SETTLEMENT(), settlement);
+        assertEq(ICoWSwapConverter(address(adapter)).COW_SWAP_VAULT_RELAYER(), relayer);
+        assertEq(IMerklClaimer(address(adapter)).MERKL_DISTRIBUTOR(), rewards);
         assertEq(MorphoVaultV2Adapter(address(adapter)).owner(), curator);
+        assertEq(ICoWSwapConverter(address(adapter)).converters(0), curator);
+    }
+
+    function test_ConvertRejectsMorphoVaultInput() public {
+        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
+        ICoWSwapConverter(address(adapter)).convert(address(morphoVault), 1, address(assetToken), "");
     }
 
     function test_InitializeValidatesMorphoVaultShape() public {
@@ -185,8 +205,20 @@ contract MorphoVaultV2AdapterTest is Test {
     }
 
     function _createAdapter(address targetMorphoVault) internal returns (IMorphoVaultV2Adapter) {
-        return
-            IMorphoVaultV2Adapter(factory.create(1, curator, abi.encode(address(vault), abi.encode(targetMorphoVault))));
+        address[] memory converters = new address[](1);
+        converters[0] = curator;
+        return IMorphoVaultV2Adapter(
+            factory.create(
+                1,
+                curator,
+                abi.encode(
+                    address(vault),
+                    abi.encode(
+                        IMorphoVaultV2Adapter.InitParams({morphoVault: targetMorphoVault, converters: converters})
+                    )
+                )
+            )
+        );
     }
 }
 

@@ -63,6 +63,9 @@ contract PendingWithdrawalQueueHandler is Test {
     address internal constant BURNER = address(0xB);
     address internal constant CURATOR = address(0xC);
 
+    address internal relayer = makeAddr("relayer");
+    address internal settlement = makeAddr("settlement");
+
     Token public collateral;
     VaultV2 public vault;
     UniversalDelegator public delegator;
@@ -366,14 +369,21 @@ contract PendingWithdrawalQueueHandler is Test {
             )
         );
 
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         adapterFactory.whitelist(
-            address(new AppAdapter(address(vaultFactory), address(adapterFactory), address(networkMiddlewareService)))
+            address(
+                new AppAdapter(
+                    address(vaultFactory), address(adapterFactory), settlement, address(networkMiddlewareService)
+                )
+            )
         );
 
         vault = _createVault();
         delegator = _createDelegator(vault);
         vault.setDelegator(address(delegator));
 
+        address[] memory converters = new address[](1);
+        converters[0] = CURATOR;
         adapter = IAppAdapter(
             adapterFactory.create(
                 1,
@@ -382,7 +392,11 @@ contract PendingWithdrawalQueueHandler is Test {
                     address(vault),
                     abi.encode(
                         IAppAdapter.InitParams({
-                            subnetwork: network.subnetwork(1), operator: operator, duration: DURATION, burner: BURNER
+                            subnetwork: network.subnetwork(1),
+                            operator: operator,
+                            duration: DURATION,
+                            burner: BURNER,
+                            converters: converters
                         })
                     )
                 )

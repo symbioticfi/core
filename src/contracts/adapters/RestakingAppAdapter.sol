@@ -20,7 +20,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title RestakingAppAdapter
 /// @notice App adapter for ERC4626 restaking-token vault assets with base-asset rewards and slashing.
-contract RestakingAppAdapter is AppAdapter, CoWSwapConverter, IRestakingAppAdapter {
+contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -43,7 +43,7 @@ contract RestakingAppAdapter is AppAdapter, CoWSwapConverter, IRestakingAppAdapt
         address adapterFactory,
         address cowSwapSettlement,
         address networkMiddlewareService
-    ) AppAdapter(vaultFactory, adapterFactory, networkMiddlewareService) CoWSwapConverter(cowSwapSettlement) {}
+    ) AppAdapter(vaultFactory, adapterFactory, cowSwapSettlement, networkMiddlewareService) {}
 
     /* VIEW FUNCTIONS */
 
@@ -90,7 +90,7 @@ contract RestakingAppAdapter is AppAdapter, CoWSwapConverter, IRestakingAppAdapt
     /// @inheritdoc IConverter
     function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data)
         public
-        override(CoWSwapConverter, IConverter)
+        override(AppAdapter, IConverter)
     {
         if (tokenIn == IERC4626(vault).asset()) {
             revert InvalidTokenIn();
@@ -106,9 +106,9 @@ contract RestakingAppAdapter is AppAdapter, CoWSwapConverter, IRestakingAppAdapt
         CoWSwapConverter.convert(tokenIn, amountIn, tokenOut, data);
     }
 
-    /// @inheritdoc IRestakingAppAdapter
-    function reward(address token, uint256 amount) public override {
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+    /// @inheritdoc IAppAdapter
+    function reward(address token, uint256 amount) public override(AppAdapter, IAppAdapter) {
+        super.reward(token, amount);
         syncReward();
     }
 
@@ -224,7 +224,6 @@ contract RestakingAppAdapter is AppAdapter, CoWSwapConverter, IRestakingAppAdapt
         RestakingInitParams memory params = abi.decode(data, (RestakingInitParams));
 
         super.__initialize(initVault, abi.encode(params.initParams));
-        __CoWSwapConverter_init(params.converters);
         if (asset == params.asset) {
             revert NotRestaking();
         }

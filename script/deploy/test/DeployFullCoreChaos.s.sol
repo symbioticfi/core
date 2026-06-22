@@ -388,9 +388,10 @@ contract DeployFullCoreChaosScript is Script {
         LiquidLaneAssets memory liquidLaneAssets,
         uint256 i
     ) internal returns (V2AdapterSet memory set) {
-        (set.appFactory, set.appAdapter) = _deployAppAdapter(core, ctx, vault, i);
-        (set.aaveFactory, set.aaveAdapter) = _deployAaveAdapter(core, ctx, vault);
-        (set.morphoFactory, set.morphoAdapter) = _deployMorphoAdapter(core, ctx, vault);
+        address[] memory converters = _converterSet(ctx.owner, ctx.actors, i);
+        (set.appFactory, set.appAdapter) = _deployAppAdapter(core, ctx, vault, converters, i);
+        (set.aaveFactory, set.aaveAdapter) = _deployAaveAdapter(core, ctx, vault, converters);
+        (set.morphoFactory, set.morphoAdapter) = _deployMorphoAdapter(core, ctx, vault, converters);
 
         if (_isLiquidLaneVaultAsset(vault.asset, liquidLaneAssets)) {
             (
@@ -407,13 +408,16 @@ contract DeployFullCoreChaosScript is Script {
         SymbioticCoreConstants.Core memory core,
         ChaosContext memory ctx,
         V2Vault memory vault,
+        address[] memory converters,
         uint256 i
     ) internal returns (address factory, address adapter) {
         factory =
         new DeployFullCoreChaosAppAdapterScript(address(core.vaultFactory))
         .runBase(
             DeployAppAdapterBaseScript.DeployParams({
-                adapterFactoryOwner: ctx.owner, networkMiddlewareService: address(core.networkMiddlewareService)
+                adapterFactoryOwner: ctx.owner,
+                cowSwapSettlement: address(0xC05E7),
+                networkMiddlewareService: address(core.networkMiddlewareService)
             })
         )
         .adapterFactory;
@@ -428,6 +432,7 @@ contract DeployFullCoreChaosScript is Script {
                         burner: ctx.actors.burner,
                         duration: uint48(1 + (ctx.seed + i) % 365 days),
                         operator: ctx.actors.operator,
+                        converters: converters,
                         subnetwork: ctx.actors.network.subnetwork(uint96(ctx.seed + i))
                     })
                     )
@@ -435,25 +440,36 @@ contract DeployFullCoreChaosScript is Script {
             );
     }
 
-    function _deployAaveAdapter(SymbioticCoreConstants.Core memory core, ChaosContext memory ctx, V2Vault memory vault)
-        internal
-        returns (address factory, address adapter)
-    {
+    function _deployAaveAdapter(
+        SymbioticCoreConstants.Core memory core,
+        ChaosContext memory ctx,
+        V2Vault memory vault,
+        address[] memory converters
+    ) internal returns (address factory, address adapter) {
         DeployAaveV3MocksBaseScript.DeploymentData memory aaveMocks =
             new DeployAaveV3MocksBaseScript().runBase(vault.asset);
         factory =
         new DeployFullCoreChaosAaveV3AdapterScript(address(core.vaultFactory))
         .runBase(
-            DeployAaveV3AdapterBaseScript.DeployParams({adapterFactoryOwner: ctx.owner, aavePool: aaveMocks.aavePool})
+            DeployAaveV3AdapterBaseScript.DeployParams({
+                adapterFactoryOwner: ctx.owner,
+                aavePool: aaveMocks.aavePool,
+                cowSwapSettlement: address(0xA11CE),
+                merklDistributor: ctx.owner
+            })
         )
         .adapterFactory;
-        adapter = AdapterFactory(factory).create(1, ctx.owner, abi.encode(vault.vault, ""));
+        adapter = AdapterFactory(factory)
+            .create(
+                1, ctx.owner, abi.encode(vault.vault, abi.encode(IAaveV3Adapter.InitParams({converters: converters})))
+            );
     }
 
     function _deployMorphoAdapter(
         SymbioticCoreConstants.Core memory core,
         ChaosContext memory ctx,
-        V2Vault memory vault
+        V2Vault memory vault,
+        address[] memory converters
     ) internal returns (address factory, address adapter) {
         DeployMorphoVaultV2MocksBaseScript.DeploymentData memory morphoMocks = new DeployMorphoVaultV2MocksBaseScript()
             .runBase(
@@ -467,12 +483,23 @@ contract DeployFullCoreChaosScript is Script {
             DeployMorphoVaultV2AdapterBaseScript.DeployParams({
                 adapterFactoryOwner: ctx.owner,
                 morphoVaultFactory: morphoMocks.morphoVaultFactory,
-                morphoAdapterRegistry: morphoMocks.morphoAdapterRegistry
+                morphoAdapterRegistry: morphoMocks.morphoAdapterRegistry,
+                cowSwapSettlement: address(0xBEEF1),
+                merklDistributor: ctx.owner
             })
         )
         .adapterFactory;
-        adapter =
-            AdapterFactory(factory).create(1, ctx.owner, abi.encode(vault.vault, abi.encode(morphoMocks.morphoVault)));
+        adapter = AdapterFactory(factory)
+            .create(
+                1,
+                ctx.owner,
+                abi.encode(
+                    vault.vault,
+                    abi.encode(
+                        IMorphoVaultV2Adapter.InitParams({morphoVault: morphoMocks.morphoVault, converters: converters})
+                    )
+                )
+            );
     }
 
     function _v2VaultAsset(Token[3] memory tokens, LiquidLaneAssets memory liquidLaneAssets, uint64 i)
@@ -1158,6 +1185,11 @@ contract DeployFullCoreChaosScript is Script {
         _try(set.appAdapter, abi.encodeCall(IAppAdapter.stake, ()), "v2-app-stake");
         _try(set.appAdapter, abi.encodeCall(IAppAdapter.stakeAt, (_past())), "v2-app-stake-at");
         _try(set.appAdapter, abi.encodeCall(IAppAdapter.slashable, ()), "v2-app-slashable");
+
+        vm.startPrank(actors.staker);
+        IERC20(vault.asset).approve(set.appAdapter, amount / 20);
+        _try(set.appAdapter, abi.encodeCall(IAppAdapter.reward, (vault.asset, amount / 20)), "v2-app-reward");
+        vm.stopPrank();
 
         vm.prank(actors.middleware);
         _try(set.appAdapter, abi.encodeCall(IAppAdapter.slash, (amount / 20)), "v2-app-slash");

@@ -490,9 +490,12 @@ contract RestakingAppAdapterTest is Test {
             abi.encode(
                 IRestakingAppAdapter.RestakingInitParams({
                     asset: initBaseAsset,
-                    converters: converters,
                     initParams: IAppAdapter.InitParams({
-                        subnetwork: subnetwork, operator: operator, duration: duration, burner: burner
+                        subnetwork: subnetwork,
+                        operator: operator,
+                        duration: duration,
+                        burner: burner,
+                        converters: converters
                     })
                 })
             )

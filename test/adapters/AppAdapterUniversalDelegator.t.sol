@@ -138,6 +138,8 @@ contract AppAdapterUniversalDelegatorTest is Test {
     address internal network = makeAddr("network");
     address internal networkMiddleware = makeAddr("networkMiddleware");
     address internal operator = makeAddr("operator");
+    address internal relayer = makeAddr("relayer");
+    address internal settlement = makeAddr("settlement");
     uint48 internal duration = 10;
 
     function setUp() public {
@@ -180,14 +182,21 @@ contract AppAdapterUniversalDelegatorTest is Test {
             )
         );
 
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         adapterFactory.whitelist(
-            address(new AppAdapter(address(vaultFactory), address(adapterFactory), address(networkMiddlewareService)))
+            address(
+                new AppAdapter(
+                    address(vaultFactory), address(adapterFactory), settlement, address(networkMiddlewareService)
+                )
+            )
         );
 
         vault = _createVault();
         delegator = _createDelegator(vault);
         vault.setDelegator(address(delegator));
 
+        address[] memory converters = new address[](1);
+        converters[0] = CURATOR;
         adapter = IAppAdapter(
             adapterFactory.create(
                 1,
@@ -196,7 +205,11 @@ contract AppAdapterUniversalDelegatorTest is Test {
                     address(vault),
                     abi.encode(
                         IAppAdapter.InitParams({
-                            subnetwork: network.subnetwork(1), operator: operator, duration: duration, burner: BURNER
+                            subnetwork: network.subnetwork(1),
+                            operator: operator,
+                            duration: duration,
+                            burner: BURNER,
+                            converters: converters
                         })
                     )
                 )

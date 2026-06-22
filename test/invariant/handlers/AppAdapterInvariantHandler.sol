@@ -66,6 +66,8 @@ contract AppAdapterInvariantHandler is Test {
     address internal network = makeAddr("network");
     address internal networkMiddleware = makeAddr("networkMiddleware");
     address internal operator = makeAddr("operator");
+    address internal relayer = makeAddr("relayer");
+    address internal settlement = makeAddr("settlement");
     address[3] internal actors = [address(0xA11CE), address(0xB0B), address(0xCAFE)];
     uint48 internal duration = 10;
 
@@ -1204,8 +1206,13 @@ contract AppAdapterInvariantHandler is Test {
             )
         );
 
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         adapterFactory.whitelist(
-            address(new AppAdapter(address(vaultFactory), address(adapterFactory), address(networkMiddlewareService)))
+            address(
+                new AppAdapter(
+                    address(vaultFactory), address(adapterFactory), settlement, address(networkMiddlewareService)
+                )
+            )
         );
 
         vault = _createVault(vaultFactory);
@@ -1213,6 +1220,8 @@ contract AppAdapterInvariantHandler is Test {
         vault.setDelegator(address(delegator));
         queue = WithdrawalQueue(vault.withdrawalQueue());
 
+        address[] memory converters = new address[](1);
+        converters[0] = CURATOR;
         adapter = IAppAdapter(
             adapterFactory.create(
                 1,
@@ -1221,7 +1230,11 @@ contract AppAdapterInvariantHandler is Test {
                     address(vault),
                     abi.encode(
                         IAppAdapter.InitParams({
-                            subnetwork: network.subnetwork(1), operator: operator, duration: duration, burner: BURNER
+                            subnetwork: network.subnetwork(1),
+                            operator: operator,
+                            duration: duration,
+                            burner: BURNER,
+                            converters: converters
                         })
                     )
                 )

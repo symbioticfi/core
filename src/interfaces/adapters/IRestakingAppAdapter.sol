@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {IAppAdapter} from "./IAppAdapter.sol";
-import {ICoWSwapConverter} from "./common/ICoWSwapConverter.sol";
 
 uint256 constant MAX_DEPTH = 5;
 
@@ -10,7 +9,7 @@ uint256 constant MAX_DEPTH = 5;
  * @title IRestakingAppAdapter
  * @notice Interface for an app adapter that reports guarantees in a restaking token's base asset.
  */
-interface IRestakingAppAdapter is IAppAdapter, ICoWSwapConverter {
+interface IRestakingAppAdapter is IAppAdapter {
     /* ERRORS */
 
     /**
@@ -38,12 +37,10 @@ interface IRestakingAppAdapter is IAppAdapter, ICoWSwapConverter {
     /**
      * @notice Initialization parameters for the restaking app adapter.
      * @param asset Base asset of the vault asset wrapper chain.
-     * @param converters Initial converters exempt from the prepared-request delay.
      * @param initParams App adapter initialization parameters.
      */
     struct RestakingInitParams {
         address asset;
-        address[] converters;
         IAppAdapter.InitParams initParams;
     }
 
@@ -66,13 +63,6 @@ interface IRestakingAppAdapter is IAppAdapter, ICoWSwapConverter {
      * @notice Synchronizes held base asset rewards into the restaking vault asset.
      */
     function syncReward() external;
-
-    /**
-     * @notice Transfer reward assets from the caller and synchronize them into the restaking vault asset.
-     * @param token Reward token to transfer.
-     * @param amount Amount of assets to transfer.
-     */
-    function reward(address token, uint256 amount) external;
 
     /**
      * @notice Synchronizes pending slashed withdrawal requests.

@@ -22,9 +22,11 @@ contract AdapterNoAccountShapeTest is Test {
 
         vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
 
-        new AaveV3Adapter(aavePool, vaultFactory, adapterFactory);
+        new AaveV3Adapter(aavePool, vaultFactory, adapterFactory, rewards, settlement);
         new ERC4626Adapter(vaultFactory, adapterFactory, rewards, settlement);
-        new MorphoVaultV2Adapter(vaultFactory, adapterFactory, morphoVaultFactory, morphoAdapterRegistry);
+        new MorphoVaultV2Adapter(
+            vaultFactory, adapterFactory, rewards, settlement, morphoVaultFactory, morphoAdapterRegistry
+        );
         new ThreeFAdapter(requestWhitelist, adapterFactory, vaultFactory, 50);
     }
 }

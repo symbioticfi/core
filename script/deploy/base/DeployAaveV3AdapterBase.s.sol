@@ -15,6 +15,8 @@ contract DeployAaveV3AdapterBaseScript is Script {
     struct DeployParams {
         address adapterFactoryOwner;
         address aavePool;
+        address cowSwapSettlement;
+        address merklDistributor;
     }
 
     struct DeploymentData {
@@ -53,7 +55,11 @@ contract DeployAaveV3AdapterBaseScript is Script {
         address broadcaster = _scriptOwner();
 
         adapterFactory = address(new AdapterFactory(broadcaster));
-        adapterImplementation = address(new AaveV3Adapter(params.aavePool, vaultFactory, adapterFactory));
+        adapterImplementation = address(
+            new AaveV3Adapter(
+                params.aavePool, vaultFactory, adapterFactory, params.merklDistributor, params.cowSwapSettlement
+            )
+        );
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);
 
         if (params.adapterFactoryOwner != broadcaster) {
@@ -64,6 +70,8 @@ contract DeployAaveV3AdapterBaseScript is Script {
     function _validateParams(DeployParams memory params) internal pure {
         require(params.adapterFactoryOwner != address(0), "invalid adapter factory owner");
         require(params.aavePool != address(0), "invalid Aave pool");
+        require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
+        require(params.merklDistributor != address(0), "invalid Merkl distributor");
     }
 
     function _scriptOwner() internal view virtual returns (address owner_) {

@@ -14,6 +14,7 @@ import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
 contract DeployAppAdapterBaseScript is Script {
     struct DeployParams {
         address adapterFactoryOwner;
+        address cowSwapSettlement;
         address networkMiddlewareService;
     }
 
@@ -53,7 +54,9 @@ contract DeployAppAdapterBaseScript is Script {
         address broadcaster = _scriptOwner();
 
         adapterFactory = address(new AdapterFactory(broadcaster));
-        adapterImplementation = address(new AppAdapter(vaultFactory, adapterFactory, params.networkMiddlewareService));
+        adapterImplementation = address(
+            new AppAdapter(vaultFactory, adapterFactory, params.cowSwapSettlement, params.networkMiddlewareService)
+        );
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);
 
         if (params.adapterFactoryOwner != broadcaster) {
@@ -63,6 +66,7 @@ contract DeployAppAdapterBaseScript is Script {
 
     function _validateParams(DeployParams memory params) internal pure {
         require(params.adapterFactoryOwner != address(0), "invalid adapter factory owner");
+        require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
         require(params.networkMiddlewareService != address(0), "invalid network middleware service");
     }
 

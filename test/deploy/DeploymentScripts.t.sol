@@ -139,18 +139,30 @@ contract DeploymentScriptsTest is Test {
 
         vm.mockCall(address(0x2002), abi.encodeWithSignature("vaultRelayer()"), abi.encode(address(0x2003)));
         vm.mockCall(address(0x3003), abi.encodeWithSignature("vaultRelayer()"), abi.encode(address(0x3004)));
+        vm.mockCall(address(0x4001), abi.encodeWithSignature("vaultRelayer()"), abi.encode(address(0x4002)));
 
         DeployAaveV3AdapterBaseScript.DeploymentData memory aave = aaveScript.runBase(
-            DeployAaveV3AdapterBaseScript.DeployParams({adapterFactoryOwner: owner, aavePool: address(0x2001)})
+            DeployAaveV3AdapterBaseScript.DeployParams({
+                adapterFactoryOwner: owner,
+                aavePool: address(0x2001),
+                cowSwapSettlement: address(0x2002),
+                merklDistributor: address(0x2004)
+            })
         );
         DeployMorphoVaultV2AdapterBaseScript.DeploymentData memory morpho = morphoScript.runBase(
             DeployMorphoVaultV2AdapterBaseScript.DeployParams({
-                adapterFactoryOwner: owner, morphoVaultFactory: address(0x3001), morphoAdapterRegistry: address(0x3002)
+                adapterFactoryOwner: owner,
+                morphoVaultFactory: address(0x3001),
+                morphoAdapterRegistry: address(0x3002),
+                cowSwapSettlement: address(0x3003),
+                merklDistributor: address(0x3005)
             })
         );
         DeployAppAdapterBaseScript.DeploymentData memory app = appScript.runBase(
             DeployAppAdapterBaseScript.DeployParams({
-                adapterFactoryOwner: owner, networkMiddlewareService: address(0x4003)
+                adapterFactoryOwner: owner,
+                cowSwapSettlement: address(0x4001),
+                networkMiddlewareService: address(0x4003)
             })
         );
 

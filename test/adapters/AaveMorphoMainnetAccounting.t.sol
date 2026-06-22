@@ -28,6 +28,9 @@ contract AaveMorphoMainnetAccountingTest is Test {
 
     address internal curator = makeAddr("curator");
     address internal delegator = makeAddr("delegator");
+    address internal rewards = makeAddr("rewards");
+    address internal settlement = makeAddr("settlement");
+    address internal relayer = makeAddr("relayer");
 
     function test_AaveMainnetATokenRebaseIncreasesAdapterTotalAssets() public {
         _forkMainnet("ETH_RPC_URL is required for the Aave mainnet rebase accounting test");
@@ -84,7 +87,9 @@ contract AaveMorphoMainnetAccountingTest is Test {
         MainnetAdapterVaultMock vault = new MainnetAdapterVaultMock(asset, delegator);
         vaultFactory.add(address(vault));
 
-        AaveV3Adapter implementation = new AaveV3Adapter(AAVE_POOL, address(vaultFactory), address(adapterFactory));
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        AaveV3Adapter implementation =
+            new AaveV3Adapter(AAVE_POOL, address(vaultFactory), address(adapterFactory), rewards, settlement);
         adapterFactory.whitelist(address(implementation));
 
         return IAaveV3Adapter(adapterFactory.create(1, curator, abi.encode(address(vault), bytes(""))));
@@ -96,8 +101,14 @@ contract AaveMorphoMainnetAccountingTest is Test {
         MainnetAdapterVaultMock vault = new MainnetAdapterVaultMock(asset, delegator);
         vaultFactory.add(address(vault));
 
+        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         MorphoVaultV2Adapter implementation = new MorphoVaultV2Adapter(
-            address(vaultFactory), address(adapterFactory), MORPHO_VAULT_FACTORY, MORPHO_ADAPTER_REGISTRY
+            address(vaultFactory),
+            address(adapterFactory),
+            rewards,
+            settlement,
+            MORPHO_VAULT_FACTORY,
+            MORPHO_ADAPTER_REGISTRY
         );
         adapterFactory.whitelist(address(implementation));
 
