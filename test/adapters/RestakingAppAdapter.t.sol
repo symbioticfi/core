@@ -10,7 +10,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
-import {IRestakingAppAdapter} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
+import {IRestakingAppAdapter, MAX_CLAIMS, MAX_DEPTH} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
 import {ICoWSwapConverter, MAX_VALID_TO_DURATION} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 
@@ -96,6 +96,23 @@ contract RestakingAppAdapterTest is Test {
         assertEq(nestedAdapter.asset(), address(baseAsset));
     }
 
+    function test_InitializeAcceptsAssetFoundAtMaxDepth() public {
+        IERC20 curAsset = IERC20(address(baseAsset));
+        for (uint256 i; i < MAX_DEPTH; ++i) {
+            RestakingTokenMock nextVault = new RestakingTokenMock(curAsset);
+            vaultFactory.add(address(nextVault));
+            curAsset = IERC20(address(nextVault));
+        }
+        RestakingAppAdapterVaultMock nestedVault =
+            new RestakingAppAdapterVaultMock(address(curAsset), address(delegator));
+        vaultFactory.add(address(nestedVault));
+
+        IRestakingAppAdapter nestedAdapter =
+            IRestakingAppAdapter(factory.create(1, curator, _initData(address(nestedVault), address(baseAsset))));
+
+        assertEq(nestedAdapter.asset(), address(baseAsset));
+    }
+
     function test_FreeAndTotalAssetsUseCurrentVaultAssetShares() public {
         _allocateRestakingShares(100);
 
@@ -151,9 +168,9 @@ contract RestakingAppAdapterTest is Test {
         factory.create(1, curator, _initData(address(nestedVault), address(baseAsset)));
     }
 
-    function test_InitializeRejectsAssetFoundAfterMoreThanFiveVaults() public {
+    function test_InitializeRejectsAssetFoundAfterMoreThanMaxDepthVaults() public {
         IERC20 curAsset = IERC20(address(baseAsset));
-        for (uint256 i; i < 6; ++i) {
+        for (uint256 i; i < MAX_DEPTH + 1; ++i) {
             RestakingTokenMock nextVault = new RestakingTokenMock(curAsset);
             vaultFactory.add(address(nextVault));
             curAsset = IERC20(address(nextVault));
@@ -391,6 +408,67 @@ contract RestakingAppAdapterTest is Test {
         assertEq(restakingToken.balanceOf(address(restakingToken.withdrawalQueue())), 0);
     }
 
+    function test_SyncSlashSkipsClaimBelowMinimumClaimSize() public {
+        uint256 requestShares = 40;
+        uint256 minimumClaimShares = Math.ceilDiv(requestShares, MAX_CLAIMS);
+
+        _allocateRestakingShares(100);
+        restakingToken.withdrawalQueue().setClaimReverts(true);
+
+        vm.prank(networkMiddleware);
+        adapter.slash(requestShares);
+
+        restakingToken.withdrawalQueue().setClaimReverts(false);
+        restakingToken.withdrawalQueue().setMaxClaimShares(minimumClaimShares - 1);
+        adapter.syncSlash();
+
+        assertEq(baseAsset.balanceOf(burner), 0);
+        assertEq(restakingToken.withdrawalQueue().claimCalls(), 0);
+        assertEq(restakingToken.balanceOf(address(restakingToken.withdrawalQueue())), requestShares);
+
+        restakingToken.withdrawalQueue().setMaxClaimShares(minimumClaimShares);
+        adapter.syncSlash();
+
+        assertEq(baseAsset.balanceOf(burner), minimumClaimShares);
+        assertEq(restakingToken.withdrawalQueue().claimCalls(), 1);
+        assertEq(
+            restakingToken.balanceOf(address(restakingToken.withdrawalQueue())), requestShares - minimumClaimShares
+        );
+    }
+
+    function test_SyncSlashAllowsFinalClaimBelowMinimumClaimSize() public {
+        uint256 requestShares = 42;
+        uint256 minimumClaimShares = Math.ceilDiv(requestShares, MAX_CLAIMS);
+
+        _allocateRestakingShares(100);
+        restakingToken.withdrawalQueue().setClaimReverts(true);
+
+        vm.prank(networkMiddleware);
+        adapter.slash(requestShares);
+
+        restakingToken.withdrawalQueue().setClaimReverts(false);
+        restakingToken.withdrawalQueue().setMaxClaimShares(minimumClaimShares);
+
+        adapter.syncSlash();
+        adapter.syncSlash();
+        adapter.syncSlash();
+        adapter.syncSlash();
+
+        uint256 claimedBeforeFinalClaim = minimumClaimShares * (MAX_CLAIMS - 1);
+        uint256 finalClaimShares = requestShares - claimedBeforeFinalClaim;
+
+        assertEq(baseAsset.balanceOf(burner), claimedBeforeFinalClaim);
+        assertEq(restakingToken.withdrawalQueue().claimCalls(), MAX_CLAIMS - 1);
+        assertEq(restakingToken.balanceOf(address(restakingToken.withdrawalQueue())), finalClaimShares);
+
+        restakingToken.withdrawalQueue().setMaxClaimShares(finalClaimShares);
+        adapter.syncSlash();
+
+        assertEq(baseAsset.balanceOf(burner), requestShares);
+        assertEq(restakingToken.withdrawalQueue().claimCalls(), MAX_CLAIMS);
+        assertEq(restakingToken.balanceOf(address(restakingToken.withdrawalQueue())), 0);
+    }
+
     function test_SyncSlashKeepsAndCompletesPartiallyClaimedRequest() public {
         _allocateRestakingShares(100);
         baseAsset.transfer(address(restakingToken), 100);
@@ -589,6 +667,7 @@ contract RestakingWithdrawalQueueMock {
 
     struct Request {
         uint256 shares;
+        uint256 sharesClaimed;
         bool claimed;
     }
 
@@ -597,6 +676,7 @@ contract RestakingWithdrawalQueueMock {
     uint256 internal _nextTokenId = 1;
     bool public claimReverts;
     uint256 public maxClaimShares = type(uint256).max;
+    uint256 public claimCalls;
     mapping(uint256 tokenId => Request request) internal _requests;
 
     constructor(address vault_, bool redeems_) {
@@ -620,16 +700,28 @@ contract RestakingWithdrawalQueueMock {
         maxClaimShares = maxClaimShares_;
     }
 
+    function requests(uint256 tokenId) external view returns (uint256 shares, uint256 sharesClaimed, uint256) {
+        Request storage request = _requests[tokenId];
+        return (request.shares, request.sharesClaimed, 0);
+    }
+
+    function claimable(uint256 tokenId) external view returns (uint256 assets, uint256 shares) {
+        Request storage request = _requests[tokenId];
+        shares = request.shares.saturatingSub(request.sharesClaimed).min(maxClaimShares);
+        assets = _redeems ? RestakingTokenMock(vault).previewRedeem(shares) : shares;
+    }
+
     function claim(uint256 tokenId, address receiver) external returns (uint256 assets, uint256 shares) {
         if (claimReverts) {
             revert("CLAIM_REVERTS");
         }
 
         Request storage request = _requests[tokenId];
-        shares = request.shares.min(maxClaimShares);
+        shares = request.shares.saturatingSub(request.sharesClaimed).min(maxClaimShares);
         assets = _redeems ? RestakingTokenMock(vault).previewRedeem(shares) : shares;
-        request.shares -= shares;
-        request.claimed = request.shares == 0;
+        request.sharesClaimed += shares;
+        request.claimed = request.sharesClaimed == request.shares;
+        ++claimCalls;
         if (_redeems && shares > 0) {
             RestakingTokenMock(vault).withdraw(assets, receiver, address(this));
         }

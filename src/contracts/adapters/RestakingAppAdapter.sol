@@ -9,7 +9,7 @@ import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../interfaces/adapters/IAppAdapter.sol";
 import {IConverter} from "../../interfaces/adapters/common/IConverter.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IRestakingAppAdapter, MAX_DEPTH} from "../../interfaces/adapters/IRestakingAppAdapter.sol";
+import {IRestakingAppAdapter, MAX_CLAIMS, MAX_DEPTH} from "../../interfaces/adapters/IRestakingAppAdapter.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
 
@@ -143,6 +143,13 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
             uint256 indexToClaim = requests.firstUnclaimed;
             for (; indexToClaim < requests.tokenIds.length; ++indexToClaim) {
                 uint256 tokenId = requests.tokenIds[indexToClaim];
+                (uint256 requestShares, uint256 requestSharesClaimed,) =
+                    IWithdrawalQueue(withdrawalQueue).requests(tokenId);
+                (, uint256 shares) = IWithdrawalQueue(withdrawalQueue).claimable(tokenId);
+                // Stop if claim amount is less than allowed per request, or it's the last claim until the request is fully claimed.
+                if (shares < Math.min(requestShares.ceilDiv(MAX_CLAIMS), requestShares - requestSharesClaimed)) {
+                    break;
+                }
                 try IWithdrawalQueue(withdrawalQueue).claim(tokenId, address(this)) returns (uint256 assets, uint256) {
                     amount += assets;
                 } catch {}
