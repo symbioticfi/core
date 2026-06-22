@@ -2,13 +2,23 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 
+import {AdapterRegistry} from "../../src/contracts/AdapterRegistry.sol";
 import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../src/contracts/adapters/LiquidLaneAdapter.sol";
 import {AccountRegistry} from "../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
+import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
+import {ProtocolFeeRegistry} from "../../src/contracts/ProtocolFeeRegistry.sol";
+import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
+import {WithdrawalQueueFactory} from "../../src/contracts/WithdrawalQueueFactory.sol";
+import {Entity} from "../../src/contracts/common/Entity.sol";
 import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
 import {MigratablesFactory} from "../../src/contracts/common/MigratablesFactory.sol";
 import {Registry} from "../../src/contracts/common/Registry.sol";
+import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
+import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
+import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
 
 import {
     DISCOUNT_SWAP_TYPEHASH,
@@ -19,6 +29,13 @@ import {
 import {IAccount} from "../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
+import {
+    ALLOCATE_ROLE,
+    IUniversalDelegator,
+    MAX_SHARE,
+    UNIVERSAL_DELEGATOR_TYPE
+} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
 
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -501,6 +518,194 @@ contract LiquidLaneAdapterTest is Test {
     }
 }
 
+contract LiquidLaneAdapterRealTest is Test {
+    MockERC20 internal asset;
+    MockERC20 internal tokenToRedeem;
+    VaultFactory internal vaultFactory;
+    WithdrawalQueueFactory internal withdrawalQueueFactory;
+    DelegatorFactory internal delegatorFactory;
+    AdapterRegistry internal adapterRegistry;
+    AdapterFactory internal adapterFactory;
+    AccountRegistry internal accountRegistry;
+    MigratablesFactory internal accountFactory;
+    ProtocolFeeRegistry internal protocolFee;
+    VaultV2 internal vault;
+    UniversalDelegator internal delegator;
+    LiquidLaneAdapter internal adapter;
+
+    address internal curator = makeAddr("curator");
+    address internal marketMaker = makeAddr("marketMaker");
+    address internal pauser = makeAddr("pauser");
+    address internal recipient = makeAddr("recipient");
+    address internal unpauser = makeAddr("unpauser");
+
+    function setUp() public {
+        asset = new MockERC20("Asset", "ASSET");
+        tokenToRedeem = new MockERC20("Token To Redeem", "TTR");
+
+        vaultFactory = new VaultFactory(address(this));
+        withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
+        delegatorFactory = new DelegatorFactory(address(this));
+        adapterRegistry = new AdapterRegistry(address(this));
+        protocolFee = new ProtocolFeeRegistry(address(this));
+        protocolFee.setGlobalReceiver(address(this));
+
+        adapterFactory = new AdapterFactory(curator);
+        accountRegistry = new AccountRegistry(curator);
+        accountFactory = new MigratablesFactory(curator);
+
+        withdrawalQueueFactory.whitelist(address(new WithdrawalQueue(address(withdrawalQueueFactory))));
+        vaultFactory.whitelist(address(new LiquidLaneMigratableEntityMock(address(vaultFactory))));
+        vaultFactory.whitelist(address(new LiquidLaneMigratableEntityMock(address(vaultFactory))));
+        vaultFactory.whitelist(
+            address(
+                new VaultV2(
+                    address(vaultFactory),
+                    address(delegatorFactory),
+                    address(protocolFee),
+                    address(withdrawalQueueFactory)
+                )
+            )
+        );
+
+        for (uint64 i; i < UNIVERSAL_DELEGATOR_TYPE; ++i) {
+            delegatorFactory.whitelist(address(new LiquidLaneEntityMock(address(delegatorFactory), i)));
+        }
+        delegatorFactory.whitelist(
+            address(
+                new UniversalDelegator(
+                    UNIVERSAL_DELEGATOR_TYPE, address(vaultFactory), address(adapterRegistry), address(delegatorFactory)
+                )
+            )
+        );
+
+        vm.startPrank(curator);
+        adapterFactory.whitelist(
+            address(new LiquidLaneAdapter(address(vaultFactory), address(adapterFactory), address(accountRegistry)))
+        );
+        accountFactory.whitelist(
+            address(
+                new MockLiquidLaneAccount(
+                    address(accountFactory),
+                    address(asset),
+                    address(new MockLiquidLaneOracle(1e18)),
+                    address(tokenToRedeem)
+                )
+            )
+        );
+        accountRegistry.setAccountFactory(address(asset), address(tokenToRedeem), address(accountFactory));
+        vm.stopPrank();
+
+        vault = _createVault();
+        delegator = _createDelegator();
+        vault.setDelegator(address(delegator));
+
+        vm.startPrank(curator);
+        adapter = LiquidLaneAdapter(
+            adapterFactory.create(
+                1,
+                curator,
+                abi.encode(
+                    address(vault), abi.encode(ILiquidLaneAdapter.InitParams({pauser: pauser, unpauser: unpauser}))
+                )
+            )
+        );
+        adapter.addTokenToRedeem(address(tokenToRedeem));
+        adapter.setLimit(address(tokenToRedeem), type(uint256).max);
+        adapter.setMarketMaker(marketMaker, true);
+        vm.stopPrank();
+
+        adapterRegistry.setWhitelistedStatus(address(vault), address(adapter), true);
+        delegator.addAdapter(address(adapter));
+        delegator.setLimits(address(adapter), type(uint256).max, MAX_SHARE);
+        delegator.grantRole(ALLOCATE_ROLE, address(adapter));
+    }
+
+    function testSwapEmitsRealAllocateWithInFlightTotalAssets() public {
+        asset.mint(address(this), 100 ether);
+        asset.approve(address(vault), 100 ether);
+        vault.deposit(100 ether, address(this));
+        tokenToRedeem.mint(marketMaker, 100 ether);
+
+        vm.startPrank(marketMaker);
+        tokenToRedeem.transfer(address(adapter), 100 ether);
+        vm.recordLogs();
+        adapter.swap(
+            ILiquidLaneAdapter.Swap({
+                recipient: recipient, tokenIn: address(tokenToRedeem), amountIn: 100 ether, amountOut: 90 ether
+            })
+        );
+        vm.stopPrank();
+
+        (uint256 assets, uint256 totalAssets) = _findAllocateEvent(vm.getRecordedLogs());
+
+        assertEq(assets, 90 ether);
+        assertEq(totalAssets, 90 ether);
+        assertEq(adapter.totalAssets(), 0);
+        assertEq(asset.balanceOf(recipient), 90 ether);
+    }
+
+    function _createVault() internal returns (VaultV2) {
+        bytes memory data = abi.encode(
+            IVaultV2.InitParams({
+                name: "Vault",
+                symbol: "vASSET",
+                asset: address(asset),
+                depositWhitelist: false,
+                depositorToWhitelist: address(0),
+                isDepositLimit: false,
+                depositLimit: 0,
+                defaultAdminRoleHolder: address(this),
+                depositWhitelistSetRoleHolder: address(this),
+                depositorWhitelistRoleHolder: address(this),
+                isDepositLimitSetRoleHolder: address(this),
+                depositLimitSetRoleHolder: address(this),
+                managementFeeRoleHolder: address(this),
+                performanceFeeRoleHolder: address(this)
+            })
+        );
+        return VaultV2(vaultFactory.create(VAULT_V2_VERSION, address(this), data));
+    }
+
+    function _createDelegator() internal returns (UniversalDelegator) {
+        address delegatorAddress = delegatorFactory.create(
+            UNIVERSAL_DELEGATOR_TYPE,
+            abi.encode(
+                address(vault),
+                abi.encode(
+                    IUniversalDelegator.InitParams({
+                        allocateRoleHolder: address(this),
+                        deallocateRoleHolder: address(this),
+                        addAdapterRoleHolder: address(this),
+                        swapAdaptersRoleHolder: address(this),
+                        defaultAdminRoleHolder: address(this),
+                        removeAdapterRoleHolder: address(this),
+                        forceDeallocateRoleHolder: address(this),
+                        setAdapterLimitsRoleHolder: address(this),
+                        setAutoAllocateAdaptersRoleHolder: address(this)
+                    })
+                )
+            )
+        );
+
+        return UniversalDelegator(delegatorAddress);
+    }
+
+    function _findAllocateEvent(Vm.Log[] memory logs) internal returns (uint256 assets, uint256 totalAssets) {
+        bytes32 allocateTopic = IUniversalDelegator.Allocate.selector;
+        bytes32 adapterTopic = bytes32(uint256(uint160(address(adapter))));
+        for (uint256 i; i < logs.length; ++i) {
+            if (
+                logs[i].emitter == address(delegator) && logs[i].topics.length == 2
+                    && logs[i].topics[0] == allocateTopic && logs[i].topics[1] == adapterTopic
+            ) {
+                return abi.decode(logs[i].data, (uint256, uint256));
+            }
+        }
+        fail("Allocate event not emitted");
+    }
+}
+
 contract MockERC20 is ERC20 {
     constructor(string memory name_, string memory symbol_) ERC20(name_, symbol_) {}
 
@@ -617,6 +822,14 @@ contract MockLiquidLaneDelegator {
             MockLiquidLaneVault(vault).push(deallocated, adapter);
         }
     }
+}
+
+contract LiquidLaneMigratableEntityMock is MigratableEntity {
+    constructor(address factory) MigratableEntity(factory) {}
+}
+
+contract LiquidLaneEntityMock is Entity {
+    constructor(address factory, uint64 type_) Entity(factory, type_) {}
 }
 
 contract MockLiquidLaneAccount is MigratableEntity, IAccount {

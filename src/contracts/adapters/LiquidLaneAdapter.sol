@@ -75,6 +75,8 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /// @dev Set while the adapter is funding a swap through VaultV2.
     bool internal transient _inSwap;
+    /// @dev Set to the amount of vault assets being allocated to the adapter while funding a swap through VaultV2.
+    uint256 internal transient _inSwapAmount;
 
     /* CONSTRUCTOR */
 
@@ -102,6 +104,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256 assets) {
+        assets = _inSwapAmount;
         for (uint256 i; i < tokensToRedeem.length; ++i) {
             assets += IAccount(accounts[tokensToRedeem[i]]).totalAssets();
         }
@@ -448,7 +451,8 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /// @dev Triggers adapter allocation through the current delegator.
     /// @param amount The vault-asset amount requested by the vault.
-    function _allocate(uint256 amount) internal pure override returns (uint256) {
+    function _allocate(uint256 amount) internal override returns (uint256) {
+        _inSwapAmount = amount;
         return amount;
     }
 
@@ -483,6 +487,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
             ) {
                 revert InsufficientAllocate();
             }
+            _inSwapAmount = 0;
             _inSwap = false;
         }
 
