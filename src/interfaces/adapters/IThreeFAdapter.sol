@@ -120,11 +120,6 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     error InsufficientLiquidity();
 
     /**
-     * @notice Raised when the request yield is below the configured floor.
-     */
-    error YieldTooLow();
-
-    /**
      * @notice Raised when the request is not currently whitelisted.
      */
     error NotAttested();
@@ -138,6 +133,11 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
      * @notice Raised when the request would exceed the configured loan cap.
      */
     error TooManyLoans();
+
+    /**
+     * @notice Raised when the request yield is below the configured floor.
+     */
+    error YieldTooLow();
 
     /* STRUCTS */
 

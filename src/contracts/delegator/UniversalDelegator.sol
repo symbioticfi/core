@@ -392,7 +392,7 @@ contract UniversalDelegator is
     }
 
     /// @dev Internal sweep implementation used by guarded entry points and already-guarded delegator flows.
-    function _sweepPending() public returns (uint256 pendingAssets) {
+    function _sweepPending() internal returns (uint256 pendingAssets) {
         address withdrawalQueue = VaultV2(vault).withdrawalQueue();
 
         // Try to sweep free assets as much as possible.
