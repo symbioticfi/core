@@ -102,6 +102,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     address internal constant PRIME_TOKEN = 0x19ebb35279A16207Ec4ba82799CC64715065F7F6;
     address internal constant EETH = 0x35fA164735182de50811E8e2E824cFb9B6118ac2;
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
     address internal constant WEETH = 0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee;
     address internal constant STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
     address internal constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
@@ -166,6 +167,14 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
         assertEq(totalMaxAverageRequests, 286);
+    }
+
+    function testCorrelatedMidasTokenAccountsUseCorrelatedVaultAssets() public view {
+        _assertCorrelatedAsset(13, WBTC);
+        _assertCorrelatedAsset(20, WBTC);
+        _assertCorrelatedAsset(21, WETH);
+        _assertCorrelatedAsset(25, WBTC);
+        _assertCorrelatedAsset(29, WBTC);
     }
 
     function testBenchmarkOnboardsAllTokensToLiquidLaneAdapter() public {
@@ -313,6 +322,12 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     }
 
     function _assetFor(uint256 index, address token) internal view returns (address) {
+        if (_isMidasBtc(index)) {
+            return WBTC;
+        }
+        if (_isMidasEth(index)) {
+            return WETH;
+        }
         if (
             _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 37 || index == 38
                 || index == 40 || _isInfiniFi(index)
@@ -328,8 +343,22 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         return IERC4626(token).asset();
     }
 
+    function _assertCorrelatedAsset(uint256 index, address expectedAsset) internal view {
+        address asset = _assetFor(index, address(0));
+        assertEq(asset, expectedAsset);
+        assertNotEq(asset, MAINNET_USDC);
+    }
+
     function _isMidas(uint256 index) internal pure returns (bool) {
         return index == 1 || index == 6 || (index >= 11 && index <= 31);
+    }
+
+    function _isMidasBtc(uint256 index) internal pure returns (bool) {
+        return index == 13 || index == 20 || index == 25 || index == 29;
+    }
+
+    function _isMidasEth(uint256 index) internal pure returns (bool) {
+        return index == 21;
     }
 
     function _isCentrifuge(uint256 index) internal pure returns (bool) {

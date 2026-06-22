@@ -24,6 +24,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract MidasAccountOraclesTest is Test {
     uint256 internal constant MAX_EXPECTED_REQUESTS = 17;
 
+    address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+    address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
     address internal constant MBTC_TOKEN_ADDRESS = 0x007115416AB6c266329a03B09a8aa39aC2eF7d9d;
     address internal constant MBTC_REDEMPTION_VAULT_ADDRESS = 0x30d9D1e76869516AEa980390494AaEd45C3EfC1a;
     address internal constant MHYPERBTC_TOKEN_ADDRESS = 0xC8495EAFf71D3A563b906295fCF2f685b1783085;
@@ -359,18 +363,22 @@ contract MidasAccountOraclesTest is Test {
         assertEq(tokenToRedeem.balanceOf(address(account)), 0);
     }
 
-    function testMidasBtcEthTokenAccountsRejectNonUsdcVaultAsset() public {
-        _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(0, MBTC_TOKEN_ADDRESS, MBTC_REDEMPTION_VAULT_ADDRESS);
-        _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(
-            1, MHYPERBTC_TOKEN_ADDRESS, MHYPERBTC_REDEMPTION_VAULT_ADDRESS
+    function testMidasBtcEthTokenAccountsAcceptOnlyCorrelatedVaultAsset() public {
+        _assertMidasBtcEthTokenAccountAcceptsOnlyCorrelatedVaultAsset(
+            0, MBTC_TOKEN_ADDRESS, MBTC_REDEMPTION_VAULT_ADDRESS, WBTC, 8
         );
-        _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(
-            2, MHYPERETH_TOKEN_ADDRESS, MHYPERETH_REDEMPTION_VAULT_ADDRESS
+        _assertMidasBtcEthTokenAccountAcceptsOnlyCorrelatedVaultAsset(
+            1, MHYPERBTC_TOKEN_ADDRESS, MHYPERBTC_REDEMPTION_VAULT_ADDRESS, WBTC, 8
         );
-        _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(
-            3, MRE7BTC_TOKEN_ADDRESS, MRE7BTC_REDEMPTION_VAULT_ADDRESS
+        _assertMidasBtcEthTokenAccountAcceptsOnlyCorrelatedVaultAsset(
+            2, MHYPERETH_TOKEN_ADDRESS, MHYPERETH_REDEMPTION_VAULT_ADDRESS, WETH, 18
         );
-        _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(4, MEVBTC_TOKEN_ADDRESS, MEVBTC_REDEMPTION_VAULT_ADDRESS);
+        _assertMidasBtcEthTokenAccountAcceptsOnlyCorrelatedVaultAsset(
+            3, MRE7BTC_TOKEN_ADDRESS, MRE7BTC_REDEMPTION_VAULT_ADDRESS, WBTC, 8
+        );
+        _assertMidasBtcEthTokenAccountAcceptsOnlyCorrelatedVaultAsset(
+            4, MEVBTC_TOKEN_ADDRESS, MEVBTC_REDEMPTION_VAULT_ADDRESS, WBTC, 8
+        );
     }
 
     function testConvertRejectsNonAssetTokenOut() public {
@@ -499,21 +507,27 @@ contract MidasAccountOraclesTest is Test {
         account = MidasNonCompAccount(factory.create(1, address(this), _initData(address(tokenToRedeem))));
     }
 
-    function _assertMidasBtcEthTokenAccountRejectsNonUsdcVaultAsset(
+    function _assertMidasBtcEthTokenAccountAcceptsOnlyCorrelatedVaultAsset(
         uint256 index,
         address tokenToRedeem,
-        address redemptionVault
+        address redemptionVault,
+        address correlatedAsset,
+        uint8 correlatedAssetDecimals
     ) internal {
-        vault = address(new MockVault(address(new MockERC20("Wrapped Asset", "wASSET"))));
-
         MigratablesFactory factory = new MigratablesFactory(address(this));
         _mockMidasTokenAccountConstructor(tokenToRedeem, redemptionVault);
+        _mockAsset(correlatedAsset, correlatedAssetDecimals);
+        _mockAsset(MAINNET_USDC, 6);
         IAccount implementation = _deployMidasBtcEthTokenAccountImplementation(index, address(factory));
         factory.whitelist(address(implementation));
-        bytes memory data = _initData(tokenToRedeem);
 
+        vault = address(new MockVault(correlatedAsset));
+        IAccount account = IAccount(factory.create(1, address(this), _initData(tokenToRedeem)));
+        assertEq(account.vault(), vault);
+
+        vault = address(new MockVault(MAINNET_USDC));
         vm.expectRevert(IMidasAccount.InvalidAsset.selector);
-        factory.create(1, address(this), data);
+        factory.create(1, address(this), _initData(tokenToRedeem));
     }
 
     function _deployMidasBtcEthTokenAccountImplementation(uint256 index, address factory)
@@ -542,6 +556,13 @@ contract MidasAccountOraclesTest is Test {
             redemptionVault,
             abi.encodeWithSignature("mTokenDataFeed()"),
             abi.encode(address(new MockMidasDataFeed(1e18)))
+        );
+    }
+
+    function _mockAsset(address asset, uint8 decimals_) internal {
+        vm.mockCall(asset, abi.encodeWithSignature("decimals()"), abi.encode(decimals_));
+        vm.mockCall(
+            asset, abi.encodeWithSelector(IERC20.approve.selector, adapter, type(uint256).max), abi.encode(true)
         );
     }
 

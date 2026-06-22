@@ -67,6 +67,8 @@ contract MidasTokensToRedeemMainnetTest is Test {
     }
 
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+    address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address internal constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address internal constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
     address internal constant MIDAS_ACCESS_CONTROL_ADMIN = 0xd4195CF4df289a4748C1A7B6dDBE770e27bA1227;
@@ -80,15 +82,23 @@ contract MidasTokensToRedeemMainnetTest is Test {
         mainnetRpcUrl = vm.envOr("ETH_RPC_URL", string(""));
     }
 
+    function testCorrelatedMidasTokenAccountsUseCorrelatedVaultAssets() public pure {
+        _assertCorrelatedAsset(5, WBTC);
+        _assertCorrelatedAsset(7, WETH);
+        _assertCorrelatedAsset(16, WBTC);
+        _assertCorrelatedAsset(17, WBTC);
+        _assertCorrelatedAsset(18, WBTC);
+    }
+
     function testOnboardsEthereumMainnetMidasTokensToRedeem() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Midas onboarding");
         vm.createSelectFork(mainnetRpcUrl);
 
-        MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(MAINNET_USDC);
         TokenSpec[] memory specs = _ethereumMainnetSpecs();
         assertEq(specs.length, 23);
 
         for (uint256 i; i < specs.length; ++i) {
+            MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(_assetFor(i));
             _assertOnboarded(i, specs[i], vault);
         }
     }
@@ -97,10 +107,10 @@ contract MidasTokensToRedeemMainnetTest is Test {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Midas onboarding");
         vm.createSelectFork(mainnetRpcUrl);
 
-        MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(MAINNET_USDC);
         TokenSpec[] memory specs = _ethereumMainnetSpecs();
 
         for (uint256 i = 21; i < specs.length; ++i) {
+            MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(_assetFor(i));
             _assertOnboarded(i, specs[i], vault);
         }
     }
@@ -266,6 +276,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(account.TOKEN_TO_REDEEM(), token);
         assertEq(account.REDEMPTION_TOKEN(), redemptionToken);
         assertEq(account.REDEMPTION_VAULT(), redemptionVault);
+        assertEq(vault.asset(), _assetFor(index));
         assertEq(account.ORACLE(), implementation.ORACLE());
         assertEq(account.COOLDOWN(), _cooldown(index, spec.maxWithdrawalDelay));
         assertEq(account.converters(0), address(this));
@@ -291,6 +302,22 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
     function _initData(address, MidasTokensToRedeemAssetVault vault) internal view returns (bytes memory) {
         return abi.encode(address(vault), adapter);
+    }
+
+    function _assetFor(uint256 index) internal pure returns (address) {
+        if (index == 5 || index == 16 || index == 17 || index == 18) {
+            return WBTC;
+        }
+        if (index == 7) {
+            return WETH;
+        }
+        return MAINNET_USDC;
+    }
+
+    function _assertCorrelatedAsset(uint256 index, address expectedAsset) internal pure {
+        address asset = _assetFor(index);
+        assertEq(asset, expectedAsset);
+        assertNotEq(asset, MAINNET_USDC);
     }
 
     function _ethereumMainnetSpecs() internal pure returns (TokenSpec[] memory specs) {

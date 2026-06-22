@@ -12,7 +12,7 @@ import {IMidasTokenAccount} from "../../../../interfaces/adapters/ll-adapter/mid
 contract mRe7BTC_Account is MidasCompAccount, IMidasTokenAccount {
     uint48 internal constant TOKEN_COOLDOWN = 2 days;
     uint48 public constant MAX_WITHDRAWAL_DELAY = 24 days;
-    address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
     address internal constant TOKEN_ADDRESS = 0x9FB442d6B612a6dcD2acC67bb53771eF1D9F661A;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x4Fd4DD7171D14e5bD93025ec35374d2b9b4321b0;
 
@@ -22,7 +22,7 @@ contract mRe7BTC_Account is MidasCompAccount, IMidasTokenAccount {
             factory,
             TOKEN_COOLDOWN,
             TOKEN_ADDRESS,
-            MAINNET_USDC,
+            WBTC,
             REDEMPTION_VAULT_ADDRESS,
             cowSwapSettlement
         )
@@ -30,7 +30,7 @@ contract mRe7BTC_Account is MidasCompAccount, IMidasTokenAccount {
 
     function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
         super._initialize(initialVersion, initOwner, data);
-        if (_asset != MAINNET_USDC) {
+        if (_asset != WBTC) {
             revert InvalidAsset();
         }
     }

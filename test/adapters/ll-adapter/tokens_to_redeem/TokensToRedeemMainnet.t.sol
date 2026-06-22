@@ -189,6 +189,7 @@ contract TokensToRedeemMainnetTest is Test {
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant USCC = 0x14d60E7FDC0D71d8611742720E4C50E7a974020c;
     address internal constant WEETH = 0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee;
+    address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address internal constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
     address internal constant LIDO_WITHDRAWAL_QUEUE = 0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1;
@@ -198,6 +199,14 @@ contract TokensToRedeemMainnetTest is Test {
 
     function setUp() public {
         mainnetRpcUrl = vm.envOr("ETH_RPC_URL", string(""));
+    }
+
+    function testCorrelatedMidasTokenAccountsUseCorrelatedVaultAssets() public view {
+        _assertCorrelatedAsset(13, MBTC, WBTC);
+        _assertCorrelatedAsset(20, MHYPERBTC, WBTC);
+        _assertCorrelatedAsset(21, MHYPERETH, WETH);
+        _assertCorrelatedAsset(25, MRE7BTC, WBTC);
+        _assertCorrelatedAsset(29, MEVBTC, WBTC);
     }
 
     function testAllTokenAccountsUseRealMainnetTokens() public {
@@ -631,6 +640,12 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _assetFor(uint256 index, address token) internal view returns (address) {
+        if (_isMidasBtc(index)) {
+            return WBTC;
+        }
+        if (_isMidasEth(index)) {
+            return WETH;
+        }
         if (
             _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 37 || _isSecuritize(index)
                 || index == 40 || _isInfiniFi(index)
@@ -649,8 +664,22 @@ contract TokensToRedeemMainnetTest is Test {
         return IERC4626(token).asset();
     }
 
+    function _assertCorrelatedAsset(uint256 index, address token, address expectedAsset) internal view {
+        address asset = _assetFor(index, token);
+        assertEq(asset, expectedAsset);
+        assertNotEq(asset, USDC);
+    }
+
     function _isMidas(uint256 index) internal pure returns (bool) {
         return index == 1 || index == 6 || (index >= 11 && index <= 31);
+    }
+
+    function _isMidasBtc(uint256 index) internal pure returns (bool) {
+        return index == 13 || index == 20 || index == 25 || index == 29;
+    }
+
+    function _isMidasEth(uint256 index) internal pure returns (bool) {
+        return index == 21;
     }
 
     function _isCentrifuge(uint256 index) internal pure returns (bool) {
