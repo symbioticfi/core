@@ -29,11 +29,7 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /// @inheritdoc IRestakingAppAdapter
     address[] public underlyingVaults;
 
-    struct WithdrawalRequests {
-        uint256 firstUnclaimed;
-        uint64[] tokenIds;
-    }
-
+    /// @inheritdoc IRestakingAppAdapter
     mapping(address vault => WithdrawalRequests) public withdrawalRequests;
 
     /* CONSTRUCTOR */

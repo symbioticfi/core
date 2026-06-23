@@ -45,6 +45,16 @@ interface IRestakingAppAdapter is IAppAdapter {
         IAppAdapter.InitParams initParams;
     }
 
+    /**
+     * @notice Pending slash withdrawal requests for one underlying vault.
+     * @param firstUnclaimed Index of the first tracked withdrawal NFT that has not been fully claimed yet.
+     * @param tokenIds Withdrawal queue NFT ids created while unwinding slashed restaking exposure.
+     */
+    struct WithdrawalRequests {
+        uint256 firstUnclaimed;
+        uint64[] tokenIds;
+    }
+
     /* FUNCTIONS */
 
     /**
@@ -53,6 +63,13 @@ interface IRestakingAppAdapter is IAppAdapter {
      * @return vault Underlying vault address.
      */
     function underlyingVaults(uint256 index) external view returns (address vault);
+
+    /**
+     * @notice Returns the pending slash withdrawal claim cursor for an underlying vault.
+     * @param vault Underlying vault whose withdrawal queue requests are tracked.
+     * @return firstUnclaimed Index of the first tracked withdrawal NFT that has not been fully claimed yet.
+     */
+    function withdrawalRequests(address vault) external view returns (uint256 firstUnclaimed);
 
     /**
      * @notice Returns whether there are pending slashed withdrawal requests to sync.
