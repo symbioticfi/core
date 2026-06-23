@@ -74,19 +74,9 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
 
     /// @inheritdoc IConverter
     function convert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data) public virtual override {
-        if (tokenIn == tokenOut) {
-            revert InvalidTokenIn();
-        }
-        if (amountIn == 0 || amountIn > IERC20(tokenIn).balanceOf(address(this))) {
-            revert InvalidSellAmount();
-        }
+        _validateConvert(tokenIn, amountIn, tokenOut, data);
+
         OrderParams memory params = abi.decode(data, (OrderParams));
-        if (params.buyAmount == 0) {
-            revert InvalidBuyAmount();
-        }
-        if (params.validTo <= block.timestamp) {
-            revert ExpiredOrder();
-        }
         if (params.validTo > block.timestamp + MAX_VALID_TO_DURATION) {
             revert TooFarValidTo();
         }
@@ -138,9 +128,7 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         virtual
         returns (bytes32 requestHash)
     {
-        if (amountIn > IERC20(tokenIn).balanceOf(address(this))) {
-            revert InsufficientBalance();
-        }
+        _validateConvert(tokenIn, amountIn, tokenOut, data);
 
         requestHash = keccak256(abi.encode(tokenIn, amountIn, tokenOut, data));
 
@@ -183,6 +171,22 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     }
 
     /* INTERNAL FUNCTIONS */
+
+    function _validateConvert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data) internal view {
+        if (tokenIn == tokenOut) {
+            revert InvalidTokenIn();
+        }
+        if (amountIn == 0 || amountIn > IERC20(tokenIn).balanceOf(address(this))) {
+            revert InvalidSellAmount();
+        }
+        OrderParams memory params = abi.decode(data, (OrderParams));
+        if (params.buyAmount == 0) {
+            revert InvalidBuyAmount();
+        }
+        if (params.validTo <= block.timestamp) {
+            revert ExpiredOrder();
+        }
+    }
 
     /// @dev Returns true if the specified address is a converter.
     function _isConverter(address converter) internal view returns (bool) {

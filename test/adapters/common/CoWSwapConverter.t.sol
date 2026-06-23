@@ -238,9 +238,25 @@ contract CoWSwapConverterTest is Test {
         converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
     }
 
-    function test_PrepareConvertRevertsWhenBalanceIsInsufficient() public {
-        vm.expectRevert(ICoWSwapConverter.InsufficientBalance.selector);
+    function test_PrepareConvertRevertsWhenSellAmountIsInvalid() public {
+        vm.expectRevert(ICoWSwapConverter.InvalidSellAmount.selector);
+        converter.prepareConvert(address(tokenIn), 0, address(tokenOut), _orderData(90, 1));
+
+        vm.expectRevert(ICoWSwapConverter.InvalidSellAmount.selector);
         converter.prepareConvert(address(tokenIn), 101, address(tokenOut), _orderData(90, 1));
+    }
+
+    function test_PrepareConvertRevertsForInvalidOrderBounds() public {
+        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
+        converter.prepareConvert(address(tokenOut), 100, address(tokenOut), _orderData(90, 1));
+
+        vm.expectRevert(ICoWSwapConverter.InvalidBuyAmount.selector);
+        converter.prepareConvert(address(tokenIn), 100, address(tokenOut), _orderData(0, 2));
+
+        vm.expectRevert(ICoWSwapConverter.ExpiredOrder.selector);
+        converter.prepareConvert(
+            address(tokenIn), 100, address(tokenOut), _orderData(90, 3, uint32(vm.getBlockTimestamp()))
+        );
     }
 
     function test_PreparedConvertRevertsWhenTokenOutChanges() public {
