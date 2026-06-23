@@ -71,16 +71,6 @@ interface ICoWSwapConverter is IConverter {
     error ExpiredOrder();
 
     /**
-     * @notice Raised when the converter balance is insufficient.
-     */
-    error InsufficientBalance();
-
-    /**
-     * @notice Raised when the converter does not hold enough unreserved sell token for the order and fee.
-     */
-    error InsufficientSellBalance();
-
-    /**
      * @notice Raised when the buy amount is zero.
      */
     error InvalidBuyAmount();
@@ -89,11 +79,6 @@ interface ICoWSwapConverter is IConverter {
      * @notice Raised when the caller is not authorized.
      */
     error InvalidCaller();
-
-    /**
-     * @notice Raised when the prepared conversion nonce is no longer current.
-     */
-    error InvalidNonce();
 
     /**
      * @notice Raised when the sell amount is zero or inconsistent with the converter input.
@@ -106,19 +91,9 @@ interface ICoWSwapConverter is IConverter {
     error InvalidTokenIn();
 
     /**
-     * @notice Raised when a reserved order has not expired yet.
-     */
-    error OrderNotExpired();
-
-    /**
      * @notice Raised when the order expiry is too far in the future.
      */
     error TooFarValidTo();
-
-    /**
-     * @notice Raised when an order UID does not reference a reservation.
-     */
-    error UnknownOrder();
 
     /* STRUCTS */
 

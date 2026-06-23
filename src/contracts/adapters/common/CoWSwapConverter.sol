@@ -77,6 +77,9 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         _validateConvert(tokenIn, amountIn, tokenOut, data);
 
         OrderParams memory params = abi.decode(data, (OrderParams));
+        if (params.validTo <= block.timestamp) {
+            revert ExpiredOrder();
+        }
         if (params.validTo > block.timestamp + MAX_VALID_TO_DURATION) {
             revert TooFarValidTo();
         }
@@ -130,6 +133,11 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
     {
         _validateConvert(tokenIn, amountIn, tokenOut, data);
 
+        OrderParams memory params = abi.decode(data, (OrderParams));
+        if (params.validTo <= block.timestamp + EXECUTION_DELAY) {
+            revert ExpiredOrder();
+        }
+
         requestHash = keccak256(abi.encode(tokenIn, amountIn, tokenOut, data));
 
         CoWSwapConverterStorage storage $ = _getCoWSwapConverterStorage();
@@ -182,9 +190,6 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         OrderParams memory params = abi.decode(data, (OrderParams));
         if (params.buyAmount == 0) {
             revert InvalidBuyAmount();
-        }
-        if (params.validTo <= block.timestamp) {
-            revert ExpiredOrder();
         }
     }
 

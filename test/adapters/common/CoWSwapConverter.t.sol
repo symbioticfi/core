@@ -107,9 +107,10 @@ contract CoWSwapConverterTest is Test {
         vm.prank(caller);
         converter.convert(address(tokenIn), 100, address(tokenOut), data);
 
-        bytes32 newRequestHash = converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
-        assertEq(newRequestHash, requestHash);
-        assertEq(converter.executableAt(1, requestHash), vm.getBlockTimestamp() + EXECUTION_DELAY);
+        bytes memory newData =
+            _orderData(90, 2, uint32(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
+        bytes32 newRequestHash = converter.prepareConvert(address(tokenIn), 100, address(tokenOut), newData);
+        assertEq(converter.executableAt(1, newRequestHash), vm.getBlockTimestamp() + EXECUTION_DELAY);
     }
 
     function test_InvalidateConvertsRevertsForNonConverter() public {
@@ -256,6 +257,14 @@ contract CoWSwapConverterTest is Test {
         vm.expectRevert(ICoWSwapConverter.ExpiredOrder.selector);
         converter.prepareConvert(
             address(tokenIn), 100, address(tokenOut), _orderData(90, 3, uint32(vm.getBlockTimestamp()))
+        );
+
+        vm.expectRevert(ICoWSwapConverter.ExpiredOrder.selector);
+        converter.prepareConvert(
+            address(tokenIn),
+            100,
+            address(tokenOut),
+            _orderData(90, 4, uint32(vm.getBlockTimestamp() + EXECUTION_DELAY))
         );
     }
 
