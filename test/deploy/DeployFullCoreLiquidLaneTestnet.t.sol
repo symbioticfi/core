@@ -4,21 +4,27 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 
 import {DeployFullCoreLiquidLaneTestnetScript} from "../../script/deploy/testnet/DeployFullCoreLiquidLaneTestnet.s.sol";
-import {TestnetVaultFactory} from "../../script/deploy/testnet/TestnetVaultFactory.sol";
 
 import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
-import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
 import {MigratableEntityProxy} from "../../src/contracts/common/MigratableEntityProxy.sol";
+import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
-import {IMigratablesFactory} from "../../src/interfaces/common/IMigratablesFactory.sol";
 import {IAaveV3Adapter} from "../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 import {ILiquidLaneAdapter} from "../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
+import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 import {IAccountRegistry} from "../../src/interfaces/adapters/ll-adapter/IAccountRegistry.sol";
 import {IUniversalDelegator, MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
-import {MockAavePool, MockMorphoVaultFactory} from "../mocks/HoodiScenarioProtocolMocks.sol";
+import {
+    MockAaveAToken,
+    MockAavePool,
+    MockAavePoolDataProvider,
+    MockMorphoAdapterRegistry,
+    MockMorphoVaultFactory
+} from "../mocks/HoodiScenarioProtocolMocks.sol";
+import {Token} from "../mocks/Token.sol";
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -30,18 +36,6 @@ contract DeployFullCoreLiquidLaneTestnetScriptHarness is DeployFullCoreLiquidLan
 
     function _scriptOwner() internal view override returns (address) {
         return address(this);
-    }
-}
-
-contract TestnetRegistryStateEntity is MigratableEntity {
-    bool public wasEntityDuringInitialize;
-    uint256 public totalEntitiesDuringInitialize;
-
-    constructor(address factory) MigratableEntity(factory) {}
-
-    function _initialize(uint64, address, bytes memory) internal override {
-        wasEntityDuringInitialize = IMigratablesFactory(FACTORY).isEntity(address(this));
-        totalEntitiesDuringInitialize = IMigratablesFactory(FACTORY).totalEntities();
     }
 }
 
@@ -62,6 +56,7 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
                 mGlobal: address(0),
                 mFoneRedemptionVault: address(0),
                 mGlobalRedemptionVault: address(0),
+                merklDistributor: address(0),
                 mintAmount: 1_000_000e18,
                 liquidLaneLimit: 100_000e6,
                 minDiscount: 1000
@@ -69,7 +64,7 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
         );
 
         assertEq(Ownable(address(data.core.vaultFactory)).owner(), owner);
-        assertEq(address(data.core.vaultFactory).codehash, keccak256(type(TestnetVaultFactory).runtimeCode));
+        assertEq(address(data.core.vaultFactory).codehash, keccak256(type(VaultFactory).runtimeCode));
         assertEq(Ownable(address(data.core.delegatorFactory)).owner(), owner);
         assertEq(Ownable(address(data.v2.adapterRegistry)).owner(), owner);
 
@@ -82,10 +77,10 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
 
         _assertVault(data.liquidLane.usdcVault, data.tokens.usdc, data.liquidLane.usdcDelegator);
         _assertVault(data.liquidLane.aUsdVault, data.tokens.aUsd, data.liquidLane.aUsdDelegator);
-        _assertTestnetVaultCreate2Address(
+        _assertVaultCreate2Address(
             data, 0, owner, data.liquidLane.usdcVault, data.tokens.usdc, "Testnet USDC Vault", "tUSDC-V"
         );
-        _assertTestnetVaultCreate2Address(
+        _assertVaultCreate2Address(
             data, 1, owner, data.liquidLane.aUsdVault, data.tokens.aUsd, "Testnet aUSD Vault", "taUSD-V"
         );
 
@@ -117,40 +112,10 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
         );
 
         _assertFullFormDeployments(data, owner);
+        _assertMockProtocolsAreOwnerConfigurable(data.fullAdapters, owner);
     }
 
-    function test_TestnetVaultFactoryCreate2AddressUsesConstructorInitializeCalldata() public {
-        TestnetVaultFactory factory = new TestnetVaultFactory(address(this));
-        TestnetRegistryStateEntity implementation = new TestnetRegistryStateEntity(address(factory));
-        factory.whitelist(address(implementation));
-
-        address owner = address(0xBEEF);
-        bytes memory data = abi.encode("constructor initialized");
-        address expected = _computeProxyAddress(address(factory), address(implementation), 0, 1, owner, data, true);
-        address legacyExpected =
-            _computeProxyAddress(address(factory), address(implementation), 0, 1, owner, data, false);
-
-        address entity = factory.create(1, owner, data);
-
-        assertEq(entity, expected);
-        assertNotEq(entity, legacyExpected);
-        assertEq(factory.entity(0), entity);
-    }
-
-    function test_TestnetVaultFactoryInitializesBeforeRegisteringEntity() public {
-        TestnetVaultFactory factory = new TestnetVaultFactory(address(this));
-        TestnetRegistryStateEntity implementation = new TestnetRegistryStateEntity(address(factory));
-        factory.whitelist(address(implementation));
-
-        address entity = factory.create(1, address(this), "");
-
-        assertFalse(TestnetRegistryStateEntity(entity).wasEntityDuringInitialize());
-        assertEq(TestnetRegistryStateEntity(entity).totalEntitiesDuringInitialize(), 0);
-        assertTrue(factory.isEntity(entity));
-        assertEq(factory.totalEntities(), 1);
-    }
-
-    function _assertTestnetVaultCreate2Address(
+    function _assertVaultCreate2Address(
         DeployFullCoreLiquidLaneTestnetScript.DeploymentData memory data,
         uint256 entityIndex,
         address owner,
@@ -161,26 +126,14 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
     ) internal view {
         bytes memory vaultParams = _vaultParams(owner, asset, name, symbol);
         address expected = _computeProxyAddress(
-            address(data.core.vaultFactory),
-            address(data.v2.vaultV2),
-            entityIndex,
-            VAULT_V2_VERSION,
-            owner,
-            vaultParams,
-            true
+            address(data.core.vaultFactory), address(data.v2.vaultV2), entityIndex, VAULT_V2_VERSION, owner, vaultParams
         );
-        address legacyExpected = _computeProxyAddress(
-            address(data.core.vaultFactory),
-            address(data.v2.vaultV2),
-            entityIndex,
-            VAULT_V2_VERSION,
-            owner,
-            vaultParams,
-            false
+        address constructorInitializeExpected = _computeProxyAddressWithConstructorInitialize(
+            address(data.core.vaultFactory), address(data.v2.vaultV2), entityIndex, VAULT_V2_VERSION, owner, vaultParams
         );
 
         assertEq(vault, expected);
-        assertNotEq(vault, legacyExpected);
+        assertNotEq(vault, constructorInitializeExpected);
         assertEq(data.core.vaultFactory.entity(entityIndex), vault);
     }
 
@@ -190,15 +143,29 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
         uint256 entityIndex,
         uint64 version,
         address owner,
-        bytes memory data,
-        bool constructorInitializes
+        bytes memory data
     ) internal view returns (address) {
-        bytes memory proxyConstructorData = constructorInitializes
-            ? abi.encodeCall(IMigratableEntity.initialize, (version, owner, data))
-            : bytes("");
         bytes32 salt = keccak256(abi.encode(entityIndex, version, owner, data));
         bytes32 initCodeHash = keccak256(
-            abi.encodePacked(type(MigratableEntityProxy).creationCode, abi.encode(implementation, proxyConstructorData))
+            abi.encodePacked(type(MigratableEntityProxy).creationCode, abi.encode(implementation, bytes("")))
+        );
+        return vm.computeCreate2Address(salt, initCodeHash, factory);
+    }
+
+    function _computeProxyAddressWithConstructorInitialize(
+        address factory,
+        address implementation,
+        uint256 entityIndex,
+        uint64 version,
+        address owner,
+        bytes memory data
+    ) internal view returns (address) {
+        bytes32 salt = keccak256(abi.encode(entityIndex, version, owner, data));
+        bytes32 initCodeHash = keccak256(
+            abi.encodePacked(
+                type(MigratableEntityProxy).creationCode,
+                abi.encode(implementation, abi.encodeCall(IMigratableEntity.initialize, (version, owner, data)))
+            )
         );
         return vm.computeCreate2Address(salt, initCodeHash, factory);
     }
@@ -238,6 +205,7 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
         assertGt(data.fullAdapters.aaveAdapterImplementation.code.length, 0);
         assertGt(data.fullAdapters.morphoAdapterFactory.code.length, 0);
         assertGt(data.fullAdapters.morphoAdapterImplementation.code.length, 0);
+        assertGt(data.fullAdapters.merklDistributor.code.length, 0);
         assertEq(Ownable(data.fullAdapters.appAdapterFactory).owner(), owner);
         assertEq(Ownable(data.fullAdapters.aaveAdapterFactory).owner(), owner);
         assertEq(Ownable(data.fullAdapters.morphoAdapterFactory).owner(), owner);
@@ -269,6 +237,12 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
         );
         assertEq(IAaveV3Adapter(data.fullAdapters.usdcAaveAdapter).aToken(), data.fullAdapters.mockAaveUsdcAToken);
         assertEq(IAaveV3Adapter(data.fullAdapters.aUsdAaveAdapter).aToken(), data.fullAdapters.mockAaveAusdAToken);
+        assertEq(
+            IMerklClaimer(data.fullAdapters.usdcAaveAdapter).MERKL_DISTRIBUTOR(), data.fullAdapters.merklDistributor
+        );
+        assertEq(
+            IMerklClaimer(data.fullAdapters.aUsdAaveAdapter).MERKL_DISTRIBUTOR(), data.fullAdapters.merklDistributor
+        );
 
         assertTrue(
             MockMorphoVaultFactory(data.fullAdapters.mockMorphoVaultFactory)
@@ -292,6 +266,12 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
             IMorphoVaultV2Adapter(data.fullAdapters.aUsdMorphoAdapter).morphoVault(),
             data.fullAdapters.mockMorphoVaultAusd
         );
+        assertEq(
+            IMerklClaimer(data.fullAdapters.usdcMorphoAdapter).MERKL_DISTRIBUTOR(), data.fullAdapters.merklDistributor
+        );
+        assertEq(
+            IMerklClaimer(data.fullAdapters.aUsdMorphoAdapter).MERKL_DISTRIBUTOR(), data.fullAdapters.merklDistributor
+        );
 
         assertEq(IAppAdapter(data.fullAdapters.usdcAppAdapter).asset(), data.tokens.usdc);
         assertEq(IAppAdapter(data.fullAdapters.aUsdAppAdapter).asset(), data.tokens.aUsd);
@@ -314,6 +294,51 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
             data.fullAdapters.aUsdMorphoAdapter,
             data.liquidLaneLimit
         );
+    }
+
+    function _assertMockProtocolsAreOwnerConfigurable(
+        DeployFullCoreLiquidLaneTestnetScript.FullAdapterDeployments memory fullAdapters,
+        address owner
+    ) internal {
+        address nonOwner = makeAddr("fullCoreMockProtocolNonOwner");
+        Token extraAaveAsset = new Token("Extra Aave Asset");
+        MockAaveAToken extraAToken = new MockAaveAToken(address(extraAaveAsset), owner);
+
+        vm.prank(nonOwner);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonOwner));
+        MockAavePool(fullAdapters.mockAavePool).setReserveToken(address(extraAaveAsset), address(extraAToken));
+
+        vm.startPrank(owner);
+        MockAavePool(fullAdapters.mockAavePool).setReserveToken(address(extraAaveAsset), address(extraAToken));
+        extraAToken.setPool(fullAdapters.mockAavePool);
+        MockAavePoolDataProvider(fullAdapters.mockAaveDataProvider)
+            .setReserveToken(address(extraAaveAsset), address(extraAToken));
+        vm.stopPrank();
+
+        assertEq(
+            MockAavePool(fullAdapters.mockAavePool).getReserveAToken(address(extraAaveAsset)), address(extraAToken)
+        );
+        (address configuredAToken,,) = MockAavePoolDataProvider(fullAdapters.mockAaveDataProvider)
+            .getReserveTokensAddresses(address(extraAaveAsset));
+        assertEq(configuredAToken, address(extraAToken));
+
+        Token extraMorphoAsset = new Token("Extra Morpho Asset");
+
+        vm.prank(nonOwner);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonOwner));
+        MockMorphoAdapterRegistry(fullAdapters.mockMorphoAdapterRegistry).setInRegistry(address(0xBEEF), true);
+
+        vm.prank(owner);
+        (bool success, bytes memory returnData) = fullAdapters.mockMorphoVaultFactory
+            .call(abi.encodeWithSignature("createVault(address)", address(extraMorphoAsset)));
+        assertTrue(success);
+        (, address extraMorphoVault) = abi.decode(returnData, (address, address));
+
+        vm.prank(owner);
+        MockMorphoAdapterRegistry(fullAdapters.mockMorphoAdapterRegistry).setInRegistry(extraMorphoVault, true);
+
+        assertTrue(MockMorphoVaultFactory(fullAdapters.mockMorphoVaultFactory).isVaultV2(extraMorphoVault));
+        _assertMorphoRegistryContains(fullAdapters.mockMorphoAdapterRegistry, extraMorphoVault);
     }
 
     function _assertDelegatorAdapters(

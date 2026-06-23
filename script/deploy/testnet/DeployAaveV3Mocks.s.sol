@@ -10,6 +10,6 @@ contract DeployAaveV3MocksScript is DeployAaveV3MocksBaseScript {
     address public constant COLLATERAL = 0x0000000000000000000000000000000000000000;
 
     function run() public {
-        runBase(COLLATERAL);
+        runBase(vm.envOr("TESTNET_COLLATERAL", COLLATERAL));
     }
 }

@@ -52,22 +52,22 @@ contract DeployAaveV3MocksBaseScript is Script {
         (data.aTokenImplementation, data.aTokenProxyAdmin, data.aToken) = _deployProxy(
             address(new MockAaveATokenUpgradeable()),
             proxyOwner,
-            abi.encodeCall(MockAaveATokenUpgradeable.initialize, (data.collateral))
+            abi.encodeCall(MockAaveATokenUpgradeable.initialize, (data.collateral, proxyOwner))
         );
         (data.aaveProviderImplementation, data.aaveProviderProxyAdmin, data.aaveProvider) = _deployProxy(
             address(new MockAavePoolAddressesProviderUpgradeable()),
             proxyOwner,
-            abi.encodeCall(MockAavePoolAddressesProviderUpgradeable.initialize, ())
+            abi.encodeCall(MockAavePoolAddressesProviderUpgradeable.initialize, (proxyOwner))
         );
         (data.aaveDataProviderImplementation, data.aaveDataProviderProxyAdmin, data.aaveDataProvider) = _deployProxy(
             address(new MockAavePoolDataProviderUpgradeable()),
             proxyOwner,
-            abi.encodeCall(MockAavePoolDataProviderUpgradeable.initialize, ())
+            abi.encodeCall(MockAavePoolDataProviderUpgradeable.initialize, (proxyOwner))
         );
         (data.aavePoolImplementation, data.aavePoolProxyAdmin, data.aavePool) = _deployProxy(
             address(new MockAavePoolUpgradeable()),
             proxyOwner,
-            abi.encodeCall(MockAavePoolUpgradeable.initialize, (data.aaveProvider))
+            abi.encodeCall(MockAavePoolUpgradeable.initialize, (data.aaveProvider, proxyOwner))
         );
         MockAavePoolUpgradeable(data.aavePool).setReserveToken(data.collateral, data.aToken);
         MockAaveATokenUpgradeable(data.aToken).setPool(data.aavePool);

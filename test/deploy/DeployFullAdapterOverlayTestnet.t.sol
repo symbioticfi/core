@@ -11,8 +11,16 @@ import {IAdapterRegistry} from "../../src/interfaces/IAdapterRegistry.sol";
 import {IAaveV3Adapter} from "../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
+import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 import {IUniversalDelegator, MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
-import {MockAavePool, MockMorphoVaultFactory} from "../mocks/HoodiScenarioProtocolMocks.sol";
+import {
+    MockAaveAToken,
+    MockAavePool,
+    MockAavePoolDataProvider,
+    MockMorphoAdapterRegistry,
+    MockMorphoVaultFactory
+} from "../mocks/HoodiScenarioProtocolMocks.sol";
+import {Token} from "../mocks/Token.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -64,6 +72,7 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
                 mGlobal: address(0),
                 mFoneRedemptionVault: address(0),
                 mGlobalRedemptionVault: address(0),
+                merklDistributor: address(0),
                 mintAmount: 0,
                 liquidLaneLimit: type(uint128).max,
                 minDiscount: 0
@@ -82,6 +91,7 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
                 networkMiddlewareService: address(baseData.core.networkMiddlewareService),
                 cowSwapSettlement: address(0),
                 cowSwapVaultRelayer: address(0),
+                merklDistributor: address(0),
                 usdc: baseData.tokens.usdc,
                 aUsd: baseData.tokens.aUsd,
                 usdcVault: baseData.liquidLane.usdcVault,
@@ -93,6 +103,7 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
         );
 
         _assertOverlay(deployed, baseData, owner, initialUsdcAdapters, initialAUsdAdapters);
+        _assertMockProtocolsAreOwnerConfigurable(deployed, owner);
     }
 
     function _assertOverlay(
@@ -108,6 +119,7 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
         assertEq(AdapterFactory(deployed.appAdapterFactory).implementation(1), deployed.appAdapterImplementation);
         assertEq(AdapterFactory(deployed.aaveAdapterFactory).implementation(1), deployed.aaveAdapterImplementation);
         assertEq(AdapterFactory(deployed.morphoAdapterFactory).implementation(1), deployed.morphoAdapterImplementation);
+        assertGt(deployed.merklDistributor.code.length, 0);
 
         assertEq(IAppAdapter(deployed.usdcAppAdapter).asset(), baseData.tokens.usdc);
         assertEq(IAppAdapter(deployed.usdcAppAdapter).burner(), deployed.usdcBurner);
@@ -122,6 +134,8 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
         );
         assertEq(IAaveV3Adapter(deployed.usdcAaveAdapter).aToken(), deployed.mockAaveUsdcAToken);
         assertEq(IAaveV3Adapter(deployed.aUsdAaveAdapter).aToken(), deployed.mockAaveAusdAToken);
+        assertEq(IMerklClaimer(deployed.usdcAaveAdapter).MERKL_DISTRIBUTOR(), deployed.merklDistributor);
+        assertEq(IMerklClaimer(deployed.aUsdAaveAdapter).MERKL_DISTRIBUTOR(), deployed.merklDistributor);
 
         assertTrue(MockMorphoVaultFactory(deployed.mockMorphoVaultFactory).isVaultV2(deployed.mockMorphoVaultUsdc));
         assertTrue(MockMorphoVaultFactory(deployed.mockMorphoVaultFactory).isVaultV2(deployed.mockMorphoVaultAusd));
@@ -129,6 +143,8 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
         _assertMorphoRegistryContains(deployed.mockMorphoAdapterRegistry, deployed.mockMorphoVaultAusd);
         assertEq(IMorphoVaultV2Adapter(deployed.usdcMorphoAdapter).morphoVault(), deployed.mockMorphoVaultUsdc);
         assertEq(IMorphoVaultV2Adapter(deployed.aUsdMorphoAdapter).morphoVault(), deployed.mockMorphoVaultAusd);
+        assertEq(IMerklClaimer(deployed.usdcMorphoAdapter).MERKL_DISTRIBUTOR(), deployed.merklDistributor);
+        assertEq(IMerklClaimer(deployed.aUsdMorphoAdapter).MERKL_DISTRIBUTOR(), deployed.merklDistributor);
 
         _assertDelegatorOverlay(
             address(baseData.v2.adapterRegistry),
@@ -181,5 +197,48 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
             registry.staticcall(abi.encodeWithSignature("isInRegistry(address)", account));
         assertTrue(success);
         assertTrue(abi.decode(data, (bool)));
+    }
+
+    function _assertMockProtocolsAreOwnerConfigurable(
+        DeployFullAdapterOverlayTestnetScript.OverlayDeployments memory deployed,
+        address owner
+    ) internal {
+        address nonOwner = makeAddr("overlayMockProtocolNonOwner");
+        Token extraAaveAsset = new Token("Extra Overlay Aave Asset");
+        MockAaveAToken extraAToken = new MockAaveAToken(address(extraAaveAsset), owner);
+
+        vm.prank(nonOwner);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonOwner));
+        MockAavePool(deployed.mockAavePool).setReserveToken(address(extraAaveAsset), address(extraAToken));
+
+        vm.startPrank(owner);
+        MockAavePool(deployed.mockAavePool).setReserveToken(address(extraAaveAsset), address(extraAToken));
+        extraAToken.setPool(deployed.mockAavePool);
+        MockAavePoolDataProvider(deployed.mockAaveDataProvider)
+            .setReserveToken(address(extraAaveAsset), address(extraAToken));
+        vm.stopPrank();
+
+        assertEq(MockAavePool(deployed.mockAavePool).getReserveAToken(address(extraAaveAsset)), address(extraAToken));
+        (address configuredAToken,,) =
+            MockAavePoolDataProvider(deployed.mockAaveDataProvider).getReserveTokensAddresses(address(extraAaveAsset));
+        assertEq(configuredAToken, address(extraAToken));
+
+        Token extraMorphoAsset = new Token("Extra Overlay Morpho Asset");
+
+        vm.prank(nonOwner);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, nonOwner));
+        MockMorphoAdapterRegistry(deployed.mockMorphoAdapterRegistry).setInRegistry(address(0xBEEF), true);
+
+        vm.prank(owner);
+        (bool success, bytes memory returnData) = deployed.mockMorphoVaultFactory
+            .call(abi.encodeWithSignature("createVault(address)", address(extraMorphoAsset)));
+        assertTrue(success);
+        (, address extraMorphoVault) = abi.decode(returnData, (address, address));
+
+        vm.prank(owner);
+        MockMorphoAdapterRegistry(deployed.mockMorphoAdapterRegistry).setInRegistry(extraMorphoVault, true);
+
+        assertTrue(MockMorphoVaultFactory(deployed.mockMorphoVaultFactory).isVaultV2(extraMorphoVault));
+        _assertMorphoRegistryContains(deployed.mockMorphoAdapterRegistry, extraMorphoVault);
     }
 }

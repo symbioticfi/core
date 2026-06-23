@@ -6,12 +6,16 @@ import {DeployMorphoVaultV2MocksBaseScript} from "./base/DeployMorphoVaultV2Mock
 // forge script script/deploy/testnet/DeployMorphoVaultV2Mocks.s.sol:DeployMorphoVaultV2MocksScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
 
 contract DeployMorphoVaultV2MocksScript is DeployMorphoVaultV2MocksBaseScript {
-    // Address that will own the mock Morpho AdapterRegistry.
+    // Optional address that will own the mock Morpho AdapterRegistry. Leave zero to use the script owner.
     address public constant ADAPTER_REGISTRY_OWNER = 0x0000000000000000000000000000000000000000;
     // Leave zero to deploy a new mock collateral, or replace with an existing collateral address.
     address public constant COLLATERAL = 0x0000000000000000000000000000000000000000;
 
     function run() public {
-        runBase(DeployParams({adapterRegistryOwner: ADAPTER_REGISTRY_OWNER, collateral: COLLATERAL}));
+        address owner = vm.envOr("TESTNET_ADAPTER_REGISTRY_OWNER", ADAPTER_REGISTRY_OWNER);
+        if (owner == address(0)) {
+            owner = _scriptOwner();
+        }
+        runBase(DeployParams({adapterRegistryOwner: owner, collateral: vm.envOr("TESTNET_COLLATERAL", COLLATERAL)}));
     }
 }

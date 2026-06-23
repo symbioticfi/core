@@ -123,6 +123,11 @@ contract DeployMorphoVaultV2MocksBaseScript is Script {
         return address(uint160(uint256(vm.load(proxy, ERC1967_ADMIN_SLOT))));
     }
 
+    function _scriptOwner() internal view returns (address owner_) {
+        (,, address origin) = vm.readCallers();
+        return origin == address(0) ? msg.sender : origin;
+    }
+
     function _startBroadcast() internal virtual {
         vm.startBroadcast();
     }

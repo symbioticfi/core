@@ -7,6 +7,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import {IRewards} from "../../src/interfaces/vault/IRewards.sol";
@@ -20,10 +21,22 @@ interface IVaultCollateralHoodiScenario {
     function collateral() external view returns (address);
 }
 
-contract MockMorphoVaultFactory {
+contract MockMorphoVaultFactory is Ownable {
     mapping(address vault => bool status) public isVaultV2;
 
-    function setVault(address vault, bool status) external {
+    address public immutable adapterRegistry;
+
+    constructor(address adapterRegistry_, address owner_) Ownable(owner_) {
+        adapterRegistry = adapterRegistry_;
+    }
+
+    function createVault(address asset) external onlyOwner returns (address implementation, address vault) {
+        vault = address(new MockMorphoVaultHarness(asset, adapterRegistry));
+        implementation = vault;
+        isVaultV2[vault] = true;
+    }
+
+    function setVault(address vault, bool status) external onlyOwner {
         isVaultV2[vault] = status;
     }
 }
@@ -35,18 +48,19 @@ contract MockHoodiTokenUpgradeable is Initializable, ERC20Upgradeable {
     }
 }
 
-contract MockMorphoVaultFactoryUpgradeable is Initializable {
+contract MockMorphoVaultFactoryUpgradeable is Initializable, OwnableUpgradeable {
     mapping(address vault => bool status) public isVaultV2;
 
     address public adapterRegistry;
     address public proxyOwner;
 
     function initialize(address adapterRegistry_, address proxyOwner_) external initializer {
+        __Ownable_init(proxyOwner_);
         adapterRegistry = adapterRegistry_;
         proxyOwner = proxyOwner_;
     }
 
-    function createVault(address asset) external returns (address implementation, address vault) {
+    function createVault(address asset) external onlyOwner returns (address implementation, address vault) {
         implementation = address(new MockMorphoVaultHarnessUpgradeable());
         vault = address(
             new TransparentUpgradeableProxy(
@@ -58,7 +72,7 @@ contract MockMorphoVaultFactoryUpgradeable is Initializable {
         isVaultV2[vault] = true;
     }
 
-    function setVault(address vault, bool status) external {
+    function setVault(address vault, bool status) external onlyOwner {
         isVaultV2[vault] = status;
     }
 }
@@ -67,14 +81,16 @@ interface IMorphoAdapterRegistry {
     function isInRegistry(address account) external view returns (bool);
 }
 
-contract MockMorphoAdapterRegistry is IMorphoAdapterRegistry {
+contract MockMorphoAdapterRegistry is Ownable, IMorphoAdapterRegistry {
     mapping(address account => bool status) internal _isInRegistry;
+
+    constructor(address owner_) Ownable(owner_) {}
 
     function isInRegistry(address account) external view override returns (bool) {
         return _isInRegistry[account];
     }
 
-    function setInRegistry(address account, bool status) external {
+    function setInRegistry(address account, bool status) external onlyOwner {
         _isInRegistry[account] = status;
     }
 }
@@ -90,7 +106,7 @@ contract MockMorphoAdapterRegistryUpgradeable is Initializable, OwnableUpgradeab
         return _isInRegistry[account];
     }
 
-    function setInRegistry(address account, bool status) external {
+    function setInRegistry(address account, bool status) external onlyOwner {
         _isInRegistry[account] = status;
     }
 }
@@ -304,15 +320,15 @@ contract MockMorphoVaultConfigurable {
     }
 }
 
-contract MockAaveAToken is ERC20 {
+contract MockAaveAToken is ERC20, Ownable {
     address public immutable UNDERLYING_ASSET_ADDRESS;
     address public pool;
 
-    constructor(address underlyingAsset) ERC20("Mock AToken", "maToken") {
+    constructor(address underlyingAsset, address owner_) ERC20("Mock AToken", "maToken") Ownable(owner_) {
         UNDERLYING_ASSET_ADDRESS = underlyingAsset;
     }
 
-    function setPool(address newPool) external {
+    function setPool(address newPool) external onlyOwner {
         require(pool == address(0), "pool already set");
         pool = newPool;
     }
@@ -331,16 +347,17 @@ contract MockAaveAToken is ERC20 {
     }
 }
 
-contract MockAaveATokenUpgradeable is Initializable, ERC20Upgradeable {
+contract MockAaveATokenUpgradeable is Initializable, ERC20Upgradeable, OwnableUpgradeable {
     address public UNDERLYING_ASSET_ADDRESS;
     address public pool;
 
-    function initialize(address underlyingAsset) external initializer {
+    function initialize(address underlyingAsset, address owner_) external initializer {
         __ERC20_init("Mock AToken", "maToken");
+        __Ownable_init(owner_);
         UNDERLYING_ASSET_ADDRESS = underlyingAsset;
     }
 
-    function setPool(address newPool) external {
+    function setPool(address newPool) external onlyOwner {
         require(pool == address(0), "pool already set");
         pool = newPool;
     }
@@ -359,11 +376,13 @@ contract MockAaveATokenUpgradeable is Initializable, ERC20Upgradeable {
     }
 }
 
-contract MockAavePoolAddressesProvider {
+contract MockAavePoolAddressesProvider is Ownable {
     address public pool;
     address public poolDataProvider;
 
-    function setPool(address pool_) external {
+    constructor(address owner_) Ownable(owner_) {}
+
+    function setPool(address pool_) external onlyOwner {
         pool = pool_;
     }
 
@@ -371,7 +390,7 @@ contract MockAavePoolAddressesProvider {
         return pool;
     }
 
-    function setPoolDataProvider(address poolDataProvider_) external {
+    function setPoolDataProvider(address poolDataProvider_) external onlyOwner {
         poolDataProvider = poolDataProvider_;
     }
 
@@ -380,13 +399,15 @@ contract MockAavePoolAddressesProvider {
     }
 }
 
-contract MockAavePoolAddressesProviderUpgradeable is Initializable {
+contract MockAavePoolAddressesProviderUpgradeable is Initializable, OwnableUpgradeable {
     address public pool;
     address public poolDataProvider;
 
-    function initialize() external initializer {}
+    function initialize(address owner_) external initializer {
+        __Ownable_init(owner_);
+    }
 
-    function setPool(address pool_) external {
+    function setPool(address pool_) external onlyOwner {
         pool = pool_;
     }
 
@@ -394,7 +415,7 @@ contract MockAavePoolAddressesProviderUpgradeable is Initializable {
         return pool;
     }
 
-    function setPoolDataProvider(address poolDataProvider_) external {
+    function setPoolDataProvider(address poolDataProvider_) external onlyOwner {
         poolDataProvider = poolDataProvider_;
     }
 
@@ -403,10 +424,12 @@ contract MockAavePoolAddressesProviderUpgradeable is Initializable {
     }
 }
 
-contract MockAavePoolDataProvider {
+contract MockAavePoolDataProvider is Ownable {
     mapping(address asset => address aToken) public aTokens;
 
-    function setReserveToken(address asset, address aToken) external {
+    constructor(address owner_) Ownable(owner_) {}
+
+    function setReserveToken(address asset, address aToken) external onlyOwner {
         aTokens[asset] = aToken;
     }
 
@@ -415,12 +438,14 @@ contract MockAavePoolDataProvider {
     }
 }
 
-contract MockAavePoolDataProviderUpgradeable is Initializable {
+contract MockAavePoolDataProviderUpgradeable is Initializable, OwnableUpgradeable {
     mapping(address asset => address aToken) public aTokens;
 
-    function initialize() external initializer {}
+    function initialize(address owner_) external initializer {
+        __Ownable_init(owner_);
+    }
 
-    function setReserveToken(address asset, address aToken) external {
+    function setReserveToken(address asset, address aToken) external onlyOwner {
         aTokens[asset] = aToken;
     }
 
@@ -429,7 +454,7 @@ contract MockAavePoolDataProviderUpgradeable is Initializable {
     }
 }
 
-contract MockAavePool {
+contract MockAavePool is Ownable {
     mapping(address asset => MockAaveAToken aToken) public aTokens;
     address public immutable ADDRESSES_PROVIDER;
 
@@ -438,12 +463,12 @@ contract MockAavePool {
     bool public useVirtualUnderlyingBalanceOverride;
     uint128 public virtualUnderlyingBalanceOverride;
 
-    constructor(address asset_, address aToken_, address addressesProvider_) {
+    constructor(address asset_, address aToken_, address addressesProvider_, address owner_) Ownable(owner_) {
         ADDRESSES_PROVIDER = addressesProvider_;
         aTokens[asset_] = MockAaveAToken(aToken_);
     }
 
-    function setReserveToken(address asset_, address aToken_) external {
+    function setReserveToken(address asset_, address aToken_) external onlyOwner {
         aTokens[asset_] = MockAaveAToken(aToken_);
     }
 
@@ -462,20 +487,20 @@ contract MockAavePool {
         return uint128(IERC20(asset_).balanceOf(address(aToken)));
     }
 
-    function setRevertOnSupply(bool value) external {
+    function setRevertOnSupply(bool value) external onlyOwner {
         revertOnSupply = value;
     }
 
-    function setRevertOnWithdraw(bool value) external {
+    function setRevertOnWithdraw(bool value) external onlyOwner {
         revertOnWithdraw = value;
     }
 
-    function setVirtualUnderlyingBalance(uint128 value) external {
+    function setVirtualUnderlyingBalance(uint128 value) external onlyOwner {
         useVirtualUnderlyingBalanceOverride = true;
         virtualUnderlyingBalanceOverride = value;
     }
 
-    function clearVirtualUnderlyingBalanceOverride() external {
+    function clearVirtualUnderlyingBalanceOverride() external onlyOwner {
         useVirtualUnderlyingBalanceOverride = false;
     }
 
@@ -503,7 +528,7 @@ contract MockAavePool {
         }
     }
 
-    function accrueYield(address asset_, address account, uint256 amount) external {
+    function accrueYield(address asset_, address account, uint256 amount) external onlyOwner {
         MockAaveAToken aToken = aTokens[asset_];
         require(address(aToken) != address(0), "invalid asset");
         IERC20(asset_).transferFrom(msg.sender, address(aToken), amount);
@@ -511,7 +536,7 @@ contract MockAavePool {
     }
 }
 
-contract MockAavePoolUpgradeable is Initializable {
+contract MockAavePoolUpgradeable is Initializable, OwnableUpgradeable {
     mapping(address asset => MockAaveATokenUpgradeable aToken) public aTokens;
     address public ADDRESSES_PROVIDER;
 
@@ -520,11 +545,12 @@ contract MockAavePoolUpgradeable is Initializable {
     bool public useVirtualUnderlyingBalanceOverride;
     uint128 public virtualUnderlyingBalanceOverride;
 
-    function initialize(address addressesProvider_) external initializer {
+    function initialize(address addressesProvider_, address owner_) external initializer {
+        __Ownable_init(owner_);
         ADDRESSES_PROVIDER = addressesProvider_;
     }
 
-    function setReserveToken(address asset_, address aToken_) external {
+    function setReserveToken(address asset_, address aToken_) external onlyOwner {
         aTokens[asset_] = MockAaveATokenUpgradeable(aToken_);
     }
 
@@ -543,20 +569,20 @@ contract MockAavePoolUpgradeable is Initializable {
         return uint128(IERC20(asset_).balanceOf(address(aToken)));
     }
 
-    function setRevertOnSupply(bool value) external {
+    function setRevertOnSupply(bool value) external onlyOwner {
         revertOnSupply = value;
     }
 
-    function setRevertOnWithdraw(bool value) external {
+    function setRevertOnWithdraw(bool value) external onlyOwner {
         revertOnWithdraw = value;
     }
 
-    function setVirtualUnderlyingBalance(uint128 value) external {
+    function setVirtualUnderlyingBalance(uint128 value) external onlyOwner {
         useVirtualUnderlyingBalanceOverride = true;
         virtualUnderlyingBalanceOverride = value;
     }
 
-    function clearVirtualUnderlyingBalanceOverride() external {
+    function clearVirtualUnderlyingBalanceOverride() external onlyOwner {
         useVirtualUnderlyingBalanceOverride = false;
     }
 
@@ -584,7 +610,7 @@ contract MockAavePoolUpgradeable is Initializable {
         }
     }
 
-    function accrueYield(address asset_, address account, uint256 amount) external {
+    function accrueYield(address asset_, address account, uint256 amount) external onlyOwner {
         MockAaveATokenUpgradeable aToken = aTokens[asset_];
         require(address(aToken) != address(0), "invalid asset");
         IERC20(asset_).transferFrom(msg.sender, address(aToken), amount);

@@ -34,8 +34,8 @@ contract AaveV3AdapterTest is Test {
         vaultFactory = new AaveV3AdapterRegistryMock();
         factory = new AdapterFactory(address(this));
         assetToken = new Token("Asset");
-        aToken = new MockAaveAToken(address(assetToken));
-        pool = new MockAavePool(address(assetToken), address(aToken), address(0));
+        aToken = new MockAaveAToken(address(assetToken), address(this));
+        pool = new MockAavePool(address(assetToken), address(aToken), address(0), address(this));
         aToken.setPool(address(pool));
         vault = new AaveV3AdapterVaultMock(address(assetToken), delegator);
         vaultFactory.add(address(vault));
@@ -70,7 +70,7 @@ contract AaveV3AdapterTest is Test {
     }
 
     function test_ATokenViewDoesNotFollowReserveTokenUpdates() public {
-        MockAaveAToken newAToken = new MockAaveAToken(address(assetToken));
+        MockAaveAToken newAToken = new MockAaveAToken(address(assetToken), address(this));
 
         pool.setReserveToken(address(assetToken), address(newAToken));
 

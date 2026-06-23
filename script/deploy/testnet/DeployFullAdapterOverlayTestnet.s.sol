@@ -12,6 +12,7 @@ import {IAdapterRegistry} from "../../../src/interfaces/IAdapterRegistry.sol";
 import {IAaveV3Adapter} from "../../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
+import {ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IUniversalDelegator, MAX_SHARE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 
 import {
@@ -20,13 +21,13 @@ import {
     MockAavePoolAddressesProvider,
     MockAavePoolDataProvider,
     MockMorphoAdapterRegistry,
-    MockMorphoVaultFactory,
-    MockMorphoVaultHarness
+    MockMorphoVaultFactory
 } from "../../../test/mocks/HoodiScenarioProtocolMocks.sol";
 import {
     TestnetBurnerRouterFactoryMock,
     TestnetCowSwapSettlementMock,
     TestnetCowSwapVaultRelayerMock,
+    TestnetMerklDistributorMock,
     TestnetSwapRouterMock
 } from "./DeployFullCoreLiquidLaneTestnet.s.sol";
 
@@ -41,6 +42,7 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
         address networkMiddlewareService;
         address cowSwapSettlement;
         address cowSwapVaultRelayer;
+        address merklDistributor;
         address usdc;
         address aUsd;
         address usdcVault;
@@ -53,6 +55,7 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
     struct OverlayDeployments {
         address cowSwapSettlement;
         address cowSwapVaultRelayer;
+        address merklDistributor;
         address appAdapterFactory;
         address appAdapterImplementation;
         address burnerRouterFactory;
@@ -89,6 +92,7 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
 
         _startBroadcast();
         _deployCowSwap(params, overlay);
+        _deployMerkl(params, overlay);
         _deployAppStack(params, overlay);
         _deployAaveStack(params, overlay);
         _deployMorphoStack(params, overlay);
@@ -115,6 +119,8 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
             _addressFromJsonOrEnv(json, ".contracts.cowSwapSettlement", "TESTNET_COW_SWAP_SETTLEMENT", address(0));
         params.cowSwapVaultRelayer =
             _addressFromJsonOrEnv(json, ".contracts.cowSwapVaultRelayer", "TESTNET_COW_SWAP_VAULT_RELAYER", address(0));
+        params.merklDistributor =
+            _addressFromJsonOrEnv(json, ".contracts.merklDistributor", "TESTNET_MERKL_DISTRIBUTOR", address(0));
         params.usdc = _addressFromJsonOrEnv(json, ".tokens.output[0].address", "TESTNET_USDC", address(0));
         params.aUsd = _addressFromJsonOrEnv(json, ".tokens.output[1].address", "TESTNET_AUSD", address(0));
         params.usdcVault = _addressFromJsonOrEnv(json, ".contracts.usdcVault", "TESTNET_USDC_VAULT", address(0));
@@ -131,6 +137,7 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
         require(params.marketMaker != address(0), "invalid market maker");
         require(params.vaultFactory != address(0), "invalid vault factory");
         require(params.adapterRegistry != address(0), "invalid adapter registry");
+        require(params.networkMiddlewareService != address(0), "invalid network middleware service");
         require(params.usdc != address(0), "invalid usdc");
         require(params.aUsd != address(0), "invalid ausd");
         require(params.usdcVault != address(0), "invalid usdc vault");
@@ -142,7 +149,7 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
     function _deployCowSwap(DeployParams memory params, OverlayDeployments memory overlay) internal {
         if (params.cowSwapSettlement != address(0)) {
             overlay.cowSwapSettlement = params.cowSwapSettlement;
-            overlay.cowSwapVaultRelayer = TestnetCowSwapSettlementMock(params.cowSwapSettlement).vaultRelayer();
+            overlay.cowSwapVaultRelayer = ICoWSwapSettlement(params.cowSwapSettlement).vaultRelayer();
             return;
         }
 
@@ -150,6 +157,12 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
             ? address(new TestnetCowSwapVaultRelayerMock())
             : params.cowSwapVaultRelayer;
         overlay.cowSwapSettlement = address(new TestnetCowSwapSettlementMock(overlay.cowSwapVaultRelayer));
+    }
+
+    function _deployMerkl(DeployParams memory params, OverlayDeployments memory overlay) internal {
+        overlay.merklDistributor = params.merklDistributor == address(0)
+            ? address(new TestnetMerklDistributorMock())
+            : params.merklDistributor;
     }
 
     function _deployAppStack(DeployParams memory params, OverlayDeployments memory overlay) internal {
@@ -178,12 +191,12 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
     }
 
     function _deployAaveStack(DeployParams memory params, OverlayDeployments memory overlay) internal {
-        overlay.mockAaveUsdcAToken = address(new MockAaveAToken(params.usdc));
-        overlay.mockAaveAusdAToken = address(new MockAaveAToken(params.aUsd));
-        overlay.mockAaveProvider = address(new MockAavePoolAddressesProvider());
-        overlay.mockAaveDataProvider = address(new MockAavePoolDataProvider());
+        overlay.mockAaveUsdcAToken = address(new MockAaveAToken(params.usdc, params.owner));
+        overlay.mockAaveAusdAToken = address(new MockAaveAToken(params.aUsd, params.owner));
+        overlay.mockAaveProvider = address(new MockAavePoolAddressesProvider(params.owner));
+        overlay.mockAaveDataProvider = address(new MockAavePoolDataProvider(params.owner));
         overlay.mockAavePool =
-            address(new MockAavePool(params.usdc, overlay.mockAaveUsdcAToken, overlay.mockAaveProvider));
+            address(new MockAavePool(params.usdc, overlay.mockAaveUsdcAToken, overlay.mockAaveProvider, params.owner));
         MockAavePool(overlay.mockAavePool).setReserveToken(params.aUsd, overlay.mockAaveAusdAToken);
         MockAaveAToken(overlay.mockAaveUsdcAToken).setPool(overlay.mockAavePool);
         MockAaveAToken(overlay.mockAaveAusdAToken).setPool(overlay.mockAavePool);
@@ -198,7 +211,7 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
                 overlay.mockAavePool,
                 params.vaultFactory,
                 overlay.aaveAdapterFactory,
-                params.owner,
+                overlay.merklDistributor,
                 overlay.cowSwapSettlement
             )
         );
@@ -211,23 +224,22 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
     }
 
     function _deployMorphoStack(DeployParams memory params, OverlayDeployments memory overlay) internal {
-        overlay.mockMorphoAdapterRegistry = address(new MockMorphoAdapterRegistry());
-        overlay.mockMorphoVaultFactory = address(new MockMorphoVaultFactory());
-        overlay.mockMorphoVaultUsdc =
-            address(new MockMorphoVaultHarness(params.usdc, overlay.mockMorphoAdapterRegistry));
-        overlay.mockMorphoVaultAusd =
-            address(new MockMorphoVaultHarness(params.aUsd, overlay.mockMorphoAdapterRegistry));
+        overlay.mockMorphoAdapterRegistry = address(new MockMorphoAdapterRegistry(params.owner));
+        overlay.mockMorphoVaultFactory =
+            address(new MockMorphoVaultFactory(overlay.mockMorphoAdapterRegistry, params.owner));
+        (, overlay.mockMorphoVaultUsdc) =
+            MockMorphoVaultFactory(overlay.mockMorphoVaultFactory).createVault(params.usdc);
+        (, overlay.mockMorphoVaultAusd) =
+            MockMorphoVaultFactory(overlay.mockMorphoVaultFactory).createVault(params.aUsd);
         MockMorphoAdapterRegistry(overlay.mockMorphoAdapterRegistry).setInRegistry(overlay.mockMorphoVaultUsdc, true);
         MockMorphoAdapterRegistry(overlay.mockMorphoAdapterRegistry).setInRegistry(overlay.mockMorphoVaultAusd, true);
-        MockMorphoVaultFactory(overlay.mockMorphoVaultFactory).setVault(overlay.mockMorphoVaultUsdc, true);
-        MockMorphoVaultFactory(overlay.mockMorphoVaultFactory).setVault(overlay.mockMorphoVaultAusd, true);
 
         overlay.morphoAdapterFactory = address(new AdapterFactory(params.owner));
         overlay.morphoAdapterImplementation = address(
             new MorphoVaultV2Adapter(
                 params.vaultFactory,
                 overlay.morphoAdapterFactory,
-                params.owner,
+                overlay.merklDistributor,
                 overlay.cowSwapSettlement,
                 overlay.mockMorphoVaultFactory,
                 overlay.mockMorphoAdapterRegistry
@@ -339,6 +351,7 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
     function _logOverlay(OverlayDeployments memory overlay) internal view {
         _log("CowSwap settlement", overlay.cowSwapSettlement);
         _log("CowSwap vault relayer", overlay.cowSwapVaultRelayer);
+        _log("Merkl distributor", overlay.merklDistributor);
         _log("App adapter factory", overlay.appAdapterFactory);
         _log("App adapter implementation", overlay.appAdapterImplementation);
         _log("Burner router factory", overlay.burnerRouterFactory);
