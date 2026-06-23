@@ -179,6 +179,25 @@ contract RestakingAppAdapterTest is Test {
         adapter.convert(address(restakingToken), 1, address(baseAsset), "");
     }
 
+    function test_ConvertRejectsBaseAssetInput() public {
+        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
+        adapter.convert(address(baseAsset), 1, address(baseAsset), "");
+    }
+
+    function test_ConvertRejectsNestedVaultAssetInputs() public {
+        (IRestakingAppAdapter nestedAdapter, RestakingTokenMock outerVault, RestakingTokenMock middleVault) =
+            _createNestedAdapter();
+
+        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
+        nestedAdapter.convert(address(outerVault), 1, address(baseAsset), "");
+
+        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
+        nestedAdapter.convert(address(middleVault), 1, address(baseAsset), "");
+
+        vm.expectRevert(ICoWSwapConverter.InvalidTokenIn.selector);
+        nestedAdapter.convert(address(baseAsset), 1, address(baseAsset), "");
+    }
+
     function test_ConvertPresignsOrderForNonBaseAssetInput() public {
         Token tokenIn = new Token("Token In");
         tokenIn.transfer(address(adapter), 100);

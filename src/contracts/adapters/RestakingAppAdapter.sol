@@ -88,13 +88,13 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         public
         override(AppAdapter, IConverter)
     {
-        if (tokenIn == IERC4626(vault).asset()) {
-            revert InvalidTokenIn();
-        }
         for (uint256 i; i < underlyingVaults.length; ++i) {
-            if (tokenIn == IERC4626(underlyingVaults[i]).asset()) {
+            if (tokenIn == underlyingVaults[i]) {
                 revert InvalidTokenIn();
             }
+        }
+        if (tokenIn == asset) {
+            revert InvalidTokenIn();
         }
         if (tokenOut != asset) {
             revert InvalidTokenOut();

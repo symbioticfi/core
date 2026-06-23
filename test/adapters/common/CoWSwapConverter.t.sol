@@ -230,6 +230,26 @@ contract CoWSwapConverterTest is Test {
         assertTrue(settlement.lastSigned());
     }
 
+    function test_PreparedConvertWaitsUntilOrderIsWithinMaxValidToDuration() public {
+        address caller = makeAddr("caller");
+        bytes memory data =
+            _orderData(90, 1, uint32(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION + 1));
+
+        converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
+
+        vm.warp(vm.getBlockTimestamp() + EXECUTION_DELAY);
+        vm.expectRevert(ICoWSwapConverter.TooFarValidTo.selector);
+        vm.prank(caller);
+        converter.convert(address(tokenIn), 100, address(tokenOut), data);
+
+        vm.warp(vm.getBlockTimestamp() + 1);
+        vm.prank(caller);
+        converter.convert(address(tokenIn), 100, address(tokenOut), data);
+
+        assertEq(converter.nonces(address(tokenIn)), 1);
+        assertTrue(settlement.lastSigned());
+    }
+
     function test_PrepareConvertRevertsWhenRequestIsAlreadyScheduledOnCurrentNonce() public {
         bytes memory data = _orderData(90, 1, uint32(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
 
