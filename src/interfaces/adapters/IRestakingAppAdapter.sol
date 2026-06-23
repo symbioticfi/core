@@ -69,4 +69,13 @@ interface IRestakingAppAdapter is IAppAdapter {
      * @notice Synchronizes pending slashed withdrawal requests.
      */
     function syncSlash() external;
+
+    /**
+     * @notice Slash the configured pair.
+     * @param amount Maximum amount to slash, denominated in the configured base asset.
+     * @dev Only the configured network middleware can call this function.
+     * @dev Restaking slash synchronizes pending slash withdrawals and can request redemptions from underlying
+     *      withdrawal queues before applying slash accounting; a reverting underlying queue can revert the slash.
+     */
+    function slash(uint256 amount) external override;
 }

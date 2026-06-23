@@ -169,7 +169,7 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /* PUBLIC FUNCTIONS (NETWORK) */
 
     /// @inheritdoc IAppAdapter
-    function slash(uint256 amount) public override(AppAdapter, IAppAdapter) {
+    function slash(uint256 amount) public override(AppAdapter, IRestakingAppAdapter) {
         syncSlash();
         super.slash(_convertToShare(amount, true));
     }
