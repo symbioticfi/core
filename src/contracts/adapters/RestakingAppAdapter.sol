@@ -245,8 +245,5 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         if (curAsset != params.asset) {
             revert InvalidAsset();
         }
-        if (underlyingVaults.length > 0) {
-            IERC20(curAsset).forceApprove(underlyingVaults[underlyingVaults.length - 1], type(uint256).max);
-        }
     }
 }

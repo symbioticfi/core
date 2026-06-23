@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
 import {RestakingAppAdapter} from "../../src/contracts/adapters/RestakingAppAdapter.sol";
@@ -23,6 +24,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 contract RestakingAppAdapterTest is Test {
     using Subnetwork for address;
+
+    bytes32 internal constant APPROVAL_EVENT = keccak256("Approval(address,address,uint256)");
 
     RestakingAppAdapterRegistryMock internal vaultFactory;
     AdapterFactory internal factory;
@@ -94,6 +97,37 @@ contract RestakingAppAdapterTest is Test {
             IRestakingAppAdapter(factory.create(1, curator, _initData(address(nestedVault), address(baseAsset))));
 
         assertEq(nestedAdapter.asset(), address(baseAsset));
+    }
+
+    function test_InitializeApprovesNestedRewardPathOnceAndRewardStillWorks() public {
+        RestakingTokenMock middleVault = new RestakingTokenMock(IERC20(address(baseAsset)));
+        RestakingTokenMock outerVault = new RestakingTokenMock(IERC20(address(middleVault)));
+        RestakingAppAdapterVaultMock nestedVault =
+            new RestakingAppAdapterVaultMock(address(outerVault), address(delegator));
+        vaultFactory.add(address(nestedVault));
+        vaultFactory.add(address(middleVault));
+        vaultFactory.add(address(outerVault));
+
+        vm.recordLogs();
+        IRestakingAppAdapter nestedAdapter =
+            IRestakingAppAdapter(factory.create(1, curator, _initData(address(nestedVault), address(baseAsset))));
+
+        assertEq(_approvalLogs(address(baseAsset), address(nestedAdapter), address(middleVault)), 1);
+        assertEq(baseAsset.allowance(address(nestedAdapter), address(middleVault)), type(uint256).max);
+
+        address rewarder = makeAddr("rewarder");
+        baseAsset.transfer(rewarder, 40);
+        uint256 middleShares = middleVault.previewDeposit(40);
+        uint256 outerShares = outerVault.previewDeposit(middleShares);
+
+        vm.startPrank(rewarder);
+        baseAsset.approve(address(nestedAdapter), 40);
+        nestedAdapter.reward(address(baseAsset), 40);
+        vm.stopPrank();
+
+        assertEq(baseAsset.balanceOf(rewarder), 0);
+        assertEq(middleVault.balanceOf(address(outerVault)), middleShares);
+        assertEq(outerVault.balanceOf(address(nestedAdapter)), outerShares);
     }
 
     function test_InitializeAcceptsAssetFoundAtMaxDepth() public {
@@ -554,6 +588,20 @@ contract RestakingAppAdapterTest is Test {
 
     function _createAdapter() internal returns (IRestakingAppAdapter) {
         return IRestakingAppAdapter(factory.create(1, curator, _initData()));
+    }
+
+    function _approvalLogs(address token, address owner_, address spender) internal returns (uint256 count) {
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        bytes32 ownerTopic = bytes32(uint256(uint160(owner_)));
+        bytes32 spenderTopic = bytes32(uint256(uint160(spender)));
+        for (uint256 i; i < entries.length; ++i) {
+            if (
+                entries[i].emitter == token && entries[i].topics.length == 3 && entries[i].topics[0] == APPROVAL_EVENT
+                    && entries[i].topics[1] == ownerTopic && entries[i].topics[2] == spenderTopic
+            ) {
+                ++count;
+            }
+        }
     }
 
     function _initData() internal view returns (bytes memory) {
