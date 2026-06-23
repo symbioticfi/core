@@ -204,6 +204,12 @@ interface ICoWSwapConverter is IConverter {
      */
     event InvalidateConvert(bytes orderUid);
 
+    /**
+     * @notice Emitted when all prepared conversions for a sell token are invalidated.
+     * @param tokenIn The sell token whose prepared conversions were invalidated.
+     */
+    event InvalidateConverts(address indexed tokenIn);
+
     /* FUNCTIONS */
 
     /**
@@ -256,4 +262,10 @@ interface ICoWSwapConverter is IConverter {
      * @param orderUid The order UID to invalidate.
      */
     function invalidateConvert(bytes calldata orderUid) external;
+
+    /**
+     * @notice Invalidates all prepared conversion requests for a sell token.
+     * @param tokenIn The sell token whose prepared conversions should be invalidated.
+     */
+    function invalidateConverts(address tokenIn) external;
 }

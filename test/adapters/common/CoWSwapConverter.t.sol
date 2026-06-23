@@ -88,6 +88,35 @@ contract CoWSwapConverterTest is Test {
         converter.invalidateConvert(orderUid);
     }
 
+    function test_InvalidateConvertsInvalidatesPreparedRequestsForToken() public {
+        address caller = makeAddr("caller");
+        bytes memory data = _orderData(90, 1, uint32(vm.getBlockTimestamp() + EXECUTION_DELAY + MAX_VALID_TO_DURATION));
+
+        bytes32 requestHash = converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
+        assertEq(converter.executableAt(0, requestHash), vm.getBlockTimestamp() + EXECUTION_DELAY);
+
+        vm.expectEmit(address(converter));
+        emit ICoWSwapConverter.InvalidateConverts(address(tokenIn));
+        vm.prank(converterRoleHolder);
+        converter.invalidateConverts(address(tokenIn));
+
+        assertEq(converter.nonces(address(tokenIn)), 1);
+
+        vm.warp(vm.getBlockTimestamp() + EXECUTION_DELAY);
+        vm.expectRevert(ICoWSwapConverter.ExecutionDelayNotElapsed.selector);
+        vm.prank(caller);
+        converter.convert(address(tokenIn), 100, address(tokenOut), data);
+
+        bytes32 newRequestHash = converter.prepareConvert(address(tokenIn), 100, address(tokenOut), data);
+        assertEq(newRequestHash, requestHash);
+        assertEq(converter.executableAt(1, requestHash), vm.getBlockTimestamp() + EXECUTION_DELAY);
+    }
+
+    function test_InvalidateConvertsRevertsForNonConverter() public {
+        vm.expectRevert(ICoWSwapConverter.InvalidCaller.selector);
+        converter.invalidateConverts(address(tokenIn));
+    }
+
     function test_ConverterCanConvertWithoutPreparedNonce() public {
         address newConverter = makeAddr("newConverter");
 

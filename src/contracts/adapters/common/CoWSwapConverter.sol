@@ -172,6 +172,16 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
         emit InvalidateConvert(orderUid);
     }
 
+    /// @inheritdoc ICoWSwapConverter
+    function invalidateConverts(address tokenIn) external {
+        if (!_isConverter(msg.sender)) {
+            revert InvalidCaller();
+        }
+        _useNonce(tokenIn);
+
+        emit InvalidateConverts(tokenIn);
+    }
+
     /* INTERNAL FUNCTIONS */
 
     /// @dev Returns true if the specified address is a converter.
