@@ -195,7 +195,8 @@ contract CoWSwapConverter is OwnableUpgradeable, Nonces, ICoWSwapConverter {
 
     /// @dev Returns true if the specified address is a converter.
     function _isConverter(address converter) internal view returns (bool) {
-        for (uint256 i; i < _getCoWSwapConverterStorage().converters.length; ++i) {
+        uint256 length = _getCoWSwapConverterStorage().converters.length;
+        for (uint256 i; i < length; ++i) {
             if (_getCoWSwapConverterStorage().converters[i] == converter) {
                 return true;
             }
