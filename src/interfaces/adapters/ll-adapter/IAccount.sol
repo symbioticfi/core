@@ -15,11 +15,6 @@ interface IAccount is ICoWSwapConverter {
      */
     error InvalidOracle();
 
-    /**
-     * @notice Raised when the caller is not the bound adapter.
-     */
-    error NotAdapter();
-
     /* FUNCTIONS */
 
     /**

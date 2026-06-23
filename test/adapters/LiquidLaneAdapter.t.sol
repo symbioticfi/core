@@ -833,6 +833,8 @@ contract LiquidLaneEntityMock is Entity {
 }
 
 contract MockLiquidLaneAccount is MigratableEntity, IAccount {
+    error NotAdapter();
+
     address public immutable asset;
     address public immutable ORACLE;
     address public adapter;

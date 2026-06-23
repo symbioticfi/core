@@ -203,17 +203,6 @@ contract OperatorOptInServiceTest is Test {
         vm.stopPrank();
     }
 
-    struct GasStruct {
-        uint256 gasSpent1;
-        uint256 gasSpent2;
-    }
-
-    struct HintStruct {
-        uint256 num;
-        bool back;
-        uint256 secondsAgo;
-    }
-
     // function test_OptInWithHint(uint48 epochDuration, uint256 num, HintStruct memory hintStruct) public {
     //     epochDuration = uint48(bound(epochDuration, 1, 7 days));
     //     hintStruct.num = bound(hintStruct.num, 0, 25);

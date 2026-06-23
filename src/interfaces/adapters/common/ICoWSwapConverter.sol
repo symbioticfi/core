@@ -124,18 +124,6 @@ interface ICoWSwapConverter is IConverter {
         bytes32 appData;
     }
 
-    /**
-     * @notice Active sell-balance reservation for an outstanding CoW order.
-     * @param token Sell token reserved.
-     * @param amount Sell amount plus fee amount reserved.
-     * @param validTo Order expiry timestamp.
-     */
-    struct ReservedOrder {
-        address token;
-        uint256 amount;
-        uint48 validTo;
-    }
-
     /* EVENTS */
 
     /**
@@ -158,14 +146,6 @@ interface ICoWSwapConverter is IConverter {
     event Convert(
         bytes orderUid, address indexed tokenIn, uint256 amountIn, address indexed tokenOut, OrderParams params
     );
-
-    /**
-     * @notice Emitted when an expired order reservation is released.
-     * @param orderUid The expired order UID.
-     * @param token The sell token released.
-     * @param amount The released sell amount plus fee amount.
-     */
-    event ReleaseExpiredOrder(bytes orderUid, address indexed token, uint256 amount);
 
     /**
      * @notice Emitted when converter authorizations are replaced.

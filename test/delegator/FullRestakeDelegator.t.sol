@@ -1256,17 +1256,6 @@ contract FullRestakeDelegatorTest is Test {
         _setHook(alice, hook);
     }
 
-    struct GasStruct {
-        uint256 gasSpent1;
-        uint256 gasSpent2;
-    }
-
-    struct HintStruct {
-        uint256 num;
-        bool back;
-        uint256 secondsAgo;
-    }
-
     // function test_NetworkLimitHint(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {
     //     amount1 = bound(amount1, 1, 100 * 10 ** 18);
     //     epochDuration = uint48(bound(epochDuration, 1, 7 days));

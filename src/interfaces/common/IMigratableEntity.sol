@@ -8,7 +8,6 @@ pragma solidity ^0.8.0;
 interface IMigratableEntity {
     error AlreadyInitialized();
     error NotFactory();
-    error NotInitialized();
 
     /**
      * @notice Get the factory's address.

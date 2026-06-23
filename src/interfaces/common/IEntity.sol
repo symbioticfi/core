@@ -6,8 +6,6 @@ pragma solidity ^0.8.0;
  * @notice Interface for the Entity contract.
  */
 interface IEntity {
-    error NotInitialized();
-
     /**
      * @notice Get the factory's address.
      * @return Address Of the factory.
