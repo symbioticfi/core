@@ -5,6 +5,7 @@ import {Script} from "forge-std/Script.sol";
 
 import {DeployCoreBaseScript} from "../base/DeployCoreBase.s.sol";
 import {DeployV2BaseScript} from "../base/DeployV2Base.s.sol";
+import {TestnetVaultFactory} from "./TestnetVaultFactory.sol";
 import {Logs} from "../../utils/Logs.sol";
 import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
@@ -13,6 +14,7 @@ import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol
 import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
 import {LiquidLaneAdapter} from "../../../src/contracts/adapters/LiquidLaneAdapter.sol";
 import {MorphoVaultV2Adapter} from "../../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
+import {RestakingAppAdapter} from "../../../src/contracts/adapters/RestakingAppAdapter.sol";
 import {AccountRegistry} from "../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
 import {MidasCompAccount, MidasNonCompAccount} from "../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
@@ -24,6 +26,7 @@ import {IAaveV3Adapter} from "../../../src/interfaces/adapters/IAaveV3Adapter.so
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
 import {ILiquidLaneAdapter} from "../../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
+import {IRestakingAppAdapter} from "../../../src/interfaces/adapters/IRestakingAppAdapter.sol";
 import {ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IMidasRedemptionVault} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 import {
@@ -139,6 +142,23 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         address mockMorphoVaultAusd;
         address usdcMorphoAdapter;
         address aUsdMorphoAdapter;
+        address restakingAppAdapterFactory;
+        address restakingAppAdapterImplementation;
+        address usdcRestakingVault;
+        address usdcRestakingDelegator;
+        address usdcRestakingAppAdapter;
+        address aUsdRestakingVault;
+        address aUsdRestakingDelegator;
+        address aUsdRestakingAppAdapter;
+    }
+
+    struct RestakingVaultConfig {
+        address underlyingVault;
+        address baseAsset;
+        address burner;
+        string name;
+        string symbol;
+        uint96 subnetworkId;
     }
 
     struct DeploymentData {
@@ -377,6 +397,7 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         _deployAppStack(core, v2, params, tokens, cowSwap.settlement, liquidLane, fullAdapters);
         _deployAaveStack(core, v2, params, tokens, cowSwap.settlement, liquidLane, fullAdapters);
         _deployMorphoStack(core, v2, params, tokens, cowSwap.settlement, liquidLane, fullAdapters);
+        _deployRestakingAppStack(core, v2, params, tokens, cowSwap.settlement, liquidLane, fullAdapters);
     }
 
     function _deployAppStack(
@@ -505,6 +526,85 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         _attachAdapter(v2, params, liquidLane.aUsdVault, liquidLane.aUsdDelegator, fullAdapters.aUsdMorphoAdapter);
     }
 
+    function _deployRestakingAppStack(
+        SymbioticCoreConstants.Core memory core,
+        DeployV2BaseScript.DeploymentData memory v2,
+        DeployParams memory params,
+        TokenDeployments memory tokens,
+        address cowSwapSettlement,
+        LiquidLaneDeployments memory liquidLane,
+        FullAdapterDeployments memory fullAdapters
+    ) internal {
+        fullAdapters.restakingAppAdapterFactory = address(new AdapterFactory(params.owner));
+        fullAdapters.restakingAppAdapterImplementation = address(
+            new RestakingAppAdapter(
+                address(core.vaultFactory),
+                fullAdapters.restakingAppAdapterFactory,
+                cowSwapSettlement,
+                address(core.networkMiddlewareService)
+            )
+        );
+        AdapterFactory(fullAdapters.restakingAppAdapterFactory)
+            .whitelist(fullAdapters.restakingAppAdapterImplementation);
+
+        (fullAdapters.usdcRestakingVault, fullAdapters.usdcRestakingDelegator, fullAdapters.usdcRestakingAppAdapter) =
+            _deployRestakingVaultAndAdapter(
+                core,
+                v2,
+                params,
+                RestakingVaultConfig({
+                    underlyingVault: liquidLane.usdcVault,
+                    baseAsset: tokens.usdc,
+                    burner: fullAdapters.usdcBurner,
+                    name: "Testnet USDC Restaking Vault",
+                    symbol: "tUSDC-RV",
+                    subnetworkId: 101
+                }),
+                fullAdapters
+            );
+        (fullAdapters.aUsdRestakingVault, fullAdapters.aUsdRestakingDelegator, fullAdapters.aUsdRestakingAppAdapter) =
+            _deployRestakingVaultAndAdapter(
+                core,
+                v2,
+                params,
+                RestakingVaultConfig({
+                    underlyingVault: liquidLane.aUsdVault,
+                    baseAsset: tokens.aUsd,
+                    burner: fullAdapters.aUsdBurner,
+                    name: "Testnet aUSD Restaking Vault",
+                    symbol: "taUSD-RV",
+                    subnetworkId: 102
+                }),
+                fullAdapters
+            );
+    }
+
+    function _deployRestakingVaultAndAdapter(
+        SymbioticCoreConstants.Core memory core,
+        DeployV2BaseScript.DeploymentData memory v2,
+        DeployParams memory params,
+        RestakingVaultConfig memory config,
+        FullAdapterDeployments memory fullAdapters
+    ) internal returns (address vault, address delegator, address adapter) {
+        vault = core.vaultFactory
+            .create(
+                VAULT_V2_VERSION, params.owner, _vaultParams(params, config.underlyingVault, config.name, config.symbol)
+            );
+        delegator = core.delegatorFactory
+            .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(vault, abi.encode(_delegatorParams(params.owner))));
+        IVaultV2(vault).setDelegator(delegator);
+
+        bytes memory adapterData = _restakingAppAdapterData(
+            vault,
+            config.baseAsset,
+            config.burner,
+            params.marketMaker,
+            _testnetSubnetwork(params.owner, config.subnetworkId)
+        );
+        adapter = AdapterFactory(fullAdapters.restakingAppAdapterFactory).create(1, params.owner, adapterData);
+        _attachAdapter(v2, params, vault, delegator, adapter);
+    }
+
     function _createBurner(address burnerRouterFactory, address owner, address collateral, address globalReceiver)
         internal
         returns (address)
@@ -572,6 +672,23 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
                     vault,
                     abi.encode(IMorphoVaultV2Adapter.InitParams({morphoVault: morphoVault, converters: converters}))
                 )
+            );
+    }
+
+    function _restakingAppAdapterData(
+        address vault,
+        address asset,
+        address burner,
+        address operator,
+        bytes32 subnetwork
+    ) internal pure returns (bytes memory) {
+        address[] memory converters = new address[](0);
+        IAppAdapter.InitParams memory initParams = IAppAdapter.InitParams({
+            burner: burner, duration: 1 days, operator: operator, converters: converters, subnetwork: subnetwork
+        });
+        return
+            abi.encode(
+                vault, abi.encode(IRestakingAppAdapter.RestakingInitParams({asset: asset, initParams: initParams}))
             );
     }
 
@@ -751,6 +868,21 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         Logs.log(string.concat("Mock Morpho aUSD vault: ", vm.toString(data.fullAdapters.mockMorphoVaultAusd)));
         Logs.log(string.concat("USDC MorphoVaultV2 adapter: ", vm.toString(data.fullAdapters.usdcMorphoAdapter)));
         Logs.log(string.concat("aUSD MorphoVaultV2 adapter: ", vm.toString(data.fullAdapters.aUsdMorphoAdapter)));
+        Logs.log(
+            string.concat("RestakingApp adapter factory: ", vm.toString(data.fullAdapters.restakingAppAdapterFactory))
+        );
+        Logs.log(
+            string.concat(
+                "RestakingApp adapter implementation: ",
+                vm.toString(data.fullAdapters.restakingAppAdapterImplementation)
+            )
+        );
+        Logs.log(string.concat("USDC restaking vault: ", vm.toString(data.fullAdapters.usdcRestakingVault)));
+        Logs.log(string.concat("USDC restaking delegator: ", vm.toString(data.fullAdapters.usdcRestakingDelegator)));
+        Logs.log(string.concat("USDC RestakingApp adapter: ", vm.toString(data.fullAdapters.usdcRestakingAppAdapter)));
+        Logs.log(string.concat("aUSD restaking vault: ", vm.toString(data.fullAdapters.aUsdRestakingVault)));
+        Logs.log(string.concat("aUSD restaking delegator: ", vm.toString(data.fullAdapters.aUsdRestakingDelegator)));
+        Logs.log(string.concat("aUSD RestakingApp adapter: ", vm.toString(data.fullAdapters.aUsdRestakingAppAdapter)));
     }
 
     function _broadcast() internal view virtual returns (bool) {
@@ -803,6 +935,10 @@ contract DeployFullCoreLiquidLaneTestnetCoreScript is DeployCoreBaseScript {
         } else {
             vm.stopPrank();
         }
+    }
+
+    function _deployVaultFactory(address owner) internal override returns (VaultFactory) {
+        return VaultFactory(address(new TestnetVaultFactory(owner)));
     }
 }
 
