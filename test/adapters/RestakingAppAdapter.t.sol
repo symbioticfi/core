@@ -158,6 +158,13 @@ contract RestakingAppAdapterTest is Test {
         assertEq(adapter.freeAssets(), freeShares);
     }
 
+    function test_TotalAssetsUsesCachedVaultAsset() public {
+        _allocateRestakingShares(100);
+        vault.setAssetReverts(true);
+
+        assertEq(adapter.totalAssets(), 100);
+    }
+
     function test_InterfaceExposesSyncReward() public {
         baseAsset.transfer(address(adapter), 10);
 
@@ -309,6 +316,24 @@ contract RestakingAppAdapterTest is Test {
         vm.stopPrank();
 
         assertEq(baseAsset.balanceOf(rewarder), 0);
+        assertEq(middleVault.balanceOf(address(outerVault)), middleShares);
+        assertEq(outerVault.balanceOf(address(nestedAdapter)), outerShares);
+    }
+
+    function test_SyncRewardUsesCachedVaultChainAssets() public {
+        (IRestakingAppAdapter nestedAdapter, RestakingTokenMock outerVault, RestakingTokenMock middleVault) =
+            _createNestedAdapter();
+
+        baseAsset.transfer(address(nestedAdapter), 40);
+        uint256 middleShares = middleVault.previewDeposit(40);
+        uint256 outerShares = outerVault.previewDeposit(middleShares);
+
+        outerVault.setAssetReverts(true);
+        middleVault.setAssetReverts(true);
+
+        nestedAdapter.syncReward();
+
+        assertEq(baseAsset.balanceOf(address(nestedAdapter)), 0);
         assertEq(middleVault.balanceOf(address(outerVault)), middleShares);
         assertEq(outerVault.balanceOf(address(nestedAdapter)), outerShares);
     }
@@ -679,13 +704,21 @@ contract RestakingTokenMock is ERC20 {
 
     IERC20 internal immutable _asset;
     RestakingWithdrawalQueueMock public immutable withdrawalQueue;
+    bool public assetReverts;
 
     constructor(IERC20 asset_) ERC20("Restaking Token", "rstTKN") {
         _asset = asset_;
         withdrawalQueue = new RestakingWithdrawalQueueMock(address(this), true);
     }
 
+    function setAssetReverts(bool assetReverts_) external {
+        assetReverts = assetReverts_;
+    }
+
     function asset() external view returns (address) {
+        if (assetReverts) {
+            revert("ASSET_REVERTS");
+        }
         return address(_asset);
     }
 
@@ -845,6 +878,7 @@ contract RestakingAppAdapterVaultMock {
     address public assetToken;
     address public delegator;
     RestakingWithdrawalQueueMock public immutable withdrawalQueue;
+    bool public assetReverts;
 
     constructor(address assetToken_, address delegator_) {
         assetToken = assetToken_;
@@ -856,7 +890,14 @@ contract RestakingAppAdapterVaultMock {
         assetToken = assetToken_;
     }
 
+    function setAssetReverts(bool assetReverts_) external {
+        assetReverts = assetReverts_;
+    }
+
     function asset() external view returns (address) {
+        if (assetReverts) {
+            revert("ASSET_REVERTS");
+        }
         return assetToken;
     }
 

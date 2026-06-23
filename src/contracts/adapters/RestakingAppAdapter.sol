@@ -50,7 +50,7 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /// @inheritdoc IAdapter
     function totalAssets() public view override(AppAdapter, IAdapter) returns (uint256) {
-        return IERC20(IERC4626(vault).asset()).balanceOf(address(this));
+        return IERC20(underlyingVaults[0]).balanceOf(address(this));
     }
 
     /// @inheritdoc IAppAdapter
@@ -70,11 +70,10 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /// @inheritdoc IRestakingAppAdapter
     function isUnsyncedSlash() public view returns (bool) {
-        for (uint256 i; i < underlyingVaults.length; ++i) {
-            if (
-                withdrawalRequests[underlyingVaults[i]].firstUnclaimed
-                    < withdrawalRequests[underlyingVaults[i]].tokenIds.length
-            ) {
+        uint256 length = underlyingVaults.length;
+        for (uint256 i; i < length; ++i) {
+            WithdrawalRequests storage requests = withdrawalRequests[underlyingVaults[i]];
+            if (requests.firstUnclaimed < requests.tokenIds.length) {
                 return true;
             }
         }
@@ -88,7 +87,8 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
         public
         override(AppAdapter, IConverter)
     {
-        for (uint256 i; i < underlyingVaults.length; ++i) {
+        uint256 length = underlyingVaults.length;
+        for (uint256 i; i < length; ++i) {
             if (tokenIn == underlyingVaults[i]) {
                 revert InvalidTokenIn();
             }
@@ -110,11 +110,12 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /// @dev Deposits held base assets through the underlying vault chain.
     function syncReward() public {
-        for (uint256 i = underlyingVaults.length; i > 0; --i) {
+        uint256 length = underlyingVaults.length;
+        for (uint256 i = length; i > 0; --i) {
             address vault = underlyingVaults[i - 1];
-            uint256 amount = Math.min(
-                IERC20(IERC4626(vault).asset()).balanceOf(address(this)), IERC4626(vault).maxDeposit(address(this))
-            );
+            address curAsset = i < length ? underlyingVaults[i] : asset;
+            uint256 amount =
+                Math.min(IERC20(curAsset).balanceOf(address(this)), IERC4626(vault).maxDeposit(address(this)));
             if (amount > 0) {
                 IERC4626(vault).deposit(amount, address(this));
             }
@@ -124,7 +125,8 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /// @inheritdoc IRestakingAppAdapter
     function syncSlash() public {
         uint256 amount;
-        for (uint256 i; i < underlyingVaults.length; ++i) {
+        uint256 length = underlyingVaults.length;
+        for (uint256 i; i < length; ++i) {
             address vault = underlyingVaults[i];
             address withdrawalQueue = IVaultV2(vault).withdrawalQueue();
 
@@ -137,7 +139,8 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
             // Try claim existing requests greedily.
             WithdrawalRequests storage requests = withdrawalRequests[vault];
             uint256 indexToClaim = requests.firstUnclaimed;
-            for (; indexToClaim < requests.tokenIds.length; ++indexToClaim) {
+            uint256 tokenIdsLength = requests.tokenIds.length;
+            for (; indexToClaim < tokenIdsLength; ++indexToClaim) {
                 uint256 tokenId = requests.tokenIds[indexToClaim];
                 (uint256 requestShares, uint256 requestSharesClaimed,) =
                     IWithdrawalQueue(withdrawalQueue).requests(tokenId);
@@ -180,7 +183,8 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /// @inheritdoc AppAdapter
     function _sendToBurner(uint256 amount) internal override {
-        for (uint256 i; i < underlyingVaults.length; ++i) {
+        uint256 length = underlyingVaults.length;
+        for (uint256 i; i < length; ++i) {
             address vault = underlyingVaults[i];
             address withdrawalQueue = IVaultV2(vault).withdrawalQueue();
             uint256 tokenId = IWithdrawalQueue(withdrawalQueue).requestRedeem(amount, address(this));
@@ -204,7 +208,8 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
 
     /// @dev Converts current vault-asset shares into the configured base asset with previewRedeem.
     function _convertToAsset(uint256 amount) internal view returns (uint256) {
-        for (uint256 i; i < underlyingVaults.length; ++i) {
+        uint256 length = underlyingVaults.length;
+        for (uint256 i; i < length; ++i) {
             amount = IERC4626(underlyingVaults[i]).previewRedeem(amount);
         }
         return amount;
@@ -213,9 +218,8 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /// @dev Converts the configured base asset into current vault-asset shares with previewDeposit.
     function _convertToShare(uint256 amount, bool roundUp) internal view returns (uint256) {
         for (uint256 i = underlyingVaults.length; i > 0; --i) {
-            amount = roundUp
-                ? IERC4626(underlyingVaults[i - 1]).previewWithdraw(amount)
-                : IERC4626(underlyingVaults[i - 1]).previewDeposit(amount);
+            address vault = underlyingVaults[i - 1];
+            amount = roundUp ? IERC4626(vault).previewWithdraw(amount) : IERC4626(vault).previewDeposit(amount);
         }
         return amount;
     }
