@@ -147,15 +147,27 @@ contract ExerciseFullCoreLiquidLaneTestnetScript is Script {
         IAppAdapter(market.restakingAppAdapter).reward(market.asset, _units(market.asset, 15));
         IUniversalDelegator(market.restakingDelegator).deallocate(market.restakingAppAdapter, depositShares / 20);
         IUniversalDelegator(market.restakingDelegator).deallocateAll(depositShares / 25);
+
+        _exerciseRestakingTail(market, depositShares);
+
+        _logRestaking(label, market);
+    }
+
+    function _exerciseRestakingTail(Market memory market, uint256 depositShares) internal {
         IUniversalDelegator(market.restakingDelegator).allocateAll(depositShares / 30);
 
         _exerciseWithdrawals(market.restakingVault);
         _exerciseWithdrawalQueue(market.restakingVault);
 
-        IAppAdapter(market.restakingAppAdapter).release(_units(market.asset, 2));
-        IAppAdapter(market.restakingAppAdapter).slash(_units(market.asset, 3));
+        uint256 releaseAmount = _min(_units(market.asset, 2), IAppAdapter(market.restakingAppAdapter).slashable());
+        if (releaseAmount > 0) {
+            IAppAdapter(market.restakingAppAdapter).release(releaseAmount);
+        }
 
-        _logRestaking(label, market);
+        uint256 slashAmount = _min(_units(market.asset, 3), IAppAdapter(market.restakingAppAdapter).slashable());
+        if (slashAmount > 0) {
+            IAppAdapter(market.restakingAppAdapter).slash(slashAmount);
+        }
     }
 
     function _exerciseLiquidLane(Market memory market, address mFone, address mGlobal) internal {
@@ -187,14 +199,24 @@ contract ExerciseFullCoreLiquidLaneTestnetScript is Script {
     }
 
     function _exerciseWithdrawals(address vault) internal {
-        uint256 assets = IERC4626(vault).maxWithdraw(ACTOR);
+        if (IUniversalDelegator(IVaultV2(vault).delegator()).sweepPending() > 0) {
+            return;
+        }
+
+        uint256 assets = _min(IERC4626(vault).maxWithdraw(ACTOR), IVaultV2(vault).freeAssets());
         if (assets > 0) {
             IERC4626(vault).withdraw(assets / 100, ACTOR, ACTOR);
         }
 
+        if (IUniversalDelegator(IVaultV2(vault).delegator()).sweepPending() > 0) {
+            return;
+        }
+
         uint256 shares = IERC20(vault).balanceOf(ACTOR);
+        uint256 redeemableShares = IERC4626(vault).previewDeposit(IVaultV2(vault).freeAssets());
+        shares = _min(shares / 100, redeemableShares);
         if (shares > 0) {
-            IERC4626(vault).redeem(shares / 100, ACTOR, ACTOR);
+            IERC4626(vault).redeem(shares, ACTOR, ACTOR);
         }
     }
 
@@ -208,7 +230,10 @@ contract ExerciseFullCoreLiquidLaneTestnetScript is Script {
         IERC20(vault).approve(queue, type(uint256).max);
         uint256 tokenId = IWithdrawalQueue(queue).requestRedeem(shares, ACTOR);
         IWithdrawalQueue(queue).fill();
-        IWithdrawalQueue(queue).claim(tokenId, ACTOR);
+        (uint256 claimableAssets, uint256 claimableShares) = IWithdrawalQueue(queue).claimable(tokenId);
+        if (claimableAssets > 0 || claimableShares > 0) {
+            IWithdrawalQueue(queue).claim(tokenId, ACTOR);
+        }
     }
 
     function _createDelayedDebt(string memory label, Market memory market) internal {
@@ -268,6 +293,10 @@ contract ExerciseFullCoreLiquidLaneTestnetScript is Script {
         return amount * 10 ** IERC20Metadata(token).decimals();
     }
 
+    function _min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
     function _logMarket(string memory label, Market memory market) internal view {
         console2.log(label, "vault totalAssets", IERC4626(market.vault).totalAssets());
         console2.log(label, "vault shares", IERC20(market.vault).balanceOf(ACTOR));
@@ -293,76 +322,76 @@ contract ExerciseFullCoreLiquidLaneTestnetScript is Script {
     }
 
     function _hoodi() internal pure returns (Deployment memory deployed) {
-        deployed.networkRegistry = 0x9432A6F14d3E7bdFBB82e3A29C384365A3932e3f;
-        deployed.operatorRegistry = 0xdE1EF2838BC5f1fBb45A05E0e2F05fdF0c546fB0;
-        deployed.networkMiddlewareService = 0x2b0D0cB55E969121Bd0C7d5e1B05EcA67E6b053F;
-        deployed.usdc = 0x8a69ABF3f55D8b5db1F506bc9D0E47196de74315;
-        deployed.aUsd = 0xd663591573DeF8092B1156c4a8e497646Ec9FaE7;
-        deployed.mFone = 0x3d75e7A8f8D0B62403DC2fB55021Fb024DEb24dd;
-        deployed.mGlobal = 0x5E3f3E4f175d9fF702c08F3ca8a2E0EB98B7463d;
-        deployed.aavePool = 0x2b1858b6F2B0Dc66FfB5e6d5aB2962b1Be02a0F3;
+        deployed.networkRegistry = 0x88f36d74Efb884BeB7F593FCa9928dda05A0a636;
+        deployed.operatorRegistry = 0xF788d06C24f0E0C9C615603C3124c082AbDA0C66;
+        deployed.networkMiddlewareService = 0x90CbE0dFa282550866b2DbCF448E3155c55EEdbe;
+        deployed.usdc = 0xd8B34955B4DF1E102ee3b1e3fe90acd14bd7959d;
+        deployed.aUsd = 0xc5B6ddB87D8E353D9B19f1174cc360f965f0d449;
+        deployed.mFone = 0x57f38F73deCC242f198a6CF2a7a275bc948F940E;
+        deployed.mGlobal = 0x9109c84202D8b5339Ebe3900A8253140bF97a9aC;
+        deployed.aavePool = 0x853082811D1640D249647330ed7A7f8a042f14cd;
         deployed.usdcMarket = Market({
             asset: deployed.usdc,
-            vault: 0x3E3AAeC5c8489cd8d323d08f8418C91302A8b95c,
-            delegator: 0xF0Df59Cc56F41baCC26D94A7c96D1f4E6bd2e3E1,
-            liquidLaneAdapter: 0x8DCC2515dE40c62d09125db5551de02603C70190,
-            appAdapter: 0x1aA064632dc04b659c13e0420C8A36D8A1613Fd6,
-            aaveAdapter: 0x4037fE29E2981D01C7bb6Ae5BE40927497F60aA3,
-            morphoAdapter: 0x7A8D62B28faAd13Ca35aA1c0b1A37D81dB903529,
-            morphoVault: 0x557DB3FB865F0DdBbE2619a15c933ec2034ef6B5,
-            restakingVault: 0x81012fDcf7a4f53efCBCE2193D1531E09b2f676B,
-            restakingDelegator: 0x5bdE352Cc38a7d26bfbE13E5cd2dCed3FdF9A7b3,
-            restakingAppAdapter: 0xCF2F3D3962027098e926fD58F61985c844d52516
+            vault: 0x01784C037944cFF8a1600305C8aB3AEE143d98BF,
+            delegator: 0xf7F8708eA3985161D66F60392479553e83302D5c,
+            liquidLaneAdapter: 0x3D4A6d98680e91E8cD31e0082DA32a42AA431cE1,
+            appAdapter: 0xDCB1D3C69b30838B7d20CF95FF7EC1d9ba6f241B,
+            aaveAdapter: 0x8a4710dd2B59efdfa222b928AF0Ffe3e3565331d,
+            morphoAdapter: 0xc3fecE012e63Ea1d5d59c55D0CFcf77F1A435F5a,
+            morphoVault: 0x1d3875B0bC9B0552E63b4BD47C81EDDBFc6aA2DE,
+            restakingVault: 0x551A09A35B3d1fCFb0914e3c007AC12bD47A06E8,
+            restakingDelegator: 0x4100B9F7925C453DFd37f8b47EC7Ba464F93C634,
+            restakingAppAdapter: 0x5fDd5d27A733AaD2E381dBfB4aCB5413b283C1C9
         });
         deployed.aUsdMarket = Market({
             asset: deployed.aUsd,
-            vault: 0xc3eA8A191fE74478F8c349bbDe938b44EeCA0025,
-            delegator: 0x98292b68Ee20D0dc487291f2FB906F0EbC0A856F,
-            liquidLaneAdapter: 0x797390393A8a5b65e93A0E4E4A5fCDe06B94Bd3F,
-            appAdapter: 0xAAD87c1600A811D9Cf59FB7A1c3E25d519CeD899,
-            aaveAdapter: 0xF353F6aAE44A946B33f2Bd7D8305C72b643C49c7,
-            morphoAdapter: 0x75a5Fa31fc58d32C77f1133C7459f773d9bCca45,
-            morphoVault: 0x1ca29C3Ea7B41e2E2aE4662caD496792DD7cf360,
-            restakingVault: 0x595698180Ca666A41236a8383DbE77a23Fa0Dd85,
-            restakingDelegator: 0x23BF7AB3140324eD191c4142f12B260AbAe74fE1,
-            restakingAppAdapter: 0x40B96b3dFfdF9559cbE0EDD5e36cBB7470D40AC7
+            vault: 0x3D04Bd88b0136aA1D1f7781beAC6366291eF161C,
+            delegator: 0x2645084246FF05F0D86c7DC39a06c779A1976584,
+            liquidLaneAdapter: 0xf0A3D0B540D7675Ca790188e0dDA68A610f26029,
+            appAdapter: 0xb4F9f67df9c12A79FEDc1aA0438f366507D6676F,
+            aaveAdapter: 0x33c18BA17969f867484F321D1B7aA615AF2B556f,
+            morphoAdapter: 0x2654ef4A071CD68f01219F95E42f400b76c54eb7,
+            morphoVault: 0xFb039136bDcd2F6c4F83eDc331A6e153393EDab5,
+            restakingVault: 0xdE0D4E8EB4b0152c80Ff9eD7Db8E5944cd5cCAA7,
+            restakingDelegator: 0xb78090C124c1c6AF4c01F00154BDAE09077F002F,
+            restakingAppAdapter: 0x6A4b8bEA63125Cd056E57a9C27398ee007477DB6
         });
     }
 
     function _sepolia() internal pure returns (Deployment memory deployed) {
-        deployed.networkRegistry = 0xff3E2A14BE3A357fF6e7bB2Dc34af4Ee96EBB3ab;
-        deployed.operatorRegistry = 0xCa0E444534b52CFEEAe18646f0B1a4066e68Be51;
-        deployed.networkMiddlewareService = 0x2addAEcC745199f1185EEabd0E1738eA77661173;
-        deployed.usdc = 0xa5a802F686ed273F9BA4603c77794178f8147060;
-        deployed.aUsd = 0x1497bdEBe6A511422e28D4B382f9980185221016;
-        deployed.mFone = 0x3d64FffE3B30b597c678A6F805Da2014f9FF02Cf;
-        deployed.mGlobal = 0xB430d436F9A38caD72792D9234307f7b8a57373d;
-        deployed.aavePool = 0x383D7C70Efb1764A1b7cAF9F797946d8f47701f1;
+        deployed.networkRegistry = 0xbd24ba4DcFe4e7FFC49Eb12bD37A3a5E767284B4;
+        deployed.operatorRegistry = 0x9900B5a4832C7F08704641d1565Ebf599f5760cE;
+        deployed.networkMiddlewareService = 0xe59e1c492210C28aCF52D3a73fa61aA8539536Cf;
+        deployed.usdc = 0xeD16Cd1EDc840d76ceBfda0CccA7374Ec555FBa6;
+        deployed.aUsd = 0xE168Eb1E6C915d702816385782bBAD6aA3DFbBc4;
+        deployed.mFone = 0x00A9E1C091Eec6F231BA2ec6e952cb7D0Cd6a4F5;
+        deployed.mGlobal = 0x51d93a672532510B38e2e2421Ac1A314EFeBB127;
+        deployed.aavePool = 0xbeeDBa4d672a1e29fce4d3AdDAd76336D7Ed6FEa;
         deployed.usdcMarket = Market({
             asset: deployed.usdc,
-            vault: 0xC35E0b958EBC20740C4cA9298C26E674dF4C01Eb,
-            delegator: 0x87B887115510d6E98A48A0c913C2bb87f3a5d701,
-            liquidLaneAdapter: 0x6d3456D8DcDD4F3e8a506275E22eBB9653a7bD79,
-            appAdapter: 0xb1500111dCfB046b295dC98C37916D5E24ad4992,
-            aaveAdapter: 0x4a05692CE0022281f3dfB6FfCEeaA6E6974F24C3,
-            morphoAdapter: 0x38b3FFD1784cdD8D7311cd728dc47F019701B669,
-            morphoVault: 0xA6e8b107F6dF78B135593791c29942196649589A,
-            restakingVault: 0x9Da9F07b3697D2d881714f8c05Cd214b3363971c,
-            restakingDelegator: 0x5b7d9502B9EEE07bb58C637EEA6737a4bA0dF0bA,
-            restakingAppAdapter: 0xBe4292d00DA71e934165C7f564B4549731575505
+            vault: 0x1690f4E1ee1234Fd32E051DDb8dfF284CDFF6e09,
+            delegator: 0x1fFa9500505cC3eAE08432B3ee25d52025Ba11a4,
+            liquidLaneAdapter: 0xDC17B4132DeC09736cf11cDf1989906084479540,
+            appAdapter: 0x049C1BfdbB7b1FEC29969f94a6e51E16E40273Bc,
+            aaveAdapter: 0xcFcBD38a14723A1bFD06e23D87e605f0cd47aA6c,
+            morphoAdapter: 0x895CC54Be0A27bf9aCC29e663e0D8Da1195d4186,
+            morphoVault: 0x6003D3C637479efbA5d2CB1B479c902BAE67a858,
+            restakingVault: 0xB2Bb124Fd4dF7AE6581acE92c4F75CCD393825eF,
+            restakingDelegator: 0x3236809a86dA39072a743e3Dc5Aac314Df024d31,
+            restakingAppAdapter: 0x19B7500592b1E7B1e22467d07A39aD2f6B24c0d0
         });
         deployed.aUsdMarket = Market({
             asset: deployed.aUsd,
-            vault: 0xB829C7c5b10A5b187310880832Fa6711098C3357,
-            delegator: 0x7ea889f9edE4b2D0f09786019Ba06a84B9939e19,
-            liquidLaneAdapter: 0xC06382F350618dBFf760369F3d42294aDa8F1277,
-            appAdapter: 0xe7bf21cA1749F5BAF0f3f9A0400e8BF3A775C0F0,
-            aaveAdapter: 0x024aA5B1f4d1266572AD179065D4c927045BFC7c,
-            morphoAdapter: 0x418e67A2d32c2ed3d596432EE0705cDA2Aa5C31e,
-            morphoVault: 0xAeD1a05dAb749e28Ee0Ed4D96eb754f875154AB9,
-            restakingVault: 0xc90983C7D938F33f2D632FaEF3258a1cA4241F60,
-            restakingDelegator: 0x483Ae44A6615455121eBE65808621f0b436De4d7,
-            restakingAppAdapter: 0xF40c4AFfac1eC16B91Eaf2FbF6FD0a5715318A8B
+            vault: 0x6B53f82Aaf121B26Eb9ad044a6738BdE8f64E41E,
+            delegator: 0xF2EA4b566938e495a6dc4c88a85445A79537b017,
+            liquidLaneAdapter: 0xB0c2BACD43f5F9601A038C39d87AA1a918a5F0dE,
+            appAdapter: 0x20c2E58DE7ef9F19574256C8a79AAF7b3c2e603C,
+            aaveAdapter: 0x29116DbDD0F40Efe61B4f2461F17799c7e509589,
+            morphoAdapter: 0xf9c01a838409538F5AC8A9374E2EA4CB56112F85,
+            morphoVault: 0x8f69ee6cD7Ae4b96a98f82E9832DC5661Ee89bA2,
+            restakingVault: 0x40799384C5237Bc63767C1e2FfA22b19873364B6,
+            restakingDelegator: 0xDA9FA7ef4C1eCFf9B59ea1CD2588eF7AC3e18E84,
+            restakingAppAdapter: 0x896d1A4A6855CA052fFc509fC97575A5822C1e0e
         });
     }
 }

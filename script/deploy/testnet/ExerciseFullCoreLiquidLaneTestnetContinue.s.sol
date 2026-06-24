@@ -17,8 +17,6 @@ contract ExerciseFullCoreLiquidLaneTestnetContinueScript is ExerciseFullCoreLiqu
         vm.startBroadcast();
         _continueRestakingMarket("USDC restaking", deployed.usdcMarket);
         _continueRestakingMarket("aUSD restaking", deployed.aUsdMarket);
-        _createDelayedDebt("USDC", deployed.usdcMarket);
-        _createDelayedDebt("aUSD", deployed.aUsdMarket);
         vm.stopBroadcast();
     }
 
@@ -51,13 +49,7 @@ contract ExerciseFullCoreLiquidLaneTestnetContinueScript is ExerciseFullCoreLiqu
 
         IUniversalDelegator(market.restakingDelegator).deallocate(market.restakingAppAdapter, restakingShares / 20);
         IUniversalDelegator(market.restakingDelegator).deallocateAll(restakingShares / 25);
-        IUniversalDelegator(market.restakingDelegator).allocateAll(restakingShares / 30);
-
-        _exerciseWithdrawals(market.restakingVault);
-        _exerciseWithdrawalQueue(market.restakingVault);
-
-        IAppAdapter(market.restakingAppAdapter).release(_units(market.asset, 2));
-        IAppAdapter(market.restakingAppAdapter).slash(_units(market.asset, 3));
+        _exerciseRestakingTail(market, restakingShares);
 
         _logRestaking(label, market);
     }
