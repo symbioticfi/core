@@ -5,19 +5,16 @@ import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 
 import {AdapterRegistry} from "../../src/contracts/AdapterRegistry.sol";
-import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
+import {UniversalDelegatorFactory} from "../../src/contracts/UniversalDelegatorFactory.sol";
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
-import {VaultConfigurator} from "../../src/contracts/VaultConfigurator.sol";
-import {Entity} from "../../src/contracts/common/Entity.sol";
 import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
-import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
 import {ProtocolFeeRegistry} from "../../src/contracts/ProtocolFeeRegistry.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../src/contracts/vault/WithdrawalQueue.sol";
 import {WithdrawalQueueFactory} from "../../src/contracts/WithdrawalQueueFactory.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
-import {IUniversalDelegator, UNIVERSAL_DELEGATOR_TYPE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IProtocolFeeRegistry} from "../../src/interfaces/IProtocolFeeRegistry.sol";
 import {
     IVaultV2,
@@ -35,10 +32,6 @@ import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC2
 
 contract VaultV2MigratableEntityMock is MigratableEntity {
     constructor(address factory) MigratableEntity(factory) {}
-}
-
-contract VaultV2EntityMock is Entity {
-    constructor(address factory, uint64 type_) Entity(factory, type_) {}
 }
 
 contract VaultV2SixDecimalToken is Token {
@@ -90,7 +83,6 @@ contract VaultV2FeeApiTest is Test {
         assertEq(IVaultV2.performanceFeeReceiver.selector, bytes4(keccak256("performanceFeeReceiver()")));
         assertEq(IVaultV2.setManagementFee.selector, bytes4(keccak256("setManagementFee(uint96,address)")));
         assertEq(IVaultV2.setPerformanceFee.selector, bytes4(keccak256("setPerformanceFee(uint96,address)")));
-        assertEq(IVaultV2.setSlasher.selector, bytes4(keccak256("setSlasher(address)")));
         assertEq(IVaultV2.getAccrueInterest.selector, bytes4(keccak256("getAccrueInterest()")));
         assertEq(IVaultV2.freeAssets.selector, bytes4(keccak256("freeAssets()")));
         assertEq(IVaultV2.withdrawable.selector, bytes4(keccak256("withdrawable()")));
@@ -113,7 +105,7 @@ contract VaultV2BehaviorTest is Test {
     Token internal collateral;
     VaultFactory internal vaultFactory;
     WithdrawalQueueFactory internal withdrawalQueueFactory;
-    DelegatorFactory internal delegatorFactory;
+    UniversalDelegatorFactory internal delegatorFactory;
     AdapterRegistry internal adapterRegistry;
     ProtocolFeeRegistry internal protocolFee;
 
@@ -126,7 +118,7 @@ contract VaultV2BehaviorTest is Test {
         collateral = new Token("Collateral");
         vaultFactory = new VaultFactory(address(this));
         withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
-        delegatorFactory = new DelegatorFactory(address(this));
+        delegatorFactory = new UniversalDelegatorFactory(address(this));
         adapterRegistry = new AdapterRegistry(address(this));
         protocolFee = new ProtocolFeeRegistry(address(this));
         protocolFee.setGlobalReceiver(protocolFeeReceiver);
@@ -146,15 +138,8 @@ contract VaultV2BehaviorTest is Test {
             )
         );
 
-        for (uint64 i; i < UNIVERSAL_DELEGATOR_TYPE; ++i) {
-            delegatorFactory.whitelist(address(new VaultV2EntityMock(address(delegatorFactory), i)));
-        }
         delegatorFactory.whitelist(
-            address(
-                new UniversalDelegator(
-                    UNIVERSAL_DELEGATOR_TYPE, address(vaultFactory), address(adapterRegistry), address(delegatorFactory)
-                )
-            )
+            address(new UniversalDelegator(address(vaultFactory), address(adapterRegistry), address(delegatorFactory)))
         );
     }
 
@@ -274,8 +259,6 @@ contract VaultV2BehaviorTest is Test {
 
         vm.prank(bob);
         assertEq(vault.maxDeposit(bob), 100);
-
-        vault.setSlasher(address(0xBEEF));
     }
 
     function test_ActiveShareCheckpointsTrackDepositsTransfersAndBurns() public {
@@ -542,36 +525,12 @@ contract VaultV2BehaviorTest is Test {
         assertEq(vault.lastProtocolFeeReceiver(), nextProtocolFeeReceiver);
     }
 
-    function test_VaultConfiguratorCanCreateVaultV2WithoutSlasher() public {
-        bytes memory vaultParams = _vaultParams(false, false, 0);
-        bytes memory delegatorParams = _delegatorParams();
-
-        VaultConfigurator configurator =
-            new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(0x2));
-
-        (address vault, address delegator, address slasher) = configurator.create(
-            IVaultConfigurator.InitParams({
-                version: VAULT_V2_VERSION,
-                owner: address(this),
-                vaultParams: vaultParams,
-                delegatorIndex: UNIVERSAL_DELEGATOR_TYPE,
-                delegatorParams: delegatorParams,
-                withSlasher: false,
-                slasherIndex: 0,
-                slasherParams: ""
-            })
-        );
-
-        assertEq(VaultV2(vault).delegator(), delegator);
-        assertEq(slasher, address(0));
-    }
-
-    function test_SetDelegatorRevertsWhenAlreadyInitialized() public {
+    function test_CreateVaultV2InitializesDelegator() public {
         VaultV2 vault = _createVault(false, false, 0);
-        address currentDelegator = vault.delegator();
+        address delegator = vault.delegator();
 
-        vm.expectRevert(IVaultV2.DelegatorAlreadyInitialized.selector);
-        vault.setDelegator(currentDelegator);
+        assertTrue(delegatorFactory.isEntity(delegator));
+        assertEq(IUniversalDelegator(delegator).vault(), address(vault));
     }
 
     function test_UnsupportedMigrationsRevert() public {
@@ -607,13 +566,7 @@ contract VaultV2BehaviorTest is Test {
     {
         bytes memory data = _vaultParams(depositWhitelist, isDepositLimit, depositLimit);
 
-        address vaultAddress = vaultFactory.create(VAULT_V2_VERSION, address(this), data);
-
-        address delegator =
-            delegatorFactory.create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(vaultAddress, _delegatorParams()));
-
-        vault = VaultV2(vaultAddress);
-        vault.setDelegator(delegator);
+        vault = VaultV2(vaultFactory.create(VAULT_V2_VERSION, address(this), data));
     }
 
     function _vaultParams(bool depositWhitelist, bool isDepositLimit, uint256 depositLimit)
@@ -644,7 +597,8 @@ contract VaultV2BehaviorTest is Test {
                 isDepositLimitSetRoleHolder: address(this),
                 depositLimitSetRoleHolder: address(this),
                 managementFeeRoleHolder: address(this),
-                performanceFeeRoleHolder: address(this)
+                performanceFeeRoleHolder: address(this),
+                delegatorParams: _delegatorParams()
             })
         );
     }

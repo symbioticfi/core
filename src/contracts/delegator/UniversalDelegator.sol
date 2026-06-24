@@ -10,8 +10,6 @@ import {WithdrawalQueue} from "../vault/WithdrawalQueue.sol";
 
 import {IAdapterRegistry} from "../../interfaces/IAdapterRegistry.sol";
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
-import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
-import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {
     IUniversalDelegator,
     MAX_ADAPTERS,
@@ -25,7 +23,6 @@ import {
     SET_ADAPTER_LIMITS_ROLE,
     SET_AUTO_ALLOCATE_ADAPTERS_ROLE
 } from "../../interfaces/delegator/IUniversalDelegator.sol";
-import {VAULT_V2_VERSION} from "../../interfaces/vault/IVaultV2.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

@@ -29,11 +29,7 @@ import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVau
 import {IRestakingAppAdapter} from "../../../src/interfaces/adapters/IRestakingAppAdapter.sol";
 import {ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IMidasRedemptionVault} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
-import {
-    IUniversalDelegator,
-    MAX_SHARE,
-    UNIVERSAL_DELEGATOR_TYPE
-} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IUniversalDelegator, MAX_SHARE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
 import {
     MockAaveAToken,
@@ -358,9 +354,7 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         LiquidLaneDeployments memory liquidLane
     ) internal returns (address vault, address delegator, address adapter) {
         vault = core.vaultFactory.create(VAULT_V2_VERSION, params.owner, _vaultParams(params, asset, name, symbol));
-        delegator = core.delegatorFactory
-            .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(vault, abi.encode(_delegatorParams(params.owner))));
-        IVaultV2(vault).setDelegator(delegator);
+        delegator = IVaultV2(vault).delegator();
 
         adapter = AdapterFactory(liquidLane.adapterFactory)
             .create(
@@ -590,9 +584,7 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
             .create(
                 VAULT_V2_VERSION, params.owner, _vaultParams(params, config.underlyingVault, config.name, config.symbol)
             );
-        delegator = core.delegatorFactory
-            .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(vault, abi.encode(_delegatorParams(params.owner))));
-        IVaultV2(vault).setDelegator(delegator);
+        delegator = IVaultV2(vault).delegator();
 
         bytes memory adapterData = _restakingAppAdapterData(
             vault,
@@ -728,7 +720,8 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
                 depositLimitSetRoleHolder: params.owner,
                 depositorWhitelistRoleHolder: params.owner,
                 isDepositLimitSetRoleHolder: params.owner,
-                depositWhitelistSetRoleHolder: params.owner
+                depositWhitelistSetRoleHolder: params.owner,
+                delegatorParams: abi.encode(_delegatorParams(params.owner))
             })
         );
     }

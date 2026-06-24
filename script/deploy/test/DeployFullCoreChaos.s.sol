@@ -32,6 +32,7 @@ import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
 import {IAdapterRegistry} from "../../../src/interfaces/IAdapterRegistry.sol";
 import {IProtocolFeeRegistry} from "../../../src/interfaces/IProtocolFeeRegistry.sol";
 import {IVaultConfigurator} from "../../../src/interfaces/IVaultConfigurator.sol";
+import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
 import {IAdapter} from "../../../src/interfaces/adapters/IAdapter.sol";
 import {IAaveV3Adapter} from "../../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
@@ -51,7 +52,7 @@ import {
     SET_ADAPTER_LIMITS_ROLE,
     SET_AUTO_ALLOCATE_ADAPTERS_ROLE,
     SWAP_ADAPTERS_ROLE,
-    UNIVERSAL_DELEGATOR_TYPE
+    UNIVERSAL_DELEGATOR_VERSION
 } from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IBaseDelegator} from "../../../src/interfaces/delegator/IBaseDelegator.sol";
 import {IFullRestakeDelegator} from "../../../src/interfaces/delegator/IFullRestakeDelegator.sol";
@@ -183,6 +184,7 @@ contract DeployFullCoreChaosScript is Script {
     struct V2Infra {
         address adapterRegistry;
         address protocolFeeRegistry;
+        address universalDelegatorFactory;
     }
 
     struct V2AdapterSet {
@@ -215,7 +217,9 @@ contract DeployFullCoreChaosScript is Script {
         DeployV2BaseScript.DeploymentData memory v2 =
             new DeployFullCoreChaosV2Script(core).runBase(ctx.owner, ctx.owner);
         V2Infra memory infra = V2Infra({
-            adapterRegistry: address(v2.adapterRegistry), protocolFeeRegistry: address(v2.protocolFeeRegistry)
+            adapterRegistry: address(v2.adapterRegistry),
+            protocolFeeRegistry: address(v2.protocolFeeRegistry),
+            universalDelegatorFactory: address(v2.universalDelegatorFactory)
         });
 
         Token[3] memory tokens = [new Token("Chaos Alpha"), new Token("Chaos Beta"), new Token("Chaos Gamma")];
@@ -323,34 +327,25 @@ contract DeployFullCoreChaosScript is Script {
                             depositLimitSetRoleHolder: _holder(owner, actors, i + 40),
                             depositorWhitelistRoleHolder: _holder(owner, actors, i + 50),
                             isDepositLimitSetRoleHolder: _holder(owner, actors, i + 60),
-                            depositWhitelistSetRoleHolder: _holder(owner, actors, i + 70)
+                            depositWhitelistSetRoleHolder: _holder(owner, actors, i + 70),
+                            delegatorParams: abi.encode(
+                                IUniversalDelegator.InitParams({
+                                    defaultAdminRoleHolder: owner,
+                                    addAdapterRoleHolder: owner,
+                                    removeAdapterRoleHolder: owner,
+                                    setAdapterLimitsRoleHolder: owner,
+                                    setAutoAllocateAdaptersRoleHolder: owner,
+                                    swapAdaptersRoleHolder: owner,
+                                    allocateRoleHolder: owner,
+                                    deallocateRoleHolder: owner,
+                                    forceDeallocateRoleHolder: owner
+                                })
+                            )
                         })
                     )
                 );
-            vaults[i].delegator = core.delegatorFactory
-                .create(
-                    UNIVERSAL_DELEGATOR_TYPE,
-                    abi.encode(
-                        vaults[i].vault,
-                        abi.encode(
-                            IUniversalDelegator.InitParams({
-                                defaultAdminRoleHolder: owner,
-                                addAdapterRoleHolder: owner,
-                                removeAdapterRoleHolder: owner,
-                                setAdapterLimitsRoleHolder: owner,
-                                setAutoAllocateAdaptersRoleHolder: owner,
-                                swapAdaptersRoleHolder: owner,
-                                allocateRoleHolder: owner,
-                                deallocateRoleHolder: owner,
-                                forceDeallocateRoleHolder: owner
-                            })
-                        )
-                    )
-                );
+            vaults[i].delegator = IVaultV2(vaults[i].vault).delegator();
             vaults[i].asset = asset;
-
-            vm.prank(owner);
-            IVaultV2(vaults[i].vault).setDelegator(vaults[i].delegator);
             vaults[i].withdrawalQueue = IVaultV2(vaults[i].vault).withdrawalQueue();
         }
     }
@@ -695,7 +690,7 @@ contract DeployFullCoreChaosScript is Script {
             _exerciseV2QueueAndDeallocation(ctx.owner, ctx.actors, vaults[i], set, amount);
         }
 
-        _exerciseV2Factories(core, ctx.owner, vaults, adapters);
+        _exerciseV2Factories(core, infra, ctx.owner, vaults, adapters);
     }
 
     function _exerciseV2ProtocolFeeRegistry(address owner, address protocolFeeRegistry, V2Vault[] memory vaults)
@@ -855,7 +850,6 @@ contract DeployFullCoreChaosScript is Script {
             abi.encodeCall(IVaultV2.setPerformanceFee, (uint96(MAX_PERFORMANCE_FEE / 10), owner)),
             "v2-perf-set"
         );
-        _try(vault.vault, abi.encodeCall(IVaultV2.setSlasher, (actors.burner)), "v2-set-slasher");
         _try(vault.vault, abi.encodeCall(IVaultV2.accrueInterest, ()), "v2-accrue");
         _try(vault.vault, abi.encodeCall(IVaultV2.withdrawalQueue, ()), "v2-withdrawal-queue");
         _try(vault.vault, abi.encodeCall(IVaultV2.delegator, ()), "v2-delegator-view");
@@ -883,7 +877,6 @@ contract DeployFullCoreChaosScript is Script {
         _try(vault.vault, abi.encodeWithSignature("name()"), "v2-name");
         _try(vault.vault, abi.encodeWithSignature("symbol()"), "v2-symbol");
         _try(vault.vault, abi.encodeWithSignature("decimals()"), "v2-decimals");
-        _try(vault.vault, abi.encodeCall(IVaultV2.setDelegator, (vault.delegator)), "v2-set-delegator-again");
 
         bytes[] memory calls = new bytes[](2);
         calls[0] = abi.encodeCall(IVaultV2.setDepositLimit, (amount * 12));
@@ -1261,7 +1254,7 @@ contract DeployFullCoreChaosScript is Script {
     ) internal {
         vm.startPrank(owner);
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.totalAssets, ()), "v2-delegator-total-assets");
-        _try(vault.delegator, abi.encodeCall(IUniversalDelegator.VERSION, ()), "v2-delegator-version");
+        _try(vault.delegator, abi.encodeCall(IMigratableEntity.version, ()), "v2-delegator-version");
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.vault, ()), "v2-delegator-vault");
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.totalAdapters, ()), "v2-total-adapters");
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.adapters, (0)), "v2-adapters-0");
@@ -1363,6 +1356,7 @@ contract DeployFullCoreChaosScript is Script {
 
     function _exerciseV2Factories(
         SymbioticCoreConstants.Core memory core,
+        V2Infra memory infra,
         address owner,
         V2Vault[] memory vaults,
         AdapterDeployments memory adapters
@@ -1391,31 +1385,32 @@ contract DeployFullCoreChaosScript is Script {
             abi.encodeWithSignature("migrate(address,uint64,bytes)", vaults[0].vault, VAULT_V2_VERSION, bytes("")),
             "v2-vault-factory-migrate-same"
         );
-        _try(address(core.delegatorFactory), abi.encodeWithSignature("lastVersion()"), "v2-delegator-factory-last");
-        _try(address(core.delegatorFactory), abi.encodeWithSignature("totalTypes()"), "v2-delegator-factory-types");
-        _try(address(core.delegatorFactory), abi.encodeWithSignature("totalEntities()"), "v2-delegator-factory-total");
+        _try(infra.universalDelegatorFactory, abi.encodeWithSignature("lastVersion()"), "v2-delegator-factory-last");
+        _try(infra.universalDelegatorFactory, abi.encodeWithSignature("totalEntities()"), "v2-delegator-factory-total");
         _try(
-            address(core.delegatorFactory), abi.encodeWithSignature("entity(uint256)", 0), "v2-delegator-factory-entity"
+            infra.universalDelegatorFactory,
+            abi.encodeWithSignature("entity(uint256)", 0),
+            "v2-delegator-factory-entity"
         );
         _try(
-            address(core.delegatorFactory),
+            infra.universalDelegatorFactory,
             abi.encodeWithSignature("isEntity(address)", vaults[0].delegator),
             "v2-delegator-factory-is-entity"
         );
         _try(
-            address(core.delegatorFactory),
-            abi.encodeWithSignature("implementation(uint64)", UNIVERSAL_DELEGATOR_TYPE),
+            infra.universalDelegatorFactory,
+            abi.encodeWithSignature("implementation(uint64)", UNIVERSAL_DELEGATOR_VERSION),
             "v2-delegator-factory-impl"
         );
         _try(
-            address(core.delegatorFactory),
-            abi.encodeWithSignature("blacklisted(uint64)", UNIVERSAL_DELEGATOR_TYPE),
+            infra.universalDelegatorFactory,
+            abi.encodeWithSignature("blacklisted(uint64)", UNIVERSAL_DELEGATOR_VERSION),
             "v2-delegator-factory-blacklisted"
         );
         _try(
-            address(core.delegatorFactory),
+            infra.universalDelegatorFactory,
             abi.encodeWithSignature(
-                "migrate(address,uint64,bytes)", vaults[0].delegator, UNIVERSAL_DELEGATOR_TYPE, bytes("")
+                "migrate(address,uint64,bytes)", vaults[0].delegator, UNIVERSAL_DELEGATOR_VERSION, bytes("")
             ),
             "v2-delegator-factory-migrate-same"
         );

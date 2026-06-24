@@ -6,7 +6,6 @@ import {Test} from "forge-std/Test.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
 import {
     IUniversalDelegator,
-    UNIVERSAL_DELEGATOR_TYPE,
     MAX_ADAPTERS,
     MAX_SHARE,
     ADD_ADAPTER_ROLE,
@@ -31,9 +30,7 @@ contract UniversalDelegatorSweepToken is ERC20 {
 }
 
 contract UniversalDelegatorSweepHarness is UniversalDelegator {
-    constructor(address adapterRegistry)
-        UniversalDelegator(UNIVERSAL_DELEGATOR_TYPE, address(0x1), adapterRegistry, address(0x3))
-    {}
+    constructor(address adapterRegistry) UniversalDelegator(address(0x1), adapterRegistry, address(0x3)) {}
 
     function setVault(address vault_) external {
         vault = vault_;
@@ -402,10 +399,6 @@ contract UniversalDelegatorSweepPendingTest is Test {
 
         vm.expectRevert(IUniversalDelegator.AlreadyAdded.selector);
         delegator.addAdapterForTest(address(adapter));
-    }
-
-    function test_VersionReturnsUniversalDelegatorVersion() public view {
-        assertEq(delegator.VERSION(), 2);
     }
 
     function test_AllocatableSelectorIsUnavailable() public view {

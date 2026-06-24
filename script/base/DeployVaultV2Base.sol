@@ -3,8 +3,7 @@ pragma solidity ^0.8.25;
 
 import {Script} from "forge-std/Script.sol";
 
-import {IVaultConfigurator} from "../../src/interfaces/IVaultConfigurator.sol";
-import {IUniversalDelegator, UNIVERSAL_DELEGATOR_TYPE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IUniversalDelegator} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
 import {Logs} from "../utils/Logs.sol";
 import {SymbioticCoreConstants} from "../../test/integration/SymbioticCoreConstants.sol";
@@ -17,44 +16,27 @@ contract DeployVaultV2Base is Script {
     struct DeployVaultV2Params {
         address owner;
         VaultV2Params vaultParams;
-        IUniversalDelegator.InitParams delegatorParams;
     }
 
-    function runBase(DeployVaultV2Params memory params) public returns (address, address, address) {
+    function runBase(DeployVaultV2Params memory params) public returns (address, address) {
         vm.startBroadcast();
 
-        (address vault_, address delegator_, address slasher_) = IVaultConfigurator(
-                SymbioticCoreConstants.core().vaultConfigurator
-            )
-            .create(
-                IVaultConfigurator.InitParams({
-                version: _getVaultVersion(),
-                owner: params.owner,
-                vaultParams: _getVaultParamsEncoded(params),
-                delegatorIndex: UNIVERSAL_DELEGATOR_TYPE,
-                delegatorParams: abi.encode(params.delegatorParams),
-                withSlasher: false,
-                slasherIndex: 0,
-                slasherParams: ""
-            })
-            );
+        address vault_ = address(
+            SymbioticCoreConstants.core().vaultFactory
+                .create(_getVaultVersion(), params.owner, _getVaultParamsEncoded(params))
+        );
+        address delegator_ = IVaultV2(vault_).delegator();
 
         Logs.log(
             string.concat(
-                "Deployed VaultV2",
-                "\n    vault:",
-                vm.toString(vault_),
-                "\n    delegator:",
-                vm.toString(delegator_),
-                "\n    slasher:",
-                vm.toString(slasher_)
+                "Deployed VaultV2", "\n    vault:", vm.toString(vault_), "\n    delegator:", vm.toString(delegator_)
             )
         );
 
-        _validateDeployment(vault_, delegator_, slasher_);
+        _validateDeployment(vault_, delegator_);
 
         vm.stopBroadcast();
-        return (vault_, delegator_, slasher_);
+        return (vault_, delegator_);
     }
 
     function _getVaultVersion() internal virtual returns (uint64) {
@@ -65,9 +47,8 @@ contract DeployVaultV2Base is Script {
         return abi.encode(params.vaultParams.baseParams);
     }
 
-    function _validateDeployment(address vault, address delegator, address slasher) internal view {
+    function _validateDeployment(address vault, address delegator) internal view {
         assert(IVaultV2(vault).delegator() == delegator);
         assert(IUniversalDelegator(delegator).vault() == vault);
-        assert(slasher == address(0));
     }
 }

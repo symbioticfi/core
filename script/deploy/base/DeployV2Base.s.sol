@@ -8,12 +8,13 @@ import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreCon
 import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
 import {ProtocolFeeRegistry} from "../../../src/contracts/ProtocolFeeRegistry.sol";
 import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDelegator.sol";
+import {UniversalDelegatorFactory} from "../../../src/contracts/UniversalDelegatorFactory.sol";
 import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
 import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol";
 import {WithdrawalQueueFactory} from "../../../src/contracts/WithdrawalQueueFactory.sol";
 
 import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
-import {UNIVERSAL_DELEGATOR_TYPE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {UNIVERSAL_DELEGATOR_VERSION} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 
 contract DeployV2BaseScript is Script {
     struct DeploymentData {
@@ -22,6 +23,7 @@ contract DeployV2BaseScript is Script {
         ProtocolFeeRegistry protocolFeeRegistry;
         WithdrawalQueueFactory withdrawalQueueFactory;
         WithdrawalQueue withdrawalQueue;
+        UniversalDelegatorFactory universalDelegatorFactory;
         VaultV2 vaultV2;
         UniversalDelegator universalDelegator;
     }
@@ -50,34 +52,42 @@ contract DeployV2BaseScript is Script {
         if (adapterRegistryOwner != broadcaster) {
             data.withdrawalQueueFactory.transferOwnership(adapterRegistryOwner);
         }
+        data.universalDelegatorFactory = new UniversalDelegatorFactory(broadcaster);
         data.vaultV2 = new VaultV2(
             address(data.core.vaultFactory),
-            address(data.core.delegatorFactory),
+            address(data.universalDelegatorFactory),
             address(data.protocolFeeRegistry),
             address(data.withdrawalQueueFactory)
         );
         data.core.vaultFactory.whitelist(address(data.vaultV2));
         data.universalDelegator = new UniversalDelegator(
-            UNIVERSAL_DELEGATOR_TYPE,
-            address(data.core.vaultFactory),
-            address(data.adapterRegistry),
-            address(data.core.delegatorFactory)
+            address(data.core.vaultFactory), address(data.adapterRegistry), address(data.universalDelegatorFactory)
         );
-        data.core.delegatorFactory.whitelist(address(data.universalDelegator));
+        data.universalDelegatorFactory.whitelist(address(data.universalDelegator));
+        if (adapterRegistryOwner != broadcaster) {
+            data.universalDelegatorFactory.transferOwnership(adapterRegistryOwner);
+        }
         _stopBroadcast();
 
         assert(data.adapterRegistry.owner() == adapterRegistryOwner);
         assert(data.protocolFeeRegistry.owner() == protocolFeeRegistryOwner);
         assert(data.withdrawalQueueFactory.owner() == adapterRegistryOwner);
+        assert(data.universalDelegatorFactory.owner() == adapterRegistryOwner);
         assert(IMigratableEntity(address(data.vaultV2)).FACTORY() == address(data.core.vaultFactory));
-        assert(data.universalDelegator.TYPE() == UNIVERSAL_DELEGATOR_TYPE);
+        assert(IMigratableEntity(address(data.universalDelegator)).FACTORY() == address(data.universalDelegatorFactory));
         assert(data.core.vaultFactory.implementation(data.core.vaultFactory.lastVersion()) == address(data.vaultV2));
-        assert(data.core.delegatorFactory.implementation(UNIVERSAL_DELEGATOR_TYPE) == address(data.universalDelegator));
+        assert(
+            data.universalDelegatorFactory.implementation(UNIVERSAL_DELEGATOR_VERSION)
+                == address(data.universalDelegator)
+        );
 
         Logs.log(string.concat("Deployed AdapterRegistry: ", vm.toString(address(data.adapterRegistry))));
         Logs.log(string.concat("Deployed ProtocolFeeRegistry: ", vm.toString(address(data.protocolFeeRegistry))));
         Logs.log(string.concat("Deployed WithdrawalQueueFactory: ", vm.toString(address(data.withdrawalQueueFactory))));
         Logs.log(string.concat("Deployed WithdrawalQueue: ", vm.toString(address(data.withdrawalQueue))));
+        Logs.log(
+            string.concat("Deployed UniversalDelegatorFactory: ", vm.toString(address(data.universalDelegatorFactory)))
+        );
         Logs.log(string.concat("Deployed VaultV2: ", vm.toString(address(data.vaultV2))));
         Logs.log(string.concat("Deployed UniversalDelegator: ", vm.toString(address(data.universalDelegator))));
     }

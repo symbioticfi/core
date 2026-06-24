@@ -45,19 +45,21 @@ contract DeployVaultV2Script is DeployVaultV2Base {
                         depositLimitSetRoleHolder: OWNER,
                         depositorWhitelistRoleHolder: OWNER,
                         isDepositLimitSetRoleHolder: OWNER,
-                        depositWhitelistSetRoleHolder: OWNER
+                        depositWhitelistSetRoleHolder: OWNER,
+                        delegatorParams: abi.encode(
+                            IUniversalDelegator.InitParams({
+                                allocateRoleHolder: OWNER,
+                                deallocateRoleHolder: OWNER,
+                                forceDeallocateRoleHolder: OWNER,
+                                addAdapterRoleHolder: OWNER,
+                                swapAdaptersRoleHolder: OWNER,
+                                defaultAdminRoleHolder: OWNER,
+                                removeAdapterRoleHolder: OWNER,
+                                setAdapterLimitsRoleHolder: OWNER,
+                                setAutoAllocateAdaptersRoleHolder: OWNER
+                            })
+                        )
                     })
-                }),
-                delegatorParams: IUniversalDelegator.InitParams({
-                    allocateRoleHolder: OWNER,
-                    deallocateRoleHolder: OWNER,
-                    forceDeallocateRoleHolder: OWNER,
-                    addAdapterRoleHolder: OWNER,
-                    swapAdaptersRoleHolder: OWNER,
-                    defaultAdminRoleHolder: OWNER,
-                    removeAdapterRoleHolder: OWNER,
-                    setAdapterLimitsRoleHolder: OWNER,
-                    setAutoAllocateAdaptersRoleHolder: OWNER
                 })
             })
         );

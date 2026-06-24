@@ -22,7 +22,7 @@ import {bEQTY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-r
 import {
     CarryTradeUSDTRYLeverage_Account
 } from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/CarryTradeUSDTRYLeverage_Account.sol";
-import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
+import {UniversalDelegatorFactory} from "../../src/contracts/UniversalDelegatorFactory.sol";
 import {DUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
 import {JAAA_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JAAA_Account.sol";
 import {JTRSY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JTRSY_Account.sol";
@@ -84,7 +84,11 @@ import {ISecuritizeAccount} from "../../src/interfaces/adapters/ll-adapter/secur
 import {ISuperstateAccount} from "../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol";
 import {ISthUSD} from "../../src/interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
 import {IThreeJaneSUSD3} from "../../src/interfaces/adapters/ll-adapter/threejane/IThreeJaneSUSD3.sol";
-import {IUniversalDelegator, MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {
+    IUniversalDelegator,
+    MAX_SHARE,
+    UNIVERSAL_DELEGATOR_VERSION
+} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IMakinaRedeemer} from "../../src/interfaces/adapters/ll-adapter/makina/IMakinaRedeemer.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -124,7 +128,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     AdapterFactory internal adapterFactory;
     AdapterRegistry internal adapterRegistry;
     AccountRegistry internal accountRegistry;
-    DelegatorFactory internal delegatorFactory;
+    UniversalDelegatorFactory internal delegatorFactory;
     BenchmarkLiquidLaneVault internal vault;
     UniversalDelegator internal delegator;
     LiquidLaneAdapter internal adapter;
@@ -260,12 +264,12 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         adapterFactory = new AdapterFactory(curator);
         adapterRegistry = new AdapterRegistry(curator);
         accountRegistry = new AccountRegistry(curator);
-        delegatorFactory = new DelegatorFactory(curator);
+        delegatorFactory = new UniversalDelegatorFactory(curator);
 
         LiquidLaneAdapter implementation =
             new LiquidLaneAdapter(address(vaultFactory), address(adapterFactory), address(accountRegistry));
         UniversalDelegator delegatorImplementation =
-            new UniversalDelegator(0, address(vaultFactory), address(adapterRegistry), address(delegatorFactory));
+            new UniversalDelegator(address(vaultFactory), address(adapterRegistry), address(delegatorFactory));
 
         vm.startPrank(curator);
         adapterFactory.whitelist(address(implementation));
@@ -286,8 +290,9 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             setAdapterLimitsRoleHolder: curator,
             setAutoAllocateAdaptersRoleHolder: curator
         });
-        delegator =
-            UniversalDelegator(delegatorFactory.create(0, abi.encode(address(vault), abi.encode(delegatorParams))));
+        delegator = UniversalDelegator(
+            delegatorFactory.create(UNIVERSAL_DELEGATOR_VERSION, address(vault), abi.encode(delegatorParams))
+        );
         vault.setDelegator(address(delegator));
         adapterRegistry.setWhitelistedStatus(address(vault), address(adapter), true);
         delegator.addAdapter(address(adapter));
