@@ -168,6 +168,8 @@ contract WithdrawalQueue is MigratableEntity, ERC721Upgradeable, IWithdrawalQueu
         _cumulSharesToCumulAssets.push(0, 0);
     }
 
+    /* MIGRATION */
+
     /// @dev Migration is intentionally unsupported for this implementation.
     function _migrate(uint64, uint64, bytes calldata) internal pure override {
         revert();

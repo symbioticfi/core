@@ -241,12 +241,6 @@ interface IUniversalDelegator is IMulticallable {
     function absoluteLimitOf(address adapter) external view returns (uint256 limit);
 
     /**
-     * @notice Get the delegator implementation version.
-     * @return version Delegator version.
-     */
-    function VERSION() external view returns (uint64 version);
-
-    /**
      * @notice Get the number of adapters in the configured route.
      * @return count Adapter route length.
      */

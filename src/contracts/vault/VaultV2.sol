@@ -427,30 +427,6 @@ contract VaultV2 is
         emit SetPerformanceFee(newPerformanceFee, newPerformanceFeeReceiver);
     }
 
-    /* PUBLIC FUNCTIONS (INTERNAL) */
-
-    /// @dev Public one-shot initializer for a factory-registered delegator already bound to this vault.
-    function setDelegator(address newDelegator) public {
-        if (delegator != address(0)) {
-            revert DelegatorAlreadyInitialized();
-        }
-
-        if (
-            !IRegistry(DELEGATOR_FACTORY).isEntity(newDelegator)
-                || UniversalDelegator(newDelegator).vault() != address(this)
-                || IEntity(newDelegator).TYPE() < UNIVERSAL_DELEGATOR_TYPE
-        ) {
-            revert InvalidDelegator();
-        }
-
-        delegator = newDelegator;
-
-        emit SetDelegator(newDelegator);
-    }
-
-    /// @inheritdoc IVaultV2
-    function setSlasher(address) public {}
-
     /* INITIALIZATION */
 
     /// @dev Initialize vault state from encoded initialization parameters.
@@ -472,6 +448,9 @@ contract VaultV2 is
         withdrawalQueue = WithdrawalQueueFactory(WITHDRAWAL_QUEUE_FACTORY)
             .create(WITHDRAWAL_QUEUE_VERSION, address(this), abi.encode(name(), symbol()));
         emit SetWithdrawalQueue(withdrawalQueue);
+
+        delegator = UniversalDelegator(DELEGATOR_FACTORY).create(address(this), params.delegatorParams);
+        emit SetDelegator(delegator);
 
         __decimalsOffset = uint8(uint256(SHARES_DECIMALS).saturatingSub(IERC20Metadata(params.asset).decimals()));
 

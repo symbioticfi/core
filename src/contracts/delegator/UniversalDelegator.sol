@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {Entity} from "../common/Entity.sol";
+import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {Multicallable} from "../common/Multicallable.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 import {VaultV2} from "../vault/VaultV2.sol";
@@ -35,7 +35,7 @@ import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/Reentrancy
 /// @title UniversalDelegator
 /// @notice Simple delegator that allocates vault assets across ordered adapters.
 contract UniversalDelegator is
-    Entity,
+    MigratableEntity,
     StaticDelegateCallable,
     Multicallable,
     AccessControlUpgradeable,
@@ -83,11 +83,6 @@ contract UniversalDelegator is
     {
         VAULT_FACTORY = vaultFactory;
         ADAPTER_REGISTRY = adapterRegistry;
-    }
-
-    /// @inheritdoc IUniversalDelegator
-    function VERSION() public pure returns (uint64) {
-        return 2;
     }
 
     /* VIEW FUNCTIONS */
@@ -447,19 +442,10 @@ contract UniversalDelegator is
     /* INITIALIZATION */
 
     /// @dev Initialize delegator state from encoded initialization parameters.
-    function _initialize(bytes calldata data) internal override {
-        (address initVault, bytes memory initData) = abi.decode(data, (address, bytes));
+    function _initialize(uint64, address owner, bytes memory data) internal virtual override {
+        InitParams memory params = abi.decode(data, (InitParams));
 
-        if (!IRegistry(VAULT_FACTORY).isEntity(initVault)) {
-            revert NotVault();
-        }
-        if (IMigratableEntity(initVault).version() < VAULT_V2_VERSION) {
-            revert OldVault();
-        }
-
-        InitParams memory params = abi.decode(initData, (InitParams));
-
-        vault = initVault;
+        vault = owner;
 
         _grantRoleIfNotZero(ALLOCATE_ROLE, params.allocateRoleHolder);
         _grantRoleIfNotZero(DEALLOCATE_ROLE, params.deallocateRoleHolder);
@@ -472,6 +458,13 @@ contract UniversalDelegator is
         _grantRoleIfNotZero(SET_AUTO_ALLOCATE_ADAPTERS_ROLE, params.setAutoAllocateAdaptersRoleHolder);
 
         emit Initialize(params);
+    }
+
+    /* MIGRATION */
+
+    /// @dev Migration is intentionally unsupported for this implementation.
+    function _migrate(uint64, uint64, bytes calldata) internal pure override {
+        revert();
     }
 
     /* INTERNAL FUNCTIONS */
