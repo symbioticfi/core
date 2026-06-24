@@ -356,9 +356,7 @@ contract PendingWithdrawalQueueHandler is Test {
         for (uint64 i = 1; i < UNIVERSAL_DELEGATOR_VERSION; ++i) {
             delegatorFactory.whitelist(address(new PendingQueueMigratableEntityMock(address(delegatorFactory))));
         }
-        delegatorFactory.whitelist(
-            address(new UniversalDelegator(address(vaultFactory), address(adapterRegistry), address(delegatorFactory)))
-        );
+        delegatorFactory.whitelist(address(new UniversalDelegator(address(adapterRegistry), address(delegatorFactory))));
 
         vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         adapterFactory.whitelist(

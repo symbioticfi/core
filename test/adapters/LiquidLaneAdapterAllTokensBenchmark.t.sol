@@ -269,7 +269,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         LiquidLaneAdapter implementation =
             new LiquidLaneAdapter(address(vaultFactory), address(adapterFactory), address(accountRegistry));
         UniversalDelegator delegatorImplementation =
-            new UniversalDelegator(address(vaultFactory), address(adapterRegistry), address(delegatorFactory));
+            new UniversalDelegator(address(adapterRegistry), address(delegatorFactory));
 
         vm.startPrank(curator);
         adapterFactory.whitelist(address(implementation));

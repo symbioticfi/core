@@ -42,8 +42,6 @@ contract UniversalDelegator is
 
     /* IMMUTABLES */
 
-    /// @dev Address of the vault factory.
-    address internal immutable VAULT_FACTORY;
     /// @dev Address of the adapter registry.
     address internal immutable ADAPTER_REGISTRY;
 
@@ -74,10 +72,7 @@ contract UniversalDelegator is
 
     /* CONSTRUCTOR */
 
-    constructor(address vaultFactory, address adapterRegistry, address delegatorFactory)
-        MigratableEntity(delegatorFactory)
-    {
-        VAULT_FACTORY = vaultFactory;
+    constructor(address adapterRegistry, address delegatorFactory) MigratableEntity(delegatorFactory) {
         ADAPTER_REGISTRY = adapterRegistry;
     }
 

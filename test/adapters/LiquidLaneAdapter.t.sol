@@ -570,9 +570,7 @@ contract LiquidLaneAdapterRealTest is Test {
         for (uint64 i = 1; i < UNIVERSAL_DELEGATOR_VERSION; ++i) {
             delegatorFactory.whitelist(address(new LiquidLaneMigratableEntityMock(address(delegatorFactory))));
         }
-        delegatorFactory.whitelist(
-            address(new UniversalDelegator(address(vaultFactory), address(adapterRegistry), address(delegatorFactory)))
-        );
+        delegatorFactory.whitelist(address(new UniversalDelegator(address(adapterRegistry), address(delegatorFactory))));
 
         vm.startPrank(curator);
         adapterFactory.whitelist(

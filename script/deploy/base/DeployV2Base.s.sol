@@ -60,9 +60,8 @@ contract DeployV2BaseScript is Script {
             address(data.withdrawalQueueFactory)
         );
         data.core.vaultFactory.whitelist(address(data.vaultV2));
-        data.universalDelegator = new UniversalDelegator(
-            address(data.core.vaultFactory), address(data.adapterRegistry), address(data.universalDelegatorFactory)
-        );
+        data.universalDelegator =
+            new UniversalDelegator(address(data.adapterRegistry), address(data.universalDelegatorFactory));
         data.universalDelegatorFactory.whitelist(address(data.universalDelegator));
         if (adapterRegistryOwner != broadcaster) {
             data.universalDelegatorFactory.transferOwnership(adapterRegistryOwner);

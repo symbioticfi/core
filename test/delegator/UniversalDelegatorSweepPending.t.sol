@@ -30,7 +30,7 @@ contract UniversalDelegatorSweepToken is ERC20 {
 }
 
 contract UniversalDelegatorSweepHarness is UniversalDelegator {
-    constructor(address adapterRegistry) UniversalDelegator(address(0x1), adapterRegistry, address(0x3)) {}
+    constructor(address adapterRegistry) UniversalDelegator(adapterRegistry, address(0x3)) {}
 
     function setVault(address vault_) external {
         vault = vault_;

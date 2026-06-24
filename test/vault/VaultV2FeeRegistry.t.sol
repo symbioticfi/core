@@ -138,9 +138,7 @@ contract VaultV2BehaviorTest is Test {
             )
         );
 
-        delegatorFactory.whitelist(
-            address(new UniversalDelegator(address(vaultFactory), address(adapterRegistry), address(delegatorFactory)))
-        );
+        delegatorFactory.whitelist(address(new UniversalDelegator(address(adapterRegistry), address(delegatorFactory))));
     }
 
     function test_MaxDepositAndMaxMintApplyWhitelistAndLimit() public {

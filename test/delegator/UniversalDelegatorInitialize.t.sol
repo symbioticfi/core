@@ -38,7 +38,7 @@ contract UniversalDelegatorInitializeTest is Test {
     }
 
     function _delegator() internal returns (UniversalDelegator) {
-        UniversalDelegator implementation = new UniversalDelegator(address(this), address(0), address(this));
+        UniversalDelegator implementation = new UniversalDelegator(address(0), address(this));
         return UniversalDelegator(address(implementation).clone());
     }
 
