@@ -2,8 +2,9 @@
 pragma solidity ^0.8.0;
 
 import {IMulticallable} from "../common/IMulticallable.sol";
+import {IMigratableEntity} from "../common/IMigratableEntity.sol";
 
-uint64 constant UNIVERSAL_DELEGATOR_TYPE = 4;
+uint64 constant UNIVERSAL_DELEGATOR_VERSION = 1;
 
 uint256 constant MAX_SHARE = 1e18;
 
@@ -30,7 +31,7 @@ bytes32 constant SET_AUTO_ALLOCATE_ADAPTERS_ROLE = 0x8080881212c2315eb2f081d4587
  * @title IUniversalDelegator
  * @notice Interface for the adapter-based universal delegator.
  */
-interface IUniversalDelegator is IMulticallable {
+interface IUniversalDelegator is IMigratableEntity, IMulticallable {
     /* ERRORS */
 
     /**

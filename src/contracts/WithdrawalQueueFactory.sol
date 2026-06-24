@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 
 import {MigratablesFactory} from "./common/MigratablesFactory.sol";
 
-import {IWithdrawalQueueFactory} from "../interfaces/vault/IWithdrawalQueueFactory.sol";
+import {IWithdrawalQueueFactory} from "../interfaces/IWithdrawalQueueFactory.sol";
 
 /// @title WithdrawalQueueFactory
 /// @notice Factory contract for migratable withdrawal queue deployments.

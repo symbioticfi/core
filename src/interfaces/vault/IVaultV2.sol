@@ -81,6 +81,7 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
      * @param depositorWhitelistRoleHolder Address of the initial DEPOSITOR_WHITELIST_ROLE holder.
      * @param isDepositLimitSetRoleHolder Address of the initial IS_DEPOSIT_LIMIT_SET_ROLE holder.
      * @param depositWhitelistSetRoleHolder Address of the initial DEPOSIT_WHITELIST_SET_ROLE holder.
+     * @param delegatorParams Parameters for the delegator initialization.
      */
     struct InitParams {
         string name;
@@ -97,6 +98,7 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
         address depositorWhitelistRoleHolder;
         address isDepositLimitSetRoleHolder;
         address depositWhitelistSetRoleHolder;
+        bytes delegatorParams;
     }
 
     /* EVENTS */
@@ -407,17 +409,4 @@ interface IVaultV2 is IMigratableEntity, IMulticallable {
      * @dev Only a PERFORMANCE_FEE_ROLE holder can call this function.
      */
     function setPerformanceFee(uint96 fee, address receiver) external;
-
-    /**
-     * @notice Set the delegator.
-     * @param delegator Vault's delegator.
-     * @dev Can be set only once.
-     */
-    function setDelegator(address delegator) external;
-
-    /**
-     * @notice Compatibility hook for VaultConfigurator slasher wiring.
-     * @param slasher Ignored slasher address.
-     */
-    function setSlasher(address slasher) external;
 }

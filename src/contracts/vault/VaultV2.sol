@@ -6,6 +6,7 @@ import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {Multicallable} from "../common/Multicallable.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {WithdrawalQueueFactory} from "../WithdrawalQueueFactory.sol";
+import {UniversalDelegatorFactory} from "../UniversalDelegatorFactory.sol";
 
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IProtocolFeeRegistry} from "../../interfaces/IProtocolFeeRegistry.sol";
@@ -23,7 +24,7 @@ import {
     MAX_PERFORMANCE_FEE,
     MAX_FEE
 } from "../../interfaces/vault/IVaultV2.sol";
-import {UNIVERSAL_DELEGATOR_TYPE} from "../../interfaces/delegator/IUniversalDelegator.sol";
+import {UNIVERSAL_DELEGATOR_VERSION} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {WITHDRAWAL_QUEUE_VERSION} from "../../interfaces/vault/IWithdrawalQueue.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -449,7 +450,8 @@ contract VaultV2 is
             .create(WITHDRAWAL_QUEUE_VERSION, address(this), abi.encode(name(), symbol()));
         emit SetWithdrawalQueue(withdrawalQueue);
 
-        delegator = UniversalDelegator(DELEGATOR_FACTORY).create(address(this), params.delegatorParams);
+        delegator = UniversalDelegatorFactory(DELEGATOR_FACTORY)
+            .create(UNIVERSAL_DELEGATOR_VERSION, address(this), params.delegatorParams);
         emit SetDelegator(delegator);
 
         __decimalsOffset = uint8(uint256(SHARES_DECIMALS).saturatingSub(IERC20Metadata(params.asset).decimals()));

@@ -204,11 +204,11 @@ contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
         if (targetSlashable >= curSlashable) {
             uint256 limit = IUniversalDelegator(IVaultV2(vault).delegator()).limitOf(address(this));
 
-            // Only compact/reset accounting if doing so does not need to preserve
-            // slashable stake above the current limit.
+            // Preserve the current stake position if it is above the current limit.
             if (curSlashable > limit) {
                 return;
             }
+            // Truncate the target slashable to the current limit.
             if (targetSlashable > limit) {
                 targetSlashable = limit;
             }

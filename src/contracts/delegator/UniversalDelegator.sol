@@ -39,7 +39,6 @@ contract UniversalDelegator is
     StaticDelegateCallable,
     Multicallable,
     AccessControlUpgradeable,
-    ReentrancyGuardTransient,
     IUniversalDelegator
 {
     using Math for uint256;
@@ -78,8 +77,8 @@ contract UniversalDelegator is
 
     /* CONSTRUCTOR */
 
-    constructor(uint64 entityType, address vaultFactory, address adapterRegistry, address delegatorFactory)
-        Entity(delegatorFactory, entityType)
+    constructor(address vaultFactory, address adapterRegistry, address delegatorFactory)
+        MigratableEntity(delegatorFactory)
     {
         VAULT_FACTORY = vaultFactory;
         ADAPTER_REGISTRY = adapterRegistry;
