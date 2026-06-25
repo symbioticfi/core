@@ -21,11 +21,7 @@ import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV
 import {IRestakingAppAdapter} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
 import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 import {IAccountRegistry} from "../../src/interfaces/adapters/ll-adapter/IAccountRegistry.sol";
-import {
-    IUniversalDelegator,
-    MAX_SHARE,
-    UNIVERSAL_DELEGATOR_TYPE
-} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
+import {IUniversalDelegator, MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
 import {
     MockAaveAToken,
@@ -465,7 +461,8 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
                 depositLimitSetRoleHolder: owner,
                 depositorWhitelistRoleHolder: owner,
                 isDepositLimitSetRoleHolder: owner,
-                depositWhitelistSetRoleHolder: owner
+                depositWhitelistSetRoleHolder: owner,
+                delegatorParams: abi.encode(_delegatorParams(owner))
             })
         );
     }
@@ -715,13 +712,12 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
                         depositLimitSetRoleHolder: owner,
                         depositorWhitelistRoleHolder: owner,
                         isDepositLimitSetRoleHolder: owner,
-                        depositWhitelistSetRoleHolder: owner
+                        depositWhitelistSetRoleHolder: owner,
+                        delegatorParams: abi.encode(_delegatorParams(owner))
                     })
                 )
             );
-        deployed.delegator = data.core.delegatorFactory
-            .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(deployed.vault, abi.encode(_delegatorParams(owner))));
-        IVaultV2(deployed.vault).setDelegator(deployed.delegator);
+        deployed.delegator = IVaultV2(deployed.vault).delegator();
     }
 
     function _configureAaveReserve(

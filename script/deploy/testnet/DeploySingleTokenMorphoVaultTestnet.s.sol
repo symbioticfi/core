@@ -6,12 +6,7 @@ import {Script} from "forge-std/Script.sol";
 import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
 import {IAdapterRegistry} from "../../../src/interfaces/IAdapterRegistry.sol";
 import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
-import {
-    IUniversalDelegator,
-    MAX_SHARE,
-    UNIVERSAL_DELEGATOR_TYPE
-} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
-import {IFactory} from "../../../src/interfaces/common/IFactory.sol";
+import {IUniversalDelegator, MAX_SHARE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IMigratablesFactory} from "../../../src/interfaces/common/IMigratablesFactory.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
 import {Logs} from "../../utils/Logs.sol";
@@ -74,9 +69,7 @@ contract DeploySingleTokenMorphoVaultTestnetScript is Script {
 
         data.vault =
             IMigratablesFactory(config.vaultFactory).create(VAULT_V2_VERSION, config.owner, _vaultParams(config));
-        data.delegator = IFactory(config.delegatorFactory)
-            .create(UNIVERSAL_DELEGATOR_TYPE, abi.encode(data.vault, abi.encode(_delegatorParams(config.owner))));
-        IVaultV2(data.vault).setDelegator(data.delegator);
+        data.delegator = IVaultV2(data.vault).delegator();
 
         data.morphoVault = address(new MockMorphoVaultHarness(config.asset, config.morphoAdapterRegistry));
         MockMorphoVaultFactory(config.morphoVaultFactory).setVault(data.morphoVault, true);
@@ -141,7 +134,8 @@ contract DeploySingleTokenMorphoVaultTestnetScript is Script {
                 depositLimitSetRoleHolder: config.owner,
                 depositorWhitelistRoleHolder: config.owner,
                 isDepositLimitSetRoleHolder: config.owner,
-                depositWhitelistSetRoleHolder: config.owner
+                depositWhitelistSetRoleHolder: config.owner,
+                delegatorParams: abi.encode(_delegatorParams(config.owner))
             })
         );
     }

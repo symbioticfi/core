@@ -8,11 +8,10 @@ import {AdapterRegistry} from "../../src/contracts/AdapterRegistry.sol";
 import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../src/contracts/adapters/LiquidLaneAdapter.sol";
 import {AccountRegistry} from "../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
-import {DelegatorFactory} from "../../src/contracts/DelegatorFactory.sol";
 import {ProtocolFeeRegistry} from "../../src/contracts/ProtocolFeeRegistry.sol";
+import {UniversalDelegatorFactory} from "../../src/contracts/UniversalDelegatorFactory.sol";
 import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {WithdrawalQueueFactory} from "../../src/contracts/WithdrawalQueueFactory.sol";
-import {Entity} from "../../src/contracts/common/Entity.sol";
 import {MigratableEntity} from "../../src/contracts/common/MigratableEntity.sol";
 import {MigratablesFactory} from "../../src/contracts/common/MigratablesFactory.sol";
 import {Registry} from "../../src/contracts/common/Registry.sol";
@@ -33,7 +32,7 @@ import {
     ALLOCATE_ROLE,
     IUniversalDelegator,
     MAX_SHARE,
-    UNIVERSAL_DELEGATOR_TYPE
+    UNIVERSAL_DELEGATOR_VERSION
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
 
@@ -523,7 +522,7 @@ contract LiquidLaneAdapterRealTest is Test {
     MockERC20 internal tokenToRedeem;
     VaultFactory internal vaultFactory;
     WithdrawalQueueFactory internal withdrawalQueueFactory;
-    DelegatorFactory internal delegatorFactory;
+    UniversalDelegatorFactory internal delegatorFactory;
     AdapterRegistry internal adapterRegistry;
     AdapterFactory internal adapterFactory;
     AccountRegistry internal accountRegistry;
@@ -545,7 +544,7 @@ contract LiquidLaneAdapterRealTest is Test {
 
         vaultFactory = new VaultFactory(address(this));
         withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
-        delegatorFactory = new DelegatorFactory(address(this));
+        delegatorFactory = new UniversalDelegatorFactory(address(this));
         adapterRegistry = new AdapterRegistry(address(this));
         protocolFee = new ProtocolFeeRegistry(address(this));
         protocolFee.setGlobalReceiver(address(this));
@@ -568,16 +567,10 @@ contract LiquidLaneAdapterRealTest is Test {
             )
         );
 
-        for (uint64 i; i < UNIVERSAL_DELEGATOR_TYPE; ++i) {
-            delegatorFactory.whitelist(address(new LiquidLaneEntityMock(address(delegatorFactory), i)));
+        for (uint64 i = 1; i < UNIVERSAL_DELEGATOR_VERSION; ++i) {
+            delegatorFactory.whitelist(address(new LiquidLaneMigratableEntityMock(address(delegatorFactory))));
         }
-        delegatorFactory.whitelist(
-            address(
-                new UniversalDelegator(
-                    UNIVERSAL_DELEGATOR_TYPE, address(vaultFactory), address(adapterRegistry), address(delegatorFactory)
-                )
-            )
-        );
+        delegatorFactory.whitelist(address(new UniversalDelegator(address(adapterRegistry), address(delegatorFactory))));
 
         vm.startPrank(curator);
         adapterFactory.whitelist(
@@ -597,8 +590,7 @@ contract LiquidLaneAdapterRealTest is Test {
         vm.stopPrank();
 
         vault = _createVault();
-        delegator = _createDelegator();
-        vault.setDelegator(address(delegator));
+        delegator = UniversalDelegator(vault.delegator());
 
         vm.startPrank(curator);
         adapter = LiquidLaneAdapter(
@@ -661,34 +653,27 @@ contract LiquidLaneAdapterRealTest is Test {
                 isDepositLimitSetRoleHolder: address(this),
                 depositLimitSetRoleHolder: address(this),
                 managementFeeRoleHolder: address(this),
-                performanceFeeRoleHolder: address(this)
+                performanceFeeRoleHolder: address(this),
+                delegatorParams: _delegatorParams()
             })
         );
         return VaultV2(vaultFactory.create(VAULT_V2_VERSION, address(this), data));
     }
 
-    function _createDelegator() internal returns (UniversalDelegator) {
-        address delegatorAddress = delegatorFactory.create(
-            UNIVERSAL_DELEGATOR_TYPE,
-            abi.encode(
-                address(vault),
-                abi.encode(
-                    IUniversalDelegator.InitParams({
-                        allocateRoleHolder: address(this),
-                        deallocateRoleHolder: address(this),
-                        addAdapterRoleHolder: address(this),
-                        swapAdaptersRoleHolder: address(this),
-                        defaultAdminRoleHolder: address(this),
-                        removeAdapterRoleHolder: address(this),
-                        forceDeallocateRoleHolder: address(this),
-                        setAdapterLimitsRoleHolder: address(this),
-                        setAutoAllocateAdaptersRoleHolder: address(this)
-                    })
-                )
-            )
+    function _delegatorParams() internal view returns (bytes memory) {
+        return abi.encode(
+            IUniversalDelegator.InitParams({
+                allocateRoleHolder: address(this),
+                deallocateRoleHolder: address(this),
+                addAdapterRoleHolder: address(this),
+                swapAdaptersRoleHolder: address(this),
+                defaultAdminRoleHolder: address(this),
+                removeAdapterRoleHolder: address(this),
+                forceDeallocateRoleHolder: address(this),
+                setAdapterLimitsRoleHolder: address(this),
+                setAutoAllocateAdaptersRoleHolder: address(this)
+            })
         );
-
-        return UniversalDelegator(delegatorAddress);
     }
 
     function _findAllocateEvent(Vm.Log[] memory logs) internal returns (uint256 assets, uint256 totalAssets) {
@@ -826,10 +811,6 @@ contract MockLiquidLaneDelegator {
 
 contract LiquidLaneMigratableEntityMock is MigratableEntity {
     constructor(address factory) MigratableEntity(factory) {}
-}
-
-contract LiquidLaneEntityMock is Entity {
-    constructor(address factory, uint64 type_) Entity(factory, type_) {}
 }
 
 contract MockLiquidLaneAccount is MigratableEntity, IAccount {

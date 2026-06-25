@@ -7,7 +7,7 @@ import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol
 import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
 import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
 import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
-import {DelegatorFactory} from "../../../src/contracts/DelegatorFactory.sol";
+import {UniversalDelegatorFactory} from "../../../src/contracts/UniversalDelegatorFactory.sol";
 import {VaultFactory} from "../../../src/contracts/VaultFactory.sol";
 import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDelegator.sol";
 import {ProtocolFeeRegistry} from "../../../src/contracts/ProtocolFeeRegistry.sol";
@@ -17,7 +17,7 @@ import {WithdrawalQueueFactory} from "../../../src/contracts/WithdrawalQueueFact
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
 import {
     IUniversalDelegator,
-    UNIVERSAL_DELEGATOR_TYPE,
+    UNIVERSAL_DELEGATOR_VERSION,
     MAX_SHARE
 } from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {
@@ -29,7 +29,6 @@ import {
 import {Token} from "../../mocks/Token.sol";
 import {
     AppAdapterUniversalAdapterFactoryMock,
-    AppAdapterUniversalEntityMock,
     AppAdapterUniversalMigratableEntityMock,
     AppAdapterUniversalNetworkMiddlewareServiceMock
 } from "../../adapters/AppAdapterUniversalDelegator.t.sol";
@@ -1171,7 +1170,7 @@ contract AppAdapterInvariantHandler is Test {
         assetToken = new Token("Asset");
         VaultFactory vaultFactory = new VaultFactory(address(this));
         WithdrawalQueueFactory withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
-        DelegatorFactory delegatorFactory = new DelegatorFactory(address(this));
+        UniversalDelegatorFactory delegatorFactory = new UniversalDelegatorFactory(address(this));
         AdapterRegistry adapterRegistry = new AdapterRegistry(address(this));
         AdapterFactory adapterFactory = new AppAdapterUniversalAdapterFactoryMock(address(this));
         ProtocolFeeRegistry protocolFee = new ProtocolFeeRegistry(address(this));
@@ -1195,16 +1194,10 @@ contract AppAdapterInvariantHandler is Test {
             )
         );
 
-        for (uint64 i; i < UNIVERSAL_DELEGATOR_TYPE; ++i) {
-            delegatorFactory.whitelist(address(new AppAdapterUniversalEntityMock(address(delegatorFactory), i)));
+        for (uint64 i = 1; i < UNIVERSAL_DELEGATOR_VERSION; ++i) {
+            delegatorFactory.whitelist(address(new AppAdapterUniversalMigratableEntityMock(address(delegatorFactory))));
         }
-        delegatorFactory.whitelist(
-            address(
-                new UniversalDelegator(
-                    UNIVERSAL_DELEGATOR_TYPE, address(vaultFactory), address(adapterRegistry), address(delegatorFactory)
-                )
-            )
-        );
+        delegatorFactory.whitelist(address(new UniversalDelegator(address(adapterRegistry), address(delegatorFactory))));
 
         vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         adapterFactory.whitelist(
@@ -1216,8 +1209,7 @@ contract AppAdapterInvariantHandler is Test {
         );
 
         vault = _createVault(vaultFactory);
-        delegator = _createDelegator(delegatorFactory, vault);
-        vault.setDelegator(address(delegator));
+        delegator = UniversalDelegator(vault.delegator());
         queue = WithdrawalQueue(vault.withdrawalQueue());
 
         address[] memory converters = new address[](1);
@@ -1266,36 +1258,26 @@ contract AppAdapterInvariantHandler is Test {
                 isDepositLimitSetRoleHolder: address(this),
                 depositLimitSetRoleHolder: address(this),
                 managementFeeRoleHolder: address(this),
-                performanceFeeRoleHolder: address(this)
+                performanceFeeRoleHolder: address(this),
+                delegatorParams: _delegatorParams()
             })
         );
         return VaultV2(vaultFactory.create(VAULT_V2_VERSION, address(this), data));
     }
 
-    function _createDelegator(DelegatorFactory delegatorFactory, VaultV2 targetVault)
-        internal
-        returns (UniversalDelegator)
-    {
-        address delegatorAddress = delegatorFactory.create(
-            UNIVERSAL_DELEGATOR_TYPE,
-            abi.encode(
-                address(targetVault),
-                abi.encode(
-                    IUniversalDelegator.InitParams({
-                        allocateRoleHolder: address(this),
-                        deallocateRoleHolder: address(this),
-                        addAdapterRoleHolder: address(this),
-                        swapAdaptersRoleHolder: address(this),
-                        defaultAdminRoleHolder: address(this),
-                        removeAdapterRoleHolder: address(this),
-                        forceDeallocateRoleHolder: address(this),
-                        setAdapterLimitsRoleHolder: address(this),
-                        setAutoAllocateAdaptersRoleHolder: address(this)
-                    })
-                )
-            )
+    function _delegatorParams() internal view returns (bytes memory) {
+        return abi.encode(
+            IUniversalDelegator.InitParams({
+                allocateRoleHolder: address(this),
+                deallocateRoleHolder: address(this),
+                addAdapterRoleHolder: address(this),
+                swapAdaptersRoleHolder: address(this),
+                defaultAdminRoleHolder: address(this),
+                removeAdapterRoleHolder: address(this),
+                forceDeallocateRoleHolder: address(this),
+                setAdapterLimitsRoleHolder: address(this),
+                setAutoAllocateAdaptersRoleHolder: address(this)
+            })
         );
-
-        return UniversalDelegator(delegatorAddress);
     }
 }

@@ -7,9 +7,8 @@ import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol
 import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
 import {Subnetwork} from "../../../src/contracts/libraries/Subnetwork.sol";
 import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
-import {DelegatorFactory} from "../../../src/contracts/DelegatorFactory.sol";
+import {UniversalDelegatorFactory} from "../../../src/contracts/UniversalDelegatorFactory.sol";
 import {VaultFactory} from "../../../src/contracts/VaultFactory.sol";
-import {Entity} from "../../../src/contracts/common/Entity.sol";
 import {MigratableEntity} from "../../../src/contracts/common/MigratableEntity.sol";
 import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDelegator.sol";
 import {ProtocolFeeRegistry} from "../../../src/contracts/ProtocolFeeRegistry.sol";
@@ -20,7 +19,7 @@ import {WithdrawalQueueFactory} from "../../../src/contracts/WithdrawalQueueFact
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
 import {
     IUniversalDelegator,
-    UNIVERSAL_DELEGATOR_TYPE,
+    UNIVERSAL_DELEGATOR_VERSION,
     MAX_SHARE
 } from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
@@ -36,10 +35,6 @@ contract PendingQueueAdapterFactoryMock is AdapterFactory {
     constructor(address owner) AdapterFactory(owner) {
         _addEntity(address(this));
     }
-}
-
-contract PendingQueueEntityMock is Entity {
-    constructor(address factory, uint64 type_) Entity(factory, type_) {}
 }
 
 contract PendingQueueNetworkMiddlewareServiceMock {
@@ -77,7 +72,7 @@ contract PendingWithdrawalQueueHandler is Test {
     bytes4 public unexpectedActionRevertSelector;
 
     VaultFactory internal vaultFactory;
-    DelegatorFactory internal delegatorFactory;
+    UniversalDelegatorFactory internal delegatorFactory;
     WithdrawalQueueFactory internal withdrawalQueueFactory;
     AdapterRegistry internal adapterRegistry;
     AdapterFactory internal adapterFactory;
@@ -335,7 +330,7 @@ contract PendingWithdrawalQueueHandler is Test {
         collateral = new Token("PendingInvariantCollateral");
         vaultFactory = new VaultFactory(address(this));
         withdrawalQueueFactory = new WithdrawalQueueFactory(address(this));
-        delegatorFactory = new DelegatorFactory(address(this));
+        delegatorFactory = new UniversalDelegatorFactory(address(this));
         adapterRegistry = new AdapterRegistry(address(this));
         adapterFactory = new PendingQueueAdapterFactoryMock(address(this));
         protocolFee = new ProtocolFeeRegistry(address(this));
@@ -358,16 +353,10 @@ contract PendingWithdrawalQueueHandler is Test {
             )
         );
 
-        for (uint64 i; i < UNIVERSAL_DELEGATOR_TYPE; ++i) {
-            delegatorFactory.whitelist(address(new PendingQueueEntityMock(address(delegatorFactory), i)));
+        for (uint64 i = 1; i < UNIVERSAL_DELEGATOR_VERSION; ++i) {
+            delegatorFactory.whitelist(address(new PendingQueueMigratableEntityMock(address(delegatorFactory))));
         }
-        delegatorFactory.whitelist(
-            address(
-                new UniversalDelegator(
-                    UNIVERSAL_DELEGATOR_TYPE, address(vaultFactory), address(adapterRegistry), address(delegatorFactory)
-                )
-            )
-        );
+        delegatorFactory.whitelist(address(new UniversalDelegator(address(adapterRegistry), address(delegatorFactory))));
 
         vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
         adapterFactory.whitelist(
@@ -379,8 +368,7 @@ contract PendingWithdrawalQueueHandler is Test {
         );
 
         vault = _createVault();
-        delegator = _createDelegator(vault);
-        vault.setDelegator(address(delegator));
+        delegator = UniversalDelegator(vault.delegator());
 
         address[] memory converters = new address[](1);
         converters[0] = CURATOR;
@@ -440,33 +428,26 @@ contract PendingWithdrawalQueueHandler is Test {
                 isDepositLimitSetRoleHolder: address(this),
                 depositLimitSetRoleHolder: address(this),
                 managementFeeRoleHolder: address(this),
-                performanceFeeRoleHolder: address(this)
+                performanceFeeRoleHolder: address(this),
+                delegatorParams: _delegatorParams()
             })
         );
         return VaultV2(vaultFactory.create(VAULT_V2_VERSION, address(this), data));
     }
 
-    function _createDelegator(VaultV2 targetVault) internal returns (UniversalDelegator) {
-        return UniversalDelegator(
-            delegatorFactory.create(
-                UNIVERSAL_DELEGATOR_TYPE,
-                abi.encode(
-                    address(targetVault),
-                    abi.encode(
-                        IUniversalDelegator.InitParams({
-                            allocateRoleHolder: address(this),
-                            deallocateRoleHolder: address(this),
-                            addAdapterRoleHolder: address(this),
-                            swapAdaptersRoleHolder: address(this),
-                            defaultAdminRoleHolder: address(this),
-                            removeAdapterRoleHolder: address(this),
-                            forceDeallocateRoleHolder: address(this),
-                            setAdapterLimitsRoleHolder: address(this),
-                            setAutoAllocateAdaptersRoleHolder: address(this)
-                        })
-                    )
-                )
-            )
+    function _delegatorParams() internal view returns (bytes memory) {
+        return abi.encode(
+            IUniversalDelegator.InitParams({
+                allocateRoleHolder: address(this),
+                deallocateRoleHolder: address(this),
+                addAdapterRoleHolder: address(this),
+                swapAdaptersRoleHolder: address(this),
+                defaultAdminRoleHolder: address(this),
+                removeAdapterRoleHolder: address(this),
+                forceDeallocateRoleHolder: address(this),
+                setAdapterLimitsRoleHolder: address(this),
+                setAutoAllocateAdaptersRoleHolder: address(this)
+            })
         );
     }
 
