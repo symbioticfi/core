@@ -18,7 +18,13 @@ contract mFONE_Account is MidasNonCompAccount, IMidasTokenAccount {
 
     constructor(address factory, address cowSwapSettlement)
         MidasNonCompAccount(
-            address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
+            address(
+                new MidasOracle(
+                    550_191_060_000_000_000,
+                    2_200_764_240_000_000_000,
+                    address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
+                )
+            ),
             factory,
             TOKEN_COOLDOWN,
             TOKEN_ADDRESS,

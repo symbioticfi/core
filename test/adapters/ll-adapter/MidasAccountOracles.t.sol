@@ -15,6 +15,7 @@ import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFacto
 import {IConverter} from "../../../src/interfaces/adapters/common/IConverter.sol";
 import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
+import {IOracle} from "../../../src/interfaces/adapters/ll-adapter/IOracle.sol";
 import {IMidasAccount} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
 import {IChainlinkOracle} from "../../../src/interfaces/adapters/ll-adapter/oracles/IChainlinkOracle.sol";
 
@@ -420,7 +421,8 @@ contract MidasAccountOraclesTest is Test {
     function testChainlinkOracleReturnsLatestPriceInBase18() public {
         MockChainlinkAggregator aggregator = new MockChainlinkAggregator(8);
         aggregator.setLatestRoundData(1, 123e8, uint48(vm.getBlockTimestamp()), 1);
-        ChainlinkOracle oracle = new ChainlinkOracle([address(aggregator), address(0)], [uint48(1 days), uint48(0)]);
+        ChainlinkOracle oracle =
+            new ChainlinkOracle(1, type(uint256).max, [address(aggregator), address(0)], [uint48(1 days), uint48(0)]);
 
         assertEq(oracle.getPrice(), 123e18);
     }
@@ -430,29 +432,32 @@ contract MidasAccountOraclesTest is Test {
         MockChainlinkAggregator aggregator1 = new MockChainlinkAggregator(18);
         aggregator0.setLatestRoundData(1, 2e8, uint48(vm.getBlockTimestamp()), 1);
         aggregator1.setLatestRoundData(1, 3e18, uint48(vm.getBlockTimestamp()), 1);
-        ChainlinkOracle oracle =
-            new ChainlinkOracle([address(aggregator0), address(aggregator1)], [uint48(1 days), uint48(1 days)]);
+        ChainlinkOracle oracle = new ChainlinkOracle(
+            1, type(uint256).max, [address(aggregator0), address(aggregator1)], [uint48(1 days), uint48(1 days)]
+        );
 
         assertEq(oracle.getPrice(), 6e18);
     }
 
-    function testChainlinkOracleReturnsZeroForStalePrice() public {
+    function testChainlinkOracleRevertsForStalePrice() public {
         vm.warp(10 days);
         MockChainlinkAggregator aggregator = new MockChainlinkAggregator(8);
         aggregator.setLatestRoundData(1, 123e8, uint48(vm.getBlockTimestamp() - 2 days), 1);
-        ChainlinkOracle oracle = new ChainlinkOracle([address(aggregator), address(0)], [uint48(1 days), uint48(0)]);
+        ChainlinkOracle oracle =
+            new ChainlinkOracle(1, type(uint256).max, [address(aggregator), address(0)], [uint48(1 days), uint48(0)]);
 
-        assertEq(oracle.getPrice(), 0);
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPrice();
     }
 
     function testChainlinkOracleRevertsWithNoFirstAggregator() public {
         vm.expectRevert(IChainlinkOracle.InvalidAggregator.selector);
-        new ChainlinkOracle([address(0), makeAddr("aggregator")], [uint48(1 days), uint48(0)]);
+        new ChainlinkOracle(1, type(uint256).max, [address(0), makeAddr("aggregator")], [uint48(1 days), uint48(0)]);
     }
 
     function testMidasOracleReturnsFeedPrice() public {
         MockMidasDataFeed dataFeed = new MockMidasDataFeed(42e18);
-        MidasOracle oracle = new MidasOracle(address(dataFeed));
+        MidasOracle oracle = new MidasOracle(1, type(uint256).max, address(dataFeed));
 
         assertEq(oracle.getPrice(), 42e18);
     }
@@ -464,7 +469,7 @@ contract MidasAccountOraclesTest is Test {
         MockMidasRedemptionVault redemptionVault
     ) internal returns (MidasCompAccount account) {
         vault = address(new MockVault(address(asset)));
-        oracle = address(new MidasOracle(redemptionVault.mTokenDataFeed()));
+        oracle = address(new MidasOracle(1, type(uint256).max, redemptionVault.mTokenDataFeed()));
         MigratablesFactory factory = new MigratablesFactory(address(this));
         vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
         MidasCompAccount implementation = new MidasCompAccount(
@@ -491,7 +496,7 @@ contract MidasAccountOraclesTest is Test {
         uint48 cooldown
     ) internal returns (MidasNonCompAccount account) {
         vault = address(new MockVault(address(asset)));
-        oracle = address(new MidasOracle(redemptionVault.mTokenDataFeed()));
+        oracle = address(new MidasOracle(1, type(uint256).max, redemptionVault.mTokenDataFeed()));
         MigratablesFactory factory = new MigratablesFactory(address(this));
         vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
         MidasNonCompAccount implementation = new MidasNonCompAccount(

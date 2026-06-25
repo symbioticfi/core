@@ -18,7 +18,13 @@ contract mRe7BTC_Account is MidasCompAccount, IMidasTokenAccount {
 
     constructor(address factory, address cowSwapSettlement)
         MidasCompAccount(
-            address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
+            address(
+                new MidasOracle(
+                    495_671_835_000_000_000,
+                    1_982_687_340_000_000_000,
+                    address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
+                )
+            ),
             factory,
             TOKEN_COOLDOWN,
             TOKEN_ADDRESS,

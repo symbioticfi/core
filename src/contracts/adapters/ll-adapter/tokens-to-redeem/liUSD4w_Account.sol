@@ -20,7 +20,14 @@ contract liUSD4w_Account is InfiniFiAccount {
 
     constructor(address factory, address cowSwapSettlement)
         InfiniFiAccount(
-            address(new ChainlinkOracle([BUCKET_FEED_ADDRESS, address(0)], [FEED_STALENESS_DURATION, uint48(0)])),
+            address(
+                new ChainlinkOracle(
+                    599_319_571_104_044_928,
+                    2_397_278_284_416_179_714,
+                    [BUCKET_FEED_ADDRESS, address(0)],
+                    [FEED_STALENESS_DURATION, uint48(0)]
+                )
+            ),
             factory,
             TOKEN_COOLDOWN,
             TOKEN_ADDRESS,

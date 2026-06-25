@@ -9,7 +9,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
     function testAsyncRedeemOracleUsesAsyncVaultConversion() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
-        AsyncRedeemOracle oracle = new AsyncRedeemOracle(address(tokenToRedeem));
+        AsyncRedeemOracle oracle = new AsyncRedeemOracle(1, type(uint256).max, address(tokenToRedeem));
 
         assertEq(oracle.ASYNC_REDEEM_VAULT(), address(tokenToRedeem));
         assertEq(oracle.getPrice(), 2e18);
@@ -18,7 +18,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
     function testAsyncRedeemAccountValuesHeldSharesWithAsyncVaultConversion() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
-        AsyncRedeemOracle oracle = new AsyncRedeemOracle(address(tokenToRedeem));
+        AsyncRedeemOracle oracle = new AsyncRedeemOracle(1, type(uint256).max, address(tokenToRedeem));
         TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
 
         tokenToRedeem.mint(address(account), 1 ether);
@@ -65,7 +65,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         assertEq(abi.decode(returnData, (address)), cowSwapSettlement);
     }
 
-    function testAsyncRedeemAccountRevertsWhenOracleReturnsZero() public {
+    function testAsyncRedeemAccountQuotesZeroWhenMockOracleReturnsZero() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
         MockOracle oracle = new MockOracle(0);
@@ -73,8 +73,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
 
         tokenToRedeem.mint(address(account), 1 ether);
 
-        vm.expectRevert(IAccount.InvalidOracle.selector);
-        account.totalAssets();
+        assertEq(account.totalAssets(), 0);
     }
 
     function testAsyncRedeemAccountDoesNotCapFreshPendingRequestIds() public {

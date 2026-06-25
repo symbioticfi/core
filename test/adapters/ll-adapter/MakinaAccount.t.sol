@@ -127,7 +127,7 @@ contract MakinaAccountTest is AccountsBase {
 
     function testMakinaOracleUsesSharePrice() public {
         MockMakinaSharePriceOracle source = new MockMakinaSharePriceOracle(8, 102_868_300);
-        MakinaOracle oracle = new MakinaOracle(address(source));
+        MakinaOracle oracle = new MakinaOracle(1, type(uint256).max, address(source));
 
         assertEq(oracle.SHARE_PRICE_ORACLE(), address(source));
         assertEq(oracle.getPrice(), 1_028_683e12);

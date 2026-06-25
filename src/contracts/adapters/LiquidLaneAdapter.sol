@@ -130,14 +130,15 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /// @inheritdoc ILiquidLaneAdapter
     function getMaxRate(address tokenToRedeem) public view returns (uint256) {
-        return
-            _getOraclePrice(tokenToRedeem).mulDiv(DISCOUNT_PRECISION - minDiscount[tokenToRedeem], DISCOUNT_PRECISION);
+        return IOracle(IAccount(accounts[tokenToRedeem]).ORACLE()).getPrice()
+            .mulDiv(DISCOUNT_PRECISION - minDiscount[tokenToRedeem], DISCOUNT_PRECISION);
     }
 
     /// @inheritdoc ILiquidLaneAdapter
     function getAmountOut(address tokenToRedeem, uint256 amountIn) public view returns (uint256) {
         return amountIn.mulDiv(
-            _getOraclePrice(tokenToRedeem) * 10 ** IERC20Metadata(IERC4626(vault).asset()).decimals(),
+            IOracle(IAccount(accounts[tokenToRedeem]).ORACLE()).getPrice() * 10
+                ** IERC20Metadata(IERC4626(vault).asset()).decimals(),
             1e18 * 10 ** IERC20Metadata(tokenToRedeem).decimals()
         );
     }
@@ -413,16 +414,6 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     }
 
     /* INTERNAL FUNCTIONS */
-
-    /// @dev Returns the account's oracle price for a token-to-redeem, denominated in the vault asset (1e18).
-    /// @param tokenToRedeem The token being priced.
-    /// @return price The token price in 1e18 precision.
-    function _getOraclePrice(address tokenToRedeem) internal view returns (uint256 price) {
-        price = IOracle(IAccount(accounts[tokenToRedeem]).ORACLE()).getPrice();
-        if (price == 0) {
-            revert InvalidOracle();
-        }
-    }
 
     /// @dev Reverts if `account` is not authorized to swap for the vault.
     /// @param account The account being validated.

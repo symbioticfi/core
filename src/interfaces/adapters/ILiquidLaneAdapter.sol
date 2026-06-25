@@ -73,11 +73,6 @@ interface ILiquidLaneAdapter is IAdapter {
     error InvalidDiscount();
 
     /**
-     * @notice Raised when an oracle configuration is invalid.
-     */
-    error InvalidOracle();
-
-    /**
      * @notice Raised when a receiver is zero.
      */
     error InvalidReceiver();

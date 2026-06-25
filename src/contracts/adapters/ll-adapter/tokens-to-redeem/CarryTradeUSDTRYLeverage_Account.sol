@@ -18,7 +18,13 @@ contract CarryTradeUSDTRYLeverage_Account is MidasCompAccount, IMidasTokenAccoun
 
     constructor(address factory, address cowSwapSettlement)
         MidasCompAccount(
-            address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
+            address(
+                new MidasOracle(
+                    515_751_950_000_000_000,
+                    2_063_007_800_000_000_000,
+                    address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
+                )
+            ),
             factory,
             TOKEN_COOLDOWN,
             TOKEN_ADDRESS,

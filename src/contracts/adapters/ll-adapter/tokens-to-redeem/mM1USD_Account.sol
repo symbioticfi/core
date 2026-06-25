@@ -18,7 +18,13 @@ contract mM1USD_Account is MidasCompAccount, IMidasTokenAccount {
 
     constructor(address factory, address cowSwapSettlement)
         MidasCompAccount(
-            address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
+            address(
+                new MidasOracle(
+                    506_970_225_000_000_000,
+                    2_027_880_900_000_000_000,
+                    address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
+                )
+            ),
             factory,
             TOKEN_COOLDOWN,
             TOKEN_ADDRESS,

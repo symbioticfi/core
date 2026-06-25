@@ -630,7 +630,10 @@ contract TokensToRedeemMainnetTest is Test {
         if (index == 4) return new JTRSY_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 5) {
             return new PRIME_Account(
-                address(new AsyncRedeemOracle(IERC4626(PRIME).asset())), factory, PRIME, COW_SWAP_SETTLEMENT
+                address(new AsyncRedeemOracle(1, type(uint256).max, IERC4626(PRIME).asset())),
+                factory,
+                PRIME,
+                COW_SWAP_SETTLEMENT
             );
         }
         if (index == 6) return new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT);

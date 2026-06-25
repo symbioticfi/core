@@ -2,7 +2,8 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
+import {Oracle} from "./Oracle.sol";
+
 import {ISaidOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/ISaidOracle.sol";
 import {ISaid} from "../../../../interfaces/adapters/ll-adapter/gaib/ISaid.sol";
 
@@ -12,7 +13,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /// @title SaidOracle
 /// @notice Oracle returning the GAIB sAID unstaking NAV in `1e18` precision.
-contract SaidOracle is ISaidOracle {
+contract SaidOracle is Oracle, ISaidOracle {
     using Math for uint256;
 
     /* IMMUTABLES */
@@ -28,7 +29,7 @@ contract SaidOracle is ISaidOracle {
     /* CONSTRUCTOR */
 
     /// @notice Creates the GAIB sAID oracle.
-    constructor(address vault) {
+    constructor(uint256 minPrice, uint256 maxPrice, address vault) Oracle(minPrice, maxPrice) {
         VAULT = vault;
         _shareUnit = 10 ** IERC20Metadata(vault).decimals();
         _assetUnit = 10 ** IERC20Metadata(IERC4626(vault).asset()).decimals();
@@ -36,8 +37,8 @@ contract SaidOracle is ISaidOracle {
 
     /* VIEW FUNCTIONS */
 
-    /// @inheritdoc IOracle
-    function getPrice() public view returns (uint256) {
+    /// @inheritdoc Oracle
+    function _getPrice() internal view override returns (uint256) {
         return ISaid(VAULT).convertToAssetsWithLoss(_shareUnit).mulDiv(1e18, _assetUnit);
     }
 }

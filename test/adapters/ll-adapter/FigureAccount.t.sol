@@ -8,7 +8,7 @@ contract FigureAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);
         MockPrimeToken prime = new MockPrimeToken(wylds, 125e4);
-        AsyncRedeemOracle oracle = new AsyncRedeemOracle(address(wylds));
+        AsyncRedeemOracle oracle = new AsyncRedeemOracle(1, type(uint256).max, address(wylds));
         PRIME_Account account = _deployPrime(prime, asset, oracle);
 
         wylds.mint(address(account), 125e6);
@@ -21,7 +21,7 @@ contract FigureAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);
         MockPrimeToken prime = new MockPrimeToken(wylds, 125e4);
-        AsyncRedeemOracle oracle = new AsyncRedeemOracle(address(wylds));
+        AsyncRedeemOracle oracle = new AsyncRedeemOracle(1, type(uint256).max, address(wylds));
         PRIME_Account account = _deployPrime(prime, asset, oracle);
 
         prime.mint(address(account), 100e6);
@@ -48,7 +48,7 @@ contract FigureAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);
         MockPrimeToken prime = new MockPrimeToken(wylds, 125e4);
-        AsyncRedeemOracle oracle = new AsyncRedeemOracle(address(wylds));
+        AsyncRedeemOracle oracle = new AsyncRedeemOracle(1, type(uint256).max, address(wylds));
         PRIME_Account account = _deployPrime(prime, asset, oracle);
 
         prime.mint(address(account), 100e6);
@@ -90,7 +90,7 @@ contract FigureAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 0);
         MockPrimeToken prime = new MockPrimeToken(wylds, 1e6);
-        AsyncRedeemOracle oracle = new AsyncRedeemOracle(address(wylds));
+        AsyncRedeemOracle oracle = new AsyncRedeemOracle(1, type(uint256).max, address(wylds));
         PRIME_Account account = _deployPrime(prime, asset, oracle);
 
         prime.mint(address(account), 1e6);
@@ -109,7 +109,7 @@ contract FigureAccountTest is AccountsBase {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);
         MockPrimeToken prime = new MockPrimeToken(wylds, 125e4);
-        AsyncRedeemOracle oracle = new AsyncRedeemOracle(address(wylds));
+        AsyncRedeemOracle oracle = new AsyncRedeemOracle(1, type(uint256).max, address(wylds));
         PRIME_Account account = _deployPrime(prime, asset, oracle);
 
         prime.mint(address(account), 100e6);

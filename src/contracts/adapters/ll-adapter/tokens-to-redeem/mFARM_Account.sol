@@ -18,7 +18,13 @@ contract mFARM_Account is MidasCompAccount, IMidasTokenAccount {
 
     constructor(address factory, address cowSwapSettlement)
         MidasCompAccount(
-            address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
+            address(
+                new MidasOracle(
+                    506_302_310_000_000_000,
+                    2_025_209_240_000_000_000,
+                    address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
+                )
+            ),
             factory,
             TOKEN_COOLDOWN,
             TOKEN_ADDRESS,

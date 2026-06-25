@@ -18,7 +18,13 @@ contract mBASIS_Account is MidasCompAccount, IMidasTokenAccount {
 
     constructor(address factory, address cowSwapSettlement)
         MidasCompAccount(
-            address(new MidasOracle(address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed()))),
+            address(
+                new MidasOracle(
+                    597_378_230_000_000_000,
+                    2_389_512_920_000_000_000,
+                    address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
+                )
+            ),
             factory,
             TOKEN_COOLDOWN,
             TOKEN_ADDRESS,

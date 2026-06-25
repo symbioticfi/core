@@ -119,7 +119,7 @@ contract GaibAccountTest is AccountsBase {
     function testSaidOracleUsesLossAwareConversion() public {
         MockERC20 asset = new MockERC20("AI Dollar", "AID", 18);
         MockSaidVault said = new MockSaidVault(asset, 987e15);
-        SaidOracle oracle = new SaidOracle(address(said));
+        SaidOracle oracle = new SaidOracle(1, type(uint256).max, address(said));
 
         assertEq(oracle.VAULT(), address(said));
         assertEq(oracle.getPrice(), 987e15);

@@ -2,14 +2,15 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
+import {Oracle} from "./Oracle.sol";
+
 import {IAssetoOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/IAssetoOracle.sol";
 import {IAssetoPricer} from "../../../../interfaces/adapters/ll-adapter/asseto/IAssetoPricer.sol";
-import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 import {IPriceDataOracle} from "../../../../interfaces/adapters/ll-adapter/IPriceDataOracle.sol";
 
 /// @title AssetoOracle
 /// @notice Asseto pricer-backed oracle returning token NAV in `1e18` precision.
-contract AssetoOracle is IAssetoOracle {
+contract AssetoOracle is Oracle, IAssetoOracle {
     /* IMMUTABLES */
 
     /// @inheritdoc IAssetoOracle
@@ -18,21 +19,22 @@ contract AssetoOracle is IAssetoOracle {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Asseto pricer-backed oracle.
-    constructor(address pricer) {
+    constructor(uint256 minPrice, uint256 maxPrice, address pricer) Oracle(minPrice, maxPrice) {
         PRICER = pricer;
     }
 
     /* VIEW FUNCTIONS */
 
-    /// @inheritdoc IOracle
-    function getPrice() public view returns (uint256) {
+    /// @inheritdoc Oracle
+    function _getPrice() internal view override returns (uint256) {
         return IAssetoPricer(PRICER).getLatestPrice();
     }
 
     /// @inheritdoc IPriceDataOracle
     function getPriceData() public view returns (uint256 price, uint48 updatedAt) {
         uint256 timestamp;
-        (price, timestamp) = IAssetoPricer(PRICER).prices(IAssetoPricer(PRICER).latestPriceId());
+        price = getPrice();
+        (, timestamp) = IAssetoPricer(PRICER).prices(IAssetoPricer(PRICER).latestPriceId());
         updatedAt = uint48(timestamp);
     }
 }

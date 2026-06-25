@@ -29,7 +29,7 @@ contract ProviderAccountsTest is AccountsBase {
 
     function testAssetoOracleReadsLatestPriceData() public {
         MockAssetoPricer pricer = new MockAssetoPricer(975e18, uint48(vm.getBlockTimestamp()));
-        AssetoOracle oracle = new AssetoOracle(address(pricer));
+        AssetoOracle oracle = new AssetoOracle(1, type(uint256).max, address(pricer));
 
         assertEq(oracle.getPrice(), 975e18);
 
@@ -46,7 +46,8 @@ contract ProviderAccountsTest is AccountsBase {
         MockAssetoToken aoabt = new MockAssetoToken("Asseto Open-Ended ABT Fund", "AoABT", 18);
         MockAssetoPricer pricer = new MockAssetoPricer(11e18, uint48(vm.getBlockTimestamp()));
         MockAssetoManager manager = new MockAssetoManager(address(aoabt), address(usdt), 100e18, 5000e18);
-        AssetoAccount account = _deployAsseto(aoabt, usdc, address(new AssetoOracle(address(pricer))), manager);
+        AssetoAccount account =
+            _deployAsseto(aoabt, usdc, address(new AssetoOracle(1, type(uint256).max, address(pricer))), manager);
 
         aoabt.mint(address(account), 150e18);
 
@@ -71,7 +72,8 @@ contract ProviderAccountsTest is AccountsBase {
         MockAssetoToken aoabt = new MockAssetoToken("Asseto Open-Ended ABT Fund", "AoABT", 18);
         MockAssetoPricer pricer = new MockAssetoPricer(11e18, uint48(vm.getBlockTimestamp()));
         MockAssetoManager manager = new MockAssetoManager(address(aoabt), address(usdt), 100e18, 5000e18);
-        AssetoAccount account = _deployAsseto(aoabt, usdc, address(new AssetoOracle(address(pricer))), manager);
+        AssetoAccount account =
+            _deployAsseto(aoabt, usdc, address(new AssetoOracle(1, type(uint256).max, address(pricer))), manager);
 
         aoabt.mint(address(account), 150e18);
         account.sync();
@@ -96,7 +98,8 @@ contract ProviderAccountsTest is AccountsBase {
         MockAssetoToken aoabt = new MockAssetoToken("Asseto Open-Ended ABT Fund", "AoABT", 18);
         MockAssetoPricer pricer = new MockAssetoPricer(1e18, uint48(vm.getBlockTimestamp()));
         MockAssetoManager manager = new MockAssetoManager(address(aoabt), address(usdt), 100e18, 5000e18);
-        AssetoAccount account = _deployAsseto(aoabt, usdc, address(new AssetoOracle(address(pricer))), manager);
+        AssetoAccount account =
+            _deployAsseto(aoabt, usdc, address(new AssetoOracle(1, type(uint256).max, address(pricer))), manager);
 
         aoabt.mint(address(account), 99e18);
         account.sync();

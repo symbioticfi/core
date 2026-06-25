@@ -48,7 +48,7 @@ contract MidasCutoffAccountTest is Test {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
         CutoffMidasAccount implementation = new CutoffMidasAccount(
-            address(new MidasOracle(address(dataFeed))),
+            address(new MidasOracle(1, type(uint256).max, address(dataFeed))),
             address(factory),
             COOLDOWN,
             CUTOFF,

@@ -11,7 +11,13 @@ contract sAID_Account is GaibAccount {
     uint48 internal constant TOKEN_COOLDOWN = 6 days;
 
     constructor(address factory, address cowSwapSettlement)
-        GaibAccount(address(new SaidOracle(TOKEN_ADDRESS)), factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, cowSwapSettlement)
+        GaibAccount(
+            address(new SaidOracle(527_574_236_280_171_822, 2_110_296_945_120_687_290, TOKEN_ADDRESS)),
+            factory,
+            TOKEN_COOLDOWN,
+            TOKEN_ADDRESS,
+            cowSwapSettlement
+        )
     {}
 }
 

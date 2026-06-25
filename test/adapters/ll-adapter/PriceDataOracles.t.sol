@@ -5,6 +5,22 @@ import {Test} from "forge-std/Test.sol";
 
 import {ChainlinkOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ChainlinkOracle.sol";
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
+import {Oracle} from "../../../src/contracts/adapters/ll-adapter/oracles/Oracle.sol";
+import {IOracle} from "../../../src/interfaces/adapters/ll-adapter/IOracle.sol";
+
+contract OracleHarness is Oracle {
+    uint256 internal _price;
+
+    constructor(uint256 minPrice, uint256 maxPrice) Oracle(minPrice, maxPrice) {}
+
+    function setPrice(uint256 price) external {
+        _price = price;
+    }
+
+    function _getPrice() internal view override returns (uint256) {
+        return _price;
+    }
+}
 
 contract MockAggregatorV3 {
     int256 public answer;
@@ -47,12 +63,50 @@ contract MockMidasDataFeed {
 }
 
 contract PriceDataOraclesTest is Test {
+    function testOracleRevertsWhenMinPriceIsZero() public {
+        vm.expectRevert(IOracle.InvalidPriceRange.selector);
+        new OracleHarness(0, 2e18);
+    }
+
+    function testOracleRevertsWhenMinPriceEqualsMaxPrice() public {
+        vm.expectRevert(IOracle.InvalidPriceRange.selector);
+        new OracleHarness(1e18, 1e18);
+    }
+
+    function testOracleRevertsWhenMinPriceIsGreaterThanMaxPrice() public {
+        vm.expectRevert(IOracle.InvalidPriceRange.selector);
+        new OracleHarness(2e18, 1e18);
+    }
+
+    function testOracleReturnsPriceInsideConfiguredRange() public {
+        OracleHarness oracle = new OracleHarness(1e18, 2e18);
+        oracle.setPrice(1.5e18);
+
+        assertEq(oracle.getPrice(), 1.5e18);
+    }
+
+    function testOracleRevertsBelowConfiguredRange() public {
+        OracleHarness oracle = new OracleHarness(1e18, 2e18);
+        oracle.setPrice(1e18 - 1);
+
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPrice();
+    }
+
+    function testOracleRevertsAboveConfiguredRange() public {
+        OracleHarness oracle = new OracleHarness(1e18, 2e18);
+        oracle.setPrice(2e18 + 1);
+
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPrice();
+    }
+
     function testMidasOracleReturnsFeedPrice() public {
         MockAggregatorV3 aggregator = new MockAggregatorV3(8);
         MockMidasDataFeed dataFeed = new MockMidasDataFeed(address(aggregator));
         dataFeed.setAnswer(0.93e18);
 
-        MidasOracle oracle = new MidasOracle(address(dataFeed));
+        MidasOracle oracle = new MidasOracle(1, type(uint256).max, address(dataFeed));
         assertEq(oracle.getPrice(), 0.93e18);
     }
 
@@ -63,8 +117,9 @@ contract PriceDataOraclesTest is Test {
         aggregator0.setRound(1e8, 1_999_999_000);
         aggregator1.setRound(2e8, 1_999_998_000);
 
-        ChainlinkOracle oracle =
-            new ChainlinkOracle([address(aggregator0), address(aggregator1)], [uint48(1 days), uint48(1 days)]);
+        ChainlinkOracle oracle = new ChainlinkOracle(
+            1, type(uint256).max, [address(aggregator0), address(aggregator1)], [uint48(1 days), uint48(1 days)]
+        );
         (uint256 price, uint48 updatedAt) = oracle.getPriceData();
         assertEq(price, 2e18);
         assertEq(updatedAt, 1_999_998_000);
@@ -75,44 +130,45 @@ contract PriceDataOraclesTest is Test {
         vm.warp(2_000_000_000);
         aggregator0.setRound(1e8, 1_999_999_123);
 
-        ChainlinkOracle oracle = new ChainlinkOracle([address(aggregator0), address(0)], [uint48(1 days), uint48(0)]);
+        ChainlinkOracle oracle =
+            new ChainlinkOracle(1, type(uint256).max, [address(aggregator0), address(0)], [uint48(1 days), uint48(0)]);
         (, uint48 updatedAt) = oracle.getPriceData();
         assertEq(updatedAt, 1_999_999_123);
     }
 
-    function testChainlinkOracleStaleLegZeroesPriceButReportsUpdatedAt() public {
+    function testChainlinkOracleRevertsForStaleLegBelowMinPrice() public {
         MockAggregatorV3 aggregator0 = new MockAggregatorV3(8);
         MockAggregatorV3 aggregator1 = new MockAggregatorV3(8);
         vm.warp(2_000_000_000);
         aggregator0.setRound(1e8, 1_999_999_000);
         aggregator1.setRound(2e8, 2_000_000_000 - 2 days);
 
-        ChainlinkOracle oracle =
-            new ChainlinkOracle([address(aggregator0), address(aggregator1)], [uint48(1 days), uint48(1 days)]);
-        (uint256 price, uint48 updatedAt) = oracle.getPriceData();
-        assertEq(price, 0);
-        assertEq(updatedAt, 2_000_000_000 - 2 days);
+        ChainlinkOracle oracle = new ChainlinkOracle(
+            1, type(uint256).max, [address(aggregator0), address(aggregator1)], [uint48(1 days), uint48(1 days)]
+        );
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPriceData();
     }
 
-    function testChainlinkOracleNegativeAnswerZeroesPrice() public {
+    function testChainlinkOracleRevertsForNegativeAnswerBelowMinPrice() public {
         MockAggregatorV3 aggregator0 = new MockAggregatorV3(8);
         vm.warp(2_000_000_000);
         aggregator0.setRound(-1, block.timestamp);
 
-        ChainlinkOracle oracle = new ChainlinkOracle([address(aggregator0), address(0)], [uint48(1 days), uint48(0)]);
-        (uint256 price, uint48 updatedAt) = oracle.getPriceData();
-        assertEq(price, 0);
-        assertEq(updatedAt, 2_000_000_000);
+        ChainlinkOracle oracle =
+            new ChainlinkOracle(1, type(uint256).max, [address(aggregator0), address(0)], [uint48(1 days), uint48(0)]);
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPriceData();
     }
 
-    function testChainlinkOracleZeroUpdatedAtFailsBothLegs() public {
+    function testChainlinkOracleRevertsWhenZeroUpdatedAtMakesPriceInvalid() public {
         MockAggregatorV3 aggregator0 = new MockAggregatorV3(8);
         vm.warp(2_000_000_000);
         aggregator0.setRound(1e8, 0);
 
-        ChainlinkOracle oracle = new ChainlinkOracle([address(aggregator0), address(0)], [uint48(1 days), uint48(0)]);
-        (uint256 price, uint48 updatedAt) = oracle.getPriceData();
-        assertEq(price, 0);
-        assertEq(updatedAt, 0);
+        ChainlinkOracle oracle =
+            new ChainlinkOracle(1, type(uint256).max, [address(aggregator0), address(0)], [uint48(1 days), uint48(0)]);
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPriceData();
     }
 }

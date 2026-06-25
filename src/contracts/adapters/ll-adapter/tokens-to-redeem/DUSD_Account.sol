@@ -14,7 +14,7 @@ contract DUSD_Account is MakinaAccount {
 
     constructor(address factory, address cowSwapSettlement)
         MakinaAccount(
-            address(new MakinaOracle(SHARE_PRICE_ORACLE_ADDRESS)),
+            address(new MakinaOracle(515_533_500_000_000_000, 2_062_134_000_000_000_000, SHARE_PRICE_ORACLE_ADDRESS)),
             factory,
             TOKEN_COOLDOWN,
             REDEEMER_ADDRESS,

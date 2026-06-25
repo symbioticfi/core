@@ -3,14 +3,14 @@
 pragma solidity ^0.8.28;
 
 import {AggregatorV3Interface, ChainlinkPriceFeed} from "./libraries/ChainlinkPriceFeed.sol";
+import {Oracle} from "./Oracle.sol";
 
 import {IChainlinkOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/IChainlinkOracle.sol";
-import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 import {IPriceDataOracle} from "../../../../interfaces/adapters/ll-adapter/IPriceDataOracle.sol";
 
 /// @title ChainlinkOracle
 /// @notice Constructor-configured Chainlink oracle returning a token price in `1e18` precision.
-contract ChainlinkOracle is IChainlinkOracle {
+contract ChainlinkOracle is Oracle, IChainlinkOracle {
     /* IMMUTABLES */
 
     /// @inheritdoc IChainlinkOracle
@@ -25,7 +25,9 @@ contract ChainlinkOracle is IChainlinkOracle {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Chainlink-backed oracle.
-    constructor(address[2] memory aggregators, uint48[2] memory stalenessDurations) {
+    constructor(uint256 minPrice, uint256 maxPrice, address[2] memory aggregators, uint48[2] memory stalenessDurations)
+        Oracle(minPrice, maxPrice)
+    {
         if (aggregators[0] == address(0)) {
             revert InvalidAggregator();
         }
@@ -38,8 +40,8 @@ contract ChainlinkOracle is IChainlinkOracle {
 
     /* VIEW FUNCTIONS */
 
-    /// @inheritdoc IOracle
-    function getPrice() public view returns (uint256) {
+    /// @inheritdoc Oracle
+    function _getPrice() internal view override returns (uint256) {
         return ChainlinkPriceFeed.getLatestPrice(
             [AGGREGATOR_0, AGGREGATOR_1], [false, false], [STALENESS_DURATION_0, STALENESS_DURATION_1]
         );

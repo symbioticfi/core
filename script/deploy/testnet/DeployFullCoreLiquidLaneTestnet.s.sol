@@ -28,6 +28,7 @@ import {ILiquidLaneAdapter} from "../../../src/interfaces/adapters/ILiquidLaneAd
 import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IRestakingAppAdapter} from "../../../src/interfaces/adapters/IRestakingAppAdapter.sol";
 import {ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {IMidasDataFeed} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
 import {IMidasRedemptionVault} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 import {IUniversalDelegator, MAX_SHARE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2, VAULT_V2_VERSION} from "../../../src/interfaces/vault/IVaultV2.sol";
@@ -279,8 +280,12 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         address cowSwapSettlement
     ) internal returns (AccountDeployments memory accounts) {
         accounts.accountRegistry = address(new AccountRegistry(params.owner));
-        accounts.mFoneOracle = address(new MidasOracle(redemptions.mFoneDataFeed));
-        accounts.mGlobalOracle = address(new MidasOracle(redemptions.mGlobalDataFeed));
+        (uint256 mFoneMinPrice, uint256 mFoneMaxPrice) =
+            _oraclePriceBounds(IMidasDataFeed(redemptions.mFoneDataFeed).getDataInBase18());
+        (uint256 mGlobalMinPrice, uint256 mGlobalMaxPrice) =
+            _oraclePriceBounds(IMidasDataFeed(redemptions.mGlobalDataFeed).getDataInBase18());
+        accounts.mFoneOracle = address(new MidasOracle(mFoneMinPrice, mFoneMaxPrice, redemptions.mFoneDataFeed));
+        accounts.mGlobalOracle = address(new MidasOracle(mGlobalMinPrice, mGlobalMaxPrice, redemptions.mGlobalDataFeed));
 
         accounts.mFoneAccountFactory = address(new MigratablesFactory(params.owner));
         accounts.mGlobalAccountFactory = address(new MigratablesFactory(params.owner));
@@ -698,6 +703,11 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
 
     function _testnetSubnetwork(address network, uint96 identifier) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(network)) << 96 | identifier);
+    }
+
+    function _oraclePriceBounds(uint256 price) internal pure returns (uint256 minPrice, uint256 maxPrice) {
+        minPrice = price / 2;
+        maxPrice = price * 2;
     }
 
     function _vaultParams(DeployParams memory params, address asset, string memory name, string memory symbol)

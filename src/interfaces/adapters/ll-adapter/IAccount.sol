@@ -8,13 +8,6 @@ import {ICoWSwapConverter} from "../common/ICoWSwapConverter.sol";
  * @notice Interface for token-specific liquidity lane accounts.
  */
 interface IAccount is ICoWSwapConverter {
-    /* ERRORS */
-
-    /**
-     * @notice Raised when the account oracle returns zero.
-     */
-    error InvalidOracle();
-
     /* FUNCTIONS */
 
     /**

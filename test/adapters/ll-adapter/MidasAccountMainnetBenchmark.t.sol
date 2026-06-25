@@ -143,8 +143,9 @@ contract MidasAccountMainnetBenchmarkTest is Test {
 
     function _deployNonCompAccount() internal returns (MidasNonCompAccountBenchHarness account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        MidasOracle oracle =
-            new MidasOracle(address(IMidasRedemptionVault(MAINNET_STANDARD_REDEMPTION_VAULT).mTokenDataFeed()));
+        MidasOracle oracle = new MidasOracle(
+            1, type(uint256).max, address(IMidasRedemptionVault(MAINNET_STANDARD_REDEMPTION_VAULT).mTokenDataFeed())
+        );
         MidasNonCompAccountBenchHarness implementation = new MidasNonCompAccountBenchHarness(
             address(oracle),
             address(factory),
@@ -160,8 +161,9 @@ contract MidasAccountMainnetBenchmarkTest is Test {
 
     function _deployCompAccount() internal returns (MidasCompAccountBenchHarness account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        MidasOracle oracle =
-            new MidasOracle(address(IMidasRedemptionVault(MAINNET_STANDARD_REDEMPTION_VAULT).mTokenDataFeed()));
+        MidasOracle oracle = new MidasOracle(
+            1, type(uint256).max, address(IMidasRedemptionVault(MAINNET_STANDARD_REDEMPTION_VAULT).mTokenDataFeed())
+        );
         MidasCompAccountBenchHarness implementation = new MidasCompAccountBenchHarness(
             address(oracle),
             address(factory),

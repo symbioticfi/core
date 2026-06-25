@@ -100,11 +100,7 @@ abstract contract Account is MigratableEntity, CoWSwapConverter, IAccount {
     }
 
     function _tokenToRedeemToAssets(uint256 amount) internal view virtual returns (uint256) {
-        uint256 rate = IOracle(ORACLE).getPrice();
-        if (rate == 0) {
-            revert InvalidOracle();
-        }
-        return _tokenToRedeemToAssets(amount, rate);
+        return _tokenToRedeemToAssets(amount, IOracle(ORACLE).getPrice());
     }
 
     function _tokenToRedeemToAssets(uint256 amount, uint256 rate) internal view returns (uint256) {
