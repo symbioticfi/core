@@ -195,7 +195,7 @@ contract EulerAdapterTest is Test {
 
     function test_LendHelperAndOnlyDelegatorGuards() public {
         vm.expectRevert(IEulerAdapter.NotSelf.selector);
-        EulerAdapter(address(adapter)).lend(1);
+        EulerAdapter(address(adapter)).deposit(1);
 
         vm.expectRevert(IAdapter.NotVault.selector);
         adapter.allocate(1);
@@ -209,7 +209,7 @@ contract EulerAdapterTest is Test {
 
     function test_MulticallBubblesLendReverts() public {
         bytes[] memory calls = new bytes[](1);
-        calls[0] = abi.encodeCall(EulerAdapter.lend, (1));
+        calls[0] = abi.encodeCall(EulerAdapter.deposit, (1));
 
         vm.expectRevert(IEulerAdapter.NotSelf.selector);
         adapter.multicall(calls);

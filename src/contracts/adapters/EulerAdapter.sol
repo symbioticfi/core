@@ -68,7 +68,7 @@ contract EulerAdapter is Adapter, CoWSwapConverter, MerklClaimer, IEulerAdapter 
 
     /* PUBLIC FUNCTIONS (INTERNAL) */
 
-    /// @inheritdoc IEulerAdapter
+    /// @dev Deposits asset from the calling vault into the configured Euler Lend vault.
     function deposit(uint256 amount) public returns (uint256 shares) {
         if (address(this) != msg.sender) {
             revert NotSelf();

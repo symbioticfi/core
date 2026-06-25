@@ -4,9 +4,9 @@ pragma solidity ^0.8.28;
 
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {Multicallable} from "../common/Multicallable.sol";
+import {UniversalDelegatorFactory} from "../UniversalDelegatorFactory.sol";
 import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
 import {WithdrawalQueueFactory} from "../WithdrawalQueueFactory.sol";
-import {UniversalDelegatorFactory} from "../UniversalDelegatorFactory.sol";
 
 import {IEntity} from "../../interfaces/common/IEntity.sol";
 import {IProtocolFeeRegistry} from "../../interfaces/IProtocolFeeRegistry.sol";

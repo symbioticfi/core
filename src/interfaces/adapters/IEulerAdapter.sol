@@ -58,11 +58,4 @@ interface IEulerAdapter is IAdapter {
      * @return totalShares Adapter-managed Euler Lend vault shares.
      */
     function totalShares() external view returns (uint256 totalShares);
-
-    /**
-     * @notice Supplies assets into the configured Euler Lend vault.
-     * @param amount Asset amount to deposit.
-     * @return shares Lend vault shares minted.
-     */
-    function lend(uint256 amount) external returns (uint256 shares);
 }

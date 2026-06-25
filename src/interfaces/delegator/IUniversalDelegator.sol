@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IMulticallable} from "../common/IMulticallable.sol";
 import {IMigratableEntity} from "../common/IMigratableEntity.sol";
+import {IMulticallable} from "../common/IMulticallable.sol";
 
 uint64 constant UNIVERSAL_DELEGATOR_VERSION = 1;
 
