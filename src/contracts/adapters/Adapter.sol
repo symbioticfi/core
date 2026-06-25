@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {Multicallable} from "../common/Multicallable.sol";
+import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
@@ -15,7 +16,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title Adapter
 /// @notice Base contract for vault adapters with shared vault validation.
-abstract contract Adapter is MigratableEntity, Multicallable, IAdapter {
+abstract contract Adapter is MigratableEntity, StaticDelegateCallable, Multicallable, IAdapter {
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
