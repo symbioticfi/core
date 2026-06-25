@@ -75,6 +75,9 @@ import {IAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAccount.
 import {ICutoffAccount} from "../../../../src/interfaces/adapters/ll-adapter/ICutoffAccount.sol";
 import {IERC7575Share} from "../../../../src/interfaces/adapters/ll-adapter/IERC7575Share.sol";
 import {IDigiFTAccount} from "../../../../src/interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol";
+import {
+    IDigiFTSubRedManagement
+} from "../../../../src/interfaces/adapters/ll-adapter/digift/IDigiFTSubRedManagement.sol";
 import {IEtherFiAccount} from "../../../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
 import {IEtherFiLiquidityPool} from "../../../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiLiquidityPool.sol";
 import {
@@ -262,6 +265,71 @@ contract TokensToRedeemMainnetTest is Test {
         }
     }
 
+    function testDigiFTBEQTYMainnetRedemptionSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet DigiFT checks");
+        vm.createSelectFork(mainnetRpcUrl);
+
+        _assertRedemptionSequence(7, TokenSpec("bEQTY", BEQTY));
+    }
+
+    function testDigiFTBEQTYMainnetCloseRedemptionSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet DigiFT checks");
+        vm.createSelectFork(mainnetRpcUrl);
+
+        _assertCloseRedemptionSequence(7, TokenSpec("bEQTY", BEQTY));
+    }
+
+    function testThreeJaneSUSD3MainnetCooldownSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
+        vm.createSelectFork(mainnetRpcUrl);
+
+        _assertRedemptionSequence(33, TokenSpec("sUSD3", SUSD3));
+    }
+
+    function testThreeJaneSUSD3MainnetCloseCooldownSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
+        vm.createSelectFork(mainnetRpcUrl);
+
+        _assertCloseRedemptionSequence(33, TokenSpec("sUSD3", SUSD3));
+    }
+
+    function testThreeJaneSUSD3MainnetMaturedCooldownSync() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
+        vm.createSelectFork(mainnetRpcUrl);
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        IAccount implementation = _deployImplementation(33, address(factory));
+        address asset = _assetFor(33, SUSD3);
+
+        factory.whitelist(address(implementation));
+        IAccount account =
+            IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(asset)), adapter)));
+
+        uint256 amount = _redemptionAmount(33, SUSD3);
+        deal(SUSD3, address(account), amount);
+
+        account.sync();
+
+        (uint48 cooldownEnd,, uint256 shares) = IThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
+        assertEq(shares, amount, "sUSD3");
+        assertGt(cooldownEnd, block.timestamp, "sUSD3");
+
+        vm.warp(cooldownEnd);
+
+        uint256 assetBalanceBefore = IERC20(asset).balanceOf(address(account));
+        uint256 withdrawable = IThreeJaneSUSD3(SUSD3).availableWithdrawLimit(address(account));
+        account.sync();
+
+        (,, uint256 sharesAfter) = IThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
+        if (withdrawable == 0) {
+            assertEq(sharesAfter, shares, "sUSD3");
+            assertEq(IERC20(asset).balanceOf(address(account)), assetBalanceBefore, "sUSD3");
+        } else {
+            assertLt(sharesAfter, shares, "sUSD3");
+            assertGt(IERC20(asset).balanceOf(address(account)), assetBalanceBefore, "sUSD3");
+        }
+    }
+
     function _assertTokenAccount(uint256 index, TokenSpec memory spec) internal {
         emit log_named_string("token", spec.symbol);
 
@@ -300,6 +368,9 @@ contract TokensToRedeemMainnetTest is Test {
             IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(asset)), adapter)));
 
         _warpToRedemptionWindow(index, account);
+        if (index == 7) {
+            _permissionDigiFTTransfer(spec.token, address(account));
+        }
 
         uint256 amount = _redemptionAmount(index, spec.token);
         deal(spec.token, address(account), amount);
@@ -496,6 +567,9 @@ contract TokensToRedeemMainnetTest is Test {
         if (_isCentrifuge(index)) {
             _dealCentrifugeShare(token, account, IERC20(token).balanceOf(account) + amount);
             return;
+        }
+        if (index == 7) {
+            _permissionDigiFTTransfer(token, account);
         }
 
         deal(token, account, IERC20(token).balanceOf(account) + amount);
@@ -695,7 +769,7 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _isKnownMainnetSyncRestricted(uint256 index) internal pure returns (bool) {
-        return _isCentrifuge(index) || _isMidas(index) || index == 2 || index == 5 || index == 7 || index == 37
+        return _isCentrifuge(index) || _isMidas(index) || index == 2 || index == 5 || index == 37
             || _isSecuritize(index) || index == 39 || index == 40;
     }
 
@@ -765,7 +839,10 @@ contract TokensToRedeemMainnetTest is Test {
             return;
         }
         if (index == 7) {
-            vm.expectCall(token, abi.encodeWithSelector(IERC20.transfer.selector));
+            vm.expectCall(
+                IDigiFTAccount(address(account)).SUB_RED_MANAGEMENT(),
+                abi.encodeWithSelector(IDigiFTSubRedManagement.redeem.selector, token, asset, amount, block.timestamp)
+            );
             return;
         }
         if (index == 32) {
@@ -1081,6 +1158,28 @@ contract TokensToRedeemMainnetTest is Test {
         }
     }
 
+    function _permissionDigiFTTransfer(address token, address account) internal {
+        address management = IMainnetDigiFTSecurityToken(token).management();
+        address subAccount = vm.computeCreateAddress(account, vm.getNonce(account));
+
+        _storeObservedBool(
+            management, abi.encodeWithSelector(IMainnetDigiFTManagement.isWhiteContract.selector, account), true
+        );
+        _storeObservedBool(
+            management, abi.encodeWithSelector(IMainnetDigiFTManagement.isWhiteInvestor.selector, subAccount), true
+        );
+    }
+
+    function _storeObservedBool(address target, bytes memory callData, bool value) internal {
+        vm.record();
+        (bool success,) = target.staticcall(callData);
+        assertTrue(success);
+        (bytes32[] memory reads,) = vm.accesses(target);
+
+        assertGt(reads.length, 0);
+        vm.store(target, reads[0], bytes32(uint256(value ? 1 : 0)));
+    }
+
     function _assertMakinaRedemption(IAccount account, uint256 amount, string memory symbol) internal view {
         uint256 requestId = IMakinaAccount(address(account)).requestIds(0);
         assertGt(IMakinaRedeemer(IMakinaAccount(address(account)).REDEEMER()).getShares(requestId), 0, symbol);
@@ -1320,6 +1419,16 @@ interface IMainnetCentrifugeVault {
     function poolId() external view returns (uint64);
 
     function scId() external view returns (bytes16);
+}
+
+interface IMainnetDigiFTSecurityToken {
+    function management() external view returns (address);
+}
+
+interface IMainnetDigiFTManagement {
+    function isWhiteContract(address contractAddress) external view returns (bool);
+
+    function isWhiteInvestor(address investor) external view returns (bool);
 }
 
 contract MainnetConstantOracle {
