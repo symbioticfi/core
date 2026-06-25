@@ -11,7 +11,12 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
-import {IRestakingAppAdapter, MAX_CLAIMS, MAX_DEPTH} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
+import {
+    IRestakingAppAdapter,
+    MAX_CLAIMS,
+    MAX_DEPTH,
+    MAX_TOTAL_CLAIMS
+} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
 import {ICoWSwapConverter, MAX_VALID_TO_DURATION} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 
@@ -589,6 +594,46 @@ contract RestakingAppAdapterTest is Test {
         assertEq(baseAsset.balanceOf(burner), 40);
         assertEq(outerVault.balanceOf(address(outerVault.withdrawalQueue())), 0);
         assertEq(middleVault.balanceOf(address(middleVault.withdrawalQueue())), 0);
+    }
+
+    function test_SyncSlashCapsTotalClaimsAcrossNestedVaults() public {
+        (IRestakingAppAdapter nestedAdapter, RestakingTokenMock outerVault, RestakingTokenMock middleVault) =
+            _createNestedAdapter();
+        uint256 pendingRequests = MAX_TOTAL_CLAIMS + 1;
+        _allocateNestedShares(nestedAdapter, outerVault, middleVault, pendingRequests);
+        outerVault.withdrawalQueue().setClaimReverts(true);
+
+        for (uint256 i; i < pendingRequests; ++i) {
+            vm.prank(networkMiddleware);
+            nestedAdapter.slash(1);
+        }
+
+        assertTrue(nestedAdapter.isUnsyncedSlash());
+        assertEq(nestedAdapter.withdrawalRequests(address(outerVault)), 0);
+        assertEq(outerVault.balanceOf(address(outerVault.withdrawalQueue())), pendingRequests);
+
+        outerVault.withdrawalQueue().setClaimReverts(false);
+        nestedAdapter.syncSlash();
+
+        assertEq(outerVault.withdrawalQueue().claimCalls(), MAX_TOTAL_CLAIMS);
+        assertEq(middleVault.withdrawalQueue().claimCalls(), 0);
+        assertEq(nestedAdapter.withdrawalRequests(address(outerVault)), MAX_TOTAL_CLAIMS);
+        assertEq(nestedAdapter.withdrawalRequests(address(middleVault)), 0);
+        assertEq(baseAsset.balanceOf(burner), 0);
+        assertEq(outerVault.balanceOf(address(outerVault.withdrawalQueue())), 1);
+        assertEq(middleVault.balanceOf(address(middleVault.withdrawalQueue())), MAX_TOTAL_CLAIMS);
+        assertTrue(nestedAdapter.isUnsyncedSlash());
+
+        nestedAdapter.syncSlash();
+
+        assertEq(outerVault.withdrawalQueue().claimCalls(), pendingRequests);
+        assertEq(middleVault.withdrawalQueue().claimCalls(), 2);
+        assertEq(nestedAdapter.withdrawalRequests(address(outerVault)), pendingRequests);
+        assertEq(nestedAdapter.withdrawalRequests(address(middleVault)), 2);
+        assertEq(baseAsset.balanceOf(burner), pendingRequests);
+        assertEq(outerVault.balanceOf(address(outerVault.withdrawalQueue())), 0);
+        assertEq(middleVault.balanceOf(address(middleVault.withdrawalQueue())), 0);
+        assertFalse(nestedAdapter.isUnsyncedSlash());
     }
 
     function _allocateRestakingShares(uint256 amount) internal {

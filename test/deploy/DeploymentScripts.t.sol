@@ -18,6 +18,7 @@ import {VaultFactory} from "../../src/contracts/VaultFactory.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
 import {VaultV2} from "../../src/contracts/vault/VaultV2.sol";
 import {IMigratablesFactory} from "../../src/interfaces/common/IMigratablesFactory.sol";
+import {UNIVERSAL_DELEGATOR_VERSION} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {SimpleEntity} from "../mocks/SimpleEntity.sol";
 import {SimpleMigratableEntity} from "../mocks/SimpleMigratableEntity.sol";
 
@@ -124,9 +125,13 @@ contract DeploymentScriptsTest is Test {
 
         assertEq(data.protocolFeeRegistry.owner(), owner);
         assertEq(vaultFactory.implementation(3), address(data.vaultV2));
-        assertEq(delegatorFactory.implementation(4), address(data.universalDelegator));
+        assertEq(
+            data.universalDelegatorFactory.implementation(UNIVERSAL_DELEGATOR_VERSION), address(data.universalDelegator)
+        );
         assertEq(VaultV2(address(data.vaultV2)).FACTORY(), address(vaultFactory));
-        assertEq(UniversalDelegator(address(data.universalDelegator)).FACTORY(), address(delegatorFactory));
+        assertEq(
+            UniversalDelegator(address(data.universalDelegator)).FACTORY(), address(data.universalDelegatorFactory)
+        );
     }
 
     function test_AdapterDeployBasesDeployFactoryImplementationAndWhitelist() public {

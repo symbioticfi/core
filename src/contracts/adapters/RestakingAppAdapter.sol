@@ -9,7 +9,12 @@ import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IAppAdapter} from "../../interfaces/adapters/IAppAdapter.sol";
 import {IConverter} from "../../interfaces/adapters/common/IConverter.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
-import {IRestakingAppAdapter, MAX_CLAIMS, MAX_DEPTH} from "../../interfaces/adapters/IRestakingAppAdapter.sol";
+import {
+    IRestakingAppAdapter,
+    MAX_CLAIMS,
+    MAX_DEPTH,
+    MAX_TOTAL_CLAIMS
+} from "../../interfaces/adapters/IRestakingAppAdapter.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
 
@@ -125,6 +130,7 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
     /// @inheritdoc IRestakingAppAdapter
     function syncSlash() public {
         uint256 amount;
+        uint256 totalClaims;
         uint256 length = underlyingVaults.length;
         for (uint256 i; i < length; ++i) {
             address vault = underlyingVaults[i];
@@ -141,6 +147,9 @@ contract RestakingAppAdapter is AppAdapter, IRestakingAppAdapter {
             uint256 indexToClaim = requests.firstUnclaimed;
             uint256 tokenIdsLength = requests.tokenIds.length;
             for (; indexToClaim < tokenIdsLength; ++indexToClaim) {
+                if (++totalClaims > MAX_TOTAL_CLAIMS) {
+                    break;
+                }
                 uint256 tokenId = requests.tokenIds[indexToClaim];
                 (uint256 requestShares, uint256 requestSharesClaimed,) =
                     IWithdrawalQueue(withdrawalQueue).requests(tokenId);

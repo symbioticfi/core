@@ -5,6 +5,7 @@ import {IAppAdapter} from "./IAppAdapter.sol";
 
 uint256 constant MAX_DEPTH = 4;
 uint256 constant MAX_CLAIMS = 5;
+uint256 constant MAX_TOTAL_CLAIMS = 15;
 
 /**
  * @title IRestakingAppAdapter
