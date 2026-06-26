@@ -357,7 +357,7 @@ contract LiquidLaneAdapterTest is Test {
         adapter.setReceiver(curatorReceiver);
         asset.approve(address(adapter), 90 ether);
         adapter.depositToAcquire(address(tokenToRedeem), 90 ether);
-        adapter.setLimit(address(tokenToRedeem), 10 ether);
+        adapter.setLimit(address(tokenToRedeem), 9 ether);
         vm.stopPrank();
 
         tokenToRedeem.mint(marketMaker, 100 ether);
@@ -700,6 +700,34 @@ contract LiquidLaneAdapterRealTest is Test {
         assertEq(asset.balanceOf(recipient), 90 ether);
     }
 
+    function testSwapChecksLimitAfterSweepingAccountAssets() public {
+        address account = adapter.accounts(address(tokenToRedeem));
+        asset.mint(address(this), 100 ether);
+        asset.approve(address(vault), 100 ether);
+        vault.deposit(100 ether, address(this));
+        asset.mint(account, 10 ether);
+
+        vm.prank(curator);
+        adapter.setLimit(address(tokenToRedeem), 90 ether);
+
+        tokenToRedeem.mint(marketMaker, 100 ether);
+
+        vm.startPrank(marketMaker);
+        tokenToRedeem.transfer(address(adapter), 100 ether);
+        adapter.swap(
+            ILiquidLaneAdapter.Swap({
+                recipient: recipient, tokenIn: address(tokenToRedeem), amountIn: 100 ether, amountOut: 90 ether
+            })
+        );
+        vm.stopPrank();
+
+        assertEq(asset.balanceOf(recipient), 90 ether);
+        assertEq(asset.balanceOf(account), 0);
+        assertEq(tokenToRedeem.balanceOf(account), 100 ether);
+        assertEq(asset.balanceOf(address(vault)), 20 ether);
+        assertEq(adapter.totalAssets(), 0);
+    }
+
     function _createVault() internal returns (VaultV2) {
         bytes memory data = abi.encode(
             IVaultV2.InitParams({
@@ -845,6 +873,13 @@ contract MockLiquidLaneDelegator {
 
     function allocateExact(address adapter, uint256 assets) external returns (uint256 allocated) {
         ++allocateExactCalls;
+        uint256 freeAssetsFromAdapter = IAdapter(adapter).freeAssets();
+        if (freeAssetsFromAdapter > 0) {
+            uint256 deallocated = IAdapter(adapter).deallocate(freeAssetsFromAdapter);
+            if (deallocated > 0) {
+                MockLiquidLaneVault(vault).push(deallocated, adapter);
+            }
+        }
         MockERC20 asset = MockERC20(MockLiquidLaneVault(vault).asset());
         uint256 freeAssets = asset.balanceOf(vault);
         if (freeAssets < assets) {

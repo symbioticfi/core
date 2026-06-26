@@ -467,12 +467,6 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         uint256 tokenOutToAcquire = Math.min(swap.amountOut, curatorAcquireBalance + marketMakerAcquireBalance);
 
         uint256 tokenOutToAllocate = swap.amountOut - tokenOutToAcquire;
-        if (
-            tokenOutToAllocate > 0
-                && IAccount(accounts[swap.tokenIn]).totalAssets() + tokenOutToAllocate > limit[swap.tokenIn]
-        ) {
-            revert LimitExceeded();
-        }
 
         if (tokenOutToAllocate > 0) {
             _inSwap = true;
@@ -484,6 +478,9 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
             }
             _inSwapAmount = 0;
             _inSwap = false;
+            if (IAccount(accounts[swap.tokenIn]).totalAssets() + tokenOutToAllocate > limit[swap.tokenIn]) {
+                revert LimitExceeded();
+            }
         }
 
         uint256 tokenInAcquired;
