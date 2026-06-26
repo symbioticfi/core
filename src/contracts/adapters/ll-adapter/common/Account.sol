@@ -37,7 +37,7 @@ abstract contract Account is MigratableEntity, CoWSwapConverter, IAccount {
     /// @inheritdoc IAccount
     address public vault;
 
-    /// @dev Vault asset unit.
+    /// @dev Vault asset address.
     address internal _asset;
     /// @dev Vault asset unit.
     uint256 internal _unit;

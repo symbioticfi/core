@@ -401,7 +401,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         address asset = IERC4626(vault).asset();
         for (uint256 i; i < tokensToRedeem.length; ++i) {
             address account = accounts[tokensToRedeem[i]];
-            // Sweep the account's full realized asset balance to the vault.
+            // Sweep the account's full realized asset balance to the adapter. The delegator then pulls it to the vault.
             uint256 amount = IERC20(asset).balanceOf(account);
             if (amount == 0) {
                 continue;
@@ -425,7 +425,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
 
     /// @dev Hashes a discount payload for EIP-712 signing.
     /// @param discount The discount payload.
-    /// @return digest The struct hash.
+    /// @return The discount struct hash.
     function _hashDiscount(Discount calldata discount) internal pure returns (bytes32) {
         return keccak256(
             abi.encode(
@@ -440,8 +440,8 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         );
     }
 
-    /// @dev Triggers adapter allocation through the current delegator.
-    /// @param amount The vault-asset amount requested by the vault.
+    /// @dev Accepts vault assets already pulled by the delegator and exposes them as in-flight swap assets.
+    /// @param amount The vault-asset amount delivered by the delegator.
     function _allocate(uint256 amount) internal override returns (uint256) {
         _inSwapAmount = amount;
         return amount;

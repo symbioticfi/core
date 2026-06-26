@@ -86,7 +86,7 @@ interface ICoWSwapConverter is IConverter {
     error InvalidSellAmount();
 
     /**
-     * @notice Raised when the input token is the vault asset.
+     * @notice Raised when the input token is invalid for the requested conversion.
      */
     error InvalidTokenIn();
 

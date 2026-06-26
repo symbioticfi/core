@@ -208,7 +208,7 @@ abstract contract CoWSwapConverter is OwnableUpgradeable, NoncesUpgradeable, ICo
     ///
     /// @param order The order to compute the EIP-712 signing hash for.
     /// @param domainSeparator The EIP-712 domain separator to use.
-    /// @return orderDigest The 32 byte EIP-712 struct hash.
+    /// @return orderDigest The 32 byte domain-separated EIP-712 signing digest.
     function _hash(Data memory order, bytes32 domainSeparator) internal pure returns (bytes32 orderDigest) {
         bytes32 structHash;
         assembly {
