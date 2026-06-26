@@ -20,7 +20,7 @@ import {IOracle} from "../../interfaces/adapters/ll-adapter/IOracle.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
 
-import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -31,7 +31,7 @@ import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/Signa
 
 /// @title LiquidLaneAdapter
 /// @notice Single-vault adapter for issuer-facing instant redemptions backed by factory-created redemption accounts.
-contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneAdapter {
+contract LiquidLaneAdapter is Adapter, EIP712Upgradeable, PausableUpgradeable, ILiquidLaneAdapter {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -81,7 +81,6 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     /* CONSTRUCTOR */
 
     constructor(address vaultFactory, address adapterFactory, address accountRegistry)
-        EIP712("LiquidLaneAdapter", "1")
         Adapter(vaultFactory, adapterFactory)
     {
         ACCOUNT_REGISTRY = accountRegistry;
@@ -528,6 +527,8 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     /// @dev Initializes the pause roles.
     function __initialize(address, bytes memory data) internal override {
         InitParams memory params = abi.decode(data, (InitParams));
+
+        __EIP712_init("LiquidLaneAdapter", "1");
 
         pauser = params.pauser;
         unpauser = params.unpauser;

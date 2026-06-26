@@ -37,6 +37,7 @@ import {
 import {IVaultV2, VAULT_V2_VERSION} from "../../src/interfaces/vault/IVaultV2.sol";
 
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {IERC5267} from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -155,6 +156,17 @@ contract LiquidLaneAdapterTest is Test {
         assertEq(adapter.FACTORY(), address(adapterFactory));
         assertEq(adapter.pauser(), pauser);
         assertEq(adapter.unpauser(), unpauser);
+    }
+
+    function testInitializeSetsProxyEip712Domain() public view {
+        (bytes1 fields, string memory name, string memory version, uint256 chainId, address verifyingContract,,) =
+            IERC5267(address(adapter)).eip712Domain();
+
+        assertEq(fields, hex"0f");
+        assertEq(name, "LiquidLaneAdapter");
+        assertEq(version, "1");
+        assertEq(chainId, block.chainid);
+        assertEq(verifyingContract, address(adapter));
     }
 
     function testSetPairMaxDiscountSelectorIsUnavailable() public {
@@ -427,6 +439,34 @@ contract LiquidLaneAdapterTest is Test {
         adapter.swap(signedSwap, signature);
     }
 
+    function testSignedSwapRejectsUninitializedEip712DomainSignature() public {
+        uint256 signerKey = 0xA11CE;
+        address signer = vm.addr(signerKey);
+
+        vm.prank(curator);
+        adapter.setMarketMaker(signer, false);
+
+        tokenToRedeem.mint(filler, 100 ether);
+
+        ILiquidLaneAdapter.SignedSwap memory signedSwap = ILiquidLaneAdapter.SignedSwap({
+            recipient: recipient,
+            tokenIn: address(tokenToRedeem),
+            amountIn: 100 ether,
+            amountOut: 90 ether,
+            caller: filler,
+            signer: signer,
+            nonce: 7,
+            deadline: uint48(vm.getBlockTimestamp() + 1 days)
+        });
+        bytes memory signature = _signSignedSwapWithDomain(signerKey, signedSwap, "", "", address(adapter));
+
+        vm.startPrank(filler);
+        tokenToRedeem.transfer(address(adapter), 100 ether);
+        vm.expectRevert(ILiquidLaneAdapter.InvalidSignature.selector);
+        adapter.swap(signedSwap, signature);
+        vm.stopPrank();
+    }
+
     function testDiscountSwapDoesNotConsumeReusableSignerDiscountNonce() public {
         uint256 signerKey = 0xB0B;
         uint256 protocolKey = 0xC0DE;
@@ -519,6 +559,29 @@ contract LiquidLaneAdapterTest is Test {
         return _signDigest(signerKey, structHash);
     }
 
+    function _signSignedSwapWithDomain(
+        uint256 signerKey,
+        ILiquidLaneAdapter.SignedSwap memory signedSwap,
+        string memory name,
+        string memory version,
+        address verifyingContract
+    ) internal view returns (bytes memory) {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                SIGNED_SWAP_TYPEHASH,
+                signedSwap.recipient,
+                signedSwap.tokenIn,
+                signedSwap.amountIn,
+                signedSwap.amountOut,
+                signedSwap.caller,
+                signedSwap.signer,
+                signedSwap.nonce,
+                signedSwap.deadline
+            )
+        );
+        return _signDigest(signerKey, structHash, name, version, verifyingContract);
+    }
+
     function _signDiscount(uint256 signerKey, ILiquidLaneAdapter.Discount memory discount)
         internal
         view
@@ -565,13 +628,23 @@ contract LiquidLaneAdapterTest is Test {
     }
 
     function _signDigest(uint256 signerKey, bytes32 structHash) internal view returns (bytes memory) {
+        return _signDigest(signerKey, structHash, "LiquidLaneAdapter", "1", address(adapter));
+    }
+
+    function _signDigest(
+        uint256 signerKey,
+        bytes32 structHash,
+        string memory name,
+        string memory version,
+        address verifyingContract
+    ) internal view returns (bytes memory) {
         bytes32 domainSeparator = keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes("LiquidLaneAdapter")),
-                keccak256(bytes("1")),
+                keccak256(bytes(name)),
+                keccak256(bytes(version)),
                 block.chainid,
-                address(adapter)
+                verifyingContract
             )
         );
         (uint8 v, bytes32 r, bytes32 s) =
