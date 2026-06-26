@@ -61,7 +61,7 @@ abstract contract CoWSwapConverter is OwnableUpgradeable, NoncesUpgradeable, ICo
     /* VIEW FUNCTIONS */
 
     /// @inheritdoc ICoWSwapConverter
-    function executableAt(uint256 nonce, bytes32 requestHash) public view returns (uint48 timestamp) {
+    function executableAt(uint256 nonce, bytes32 requestHash) public view returns (uint48) {
         return _getCoWSwapConverterStorage().executableAt[nonce][requestHash];
     }
 

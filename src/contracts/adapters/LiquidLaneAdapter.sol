@@ -111,7 +111,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     }
 
     /// @inheritdoc ILiquidLaneAdapter
-    function getMaxAssets(address tokenToRedeem) public returns (uint256 assets) {
+    function getMaxAssets(address tokenToRedeem) public returns (uint256) {
         uint256 acquireAssets = acquireBalance[tokenToRedeem][owner()];
         if (marketMaker != owner()) {
             acquireAssets += acquireBalance[tokenToRedeem][marketMaker];
@@ -120,7 +120,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         if (IUniversalDelegator(delegator).sweepPending() > 0) {
             return acquireAssets;
         }
-        assets = Math.min(
+        uint256 assets = Math.min(
             IUniversalDelegator(delegator).limitOf(address(this)).saturatingSub(totalAssets()),
             IVaultV2(vault).withdrawable()
         );
