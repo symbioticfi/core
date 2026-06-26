@@ -466,7 +466,10 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         uint256 tokenOutToAcquire = Math.min(swap.amountOut, curatorAcquireBalance + marketMakerAcquireBalance);
 
         uint256 tokenOutToAllocate = swap.amountOut - tokenOutToAcquire;
-        if (IAccount(accounts[swap.tokenIn]).totalAssets() + tokenOutToAllocate > limit[swap.tokenIn]) {
+        if (
+            tokenOutToAllocate > 0
+                && IAccount(accounts[swap.tokenIn]).totalAssets() + tokenOutToAllocate > limit[swap.tokenIn]
+        ) {
             revert LimitExceeded();
         }
 

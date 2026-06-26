@@ -314,6 +314,69 @@ contract LiquidLaneAdapterTest is Test {
         assertEq(asset.balanceOf(address(vault)), 0);
     }
 
+    function testPrefundedAcquisitionBypassesLimitWhenNoAllocationIsNeeded() public {
+        address account = adapter.accounts(address(tokenToRedeem));
+
+        asset.mint(account, 10 ether);
+        asset.mint(curator, 100 ether);
+
+        vm.startPrank(curator);
+        adapter.setReceiver(curatorReceiver);
+        asset.approve(address(adapter), 100 ether);
+        adapter.depositToAcquire(address(tokenToRedeem), 100 ether);
+        adapter.setLimit(address(tokenToRedeem), 1 ether);
+        vm.stopPrank();
+
+        tokenToRedeem.mint(marketMaker, 100 ether);
+
+        vm.startPrank(marketMaker);
+        tokenToRedeem.transfer(address(adapter), 100 ether);
+        adapter.swap(
+            ILiquidLaneAdapter.Swap({
+                recipient: recipient, tokenIn: address(tokenToRedeem), amountIn: 100 ether, amountOut: 100 ether
+            })
+        );
+        vm.stopPrank();
+
+        assertEq(delegator.allocateExactCalls(), 0);
+        assertEq(asset.balanceOf(recipient), 100 ether);
+        assertEq(asset.balanceOf(account), 10 ether);
+        assertEq(tokenToRedeem.balanceOf(curatorReceiver), 100 ether);
+        assertEq(tokenToRedeem.balanceOf(account), 0);
+        assertEq(adapter.acquireBalance(address(tokenToRedeem), curator), 0);
+        assertEq(adapter.totalAssets(), 10 ether);
+    }
+
+    function testPartiallyPrefundedAcquisitionStillRevertsWhenAllocationExceedsLimit() public {
+        address account = adapter.accounts(address(tokenToRedeem));
+
+        asset.mint(account, 10 ether);
+        asset.mint(curator, 90 ether);
+
+        vm.startPrank(curator);
+        adapter.setReceiver(curatorReceiver);
+        asset.approve(address(adapter), 90 ether);
+        adapter.depositToAcquire(address(tokenToRedeem), 90 ether);
+        adapter.setLimit(address(tokenToRedeem), 10 ether);
+        vm.stopPrank();
+
+        tokenToRedeem.mint(marketMaker, 100 ether);
+
+        vm.startPrank(marketMaker);
+        tokenToRedeem.transfer(address(adapter), 100 ether);
+        vm.expectRevert(ILiquidLaneAdapter.LimitExceeded.selector);
+        adapter.swap(
+            ILiquidLaneAdapter.Swap({
+                recipient: recipient, tokenIn: address(tokenToRedeem), amountIn: 100 ether, amountOut: 100 ether
+            })
+        );
+        vm.stopPrank();
+
+        assertEq(delegator.allocateExactCalls(), 0);
+        assertEq(asset.balanceOf(recipient), 0);
+        assertEq(asset.balanceOf(account), 10 ether);
+    }
+
     function testSetReceiverRevertsForZeroReceiver() public {
         vm.expectRevert(ILiquidLaneAdapter.InvalidReceiver.selector);
         adapter.setReceiver(address(0));
