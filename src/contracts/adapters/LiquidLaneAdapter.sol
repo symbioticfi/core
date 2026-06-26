@@ -217,8 +217,9 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
         if (discount.discount < minDiscount[discount.tokenToRedeem] || discount.discount > DISCOUNT_PRECISION) {
             revert InvalidDiscount();
         }
+        bytes32 discountHash = _hashDiscount(discount);
         if (!SignatureChecker.isValidSignatureNow(
-                discount.signer, _hashTypedDataV4(_hashDiscount(discount)), discountSwap.signerSignature
+                discount.signer, _hashTypedDataV4(discountHash), discountSwap.signerSignature
             )) {
             revert InvalidSignature();
         }
@@ -228,7 +229,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
                     keccak256(
                         abi.encode(
                             DISCOUNT_SWAP_TYPEHASH,
-                            _hashDiscount(discount),
+                            discountHash,
                             keccak256(discountSwap.signerSignature),
                             discountSwap.protocolDeadline
                         )
