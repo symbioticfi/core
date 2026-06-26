@@ -80,8 +80,6 @@ abstract contract Account is MigratableEntity, CoWSwapConverter, IAccount {
         public
         override(CoWSwapConverter, IConverter)
     {
-        sync();
-
         if (tokenIn == _asset || tokenIn == TOKEN_TO_REDEEM) {
             revert InvalidTokenIn();
         }

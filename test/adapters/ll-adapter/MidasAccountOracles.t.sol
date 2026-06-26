@@ -476,6 +476,34 @@ contract MidasAccountOraclesTest is Test {
         account.convert(address(tokenToRedeem), 1 ether, address(asset), "");
     }
 
+    function testConvertDoesNotSyncTokenToRedeemBalanceBeforeCreatingOrder() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockERC20 redemptionToken = new MockERC20("Redemption Token", "RTKN");
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
+        cowSettlement = address(new MockMidasCoWSwapSettlement(cowRelayer));
+        MidasNonCompAccount account =
+            _deployNonCompAccount(tokenToRedeem, asset, address(redemptionToken), redemptionVault);
+
+        tokenToRedeem.mint(address(account), 100 ether);
+        redemptionToken.mint(address(account), 10 ether);
+
+        account.convert(
+            address(redemptionToken),
+            10 ether,
+            address(asset),
+            abi.encode(
+                ICoWSwapConverter.OrderParams({
+                    buyAmount: 9 ether, validTo: uint32(block.timestamp + 10 minutes), appData: bytes32(0)
+                })
+            )
+        );
+
+        assertEq(redemptionVault.currentRequestId(), 0);
+        assertEq(tokenToRedeem.balanceOf(address(account)), 100 ether);
+    }
+
     function testChainlinkOracleReturnsLatestPriceInBase18() public {
         MockChainlinkAggregator aggregator = new MockChainlinkAggregator(8);
         aggregator.setLatestRoundData(1, 123e8, uint48(vm.getBlockTimestamp()), 1);
@@ -680,6 +708,22 @@ contract MockVault {
 
     constructor(address asset_) {
         asset = asset_;
+    }
+}
+
+contract MockMidasCoWSwapSettlement {
+    address public vaultRelayer;
+    bytes32 public domainSeparator = keccak256("DOMAIN");
+    bytes public lastOrderUid;
+    bool public lastSigned;
+
+    constructor(address vaultRelayer_) {
+        vaultRelayer = vaultRelayer_;
+    }
+
+    function setPreSignature(bytes calldata orderUid, bool signed) external {
+        lastOrderUid = orderUid;
+        lastSigned = signed;
     }
 }
 
