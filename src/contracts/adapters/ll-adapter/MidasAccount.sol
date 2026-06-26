@@ -129,9 +129,6 @@ contract MidasCompAccount is MidasAccount {
                 amount += amountMToken;
             }
         }
-        if (amount == 0) {
-            return 0;
-        }
         return _tokenToRedeemToAssets(amount);
     }
 }

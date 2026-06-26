@@ -16,7 +16,10 @@ import {IConverter} from "../../../src/interfaces/adapters/common/IConverter.sol
 import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IOracle} from "../../../src/interfaces/adapters/ll-adapter/IOracle.sol";
-import {IMidasAccount} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
+import {
+    IMidasAccount,
+    REQUEST_STATUS_PENDING
+} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
 import {IChainlinkOracle} from "../../../src/interfaces/adapters/ll-adapter/oracles/IChainlinkOracle.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -230,6 +233,42 @@ contract MidasAccountOraclesTest is Test {
             _deployCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
 
         assertEq(account.totalAssets(), 0);
+    }
+
+    function testMidasCompAccountSkipsOracleWhenOnlyZeroAmountIsPending() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(0)));
+        TestMidasCompAccount account =
+            _deployTestCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
+
+        redemptionVault.setRequest(0, address(account), address(asset), REQUEST_STATUS_PENDING, 0, 0, 1e18);
+        account.pushRequestId(0);
+
+        assertEq(account.totalAssets(), 0);
+    }
+
+    function testAccountTokenToRedeemToAssetsSkipsOracleForZeroAmount() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(0)));
+        TestMidasCompAccount account =
+            _deployTestCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
+
+        assertEq(account.exposedTokenToRedeemToAssets(0), 0);
+    }
+
+    function testAccountTokenToRedeemToAssetsWithRateSkipsRateMathForZeroAmount() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(new MockMidasDataFeed(1e18)));
+        TestMidasCompAccount account =
+            _deployTestCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
+
+        assertEq(account.exposedTokenToRedeemToAssets(0, type(uint256).max), 0);
     }
 
     function testMidasAccountDoesNotExposeRequestRedeem() public {
@@ -479,6 +518,23 @@ contract MidasAccountOraclesTest is Test {
         account = MidasCompAccount(factory.create(1, address(this), _initData(address(tokenToRedeem))));
     }
 
+    function _deployTestCompAccount(
+        MockERC20 tokenToRedeem,
+        MockERC20 asset,
+        address fallbackToken,
+        MockMidasRedemptionVault redemptionVault
+    ) internal returns (TestMidasCompAccount account) {
+        vault = address(new MockVault(address(asset)));
+        oracle = address(new MidasOracle(1, type(uint256).max, redemptionVault.mTokenDataFeed()));
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
+        TestMidasCompAccount implementation = new TestMidasCompAccount(
+            oracle, address(factory), 0, address(tokenToRedeem), fallbackToken, address(redemptionVault), cowSettlement
+        );
+        factory.whitelist(address(implementation));
+        account = TestMidasCompAccount(factory.create(1, address(this), _initData(address(tokenToRedeem))));
+    }
+
     function _deployNonCompAccount(
         MockERC20 tokenToRedeem,
         MockERC20 asset,
@@ -576,6 +632,30 @@ contract MidasAccountOraclesTest is Test {
     }
 }
 
+contract TestMidasCompAccount is MidasCompAccount {
+    constructor(
+        address oracle,
+        address factory,
+        uint48 cooldown,
+        address tokenToRedeem,
+        address redemptionToken,
+        address redemptionVault,
+        address cowSwapSettlement
+    ) MidasCompAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, redemptionVault, cowSwapSettlement) {}
+
+    function pushRequestId(uint64 requestId) public {
+        requestIds.push(requestId);
+    }
+
+    function exposedTokenToRedeemToAssets(uint256 amount) public view returns (uint256) {
+        return _tokenToRedeemToAssets(amount);
+    }
+
+    function exposedTokenToRedeemToAssets(uint256 amount, uint256 rate) public view returns (uint256) {
+        return _tokenToRedeemToAssets(amount, rate);
+    }
+}
+
 contract MockVault {
     address public asset;
 
@@ -635,6 +715,25 @@ contract MockMidasRedemptionVault {
 
     function setDataFeed(address token, address dataFeed) public {
         dataFeedOf[token] = dataFeed;
+    }
+
+    function setRequest(
+        uint256 requestId,
+        address sender,
+        address tokenOut,
+        uint8 status,
+        uint256 amountMToken,
+        uint256 mTokenRate,
+        uint256 tokenOutRate
+    ) public {
+        requests[requestId] = Request({
+            sender: sender,
+            tokenOut: tokenOut,
+            status: status,
+            amountMToken: amountMToken,
+            mTokenRate: mTokenRate,
+            tokenOutRate: tokenOutRate
+        });
     }
 
     function tokensConfig(address token)
