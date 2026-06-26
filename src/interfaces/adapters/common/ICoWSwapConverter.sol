@@ -208,9 +208,9 @@ interface ICoWSwapConverter is IConverter {
 
     /**
      * @notice Replaces the converters that may create orders without the prepared-request delay.
-     * @param converters The authorized converters.
+     * @param newConverters The authorized converters.
      */
-    function setConverters(address[] memory converters) external;
+    function setConverters(address[] calldata newConverters) external;
 
     /**
      * @notice Clears the pre-signature for a CoW Protocol order UID.

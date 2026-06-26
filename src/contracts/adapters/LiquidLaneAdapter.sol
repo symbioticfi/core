@@ -246,14 +246,14 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     }
 
     /// @inheritdoc ILiquidLaneAdapter
-    function setFiller(address filler, bool status) public {
+    function setFiller(address filler, bool isAuthorized) public {
         if (owner() != msg.sender && marketMaker != msg.sender) {
             revert InvalidCaller();
         }
 
-        isFiller[marketMaker][filler] = status;
+        isFiller[marketMaker][filler] = isAuthorized;
 
-        emit SetFiller(marketMaker, filler, status);
+        emit SetFiller(marketMaker, filler, isAuthorized);
     }
 
     /// @inheritdoc ILiquidLaneAdapter
