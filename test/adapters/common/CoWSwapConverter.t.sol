@@ -18,6 +18,9 @@ import {Token} from "../../mocks/Token.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 contract CoWSwapConverterTest is Test {
+    bytes32 internal constant OZ_NONCES_STORAGE_LOCATION =
+        0x5ab42ced628888259c08ac98db1eb0cf702fc1501344311d8b100cd1bfe4bb00;
+
     CoWSwapSettlementMock internal settlement;
     CoWSwapConverterHarness internal converter;
     Token internal tokenIn;
@@ -130,6 +133,14 @@ contract CoWSwapConverterTest is Test {
         assertEq(converter.nonces(address(tokenIn)), 1);
         assertEq(settlement.lastOrderUid().length, 56);
         assertTrue(settlement.lastSigned());
+    }
+
+    function test_ConvertStoresNonceInUpgradeableStorageNamespace() public {
+        vm.prank(converterRoleHolder);
+        converter.convert(address(tokenIn), 100, address(tokenOut), _orderData(90, 1));
+
+        assertEq(converter.nonces(address(tokenIn)), 1);
+        assertEq(uint256(vm.load(address(converter), _nonceStorageSlot(address(tokenIn)))), 1);
     }
 
     function test_SetConvertersRevertsForNonOwner() public {
@@ -330,6 +341,10 @@ contract CoWSwapConverterTest is Test {
     function _converters(address converter_) internal pure returns (address[] memory converters_) {
         converters_ = new address[](1);
         converters_[0] = converter_;
+    }
+
+    function _nonceStorageSlot(address account) internal pure returns (bytes32) {
+        return keccak256(abi.encode(account, OZ_NONCES_STORAGE_LOCATION));
     }
 }
 
