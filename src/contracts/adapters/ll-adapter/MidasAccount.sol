@@ -12,6 +12,7 @@ import {IMidasDataFeed, IMidasOracle} from "../../../interfaces/adapters/ll-adap
 import {IMidasRedemptionVault} from "../../../interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {DateTimeLib} from "solady/utils/DateTimeLib.sol";
@@ -136,6 +137,8 @@ contract MidasCompAccount is MidasAccount {
 /// @title MidasNonCompAccount
 /// @notice Midas account that prices pending requests at their creation-time rate.
 contract MidasNonCompAccount is MidasAccount {
+    using Math for uint256;
+
     /* CONSTRUCTOR */
 
     /// @notice Creates the non-compounding Midas account implementation.
@@ -154,10 +157,10 @@ contract MidasNonCompAccount is MidasAccount {
     /// @dev Returns pending request value using each request's locked rate.
     function _pendingAssets() internal view override returns (uint256 assets) {
         for (uint256 i; i < requestIds.length; ++i) {
-            (,, uint8 status, uint256 amountMToken, uint256 mTokenRate,) =
+            (,, uint8 status, uint256 amountMToken, uint256 mTokenRate, uint256 tokenOutRate) =
                 IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestIds[i]);
             if (status == REQUEST_STATUS_PENDING) {
-                assets += _tokenToRedeemToAssets(amountMToken, mTokenRate);
+                assets += _tokenToRedeemToAssets(amountMToken, mTokenRate) * 1e18 / tokenOutRate;
             }
         }
     }

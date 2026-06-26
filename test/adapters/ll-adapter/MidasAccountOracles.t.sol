@@ -103,6 +103,25 @@ contract MidasAccountOraclesTest is Test {
         assertEq(account.totalAssets(), 200 ether);
     }
 
+    function testMidasNonCompAccountRescalesPendingRequestByTokenOutRate() public {
+        MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
+        MockERC20 asset = new MockERC20("Asset", "ASSET");
+        MockMidasDataFeed mTokenDataFeed = new MockMidasDataFeed(1e18);
+        MockMidasRedemptionVault redemptionVault =
+            new MockMidasRedemptionVault(address(tokenToRedeem), address(mTokenDataFeed));
+        redemptionVault.setDataFeed(address(asset), address(new MockMidasDataFeed(2e18)));
+        MidasNonCompAccount account =
+            _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
+
+        tokenToRedeem.mint(address(account), 100 ether);
+
+        account.sync();
+
+        mTokenDataFeed.setAnswer(3e18);
+
+        assertEq(account.totalAssets(), 50 ether);
+    }
+
     function testMidasAccountRealizesProceedsOnDeallocate() public {
         MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
         MockERC20 asset = new MockERC20("Asset", "ASSET");
