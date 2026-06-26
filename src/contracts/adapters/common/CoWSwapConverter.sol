@@ -21,7 +21,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title CoWSwapConverter
 /// @notice Converter for asynchronous CoW Protocol sell orders via pre-signing.
-contract CoWSwapConverter is OwnableUpgradeable, NoncesUpgradeable, ICoWSwapConverter {
+abstract contract CoWSwapConverter is OwnableUpgradeable, NoncesUpgradeable, ICoWSwapConverter {
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
