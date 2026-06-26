@@ -12,7 +12,7 @@ import {IMidasTokenAccount} from "../../../../interfaces/adapters/ll-adapter/mid
 contract mHyperBTC_Account is MidasCompAccount, IMidasTokenAccount {
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
     uint48 public constant MAX_WITHDRAWAL_DELAY = 7 days;
-    address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+    address internal constant CBBTC = 0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf;
     address internal constant TOKEN_ADDRESS = 0xC8495EAFf71D3A563b906295fCF2f685b1783085;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x16d4f955B0aA1b1570Fe3e9bB2f8c19C407cdb67;
 
@@ -28,18 +28,11 @@ contract mHyperBTC_Account is MidasCompAccount, IMidasTokenAccount {
             factory,
             TOKEN_COOLDOWN,
             TOKEN_ADDRESS,
-            WBTC,
+            CBBTC,
             REDEMPTION_VAULT_ADDRESS,
             cowSwapSettlement
         )
     {}
-
-    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
-        super._initialize(initialVersion, initOwner, data);
-        if (_asset != WBTC) {
-            revert InvalidAsset();
-        }
-    }
 }
 
 contract mHyperBTC_AccountFactory is MigratablesFactory {

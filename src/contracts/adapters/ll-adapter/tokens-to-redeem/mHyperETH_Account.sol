@@ -33,13 +33,6 @@ contract mHyperETH_Account is MidasCompAccount, IMidasTokenAccount {
             cowSwapSettlement
         )
     {}
-
-    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
-        super._initialize(initialVersion, initOwner, data);
-        if (_asset != WETH) {
-            revert InvalidAsset();
-        }
-    }
 }
 
 contract mHyperETH_AccountFactory is MigratablesFactory {

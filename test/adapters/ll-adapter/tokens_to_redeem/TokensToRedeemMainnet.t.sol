@@ -204,12 +204,12 @@ contract TokensToRedeemMainnetTest is Test {
         mainnetRpcUrl = vm.envOr("ETH_RPC_URL", string(""));
     }
 
-    function testCorrelatedMidasTokenAccountsUseCorrelatedVaultAssets() public view {
-        _assertCorrelatedAsset(13, MBTC, WBTC);
-        _assertCorrelatedAsset(20, MHYPERBTC, WBTC);
-        _assertCorrelatedAsset(21, MHYPERETH, WETH);
-        _assertCorrelatedAsset(25, MRE7BTC, WBTC);
-        _assertCorrelatedAsset(29, MEVBTC, WBTC);
+    function testMidasTokenAccountsUseUsdcVaultAsset() public view {
+        _assertMidasUsdcAsset(13, MBTC);
+        _assertMidasUsdcAsset(20, MHYPERBTC);
+        _assertMidasUsdcAsset(21, MHYPERETH);
+        _assertMidasUsdcAsset(25, MRE7BTC);
+        _assertMidasUsdcAsset(29, MEVBTC);
     }
 
     function testAllTokenAccountsUseRealMainnetTokens() public {
@@ -354,6 +354,9 @@ contract TokensToRedeemMainnetTest is Test {
         assertEq(account.adapter(), adapter, spec.symbol);
         assertEq(account.converters(0), address(this), spec.symbol);
         assertEq(account.totalAssets(), 0, spec.symbol);
+        if (_isMidas(index)) {
+            _assertMidasRedemptionTokenConfigured(account, spec.symbol);
+        }
     }
 
     function _assertRedemptionSequence(uint256 index, TokenSpec memory spec) internal {
@@ -717,12 +720,6 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _assetFor(uint256 index, address token) internal view returns (address) {
-        if (_isMidasBtc(index)) {
-            return WBTC;
-        }
-        if (_isMidasEth(index)) {
-            return WETH;
-        }
         if (
             _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 37 || _isSecuritize(index)
                 || index == 40 || _isInfiniFi(index)
@@ -741,22 +738,34 @@ contract TokensToRedeemMainnetTest is Test {
         return IERC4626(token).asset();
     }
 
-    function _assertCorrelatedAsset(uint256 index, address token, address expectedAsset) internal view {
+    function _assertMidasUsdcAsset(uint256 index, address token) internal view {
         address asset = _assetFor(index, token);
-        assertEq(asset, expectedAsset);
-        assertNotEq(asset, USDC);
+        assertEq(asset, USDC);
+    }
+
+    function _assertMidasRedemptionTokenConfigured(IAccount account, string memory symbol) internal view {
+        address redemptionVault = IMidasAccount(address(account)).REDEMPTION_VAULT();
+        address redemptionToken = IMidasAccount(address(account)).REDEMPTION_TOKEN();
+        address[] memory paymentTokens = IMidasRedemptionVaultWithPaymentTokens(redemptionVault).getPaymentTokens();
+        if (paymentTokens.length == 0) {
+            return;
+        }
+
+        bool isConfigured;
+        for (uint256 i; i < paymentTokens.length; ++i) {
+            if (paymentTokens[i] == redemptionToken) {
+                isConfigured = true;
+                break;
+            }
+        }
+
+        assertTrue(isConfigured, symbol);
+        (address dataFeed,,,) = IMidasRedemptionVault(redemptionVault).tokensConfig(redemptionToken);
+        assertNotEq(dataFeed, address(0), symbol);
     }
 
     function _isMidas(uint256 index) internal pure returns (bool) {
         return index == 1 || index == 6 || (index >= 11 && index <= 31);
-    }
-
-    function _isMidasBtc(uint256 index) internal pure returns (bool) {
-        return index == 13 || index == 20 || index == 25 || index == 29;
-    }
-
-    function _isMidasEth(uint256 index) internal pure returns (bool) {
-        return index == 21;
     }
 
     function _isCentrifuge(uint256 index) internal pure returns (bool) {
@@ -1432,6 +1441,10 @@ interface IMainnetDigiFTManagement {
     function isWhiteContract(address contractAddress) external view returns (bool);
 
     function isWhiteInvestor(address investor) external view returns (bool);
+}
+
+interface IMidasRedemptionVaultWithPaymentTokens is IMidasRedemptionVault {
+    function getPaymentTokens() external view returns (address[] memory);
 }
 
 contract MainnetConstantOracle {
