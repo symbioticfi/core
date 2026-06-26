@@ -60,13 +60,14 @@ contract GaibAccount is CooldownAccount, IGaibAccount {
     }
 
     /// @dev Submits held sAID through a new request-holder subaccount.
-    function _requestRedeem() internal override {
+    function _requestRedeem() internal override returns (bool) {
         uint256 amount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         address subAccount = address(new GaibSubAccount(address(this), TOKEN_TO_REDEEM));
 
         subAccounts.push(subAccount);
         IERC20(TOKEN_TO_REDEEM).safeTransfer(subAccount, amount);
         IGaibSubAccount(subAccount).requestRedeem(amount);
+        return true;
     }
 
     /* INITIALIZATION */

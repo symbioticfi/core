@@ -129,7 +129,7 @@ abstract contract SecuritizeAccount is CooldownAccount, CutoffAccount, ISecuriti
     }
 
     /// @dev Transfers held Securitize tokens to the redemption wallet as the redemption notice.
-    function _requestRedeem() internal override {
+    function _requestRedeem() internal override returns (bool) {
         uint256 amount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         uint256 key = _nextPendingKey++;
 
@@ -139,6 +139,7 @@ abstract contract SecuritizeAccount is CooldownAccount, CutoffAccount, ISecuriti
         buckets[bucket].totalTokenToRedeem += amount;
         buckets[bucket].pendingTokenToRedeem += amount;
         IERC20(TOKEN_TO_REDEEM).safeTransfer(REDEMPTION_WALLET, amount);
+        return true;
     }
 
     /// @dev Returns a pending cutoff entry's value and whether it is past its counting window.

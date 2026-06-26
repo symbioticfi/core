@@ -55,8 +55,9 @@ contract OpenEdenAccount is CooldownAccount, IOpenEdenAccount {
     function _finalizeRequests() internal override {}
 
     /// @dev Submits held HYBOND into the HYBONDExpress redemption queue.
-    function _requestRedeem() internal override {
+    function _requestRedeem() internal override returns (bool) {
         IOpenEdenExpress(EXPRESS).requestRedeem(address(this), IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)));
+        return true;
     }
 
     /* INITIALIZATION */

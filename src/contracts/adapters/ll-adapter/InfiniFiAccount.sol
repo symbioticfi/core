@@ -91,13 +91,14 @@ contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
     ///      keccak(account, block.timestamp), so a second request in the same second would collide
     ///      and revert: lastRequestTimestamp equals block.timestamp only when a request already
     ///      happened this second, so it is skipped and the balance is picked up by a later sync.
-    function _requestRedeem() internal override {
+    function _requestRedeem() internal override returns (bool) {
         if (lastRequestTimestamp == block.timestamp) {
-            return;
+            return false;
         }
 
         IInfiniFiGateway(GATEWAY).startUnwinding(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), UNWINDING_EPOCHS);
         unwindingTimestamps.push(uint48(block.timestamp));
+        return true;
     }
 
     /* INITIALIZATION */

@@ -64,8 +64,9 @@ contract ParetoAccount is CooldownAccount, IParetoAccount {
     }
 
     /// @dev Submits held tranche tokens into a Pareto withdrawal request.
-    function _requestRedeem() internal override {
+    function _requestRedeem() internal override returns (bool) {
         IParetoCDO(IDLE_CDO).requestWithdraw(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), TOKEN_TO_REDEEM);
+        return true;
     }
 
     /* INITIALIZATION */

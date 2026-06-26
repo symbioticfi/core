@@ -163,7 +163,7 @@ abstract contract SettlementAccount is CooldownAccount, CutoffAccount, ISettleme
     }
 
     /// @dev Submits held token-to-redeem inventory through a new request-holder subaccount.
-    function _requestRedeem() internal override {
+    function _requestRedeem() internal override returns (bool) {
         uint256 amount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         address subAccount = _createSubAccount();
 
@@ -175,6 +175,7 @@ abstract contract SettlementAccount is CooldownAccount, CutoffAccount, ISettleme
         buckets[bucket].pendingTokenToRedeem += amount;
         IERC20(TOKEN_TO_REDEEM).safeTransfer(subAccount, amount);
         ISettlementSubAccount(subAccount).requestRedeem();
+        return true;
     }
 
     /// @dev Deploys the issuer-specific request-holder subaccount.

@@ -130,6 +130,8 @@ contract FigureAccountTest is AccountsBase {
     }
 
     function testFigureAccountKeepsWyldsWhenVaultAssetMatches() public {
+        vm.warp(1 days);
+
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);
         MockPrimeToken prime = new MockPrimeToken(wylds, 125e4);
@@ -146,5 +148,6 @@ contract FigureAccountTest is AccountsBase {
         assertEq(wylds.balanceOf(address(account)), 125e6);
         assertEq(wylds.balanceOf(address(wylds)), 0);
         assertEq(account.totalAssets(), 125e6);
+        assertEq(account.lastRequestTimestamp(), 0);
     }
 }

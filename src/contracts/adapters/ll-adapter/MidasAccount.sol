@@ -77,7 +77,7 @@ abstract contract MidasAccount is CooldownAccount, IMidasAccount {
     }
 
     /// @dev Submits held token-to-redeem inventory to the Midas redemption vault.
-    function _requestRedeem() internal virtual override {
+    function _requestRedeem() internal virtual override returns (bool) {
         (address dataFeed,,,) = IMidasRedemptionVault(REDEMPTION_VAULT).tokensConfig(_asset);
         requestIds.push(
             uint64(
@@ -88,6 +88,7 @@ abstract contract MidasAccount is CooldownAccount, IMidasAccount {
                     )
             )
         );
+        return true;
     }
 
     /* INITIALIZATION */
@@ -248,9 +249,10 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
         }
     }
 
-    function _requestRedeem() internal virtual override {
+    function _requestRedeem() internal virtual override returns (bool) {
         super._requestRedeem();
         requestToBucket[requestIds[requestIds.length - 1]] = currentBucket();
+        return true;
     }
 
     /// @dev Returns pending request value priced by cutoff cohorts. Fulfilled-but-unsynced requests are

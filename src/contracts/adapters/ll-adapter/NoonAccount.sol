@@ -74,10 +74,11 @@ contract NoonAccount is CooldownAccount, INoonAccount {
     }
 
     /// @dev Submits held sUSN into a Noon withdrawal request.
-    function _requestRedeem() internal override {
+    function _requestRedeem() internal override returns (bool) {
         requestIds.push(INoonWithdrawalHandler(WITHDRAWAL_HANDLER).getUserNextRequestId(address(this)));
         IERC4626(TOKEN_TO_REDEEM)
             .redeem(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), WITHDRAWAL_HANDLER, address(this));
+        return true;
     }
 
     /* INITIALIZATION */

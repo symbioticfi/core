@@ -88,12 +88,13 @@ contract MakinaAccount is CooldownAccount, IMakinaAccount {
     }
 
     /// @dev Submits held token-to-redeem balance to the Makina redeemer and quotes its current value.
-    function _requestRedeem() internal override {
+    function _requestRedeem() internal override returns (bool) {
         uint256 amount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         uint64 requestId = uint64(IMakinaRedeemer(REDEEMER).requestRedeem(amount, address(this), 0));
 
         requestIds.push(requestId);
         requestQuotes[requestId] = _tokenToRedeemToAssets(amount);
+        return true;
     }
 
     /* INITIALIZATION */

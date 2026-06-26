@@ -60,7 +60,7 @@ contract LiquidLaneAdapter is EIP712, Adapter, PausableUpgradeable, ILiquidLaneA
     /// @inheritdoc ILiquidLaneAdapter
     mapping(address who => address) public receiver;
     /// @inheritdoc ILiquidLaneAdapter
-    mapping(address tokenToRedeem => mapping(address marketMaker => uint256 amount)) public acquireBalance;
+    mapping(address tokenToRedeem => mapping(address account => uint256 amount)) public acquireBalance;
 
     /// @inheritdoc ILiquidLaneAdapter
     mapping(address marketMaker => mapping(address filler => bool)) public isFiller;

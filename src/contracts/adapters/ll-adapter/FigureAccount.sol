@@ -89,13 +89,13 @@ contract FigureAccount is CooldownAccount, IFigureAccount {
     }
 
     /// @dev Submits held PRIME or wYLDS to the Figure yield vault redemption flow.
-    function _requestRedeem() internal override {
+    function _requestRedeem() internal override returns (bool) {
         uint256 primeBalance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         if (primeBalance > 0) {
             IERC4626(TOKEN_TO_REDEEM).redeem(primeBalance, address(this), address(this));
         }
         if (_asset == ASYNC_REDEEM_VAULT) {
-            return;
+            return false;
         }
 
         uint256 balance = IERC20(ASYNC_REDEEM_VAULT).balanceOf(address(this));
@@ -105,7 +105,9 @@ contract FigureAccount is CooldownAccount, IFigureAccount {
             subAccounts.push(subAccount);
             IERC20(ASYNC_REDEEM_VAULT).safeTransfer(subAccount, balance);
             IFigureSubAccount(subAccount).requestRedeem();
+            return true;
         }
+        return false;
     }
 }
 

@@ -40,14 +40,15 @@ abstract contract CooldownAccount is Account, ICooldownAccount {
             (msg.sender == owner() || lastRequestTimestamp == 0 || block.timestamp >= lastRequestTimestamp + COOLDOWN)
                 && IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)) > 0
         ) {
-            _requestRedeem();
-            lastRequestTimestamp = uint48(block.timestamp);
+            if (_requestRedeem()) {
+                lastRequestTimestamp = uint48(block.timestamp);
+            }
         }
     }
 
     /// @dev Finalizes or clears completed requests.
     function _finalizeRequests() internal virtual;
 
-    /// @dev Submits a redemption request for amount.
-    function _requestRedeem() internal virtual;
+    /// @dev Submits a redemption request. Returns whether a new request was created.
+    function _requestRedeem() internal virtual returns (bool);
 }

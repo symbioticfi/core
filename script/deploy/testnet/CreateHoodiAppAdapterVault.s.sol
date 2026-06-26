@@ -64,7 +64,7 @@ contract CreateHoodiAppAdapterVault is Script {
 
     uint48 internal constant DURATION = 30 seconds;
     uint96 internal constant SUBNETWORK_IDENTIFIER = 3030;
-    uint256 internal constant DEPOSIT_AMOUNT = 1_000e6;
+    uint256 internal constant DEPOSIT_AMOUNT = 1000e6;
 
     function run() external {
         vm.startBroadcast();
@@ -147,8 +147,9 @@ contract CreateHoodiAppAdapterVault is Script {
         ITestnetBurnerRouterFactory.OperatorNetworkReceiver[] memory operatorNetworkReceivers =
             new ITestnetBurnerRouterFactory.OperatorNetworkReceiver[](0);
 
-        return ITestnetBurnerRouterFactory(BURNER_ROUTER_FACTORY).create(
-            ITestnetBurnerRouterFactory.InitParams({
+        return ITestnetBurnerRouterFactory(BURNER_ROUTER_FACTORY)
+            .create(
+                ITestnetBurnerRouterFactory.InitParams({
                 owner: OWNER,
                 collateral: USDC,
                 delay: 0,
@@ -156,28 +157,29 @@ contract CreateHoodiAppAdapterVault is Script {
                 networkReceivers: networkReceivers,
                 operatorNetworkReceivers: operatorNetworkReceivers
             })
-        );
+            );
     }
 
     function _createAppAdapter(address vault, address burner) internal returns (address) {
         address[] memory converters = new address[](0);
 
-        return IMigratablesFactory(APP_ADAPTER_FACTORY).create(
-            1,
-            OWNER,
-            abi.encode(
-                vault,
+        return IMigratablesFactory(APP_ADAPTER_FACTORY)
+            .create(
+                1,
+                OWNER,
                 abi.encode(
-                    IAppAdapter.InitParams({
+                    vault,
+                    abi.encode(
+                        IAppAdapter.InitParams({
                         burner: burner,
                         duration: DURATION,
                         operator: OWNER,
                         subnetwork: _subnetwork(OWNER, SUBNETWORK_IDENTIFIER),
                         converters: converters
                     })
+                    )
                 )
-            )
-        );
+            );
     }
 
     function _subnetwork(address network, uint96 identifier) internal pure returns (bytes32) {

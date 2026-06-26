@@ -163,13 +163,14 @@ contract AssetoAccount is CooldownAccount, CutoffAccount, IAssetoAccount {
                     || lastRequestTimestamp == 0
                     || block.timestamp >= lastRequestTimestamp + COOLDOWN)
         ) {
-            _requestRedeem();
-            lastRequestTimestamp = uint48(block.timestamp);
+            if (_requestRedeem()) {
+                lastRequestTimestamp = uint48(block.timestamp);
+            }
         }
     }
 
     /// @dev Burns held Asseto tokens through the manager for off-chain settlement.
-    function _requestRedeem() internal override {
+    function _requestRedeem() internal override returns (bool) {
         uint256 amount = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
         uint256 maximumRedemptionAmount = IAssetoManager(MANAGER).maximumRedemptionAmount();
         if (amount > maximumRedemptionAmount) {
@@ -184,6 +185,7 @@ contract AssetoAccount is CooldownAccount, CutoffAccount, IAssetoAccount {
         buckets[bucket].totalTokenToRedeem += amount;
         buckets[bucket].pendingTokenToRedeem += amount;
         IAssetoManager(MANAGER).requestRedemptionServicedOffchain(amount, offChainDestination);
+        return true;
     }
 
     /// @dev Returns a pending cutoff entry's value and whether it is past its counting window.
