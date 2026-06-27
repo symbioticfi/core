@@ -100,6 +100,11 @@ abstract contract MidasAccount is CooldownAccount, IMidasAccount {
 
         IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_VAULT, type(uint256).max);
     }
+
+    /* STORAGE GAP */
+
+    /// @dev Reserved storage gap for future upgrades.
+    uint256[50] private __gap;
 }
 
 /// @title MidasCompAccount

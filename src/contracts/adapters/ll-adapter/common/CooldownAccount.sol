@@ -51,4 +51,9 @@ abstract contract CooldownAccount is Account, ICooldownAccount {
 
     /// @dev Submits a redemption request. Returns whether a new request was created.
     function _requestRedeem() internal virtual returns (bool);
+
+    /* STORAGE GAP */
+
+    /// @dev Reserved storage gap for future upgrades.
+    uint256[50] private __gap;
 }

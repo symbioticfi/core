@@ -123,4 +123,9 @@ abstract contract Account is MigratableEntity, CoWSwapConverter, IAccount {
         _unit = 10 ** IERC20Metadata(_asset).decimals();
         IERC20(_asset).forceApprove(adapter, type(uint256).max);
     }
+
+    /* STORAGE GAP */
+
+    /// @dev Reserved storage gap for future upgrades.
+    uint256[50] private __gap;
 }

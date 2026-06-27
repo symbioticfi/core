@@ -119,5 +119,5 @@ abstract contract Adapter is MigratableEntity, StaticDelegateCallable, Multicall
     /* STORAGE GAP */
 
     /// @dev Reserved storage gap for future upgrades.
-    uint256[50] internal __gap;
+    uint256[50] private __gap;
 }

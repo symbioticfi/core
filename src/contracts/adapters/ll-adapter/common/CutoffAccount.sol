@@ -23,4 +23,9 @@ abstract contract CutoffAccount is ICutoffAccount {
 
     /// @inheritdoc ICutoffAccount
     function bucketToTimestamp(uint48 bucket) public view virtual override returns (uint48 timestamp);
+
+    /* STORAGE GAP */
+
+    /// @dev Reserved storage gap for future upgrades.
+    uint256[50] private __gap;
 }

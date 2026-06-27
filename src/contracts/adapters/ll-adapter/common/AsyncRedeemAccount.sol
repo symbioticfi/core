@@ -76,4 +76,9 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
     function _asyncRedeemVault() internal view virtual returns (address) {
         return IERC7575Share(TOKEN_TO_REDEEM).vault(_asset);
     }
+
+    /* STORAGE GAP */
+
+    /// @dev Reserved storage gap for future upgrades.
+    uint256[50] private __gap;
 }
