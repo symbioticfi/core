@@ -24,11 +24,16 @@ import {
     PERFORMANCE_FEE_ROLE,
     MANAGEMENT_FEE_ROLE
 } from "../../src/interfaces/vault/IVaultV2.sol";
+import {IVaultStorage} from "../../src/interfaces/vault/IVaultStorage.sol";
 import {Token} from "../mocks/Token.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+
+interface ILegacyProtocolFeeGetter {
+    function PROTOCOL_FEE() external view returns (uint256 fee);
+}
 
 contract VaultV2MigratableEntityMock is MigratableEntity {
     constructor(address factory) MigratableEntity(factory) {}
@@ -182,7 +187,7 @@ contract VaultV2BehaviorTest is Test {
     function test_InitializeStartsWithDefaultFeeConfig() public {
         VaultV2 vault = _createVault(false, false, 0);
 
-        (bool success,) = address(vault).staticcall(abi.encodeWithSignature("PROTOCOL_FEE()"));
+        (bool success,) = address(vault).staticcall(abi.encodeCall(ILegacyProtocolFeeGetter.PROTOCOL_FEE, ()));
         assertFalse(success);
         assertEq(vault.lastProtocolManagementFee(), 0);
         assertEq(vault.lastProtocolPerformanceFee(), 0);
@@ -238,7 +243,7 @@ contract VaultV2BehaviorTest is Test {
 
         assertTrue(vault.isInitialized());
         assertEq(vault.asset(), address(collateral));
-        (bool hasCollateralGetter,) = address(vault).staticcall(abi.encodeWithSignature("collateral()"));
+        (bool hasCollateralGetter,) = address(vault).staticcall(abi.encodeCall(IVaultStorage.collateral, ()));
         assertFalse(hasCollateralGetter);
         assertEq(vault.maxDeposit(alice), type(uint256).max);
         assertEq(vault.maxMint(alice), type(uint256).max);

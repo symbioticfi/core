@@ -20,6 +20,10 @@ import {ISettlementAccount} from "../../../src/interfaces/adapters/ll-adapter/IS
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+interface IProviderLegacySubAccounts {
+    function subAccounts(uint256 index) external view returns (address subAccount);
+}
+
 contract ProviderAccountsTest is AccountsBase {
     bytes32 internal constant ASSETO_DESTINATION = bytes32("AoABT_red_test");
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
@@ -387,7 +391,8 @@ contract ProviderAccountsTest is AccountsBase {
 
         account.sync();
 
-        (bool hasSubAccounts,) = address(account).staticcall(abi.encodeWithSignature("subAccounts(uint256)", 0));
+        (bool hasSubAccounts,) =
+            address(account).staticcall(abi.encodeCall(IProviderLegacySubAccounts.subAccounts, (0)));
         (uint256 amount, uint48 bucketIndex) = account.pendingCutoffs(0);
         (uint256 totalTokenToRedeem, uint256 pendingTokenToRedeem,) = account.buckets(bucketIndex);
 

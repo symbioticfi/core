@@ -31,6 +31,10 @@ import {
     TestnetSwapRouterMock
 } from "./DeployFullCoreLiquidLaneTestnet.s.sol";
 
+interface IConsoleLog {
+    function log(string memory line) external view;
+}
+
 contract DeployFullAdapterOverlayTestnetScript is Script {
     uint256 internal constant DEFAULT_ADAPTER_LIMIT = type(uint128).max;
 
@@ -381,7 +385,7 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
 
     function _log(string memory label, address value) internal view {
         string memory line = string.concat(label, ": ", vm.toString(value));
-        bytes memory payload = abi.encodeWithSignature("log(string)", line);
+        bytes memory payload = abi.encodeCall(IConsoleLog.log, (line));
         (bool success,) = address(0x000000000000000000636F6e736F6c652e6c6f67).staticcall(payload);
         success;
     }

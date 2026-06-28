@@ -10,7 +10,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IMorphoVaultV2} from "../../src/interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
-import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {ICoWSwapConverter, ICoWSwapSettlement} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 
 import {Token} from "../mocks/Token.sol";
@@ -44,7 +44,7 @@ contract MorphoVaultV2AdapterTest is Test {
         vaultFactory.add(address(vault));
         morphoVaultFactory.setVault(address(morphoVault), true);
 
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        vm.mockCall(settlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
         MorphoVaultV2Adapter implementation = new MorphoVaultV2Adapter(
             address(vaultFactory),
             address(factory),

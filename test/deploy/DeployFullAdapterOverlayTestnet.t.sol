@@ -194,7 +194,7 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
 
     function _assertMorphoRegistryContains(address registry, address account) internal view {
         (bool success, bytes memory data) =
-            registry.staticcall(abi.encodeWithSignature("isInRegistry(address)", account));
+            registry.staticcall(abi.encodeCall(MockMorphoAdapterRegistry.isInRegistry, (account)));
         assertTrue(success);
         assertTrue(abi.decode(data, (bool)));
     }
@@ -231,7 +231,7 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
 
         vm.prank(owner);
         (bool success, bytes memory returnData) = deployed.mockMorphoVaultFactory
-            .call(abi.encodeWithSignature("createVault(address)", address(extraMorphoAsset)));
+            .call(abi.encodeCall(MockMorphoVaultFactory.createVault, (address(extraMorphoAsset))));
         assertTrue(success);
         (, address extraMorphoVault) = abi.decode(returnData, (address, address));
 

@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {AccountRegistry} from "../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
 
 import {IAccountRegistry} from "../../../src/interfaces/adapters/ll-adapter/IAccountRegistry.sol";
+import {IMigratablesFactory} from "../../../src/interfaces/common/IMigratablesFactory.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -55,7 +56,7 @@ contract AccountRegistryTest is Test {
     }
 
     function test_MigratablesFactoryApiIsUnavailable() public {
-        (bool lastVersionSuccess,) = address(registry).call(abi.encodeWithSignature("lastVersion()"));
+        (bool lastVersionSuccess,) = address(registry).call(abi.encodeCall(IMigratablesFactory.lastVersion, ()));
 
         assertFalse(lastVersionSuccess);
     }

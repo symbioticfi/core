@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {CutoffMidasAccount} from "../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
+import {ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -46,7 +47,7 @@ contract MidasCutoffAccountTest is Test {
         redemptionVault.setTokenConfig(address(usdc), makeAddr("usdcDataFeed"));
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
+        vm.mockCall(cowSettlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(cowRelayer));
         CutoffMidasAccount implementation = new CutoffMidasAccount(
             address(new MidasOracle(1, type(uint256).max, address(dataFeed))),
             address(factory),

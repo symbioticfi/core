@@ -7,6 +7,7 @@ import {AaveV3Adapter} from "../../src/contracts/adapters/AaveV3Adapter.sol";
 import {ERC4626Adapter} from "../../src/contracts/adapters/ERC4626Adapter.sol";
 import {MorphoVaultV2Adapter} from "../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
 import {ThreeFAdapter} from "../../src/contracts/adapters/ThreeFAdapter.sol";
+import {ICoWSwapSettlement} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 
 contract AdapterNoAccountShapeTest is Test {
     function test_ConstructorsDoNotRequireAccountBeacon() public {
@@ -20,7 +21,7 @@ contract AdapterNoAccountShapeTest is Test {
         address morphoVaultFactory = makeAddr("morphoVaultFactory");
         address morphoAdapterRegistry = makeAddr("morphoAdapterRegistry");
 
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        vm.mockCall(settlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
 
         new AaveV3Adapter(aavePool, vaultFactory, adapterFactory, rewards, settlement);
         new ERC4626Adapter(vaultFactory, adapterFactory, rewards, settlement);

@@ -82,39 +82,51 @@ forge script script/DeployVaultV2.s.sol --rpc-url <RPC_URL> --private-key <PRIVA
 In the console, you will see logs like these:
 
 ```bash
-Deployed vault
+Deployed VaultV2
     vault:0x9c9e536A269ec83a0628404e35b2F940d7226c8C
     delegator:0xb7a105A294f7E2d399C9692c12ba4cAba90F5AAB
-    slasher:0x8D2E18628F28660cF75Ca51C85a354d7c8508B59
 ```
 
 ### Interact with Vaults
 
-There are 9 predefined [action-scripts](./script/actions/), that you can use from the start:
+There are predefined V2 [action-scripts](./script/actions/v2/), that you can use from the start:
 
-- [RegisterOperator](./script/actions/RegisterOperator.s.sol) – register an operator in the `OperatorRegistry`
-- [OptInVault](./script/actions/OptInVault.s.sol) – opt-in operator to the vault
-- [OptInNetwork](./script/actions/OptInNetwork.s.sol) – opt-in operator to the network
-- [SetMaxNetworkLimit](./script/actions/SetMaxNetworkLimit.s.sol) – set new [maximum network limit](https://docs.symbiotic.fi/modules/registries/#3-network-to-vault-opt-in) for the vault
-- [SetNetworkLimit](./script/actions/SetNetworkLimit.s.sol) – set a [network limit](https://docs.symbiotic.fi/modules/registries/#4-vault-to-network-opt-in) (how much stake the vault curator is ready to give to the subnetwork)
-- [SetOperatorNetworkShares](./script/actions/SetOperatorNetworkShares.s.sol) – set an [operator's shares for a subnetwork](https://docs.symbiotic.fi/modules/registries/#5-vault-to-operators-opt-in) (what percentage, which is equal to the shares divided by the total operators' shares, of the subnetwork's stake the vault curator is ready to give to the operator)
-- [SetHook](./script/actions/SetHook.s.sol) – configure [automation hooks](https://docs.symbiotic.fi/modules/extensions/hooks) that react to slashing events
-- [SetResolver](./script/actions/SetResolver.s.sol) – set a new [resolver](https://docs.symbiotic.fi/modules/counterparties/resolvers) for the vault (only if the vault uses [VetoSlasher](https://docs.symbiotic.fi/modules/vault/slashing#1-vetoslasher))
-- [VetoSlash](./script/actions/VetoSlash.s.sol) – [veto a pending slash request](https://docs.symbiotic.fi/modules/vault/slashing#1-vetoslasher) during the veto period
+- [AddAdapter](./script/actions/v2/AddAdapter.s.sol) – add an adapter to a VaultV2 delegator
+- [RemoveAdapter](./script/actions/v2/RemoveAdapter.s.sol) – remove an adapter from a VaultV2 delegator
+- [SwapAdapters](./script/actions/v2/SwapAdapters.s.sol) – swap two adapters in a VaultV2 delegator
+- [AllocateAdapter](./script/actions/v2/AllocateAdapter.s.sol) – allocate assets to one adapter
+- [AllocateAdapterExact](./script/actions/v2/AllocateAdapterExact.s.sol) – allocate an exact amount to one adapter
+- [AllocateAdapters](./script/actions/v2/AllocateAdapters.s.sol) – allocate assets across configured adapters
+- [DeallocateAdapter](./script/actions/v2/DeallocateAdapter.s.sol) – deallocate assets from one adapter
+- [DeallocateAdapters](./script/actions/v2/DeallocateAdapters.s.sol) – deallocate assets across configured adapters
+- [DeallocateAdaptersExact](./script/actions/v2/DeallocateAdaptersExact.s.sol) – deallocate an exact amount across configured adapters
+- [ForceDeallocateAdapter](./script/actions/v2/ForceDeallocateAdapter.s.sol) – force deallocation from one adapter
+- [SweepPending](./script/actions/v2/SweepPending.s.sol) – settle pending adapter deallocations
+- [SetAdapterLimit](./script/actions/v2/SetAdapterLimit.s.sol) – set an adapter absolute limit
+- [SetAdapterLimits](./script/actions/v2/SetAdapterLimits.s.sol) – set adapter absolute and share limits
+- [SetAutoAllocateAdapters](./script/actions/v2/SetAutoAllocateAdapters.s.sol) – configure auto-allocation adapters
+- [RequestRedeem](./script/actions/v2/RequestRedeem.s.sol) – request a VaultV2 withdrawal
+- [ClaimWithdrawal](./script/actions/v2/ClaimWithdrawal.s.sol) – claim a finalized VaultV2 withdrawal
+- [SetDepositLimit](./script/actions/v2/SetDepositLimit.s.sol) – set the VaultV2 deposit limit value
+- [SetIsDepositLimit](./script/actions/v2/SetIsDepositLimit.s.sol) – enable or disable the VaultV2 deposit limit
+- [SetDepositWhitelist](./script/actions/v2/SetDepositWhitelist.s.sol) – enable or disable the VaultV2 deposit whitelist
+- [SetDepositorWhitelistStatus](./script/actions/v2/SetDepositorWhitelistStatus.s.sol) – whitelist or unwhitelist a depositor
+- [SetManagementFee](./script/actions/v2/SetManagementFee.s.sol) – set the VaultV2 management fee and receiver
+- [SetPerformanceFee](./script/actions/v2/SetPerformanceFee.s.sol) – set the VaultV2 performance fee and receiver
 
-Interaction with different actions is similar; let's consider [SetNetworkLimit](./script/actions/SetNetworkLimit.s.sol) as an example:
+Interaction with different actions is similar; let's consider [SetAdapterLimits](./script/actions/v2/SetAdapterLimits.s.sol) as an example:
 
-1. Open [SetNetworkLimit.s.sol](./script/actions/SetNetworkLimit.s.sol), you will see config like this:
+1. Open [SetAdapterLimits.s.sol](./script/actions/v2/SetAdapterLimits.s.sol), you will see config like this:
 
    ```solidity
-   // Address of the Vault
+   // Address of the VaultV2
    address constant VAULT = address(0);
-   // Address of the Network to set the network limit for
-   address constant NETWORK = address(0);
-   // Subnetwork Identifier
-   uint96 constant IDENTIFIER = 0;
-   // Network limit value to set
-   uint256 constant LIMIT = 0;
+   // Address of the adapter to configure
+   address constant ADAPTER = address(0);
+   // Absolute adapter limit
+   uint256 constant ABSOLUTE_LIMIT = 0;
+   // Relative adapter share limit
+   uint256 constant SHARE_LIMIT = 0;
    ```
 
 2. Edit needed fields, and execute the operation:
@@ -122,34 +134,38 @@ Interaction with different actions is similar; let's consider [SetNetworkLimit](
    - If you use an EOA and want to execute the script:
 
      ```bash
-     forge script script/actions/SetNetworkLimit.s.sol --rpc-url <RPC_URL> --private-key <PRIVATE_KEY> --broadcast
+     forge script script/actions/v2/SetAdapterLimits.s.sol --rpc-url <RPC_URL> --private-key <PRIVATE_KEY> --broadcast
      ```
 
    - If you use a Safe multisig and want to get a transaction calldata:
 
      ```bash
-     forge script script/actions/SetMaxNetworkLimit.s.sol --rpc-url <RPC_URL> --sender <MULTISIG_ADDRESS> --unlocked
+     forge script script/actions/v2/SetAdapterLimits.s.sol --rpc-url <RPC_URL> --sender <MULTISIG_ADDRESS> --unlocked
      ```
 
-     In the logs, you will see `data` and `target` fields like this:
+     In the logs, you will see the action fields and a simulation link like this:
 
      ```bash
-     SetNetworkLimit data:
-     data:0x02145348759d4335cb712aa188935c2bd3aa6d205ac613050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-     target:0xd6c4b4267BFB908BBdf8C9BDa7d0Ae517aA145b0
+     Set adapter limits
+         vault:0x9c9e536A269ec83a0628404e35b2F940d7226c8C
+         adapter:0x7a7ED2F93D071838b426d9aeC0368e2eB3bfE1D5
+         absoluteLimit:1000000000000000000000
+         shareLimit:500000
+     Simulation link:
+     https://dashboard.tenderly.co/TENDERLY_USERNAME/TENDERLY_PROJECT/simulator/new?network=1&contractAddress=0xb7a105A294f7E2d399C9692c12ba4cAba90F5AAB&from=0x2aCA71020De61bb532008049e1Bd41E451aE8AdC&rawFunctionInput=0x...
      ```
 
      In Safe->TransactionBuilder, you should:
 
      - enable "Custom data"
-     - enter `target` as a target address
-     - use the `data` (e.g., `0x02145348759d4335cb712aa188935c2bd3aa6d205ac61305...`) received earlier as a `Data (Hex encoded)`
+     - enter the simulation link `contractAddress` as a target address
+     - use the simulation link `rawFunctionInput` as a `Data (Hex encoded)`
 
 Moreover, a [Tenderly](https://tenderly.co/) simulation link is provided as an additional safeguard, e.g.:
 
 ```bash
 Simulation link:
-https://dashboard.tenderly.co/TENDERLY_USERNAME/TENDERLY_PROJECT/simulator/new?network=1&contractAddress=0xd6c4b4267BFB908BBdf8C9BDa7d0Ae517aA145b0&from=0x2aCA71020De61bb532008049e1Bd41E451aE8AdC&rawFunctionInput=0x02145348759d4335cb712aa188935c2bd3aa6d205ac613050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+https://dashboard.tenderly.co/TENDERLY_USERNAME/TENDERLY_PROJECT/simulator/new?network=1&contractAddress=0xb7a105A294f7E2d399C9692c12ba4cAba90F5AAB&from=0x2aCA71020De61bb532008049e1Bd41E451aE8AdC&rawFunctionInput=0x...
 ```
 
 ### Build, Test, and Format

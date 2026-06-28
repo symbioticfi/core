@@ -5,7 +5,8 @@ import {Test} from "forge-std/Test.sol";
 
 import {
     DeployFullCoreLiquidLaneTestnetScript,
-    TestnetBurnerRouterFactoryMock
+    TestnetBurnerRouterFactoryMock,
+    TestnetERC20Mock
 } from "../../script/deploy/testnet/DeployFullCoreLiquidLaneTestnet.s.sol";
 import {TestnetVaultFactory} from "../../script/deploy/testnet/TestnetVaultFactory.sol";
 
@@ -627,7 +628,7 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
 
         vm.prank(owner);
         (bool success, bytes memory returnData) = fullAdapters.mockMorphoVaultFactory
-            .call(abi.encodeWithSignature("createVault(address)", address(extraMorphoAsset)));
+            .call(abi.encodeCall(MockMorphoVaultFactory.createVault, (address(extraMorphoAsset))));
         assertTrue(success);
         (, address extraMorphoVault) = abi.decode(returnData, (address, address));
 
@@ -918,7 +919,7 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
     }
 
     function _mint(address token, address to, uint256 amount) internal {
-        (bool success,) = token.call(abi.encodeWithSignature("mint(address,uint256)", to, amount));
+        (bool success,) = token.call(abi.encodeCall(TestnetERC20Mock.mint, (to, amount)));
         assertTrue(success);
     }
 
@@ -948,7 +949,7 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
 
     function _assertMorphoRegistryContains(address registry, address account) internal view {
         (bool success, bytes memory data) =
-            registry.staticcall(abi.encodeWithSignature("isInRegistry(address)", account));
+            registry.staticcall(abi.encodeCall(MockMorphoAdapterRegistry.isInRegistry, (account)));
         assertTrue(success);
         assertTrue(abi.decode(data, (bool)));
     }

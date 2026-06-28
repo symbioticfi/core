@@ -8,11 +8,13 @@ import {ChainlinkOracle} from "../../../src/contracts/adapters/ll-adapter/oracle
 import {liUSD13w_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/liUSD13w_Account.sol";
 import {liUSD4w_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/liUSD4w_Account.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
+import {ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IInfiniFiAccount} from "../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiAccount.sol";
 import {IInfiniFiGateway} from "../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiGateway.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract InfiniFiAccountTest is Test {
     uint48 internal constant COOLDOWN = 3 days;
@@ -42,7 +44,7 @@ contract InfiniFiAccountTest is Test {
         oracle = new MockOracle(1e18);
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
+        vm.mockCall(cowSettlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(cowRelayer));
         InfiniFiAccount implementation = new InfiniFiAccount(
             address(oracle),
             address(factory),
@@ -64,9 +66,7 @@ contract InfiniFiAccountTest is Test {
         uint256 ts = vm.getBlockTimestamp();
         liusd.mint(address(account), 100e18);
 
-        vm.expectCall(
-            address(gateway), abi.encodeWithSelector(IInfiniFiGateway.startUnwinding.selector, 100e18, UNWINDING_EPOCHS)
-        );
+        vm.expectCall(address(gateway), abi.encodeCall(IInfiniFiGateway.startUnwinding, (100e18, UNWINDING_EPOCHS)));
         account.sync();
 
         assertEq(liusd.balanceOf(address(account)), 0);
@@ -278,8 +278,8 @@ contract InfiniFiAccountTest is Test {
     function testLiUSDAccountsHardcodeMainnetWiring() public {
         address liUSD4w = 0x66bCF6151D5558AfB47c38B20663589843156078;
         address liUSD13w = 0xbd3f9814eB946E617f1d774A6762cDbec0bf087A;
-        vm.mockCall(liUSD4w, abi.encodeWithSignature("decimals()"), abi.encode(uint8(18)));
-        vm.mockCall(liUSD13w, abi.encodeWithSignature("decimals()"), abi.encode(uint8(18)));
+        vm.mockCall(liUSD4w, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
+        vm.mockCall(liUSD13w, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         liUSD4w_Account account4w = new liUSD4w_Account(address(factory), cowSettlement);

@@ -9,7 +9,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {IAaveV3Adapter} from "../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
-import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {ICoWSwapConverter, ICoWSwapSettlement} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 
 import {Token} from "../mocks/Token.sol";
@@ -40,7 +40,7 @@ contract AaveV3AdapterTest is Test {
         vault = new AaveV3AdapterVaultMock(address(assetToken), delegator);
         vaultFactory.add(address(vault));
 
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        vm.mockCall(settlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
         AaveV3Adapter implementation =
             new AaveV3Adapter(address(pool), address(vaultFactory), address(factory), rewards, settlement);
         factory.whitelist(address(implementation));

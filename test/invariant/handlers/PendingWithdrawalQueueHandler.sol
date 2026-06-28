@@ -17,6 +17,7 @@ import {WithdrawalQueue} from "../../../src/contracts/vault/WithdrawalQueue.sol"
 import {WithdrawalQueueFactory} from "../../../src/contracts/WithdrawalQueueFactory.sol";
 
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
+import {ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {
     IUniversalDelegator,
     UNIVERSAL_DELEGATOR_VERSION,
@@ -358,7 +359,7 @@ contract PendingWithdrawalQueueHandler is Test {
         }
         delegatorFactory.whitelist(address(new UniversalDelegator(address(adapterRegistry), address(delegatorFactory))));
 
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        vm.mockCall(settlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
         adapterFactory.whitelist(
             address(
                 new AppAdapter(

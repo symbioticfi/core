@@ -372,9 +372,7 @@ contract OperatorSpecificDelegatorHints is Hints {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
-                abi.encodeWithSelector(
-                    OperatorSpecificDelegatorHints.networkLimitHintInternal.selector, subnetwork, timestamp
-                )
+                abi.encodeCall(OperatorSpecificDelegatorHints.networkLimitHintInternal, (subnetwork, timestamp))
             ),
             (bool, uint32)
         );
@@ -445,8 +443,8 @@ contract OperatorNetworkSpecificDelegatorHints is Hints {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
-                abi.encodeWithSelector(
-                    OperatorNetworkSpecificDelegatorHints.maxNetworkLimitHintInternal.selector, subnetwork, timestamp
+                abi.encodeCall(
+                    OperatorNetworkSpecificDelegatorHints.maxNetworkLimitHintInternal, (subnetwork, timestamp)
                 )
             ),
             (bool, uint32)

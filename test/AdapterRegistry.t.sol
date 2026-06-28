@@ -6,6 +6,30 @@ import {Test} from "forge-std/Test.sol";
 import {AdapterRegistry} from "../src/contracts/AdapterRegistry.sol";
 import {IAdapterRegistry} from "../src/interfaces/IAdapterRegistry.sol";
 
+interface ILegacyAdapterRegistryInitialize {
+    function initialize(address owner) external;
+}
+
+interface ILegacyAdapterRegistryWhitelist {
+    function whitelist(address vault, address adapter) external;
+}
+
+interface ILegacyAdapterRegistrySetStatusGlobal {
+    function setWhitelistStatus(address adapter, bool status) external;
+}
+
+interface ILegacyAdapterRegistrySetStatusScoped {
+    function setWhitelistStatus(address vault, address adapter, bool status) external;
+}
+
+interface ILegacyAdapterRegistrySetGlobalStatus {
+    function setGlobalWhitelistStatus(address adapter, bool status) external;
+}
+
+interface ILegacyAdapterRegistrySetVaultStatus {
+    function setVaultWhitelistStatus(address vault, address adapter, bool status) external;
+}
+
 contract AdapterRegistryTest is Test {
     AdapterRegistry internal registry;
     address internal owner;
@@ -49,27 +73,28 @@ contract AdapterRegistryTest is Test {
     }
 
     function test_RemovedUpgradeableAndOldWhitelistApi() public {
-        (bool initializeSuccess,) = address(registry).call(abi.encodeWithSignature("initialize(address)", owner));
+        (bool initializeSuccess,) =
+            address(registry).call(abi.encodeCall(ILegacyAdapterRegistryInitialize.initialize, (owner)));
         assertFalse(initializeSuccess);
 
-        (bool whitelistSuccess,) =
-            address(registry).call(abi.encodeWithSignature("whitelist(address,address)", address(0xBEEF), adapter));
+        (bool whitelistSuccess,) = address(registry)
+            .call(abi.encodeCall(ILegacyAdapterRegistryWhitelist.whitelist, (address(0xBEEF), adapter)));
         assertFalse(whitelistSuccess);
 
-        (bool oldSetSuccess,) =
-            address(registry).call(abi.encodeWithSignature("setWhitelistStatus(address,bool)", adapter, true));
+        (bool oldSetSuccess,) = address(registry)
+            .call(abi.encodeCall(ILegacyAdapterRegistrySetStatusGlobal.setWhitelistStatus, (adapter, true)));
         assertFalse(oldSetSuccess);
 
         (bool oldScopedSetSuccess,) = address(registry)
-            .call(abi.encodeWithSignature("setWhitelistStatus(address,address,bool)", vault, adapter, true));
+            .call(abi.encodeCall(ILegacyAdapterRegistrySetStatusScoped.setWhitelistStatus, (vault, adapter, true)));
         assertFalse(oldScopedSetSuccess);
 
-        (bool oldGlobalSetSuccess,) =
-            address(registry).call(abi.encodeWithSignature("setGlobalWhitelistStatus(address,bool)", adapter, true));
+        (bool oldGlobalSetSuccess,) = address(registry)
+            .call(abi.encodeCall(ILegacyAdapterRegistrySetGlobalStatus.setGlobalWhitelistStatus, (adapter, true)));
         assertFalse(oldGlobalSetSuccess);
 
         (bool oldVaultSetSuccess,) = address(registry)
-            .call(abi.encodeWithSignature("setVaultWhitelistStatus(address,address,bool)", vault, adapter, true));
+            .call(abi.encodeCall(ILegacyAdapterRegistrySetVaultStatus.setVaultWhitelistStatus, (vault, adapter, true)));
         assertFalse(oldVaultSetSuccess);
 
         assertEq(

@@ -820,10 +820,8 @@ contract TokensToRedeemMainnetTest is Test {
             (address dataFeed,,,) = IMidasRedemptionVault(redemptionVault).tokensConfig(asset);
             vm.expectCall(
                 redemptionVault,
-                abi.encodeWithSelector(
-                    IMidasRedemptionVault.redeemRequest.selector,
-                    dataFeed == address(0) ? redemptionToken : asset,
-                    amount
+                abi.encodeCall(
+                    IMidasRedemptionVault.redeemRequest, (dataFeed == address(0) ? redemptionToken : asset, amount)
                 )
             );
             return;
@@ -831,42 +829,38 @@ contract TokensToRedeemMainnetTest is Test {
         if (_isCentrifuge(index)) {
             vm.expectCall(
                 _asyncRedeemVault(token, asset),
-                abi.encodeWithSelector(
-                    IAsyncRedeemVault.requestRedeem.selector, amount, address(account), address(account)
-                )
+                abi.encodeCall(IAsyncRedeemVault.requestRedeem, (amount, address(account), address(account)))
             );
             return;
         }
         if (index == 2) {
             vm.expectCall(
                 IMakinaAccount(address(account)).REDEEMER(),
-                abi.encodeWithSelector(IMakinaRedeemer.requestRedeem.selector, amount, address(account), uint256(0))
+                abi.encodeCall(IMakinaRedeemer.requestRedeem, (amount, address(account), uint256(0)))
             );
             return;
         }
         if (index == 5) {
-            vm.expectCall(
-                token, abi.encodeWithSelector(IERC4626.redeem.selector, amount, address(account), address(account))
-            );
+            vm.expectCall(token, abi.encodeCall(IERC4626.redeem, (amount, address(account), address(account))));
             return;
         }
         if (index == 7) {
             vm.expectCall(
                 IDigiFTAccount(address(account)).SUB_RED_MANAGEMENT(),
-                abi.encodeWithSelector(IDigiFTSubRedManagement.redeem.selector, token, asset, amount, block.timestamp)
+                abi.encodeCall(IDigiFTSubRedManagement.redeem, (token, asset, amount, block.timestamp))
             );
             return;
         }
         if (index == 32) {
-            vm.expectCall(token, abi.encodeWithSelector(ISaid.unstake.selector, amount));
+            vm.expectCall(token, abi.encodeCall(ISaid.unstake, (amount)));
             return;
         }
         if (index == 33) {
-            vm.expectCall(token, abi.encodeWithSelector(IThreeJaneSUSD3.startCooldown.selector, amount));
+            vm.expectCall(token, abi.encodeCall(IThreeJaneSUSD3.startCooldown, (amount)));
             return;
         }
         if (index == 34) {
-            vm.expectCall(token, abi.encodeWithSelector(ISthUSD.initiateRedeem.selector, amount, address(account)));
+            vm.expectCall(token, abi.encodeCall(ISthUSD.initiateRedeem, (amount, address(account))));
             return;
         }
         if (index == 35) {
@@ -875,23 +869,17 @@ contract TokensToRedeemMainnetTest is Test {
         }
         if (index == 37) {
             vm.expectCall(
-                IParetoAccount(address(account)).IDLE_CDO(),
-                abi.encodeWithSelector(IParetoCDO.requestWithdraw.selector, amount, token)
+                IParetoAccount(address(account)).IDLE_CDO(), abi.encodeCall(IParetoCDO.requestWithdraw, (amount, token))
             );
             return;
         }
         if (_isSecuritize(index)) {
             // redemption notice is an ERC-20 transfer to the Securitize redemption wallet
-            vm.expectCall(
-                token, abi.encodeWithSelector(IERC20.transfer.selector, 0xbb543C77436645C8b95B64eEc39E3C0d48D4842b)
-            );
+            vm.expectCall(token, abi.encodeCall(IERC20.transfer, (0xbb543C77436645C8b95B64eEc39E3C0d48D4842b, amount)));
             return;
         }
         if (index == 39) {
-            vm.expectCall(
-                token,
-                abi.encodeWithSelector(IERC4626.redeem.selector, amount, NOON_WITHDRAWAL_HANDLER, address(account))
-            );
+            vm.expectCall(token, abi.encodeCall(IERC4626.redeem, (amount, NOON_WITHDRAWAL_HANDLER, address(account))));
             return;
         }
         if (index == 40) {
@@ -900,17 +888,15 @@ contract TokensToRedeemMainnetTest is Test {
         if (_isInfiniFi(index)) {
             vm.expectCall(
                 INFINIFI_GATEWAY,
-                abi.encodeWithSelector(
-                    IInfiniFiGateway.startUnwinding.selector,
-                    amount,
-                    IInfiniFiAccount(address(account)).UNWINDING_EPOCHS()
+                abi.encodeCall(
+                    IInfiniFiGateway.startUnwinding, (amount, IInfiniFiAccount(address(account)).UNWINDING_EPOCHS())
                 )
             );
             return;
         }
         vm.expectCall(
             ILidoAccount(payable(address(account))).WITHDRAWAL_QUEUE(),
-            abi.encodeWithSelector(ILidoWithdrawalQueue.requestWithdrawalsWstETH.selector)
+            bytes.concat(ILidoWithdrawalQueue.requestWithdrawalsWstETH.selector)
         );
     }
 
@@ -925,17 +911,18 @@ contract TokensToRedeemMainnetTest is Test {
         ) {
             vm.expectCall(
                 etherFiAccount.REDEMPTION_MANAGER(),
-                abi.encodeWithSelector(
-                    IEtherFiRedemptionManager.redeemWeEth.selector, amount, address(account), outputToken
-                )
+                abi.encodeCall(IEtherFiRedemptionManager.redeemWeEth, (amount, address(account), outputToken))
             );
             return;
         }
 
-        vm.expectCall(account.TOKEN_TO_REDEEM(), abi.encodeWithSelector(IWeETH.unwrap.selector, amount));
+        vm.expectCall(account.TOKEN_TO_REDEEM(), abi.encodeCall(IWeETH.unwrap, (amount)));
         vm.expectCall(
             etherFiAccount.LIQUIDITY_POOL(),
-            abi.encodeWithSelector(IEtherFiLiquidityPool.requestWithdraw.selector, address(account))
+            abi.encodeCall(
+                IEtherFiLiquidityPool.requestWithdraw,
+                (address(account), IWeETH(account.TOKEN_TO_REDEEM()).getEETHByWeETH(amount))
+            )
         );
     }
 
@@ -1152,9 +1139,8 @@ contract TokensToRedeemMainnetTest is Test {
 
     function _permissionCentrifugeMember(address token, address account) internal {
         address hook = IMainnetCentrifugeShareToken(token).hook();
-        bytes memory callData = abi.encodeWithSelector(
-            IMainnetCentrifugeTransferHook.updateMember.selector, token, account, type(uint64).max
-        );
+        bytes memory callData =
+            abi.encodeCall(IMainnetCentrifugeTransferHook.updateMember, (token, account, type(uint64).max));
 
         vm.prank(CENTRIFUGE_HOOK_WARD_1);
         (bool success, bytes memory reason) = hook.call(callData);
@@ -1174,12 +1160,8 @@ contract TokensToRedeemMainnetTest is Test {
         address management = IMainnetDigiFTSecurityToken(token).management();
         address subAccount = vm.computeCreateAddress(account, vm.getNonce(account));
 
-        _storeObservedBool(
-            management, abi.encodeWithSelector(IMainnetDigiFTManagement.isWhiteContract.selector, account), true
-        );
-        _storeObservedBool(
-            management, abi.encodeWithSelector(IMainnetDigiFTManagement.isWhiteInvestor.selector, subAccount), true
-        );
+        _storeObservedBool(management, abi.encodeCall(IMainnetDigiFTManagement.isWhiteContract, (account)), true);
+        _storeObservedBool(management, abi.encodeCall(IMainnetDigiFTManagement.isWhiteInvestor, (subAccount)), true);
     }
 
     function _storeObservedBool(address target, bytes memory callData, bool value) internal {

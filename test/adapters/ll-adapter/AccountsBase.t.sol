@@ -31,7 +31,28 @@ import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Vm} from "forge-std/Vm.sol";
+
+interface ILegacyRequestRedeem {
+    function requestRedeem() external;
+}
+
+interface ILegacyFinalizeRedeem {
+    function finalizeRedeem() external;
+}
+
+interface ILegacySubAccounts {
+    function subAccounts(uint256 index) external view returns (address subAccount);
+}
+
+interface ILegacyTotalAssets {
+    function totalAssets() external view returns (uint256 assets);
+}
+
+interface ILegacyTotalRequests {
+    function totalRequests() external view returns (uint256 count);
+}
 
 abstract contract AccountsBase is Test {
     address internal constant ACRDX_TOKEN_ADDRESS = 0x9477724Bb54AD5417de8Baff29e59DF3fB4DA74f;
@@ -260,7 +281,7 @@ abstract contract AccountsBase is Test {
     }
 
     function _mockDecimals(address token, uint8 decimals_) internal {
-        vm.mockCall(token, abi.encodeWithSignature("decimals()"), abi.encode(decimals_));
+        vm.mockCall(token, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(decimals_));
     }
 }
 

@@ -201,7 +201,7 @@ contract EtherFiAccountTest is AccountsBase {
         MockOracle oracle = new MockOracle(1e18);
         weETH_Account account = _deployWeETH(mocks, mocks.weth, oracle);
 
-        (bool success,) = address(account).staticcall(abi.encodeWithSignature("totalRequests()"));
+        (bool success,) = address(account).staticcall(abi.encodeCall(ILegacyTotalRequests.totalRequests, ()));
         assertFalse(success);
     }
 

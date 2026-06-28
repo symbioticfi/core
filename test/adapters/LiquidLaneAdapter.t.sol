@@ -41,6 +41,10 @@ import {IERC5267} from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+interface ILegacyPairMaxDiscountSetter {
+    function setPairMaxDiscount(address tokenToRedeem, address asset, uint256 maxDiscount) external;
+}
+
 contract LiquidLaneAdapterTest is Test {
     MockERC20 internal asset;
     MockERC20 internal tokenToRedeem;
@@ -173,8 +177,8 @@ contract LiquidLaneAdapterTest is Test {
         vm.prank(curator);
         (bool success,) = address(adapter)
             .call(
-                abi.encodeWithSignature(
-                    "setPairMaxDiscount(address,address,uint256)", address(tokenToRedeem), address(asset), 0
+                abi.encodeCall(
+                    ILegacyPairMaxDiscountSetter.setPairMaxDiscount, (address(tokenToRedeem), address(asset), 0)
                 )
             );
 

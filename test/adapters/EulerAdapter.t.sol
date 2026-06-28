@@ -9,7 +9,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IEulerAdapter} from "../../src/interfaces/adapters/IEulerAdapter.sol";
-import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {ICoWSwapConverter, ICoWSwapSettlement} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 
 import {Token} from "../mocks/Token.sol";
@@ -42,7 +42,7 @@ contract EulerAdapterTest is Test {
         vaultFactory.add(address(vault));
         lendVaultFactory.setProxy(address(lendVault), true);
 
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        vm.mockCall(settlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
         EulerAdapter implementation =
             new EulerAdapter(address(vaultFactory), address(factory), rewards, settlement, address(lendVaultFactory));
         factory.whitelist(address(implementation));

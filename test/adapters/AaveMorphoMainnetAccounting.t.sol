@@ -11,6 +11,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {IAaveV3Adapter} from "../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
+import {ICoWSwapSettlement} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IMorphoVaultV2} from "../../src/interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -87,7 +88,7 @@ contract AaveMorphoMainnetAccountingTest is Test {
         MainnetAdapterVaultMock vault = new MainnetAdapterVaultMock(asset, delegator);
         vaultFactory.add(address(vault));
 
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        vm.mockCall(settlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
         AaveV3Adapter implementation =
             new AaveV3Adapter(AAVE_POOL, address(vaultFactory), address(adapterFactory), rewards, settlement);
         adapterFactory.whitelist(address(implementation));
@@ -101,7 +102,7 @@ contract AaveMorphoMainnetAccountingTest is Test {
         MainnetAdapterVaultMock vault = new MainnetAdapterVaultMock(asset, delegator);
         vaultFactory.add(address(vault));
 
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        vm.mockCall(settlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
         MorphoVaultV2Adapter implementation = new MorphoVaultV2Adapter(
             address(vaultFactory),
             address(adapterFactory),

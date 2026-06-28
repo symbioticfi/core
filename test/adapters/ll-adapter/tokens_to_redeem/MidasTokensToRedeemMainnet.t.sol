@@ -182,7 +182,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
     function _mockHealthyMGlobalDataFeed(address account) internal {
         address dataFeed = address(IMidasRedemptionVault(MidasAccount(account).REDEMPTION_VAULT()).mTokenDataFeed());
         uint256 price = IMidasDataFeed(dataFeed).getDataInBase18();
-        vm.mockCall(dataFeed, abi.encodeWithSelector(IMidasDataFeed.getDataInBase18.selector), abi.encode(price));
+        vm.mockCall(dataFeed, abi.encodeCall(IMidasDataFeed.getDataInBase18, ()), abi.encode(price));
     }
 
     function _assertFinalizedAndDeallocateMGlobal(
@@ -452,7 +452,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
     }
 
     function _stabilizeMidasDataFeed(address dataFeed) internal {
-        (bool success,) = dataFeed.staticcall(abi.encodeWithSelector(IMidasDataFeed.getDataInBase18.selector));
+        (bool success,) = dataFeed.staticcall(abi.encodeCall(IMidasDataFeed.getDataInBase18, ()));
         if (success) {
             return;
         }

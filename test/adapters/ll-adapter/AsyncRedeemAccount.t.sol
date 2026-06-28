@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import "./AccountsBase.t.sol";
 
 import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
+import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 
 contract AsyncRedeemAccountTest is AccountsBase {
     function testAsyncRedeemOracleUsesAsyncVaultConversion() public {
@@ -49,7 +50,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         MockOracle oracle = new MockOracle(2e18);
         TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
 
-        (bool success,) = address(account).staticcall(abi.encodeWithSignature("totalRequests()"));
+        (bool success,) = address(account).staticcall(abi.encodeCall(ILegacyTotalRequests.totalRequests, ()));
         assertFalse(success);
     }
 
@@ -60,7 +61,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
 
         (bool success, bytes memory returnData) =
-            address(account).staticcall(abi.encodeWithSignature("COW_SWAP_SETTLEMENT()"));
+            address(account).staticcall(abi.encodeCall(ICoWSwapConverter.COW_SWAP_SETTLEMENT, ()));
         assertTrue(success);
         assertEq(abi.decode(returnData, (address)), cowSwapSettlement);
     }

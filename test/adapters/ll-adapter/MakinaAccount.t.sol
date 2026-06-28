@@ -4,6 +4,10 @@ pragma solidity ^0.8.28;
 import "./AccountsBase.t.sol";
 
 import {IMakinaAccount} from "../../../src/interfaces/adapters/ll-adapter/makina/IMakinaAccount.sol";
+import {IMakinaMachine} from "../../../src/interfaces/adapters/ll-adapter/makina/IMakinaMachine.sol";
+import {IMakinaRedeemer} from "../../../src/interfaces/adapters/ll-adapter/makina/IMakinaRedeemer.sol";
+
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract MakinaAccountTest is AccountsBase {
     function testMakinaAccountRejectsVaultAssetMismatch() public {
@@ -121,7 +125,7 @@ contract MakinaAccountTest is AccountsBase {
         MockOracle oracle = new MockOracle(1e18);
         MakinaAccount account = _deployMakina(tokenToRedeem, asset, redeemer, oracle, 0);
 
-        (bool success,) = address(account).staticcall(abi.encodeWithSignature("totalRequests()"));
+        (bool success,) = address(account).staticcall(abi.encodeCall(ILegacyTotalRequests.totalRequests, ()));
         assertFalse(success);
     }
 
@@ -134,10 +138,14 @@ contract MakinaAccountTest is AccountsBase {
     }
 
     function testDUSDAccountHardcodesMainnetTokenRedeemerAndOracle() public {
-        vm.mockCall(DUSD_TOKEN_ADDRESS, abi.encodeWithSignature("decimals()"), abi.encode(uint8(18)));
-        vm.mockCall(DUSD_REDEEMER_ADDRESS, abi.encodeWithSignature("machine()"), abi.encode(DUSD_MACHINE_ADDRESS));
-        vm.mockCall(DUSD_MACHINE_ADDRESS, abi.encodeWithSignature("accountingToken()"), abi.encode(USDC_TOKEN_ADDRESS));
-        vm.mockCall(DUSD_SHARE_PRICE_ORACLE_ADDRESS, abi.encodeWithSignature("decimals()"), abi.encode(uint8(18)));
+        vm.mockCall(DUSD_TOKEN_ADDRESS, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
+        vm.mockCall(
+            DUSD_REDEEMER_ADDRESS, abi.encodeCall(IMakinaRedeemer.machine, ()), abi.encode(DUSD_MACHINE_ADDRESS)
+        );
+        vm.mockCall(
+            DUSD_MACHINE_ADDRESS, abi.encodeCall(IMakinaMachine.accountingToken, ()), abi.encode(USDC_TOKEN_ADDRESS)
+        );
+        vm.mockCall(DUSD_SHARE_PRICE_ORACLE_ADDRESS, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         DUSD_Account implementation = new DUSD_Account(address(factory), cowSwapSettlement);

@@ -17,13 +17,13 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 import {ScriptBase} from "../../../script/utils/ScriptBase.s.sol";
 import {ScriptBaseHarness} from "./ScriptBaseHarness.s.sol";
 
-import {OptInNetworkBaseScript} from "../../../script/actions/base/OptInNetworkBase.s.sol";
-import {OptInVaultBaseScript} from "../../../script/actions/base/OptInVaultBase.s.sol";
-import {RegisterOperatorBaseScript} from "../../../script/actions/base/RegisterOperatorBase.s.sol";
-import {SetHookBaseScript} from "../../../script/actions/base/SetHookBase.s.sol";
-import {SetMaxNetworkLimitBaseScript} from "../../../script/actions/base/SetMaxNetworkLimitBase.s.sol";
-import {SetNetworkLimitBaseScript} from "../../../script/actions/base/SetNetworkLimitBase.s.sol";
-import {SetOperatorNetworkSharesBaseScript} from "../../../script/actions/base/SetOperatorNetworkSharesBase.s.sol";
+import {OptInNetworkBaseScript} from "../../../script/actions/v1/base/OptInNetworkBase.s.sol";
+import {OptInVaultBaseScript} from "../../../script/actions/v1/base/OptInVaultBase.s.sol";
+import {RegisterOperatorBaseScript} from "../../../script/actions/v1/base/RegisterOperatorBase.s.sol";
+import {SetHookBaseScript} from "../../../script/actions/v1/base/SetHookBase.s.sol";
+import {SetMaxNetworkLimitBaseScript} from "../../../script/actions/v1/base/SetMaxNetworkLimitBase.s.sol";
+import {SetNetworkLimitBaseScript} from "../../../script/actions/v1/base/SetNetworkLimitBase.s.sol";
+import {SetOperatorNetworkSharesBaseScript} from "../../../script/actions/v1/base/SetOperatorNetworkSharesBase.s.sol";
 
 interface IVetoSlasherExtended is IVetoSlasher {
     function slashRequests(uint256 index)

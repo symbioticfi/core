@@ -10,6 +10,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IAppAdapter, BURNER_GAS_LIMIT} from "../../src/interfaces/adapters/IAppAdapter.sol";
+import {ICoWSwapSettlement} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
 
 import {Token} from "../mocks/Token.sol";
@@ -49,7 +50,7 @@ contract AppAdapterTest is Test {
         subnetwork = network.subnetwork(1);
         networkMiddlewareService.setMiddleware(network, networkMiddleware);
 
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        vm.mockCall(settlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
         AppAdapter implementation =
             new AppAdapter(address(vaultFactory), address(factory), settlement, address(networkMiddlewareService));
         factory.whitelist(address(implementation));
@@ -555,7 +556,7 @@ contract AppAdapterTest is Test {
     }
 
     function test_MigrateRevertsBecauseUnsupported() public {
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        vm.mockCall(settlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
         AppAdapter implementation =
             new AppAdapter(address(vaultFactory), address(factory), settlement, address(networkMiddlewareService));
         factory.whitelist(address(implementation));

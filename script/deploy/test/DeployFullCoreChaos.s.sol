@@ -4,7 +4,12 @@ pragma solidity ^0.8.28;
 import {Script} from "forge-std/Script.sol";
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {Logs} from "../../utils/Logs.sol";
 import {DeployAaveV3AdapterBaseScript} from "../base/DeployAaveV3AdapterBase.s.sol";
@@ -20,6 +25,7 @@ import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreCon
 import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../../src/contracts/adapters/LiquidLaneAdapter.sol";
 import {AccountRegistry} from "../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
+import {IRegistry} from "../../../src/interfaces/common/IRegistry.sol";
 import {
     mFONE_Account,
     mFONE_AccountFactory
@@ -33,12 +39,14 @@ import {IAdapterRegistry} from "../../../src/interfaces/IAdapterRegistry.sol";
 import {IProtocolFeeRegistry} from "../../../src/interfaces/IProtocolFeeRegistry.sol";
 import {IVaultConfigurator} from "../../../src/interfaces/IVaultConfigurator.sol";
 import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
+import {IMigratablesFactory} from "../../../src/interfaces/common/IMigratablesFactory.sol";
+import {IMulticallable} from "../../../src/interfaces/common/IMulticallable.sol";
 import {IAdapter} from "../../../src/interfaces/adapters/IAdapter.sol";
 import {IAaveV3Adapter} from "../../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
 import {ILiquidLaneAdapter} from "../../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
-import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {ICoWSwapConverter, ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IConverter} from "../../../src/interfaces/adapters/common/IConverter.sol";
 import {IMerklClaimer} from "../../../src/interfaces/adapters/common/IMerklClaimer.sol";
 import {
@@ -64,7 +72,6 @@ import {IOperatorSpecificDelegator} from "../../../src/interfaces/delegator/IOpe
 import {IBaseSlasher} from "../../../src/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "../../../src/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "../../../src/interfaces/slasher/IVetoSlasher.sol";
-import {IOptInService} from "../../../src/interfaces/service/IOptInService.sol";
 import {IVault, VAULT_VERSION} from "../../../src/interfaces/vault/IVault.sol";
 import {IVaultTokenized, VAULT_TOKENIZED_VERSION} from "../../../src/interfaces/vault/IVaultTokenized.sol";
 import {
@@ -80,6 +87,22 @@ import {
     VAULT_V2_VERSION
 } from "../../../src/interfaces/vault/IVaultV2.sol";
 import {IWithdrawalQueue} from "../../../src/interfaces/vault/IWithdrawalQueue.sol";
+
+interface IAdapterDirectDeposit {
+    function deposit(uint256 amount) external returns (uint256 shares);
+}
+
+interface IUniversalDelegatorSelfDeallocate {
+    function __deallocateAll() external returns (uint256 deallocated);
+}
+
+interface ILiquidLaneAdapterSingleSwap {
+    function swap(ILiquidLaneAdapter.Swap calldata swap_) external;
+}
+
+interface IChaosOptInServiceSelf {
+    function optIn(address where) external;
+}
 
 contract DeployFullCoreChaosV2Script is DeployV2BaseScript {
     SymbioticCoreConstants.Core internal _localCore;
@@ -284,12 +307,12 @@ contract DeployFullCoreChaosScript is Script {
             vm.startPrank(actors.operator);
             _try(
                 address(core.operatorVaultOptInService),
-                abi.encodeWithSignature("optIn(address)", vaults[i].vault),
+                abi.encodeCall(IChaosOptInServiceSelf.optIn, (vaults[i].vault)),
                 "opt-in-vault"
             );
             _try(
                 address(core.operatorNetworkOptInService),
-                abi.encodeWithSignature("optIn(address)", actors.network),
+                abi.encodeCall(IChaosOptInServiceSelf.optIn, (actors.network)),
                 "opt-in-network"
             );
             vm.stopPrank();
@@ -562,7 +585,9 @@ contract DeployFullCoreChaosScript is Script {
     function _deployMFoneAccountFactory(address owner) internal returns (address factory) {
         factory = address(new mFONE_AccountFactory(owner));
         vm.mockCall(
-            CHAOS_COW_SETTLEMENT, abi.encodeWithSignature("vaultRelayer()"), abi.encode(CHAOS_COW_VAULT_RELAYER)
+            CHAOS_COW_SETTLEMENT,
+            abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()),
+            abi.encode(CHAOS_COW_VAULT_RELAYER)
         );
         mFONE_Account implementation = new mFONE_Account(factory, CHAOS_COW_SETTLEMENT);
         vm.prank(owner);
@@ -572,7 +597,9 @@ contract DeployFullCoreChaosScript is Script {
     function _deployMGlobalAccountFactory(address owner) internal returns (address factory) {
         factory = address(new mGLOBAL_AccountFactory(owner));
         vm.mockCall(
-            CHAOS_COW_SETTLEMENT, abi.encodeWithSignature("vaultRelayer()"), abi.encode(CHAOS_COW_VAULT_RELAYER)
+            CHAOS_COW_SETTLEMENT,
+            abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()),
+            abi.encode(CHAOS_COW_VAULT_RELAYER)
         );
         mGLOBAL_Account implementation = new mGLOBAL_Account(factory, CHAOS_COW_SETTLEMENT);
         vm.prank(owner);
@@ -874,18 +901,18 @@ contract DeployFullCoreChaosScript is Script {
         _try(vault.vault, abi.encodeCall(IVaultV2.balanceOfAt, (actors.staker, _past())), "v2-balance-at");
         _try(vault.vault, abi.encodeCall(IERC20.totalSupply, ()), "v2-share-total-supply");
         _try(vault.vault, abi.encodeCall(IERC20.balanceOf, (actors.staker)), "v2-share-balance");
-        _try(vault.vault, abi.encodeWithSignature("name()"), "v2-name");
-        _try(vault.vault, abi.encodeWithSignature("symbol()"), "v2-symbol");
-        _try(vault.vault, abi.encodeWithSignature("decimals()"), "v2-decimals");
+        _try(vault.vault, abi.encodeCall(IERC20Metadata.name, ()), "v2-name");
+        _try(vault.vault, abi.encodeCall(IERC20Metadata.symbol, ()), "v2-symbol");
+        _try(vault.vault, abi.encodeCall(IERC20Metadata.decimals, ()), "v2-decimals");
 
         bytes[] memory calls = new bytes[](2);
         calls[0] = abi.encodeCall(IVaultV2.setDepositLimit, (amount * 12));
         calls[1] = abi.encodeCall(IVaultV2.setDepositWhitelist, (false));
-        _try(vault.vault, abi.encodeWithSignature("multicall(bytes[])", calls), "v2-vault-multicall");
+        _try(vault.vault, abi.encodeCall(IMulticallable.multicall, (calls)), "v2-vault-multicall");
 
         _try(
             vault.vault,
-            abi.encodeWithSignature("grantRole(bytes32,address)", DEPOSIT_LIMIT_SET_ROLE, actors.network),
+            abi.encodeCall(IAccessControl.grantRole, (DEPOSIT_LIMIT_SET_ROLE, actors.network)),
             "v2-grant-network-limit"
         );
         vm.stopPrank();
@@ -896,12 +923,12 @@ contract DeployFullCoreChaosScript is Script {
         vm.startPrank(owner);
         _try(
             vault.vault,
-            abi.encodeWithSignature("revokeRole(bytes32,address)", DEPOSIT_LIMIT_SET_ROLE, actors.network),
+            abi.encodeCall(IAccessControl.revokeRole, (DEPOSIT_LIMIT_SET_ROLE, actors.network)),
             "v2-revoke-network-limit"
         );
         _try(
             vault.vault,
-            abi.encodeWithSignature("grantRole(bytes32,address)", DEPOSITOR_WHITELIST_ROLE, actors.staker),
+            abi.encodeCall(IAccessControl.grantRole, (DEPOSITOR_WHITELIST_ROLE, actors.staker)),
             "v2-grant-staker-dep"
         );
         vm.stopPrank();
@@ -909,7 +936,7 @@ contract DeployFullCoreChaosScript is Script {
         vm.prank(actors.staker);
         _try(
             vault.vault,
-            abi.encodeWithSignature("renounceRole(bytes32,address)", DEPOSITOR_WHITELIST_ROLE, actors.staker),
+            abi.encodeCall(IAccessControl.renounceRole, (DEPOSITOR_WHITELIST_ROLE, actors.staker)),
             "v2-renounce-staker-dep"
         );
 
@@ -988,11 +1015,11 @@ contract DeployFullCoreChaosScript is Script {
         bytes[] memory calls = new bytes[](2);
         calls[0] = abi.encodeCall(IUniversalDelegator.setLimits, (set.appAdapter, amount * 5, MAX_SHARE));
         calls[1] = abi.encodeCall(IUniversalDelegator.setAutoAllocateAdapters, (_route(set, 0)));
-        _try(vault.delegator, abi.encodeWithSignature("multicall(bytes[])", calls), "v2-delegator-multicall");
+        _try(vault.delegator, abi.encodeCall(IMulticallable.multicall, (calls)), "v2-delegator-multicall");
 
         _try(
             vault.delegator,
-            abi.encodeWithSignature("grantRole(bytes32,address)", ALLOCATE_ROLE, actors.staker),
+            abi.encodeCall(IAccessControl.grantRole, (ALLOCATE_ROLE, actors.staker)),
             "v2-grant-staker-allocate"
         );
         vm.stopPrank();
@@ -1133,11 +1160,11 @@ contract DeployFullCoreChaosScript is Script {
         IERC20(tokenToRedeem).transfer(set.liquidLaneAdapter, amountIn);
         _try(
             set.liquidLaneAdapter,
-            abi.encodeWithSignature(
-                "swap((address,address,uint256,uint256))",
-                ILiquidLaneAdapter.Swap({
-                    recipient: actors.staker, tokenIn: tokenToRedeem, amountIn: amountIn, amountOut: quotedOut / 2
-                })
+            abi.encodeCall(
+                ILiquidLaneAdapterSingleSwap.swap,
+                (ILiquidLaneAdapter.Swap({
+                        recipient: actors.staker, tokenIn: tokenToRedeem, amountIn: amountIn, amountOut: quotedOut / 2
+                    }))
             ),
             "v2-ll-swap"
         );
@@ -1169,7 +1196,9 @@ contract DeployFullCoreChaosScript is Script {
 
         _try(set.aaveAdapter, abi.encodeCall(IAaveV3Adapter.aToken, ()), "v2-aave-token");
         _try(set.morphoAdapter, abi.encodeCall(IMorphoVaultV2Adapter.morphoVault, ()), "v2-morpho-vault");
-        _try(set.morphoAdapter, abi.encodeWithSignature("deposit(uint256)", amount / 100), "v2-morpho-direct-deposit");
+        _try(
+            set.morphoAdapter, abi.encodeCall(IAdapterDirectDeposit.deposit, (amount / 100)), "v2-morpho-direct-deposit"
+        );
         _try(set.appAdapter, abi.encodeCall(IAppAdapter.asset, ()), "v2-app-asset");
         _try(set.appAdapter, abi.encodeCall(IAppAdapter.burner, ()), "v2-app-burner");
         _try(set.appAdapter, abi.encodeCall(IAppAdapter.duration, ()), "v2-app-duration");
@@ -1203,7 +1232,7 @@ contract DeployFullCoreChaosScript is Script {
         bytes[] memory calls = new bytes[](2);
         calls[0] = abi.encodeCall(IAdapter.totalAssets, ());
         calls[1] = abi.encodeCall(IAdapter.freeAssets, ());
-        _try(adapter, abi.encodeWithSignature("multicall(bytes[])", calls), "v2-adapter-multicall");
+        _try(adapter, abi.encodeCall(IMulticallable.multicall, (calls)), "v2-adapter-multicall");
     }
 
     function _exerciseV2AdapterConverterHooks(
@@ -1276,7 +1305,7 @@ contract DeployFullCoreChaosScript is Script {
             "v2-allocate-aave"
         );
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.allocateAll, (type(uint256).max)), "v2-allocate-all");
-        _try(vault.delegator, abi.encodeWithSignature("deallocatable()"), "v2-deallocatable");
+        _try(vault.delegator, abi.encodeCall(IUniversalDelegator.deallocatable, ()), "v2-deallocatable");
         _try(
             vault.delegator,
             abi.encodeCall(IUniversalDelegator.deallocate, (set.aaveAdapter, amount / 8)),
@@ -1319,7 +1348,11 @@ contract DeployFullCoreChaosScript is Script {
         vm.prank(owner);
         _try(vault.delegator, abi.encodeCall(IUniversalDelegator.onWithdraw, (amount / 10)), "v2-on-withdraw-direct");
 
-        _try(vault.delegator, abi.encodeWithSignature("__deallocateAll()"), "v2-self-deallocate-all-direct");
+        _try(
+            vault.delegator,
+            abi.encodeCall(IUniversalDelegatorSelfDeallocate.__deallocateAll, ()),
+            "v2-self-deallocate-all-direct"
+        );
 
         uint256 tokenId = IWithdrawalQueue(vault.withdrawalQueue).totalRequests();
         uint256 requestShares = IERC20(vault.vault).balanceOf(actors.staker) / 4;
@@ -1350,8 +1383,8 @@ contract DeployFullCoreChaosScript is Script {
         vm.prank(actors.staker);
         _try(vault.withdrawalQueue, abi.encodeCall(IWithdrawalQueue.claim, (tokenId, actors.staker)), "v2-queue-claim");
         _try(vault.withdrawalQueue, abi.encodeCall(IWithdrawalQueue.isClaimed, (tokenId)), "v2-queue-claimed");
-        _try(vault.withdrawalQueue, abi.encodeWithSignature("ownerOf(uint256)", tokenId), "v2-queue-owner-of");
-        _try(vault.withdrawalQueue, abi.encodeWithSignature("tokenURI(uint256)", tokenId), "v2-queue-token-uri");
+        _try(vault.withdrawalQueue, abi.encodeCall(IERC721.ownerOf, (tokenId)), "v2-queue-owner-of");
+        _try(vault.withdrawalQueue, abi.encodeCall(IERC721Metadata.tokenURI, (tokenId)), "v2-queue-token-uri");
     }
 
     function _exerciseV2Factories(
@@ -1362,147 +1395,153 @@ contract DeployFullCoreChaosScript is Script {
         AdapterDeployments memory adapters
     ) internal {
         vm.startPrank(owner);
-        _try(address(core.vaultFactory), abi.encodeWithSignature("lastVersion()"), "v2-vault-factory-last");
-        _try(address(core.vaultFactory), abi.encodeWithSignature("totalEntities()"), "v2-vault-factory-total");
-        _try(address(core.vaultFactory), abi.encodeWithSignature("entity(uint256)", 0), "v2-vault-factory-entity");
+        _try(address(core.vaultFactory), abi.encodeCall(IMigratablesFactory.lastVersion, ()), "v2-vault-factory-last");
+        _try(address(core.vaultFactory), abi.encodeCall(IRegistry.totalEntities, ()), "v2-vault-factory-total");
+        _try(address(core.vaultFactory), abi.encodeCall(IRegistry.entity, (0)), "v2-vault-factory-entity");
         _try(
             address(core.vaultFactory),
-            abi.encodeWithSignature("isEntity(address)", vaults[0].vault),
+            abi.encodeCall(IRegistry.isEntity, (vaults[0].vault)),
             "v2-vault-factory-is-entity"
         );
         _try(
             address(core.vaultFactory),
-            abi.encodeWithSignature("implementation(uint64)", VAULT_V2_VERSION),
+            abi.encodeCall(IMigratablesFactory.implementation, (VAULT_V2_VERSION)),
             "v2-vault-factory-impl"
         );
         _try(
             address(core.vaultFactory),
-            abi.encodeWithSignature("blacklisted(uint64)", VAULT_V2_VERSION),
+            abi.encodeCall(IMigratablesFactory.blacklisted, (VAULT_V2_VERSION)),
             "v2-vault-factory-blacklisted"
         );
         _try(
             address(core.vaultFactory),
-            abi.encodeWithSignature("migrate(address,uint64,bytes)", vaults[0].vault, VAULT_V2_VERSION, bytes("")),
+            abi.encodeCall(IMigratablesFactory.migrate, (vaults[0].vault, VAULT_V2_VERSION, bytes(""))),
             "v2-vault-factory-migrate-same"
         );
-        _try(infra.universalDelegatorFactory, abi.encodeWithSignature("lastVersion()"), "v2-delegator-factory-last");
-        _try(infra.universalDelegatorFactory, abi.encodeWithSignature("totalEntities()"), "v2-delegator-factory-total");
         _try(
             infra.universalDelegatorFactory,
-            abi.encodeWithSignature("entity(uint256)", 0),
-            "v2-delegator-factory-entity"
+            abi.encodeCall(IMigratablesFactory.lastVersion, ()),
+            "v2-delegator-factory-last"
         );
+        _try(infra.universalDelegatorFactory, abi.encodeCall(IRegistry.totalEntities, ()), "v2-delegator-factory-total");
+        _try(infra.universalDelegatorFactory, abi.encodeCall(IRegistry.entity, (0)), "v2-delegator-factory-entity");
         _try(
             infra.universalDelegatorFactory,
-            abi.encodeWithSignature("isEntity(address)", vaults[0].delegator),
+            abi.encodeCall(IRegistry.isEntity, (vaults[0].delegator)),
             "v2-delegator-factory-is-entity"
         );
         _try(
             infra.universalDelegatorFactory,
-            abi.encodeWithSignature("implementation(uint64)", UNIVERSAL_DELEGATOR_VERSION),
+            abi.encodeCall(IMigratablesFactory.implementation, (UNIVERSAL_DELEGATOR_VERSION)),
             "v2-delegator-factory-impl"
         );
         _try(
             infra.universalDelegatorFactory,
-            abi.encodeWithSignature("blacklisted(uint64)", UNIVERSAL_DELEGATOR_VERSION),
+            abi.encodeCall(IMigratablesFactory.blacklisted, (UNIVERSAL_DELEGATOR_VERSION)),
             "v2-delegator-factory-blacklisted"
         );
         _try(
             infra.universalDelegatorFactory,
-            abi.encodeWithSignature(
-                "migrate(address,uint64,bytes)", vaults[0].delegator, UNIVERSAL_DELEGATOR_VERSION, bytes("")
-            ),
+            abi.encodeCall(IMigratablesFactory.migrate, (vaults[0].delegator, UNIVERSAL_DELEGATOR_VERSION, bytes(""))),
             "v2-delegator-factory-migrate-same"
         );
 
         for (uint256 i; i < adapters.sets.length; ++i) {
-            _try(adapters.sets[i].appFactory, abi.encodeWithSignature("lastVersion()"), "v2-app-factory-last");
-            _try(adapters.sets[i].aaveFactory, abi.encodeWithSignature("lastVersion()"), "v2-aave-factory-last");
-            _try(adapters.sets[i].morphoFactory, abi.encodeWithSignature("lastVersion()"), "v2-morpho-factory-last");
+            _try(
+                adapters.sets[i].appFactory, abi.encodeCall(IMigratablesFactory.lastVersion, ()), "v2-app-factory-last"
+            );
+            _try(
+                adapters.sets[i].aaveFactory,
+                abi.encodeCall(IMigratablesFactory.lastVersion, ()),
+                "v2-aave-factory-last"
+            );
+            _try(
+                adapters.sets[i].morphoFactory,
+                abi.encodeCall(IMigratablesFactory.lastVersion, ()),
+                "v2-morpho-factory-last"
+            );
             if (adapters.sets[i].liquidLaneFactory != address(0)) {
                 _exerciseV2LiquidLaneFactories(adapters.sets[i]);
             }
-            _try(adapters.sets[i].appFactory, abi.encodeWithSignature("totalEntities()"), "v2-app-factory-total");
-            _try(adapters.sets[i].aaveFactory, abi.encodeWithSignature("totalEntities()"), "v2-aave-factory-total");
-            _try(adapters.sets[i].morphoFactory, abi.encodeWithSignature("totalEntities()"), "v2-morpho-factory-total");
-            _try(adapters.sets[i].appFactory, abi.encodeWithSignature("entity(uint256)", 0), "v2-app-factory-entity");
-            _try(adapters.sets[i].aaveFactory, abi.encodeWithSignature("entity(uint256)", 0), "v2-aave-factory-entity");
-            _try(
-                adapters.sets[i].morphoFactory,
-                abi.encodeWithSignature("entity(uint256)", 0),
-                "v2-morpho-factory-entity"
-            );
+            _try(adapters.sets[i].appFactory, abi.encodeCall(IRegistry.totalEntities, ()), "v2-app-factory-total");
+            _try(adapters.sets[i].aaveFactory, abi.encodeCall(IRegistry.totalEntities, ()), "v2-aave-factory-total");
+            _try(adapters.sets[i].morphoFactory, abi.encodeCall(IRegistry.totalEntities, ()), "v2-morpho-factory-total");
+            _try(adapters.sets[i].appFactory, abi.encodeCall(IRegistry.entity, (0)), "v2-app-factory-entity");
+            _try(adapters.sets[i].aaveFactory, abi.encodeCall(IRegistry.entity, (0)), "v2-aave-factory-entity");
+            _try(adapters.sets[i].morphoFactory, abi.encodeCall(IRegistry.entity, (0)), "v2-morpho-factory-entity");
             _try(
                 adapters.sets[i].appFactory,
-                abi.encodeWithSignature("isEntity(address)", adapters.sets[i].appAdapter),
+                abi.encodeCall(IRegistry.isEntity, (adapters.sets[i].appAdapter)),
                 "v2-app-factory-is-entity"
             );
             _try(
                 adapters.sets[i].aaveFactory,
-                abi.encodeWithSignature("isEntity(address)", adapters.sets[i].aaveAdapter),
+                abi.encodeCall(IRegistry.isEntity, (adapters.sets[i].aaveAdapter)),
                 "v2-aave-factory-is-entity"
             );
             _try(
                 adapters.sets[i].morphoFactory,
-                abi.encodeWithSignature("isEntity(address)", adapters.sets[i].morphoAdapter),
+                abi.encodeCall(IRegistry.isEntity, (adapters.sets[i].morphoAdapter)),
                 "v2-morpho-factory-is-entity"
             );
             _try(
-                adapters.sets[i].appFactory, abi.encodeWithSignature("implementation(uint64)", 1), "v2-app-factory-impl"
+                adapters.sets[i].appFactory,
+                abi.encodeCall(IMigratablesFactory.implementation, (1)),
+                "v2-app-factory-impl"
             );
             _try(
                 adapters.sets[i].aaveFactory,
-                abi.encodeWithSignature("implementation(uint64)", 1),
+                abi.encodeCall(IMigratablesFactory.implementation, (1)),
                 "v2-aave-factory-impl"
             );
             _try(
                 adapters.sets[i].morphoFactory,
-                abi.encodeWithSignature("implementation(uint64)", 1),
+                abi.encodeCall(IMigratablesFactory.implementation, (1)),
                 "v2-morpho-factory-impl"
             );
             _try(
                 adapters.sets[i].appFactory,
-                abi.encodeWithSignature("blacklisted(uint64)", 1),
+                abi.encodeCall(IMigratablesFactory.blacklisted, (1)),
                 "v2-app-factory-blacklisted"
             );
             _try(
                 adapters.sets[i].aaveFactory,
-                abi.encodeWithSignature("blacklisted(uint64)", 1),
+                abi.encodeCall(IMigratablesFactory.blacklisted, (1)),
                 "v2-aave-factory-blacklisted"
             );
             _try(
                 adapters.sets[i].morphoFactory,
-                abi.encodeWithSignature("blacklisted(uint64)", 1),
+                abi.encodeCall(IMigratablesFactory.blacklisted, (1)),
                 "v2-morpho-factory-blacklisted"
             );
             _try(
                 adapters.sets[i].appFactory,
-                abi.encodeWithSignature("migrate(address,uint64,bytes)", adapters.sets[i].appAdapter, 1, bytes("")),
+                abi.encodeCall(IMigratablesFactory.migrate, (adapters.sets[i].appAdapter, 1, bytes(""))),
                 "v2-app-factory-migrate-same"
             );
             _try(
                 adapters.sets[i].aaveFactory,
-                abi.encodeWithSignature("migrate(address,uint64,bytes)", adapters.sets[i].aaveAdapter, 1, bytes("")),
+                abi.encodeCall(IMigratablesFactory.migrate, (adapters.sets[i].aaveAdapter, 1, bytes(""))),
                 "v2-aave-factory-migrate-same"
             );
             _try(
                 adapters.sets[i].morphoFactory,
-                abi.encodeWithSignature("migrate(address,uint64,bytes)", adapters.sets[i].morphoAdapter, 1, bytes("")),
+                abi.encodeCall(IMigratablesFactory.migrate, (adapters.sets[i].morphoAdapter, 1, bytes(""))),
                 "v2-morpho-factory-migrate-same"
             );
             _try(
                 adapters.sets[i].appFactory,
-                abi.encodeWithSignature("whitelist(address)", address(0)),
+                abi.encodeCall(IMigratablesFactory.whitelist, (address(0))),
                 "v2-app-factory-whitelist-zero"
             );
             _try(
                 adapters.sets[i].aaveFactory,
-                abi.encodeWithSignature("blacklist(uint64)", 0),
+                abi.encodeCall(IMigratablesFactory.blacklist, (0)),
                 "v2-aave-factory-blacklist-zero"
             );
             _try(
                 adapters.sets[i].morphoFactory,
-                abi.encodeWithSignature("blacklist(uint64)", 1),
+                abi.encodeCall(IMigratablesFactory.blacklist, (1)),
                 "v2-morpho-factory-blacklist"
             );
         }
@@ -1510,98 +1549,70 @@ contract DeployFullCoreChaosScript is Script {
     }
 
     function _exerciseV2LiquidLaneFactories(V2AdapterSet memory set) internal {
-        _try(set.liquidLaneFactory, abi.encodeWithSignature("lastVersion()"), "v2-ll-factory-last");
-        _try(set.liquidLaneFactory, abi.encodeWithSignature("totalEntities()"), "v2-ll-factory-total");
-        _try(set.liquidLaneFactory, abi.encodeWithSignature("entity(uint256)", 0), "v2-ll-factory-entity");
+        _try(set.liquidLaneFactory, abi.encodeCall(IMigratablesFactory.lastVersion, ()), "v2-ll-factory-last");
+        _try(set.liquidLaneFactory, abi.encodeCall(IRegistry.totalEntities, ()), "v2-ll-factory-total");
+        _try(set.liquidLaneFactory, abi.encodeCall(IRegistry.entity, (0)), "v2-ll-factory-entity");
         _try(
             set.liquidLaneFactory,
-            abi.encodeWithSignature("isEntity(address)", set.liquidLaneAdapter),
+            abi.encodeCall(IRegistry.isEntity, (set.liquidLaneAdapter)),
             "v2-ll-factory-is-entity"
         );
-        _try(set.liquidLaneFactory, abi.encodeWithSignature("implementation(uint64)", 1), "v2-ll-factory-impl");
-        _try(set.liquidLaneFactory, abi.encodeWithSignature("blacklisted(uint64)", 1), "v2-ll-factory-blacklisted");
+        _try(set.liquidLaneFactory, abi.encodeCall(IMigratablesFactory.implementation, (1)), "v2-ll-factory-impl");
+        _try(set.liquidLaneFactory, abi.encodeCall(IMigratablesFactory.blacklisted, (1)), "v2-ll-factory-blacklisted");
         _try(
             set.liquidLaneFactory,
-            abi.encodeWithSignature("migrate(address,uint64,bytes)", set.liquidLaneAdapter, 1, bytes("")),
+            abi.encodeCall(IMigratablesFactory.migrate, (set.liquidLaneAdapter, 1, bytes(""))),
             "v2-ll-factory-migrate-same"
         );
-        _try(set.mFoneAccountFactory, abi.encodeWithSignature("lastVersion()"), "v2-mfone-factory-last");
-        _try(set.mGlobalAccountFactory, abi.encodeWithSignature("lastVersion()"), "v2-mglobal-factory-last");
-        _try(set.mFoneAccountFactory, abi.encodeWithSignature("totalEntities()"), "v2-mfone-factory-total");
-        _try(set.mGlobalAccountFactory, abi.encodeWithSignature("totalEntities()"), "v2-mglobal-factory-total");
-        _try(set.mFoneAccountFactory, abi.encodeWithSignature("entity(uint256)", 0), "v2-mfone-factory-entity");
-        _try(set.mGlobalAccountFactory, abi.encodeWithSignature("entity(uint256)", 0), "v2-mglobal-factory-entity");
-        _try(set.accountRegistry, abi.encodeWithSignature("owner()"), "v2-ll-reg-owner");
+        _try(set.mFoneAccountFactory, abi.encodeCall(IMigratablesFactory.lastVersion, ()), "v2-mfone-factory-last");
+        _try(set.mGlobalAccountFactory, abi.encodeCall(IMigratablesFactory.lastVersion, ()), "v2-mglobal-factory-last");
+        _try(set.mFoneAccountFactory, abi.encodeCall(IRegistry.totalEntities, ()), "v2-mfone-factory-total");
+        _try(set.mGlobalAccountFactory, abi.encodeCall(IRegistry.totalEntities, ()), "v2-mglobal-factory-total");
+        _try(set.mFoneAccountFactory, abi.encodeCall(IRegistry.entity, (0)), "v2-mfone-factory-entity");
+        _try(set.mGlobalAccountFactory, abi.encodeCall(IRegistry.entity, (0)), "v2-mglobal-factory-entity");
+        _try(set.accountRegistry, abi.encodeCall(Ownable.owner, ()), "v2-ll-reg-owner");
     }
 
     function _grantV2Roles(address vault, address account) internal {
-        _try(
-            vault, abi.encodeWithSignature("grantRole(bytes32,address)", MANAGEMENT_FEE_ROLE, account), "v2-grant-mgmt"
-        );
-        _try(
-            vault, abi.encodeWithSignature("grantRole(bytes32,address)", PERFORMANCE_FEE_ROLE, account), "v2-grant-perf"
-        );
+        _try(vault, abi.encodeCall(IAccessControl.grantRole, (MANAGEMENT_FEE_ROLE, account)), "v2-grant-mgmt");
+        _try(vault, abi.encodeCall(IAccessControl.grantRole, (PERFORMANCE_FEE_ROLE, account)), "v2-grant-perf");
+        _try(vault, abi.encodeCall(IAccessControl.grantRole, (DEPOSIT_LIMIT_SET_ROLE, account)), "v2-grant-limit");
+        _try(vault, abi.encodeCall(IAccessControl.grantRole, (DEPOSITOR_WHITELIST_ROLE, account)), "v2-grant-dep");
         _try(
             vault,
-            abi.encodeWithSignature("grantRole(bytes32,address)", DEPOSIT_LIMIT_SET_ROLE, account),
-            "v2-grant-limit"
-        );
-        _try(
-            vault,
-            abi.encodeWithSignature("grantRole(bytes32,address)", DEPOSITOR_WHITELIST_ROLE, account),
-            "v2-grant-dep"
-        );
-        _try(
-            vault,
-            abi.encodeWithSignature("grantRole(bytes32,address)", IS_DEPOSIT_LIMIT_SET_ROLE, account),
+            abi.encodeCall(IAccessControl.grantRole, (IS_DEPOSIT_LIMIT_SET_ROLE, account)),
             "v2-grant-limit-toggle"
         );
         _try(
             vault,
-            abi.encodeWithSignature("grantRole(bytes32,address)", DEPOSIT_WHITELIST_SET_ROLE, account),
+            abi.encodeCall(IAccessControl.grantRole, (DEPOSIT_WHITELIST_SET_ROLE, account)),
             "v2-grant-whitelist-toggle"
         );
     }
 
     function _grantDelegatorRoles(address delegator, address account) internal {
+        _try(delegator, abi.encodeCall(IAccessControl.grantRole, (ADD_ADAPTER_ROLE, account)), "v2-grant-add-adapter");
         _try(
             delegator,
-            abi.encodeWithSignature("grantRole(bytes32,address)", ADD_ADAPTER_ROLE, account),
-            "v2-grant-add-adapter"
-        );
-        _try(
-            delegator,
-            abi.encodeWithSignature("grantRole(bytes32,address)", REMOVE_ADAPTER_ROLE, account),
+            abi.encodeCall(IAccessControl.grantRole, (REMOVE_ADAPTER_ROLE, account)),
             "v2-grant-remove-adapter"
         );
         _try(
             delegator,
-            abi.encodeWithSignature("grantRole(bytes32,address)", SET_ADAPTER_LIMITS_ROLE, account),
+            abi.encodeCall(IAccessControl.grantRole, (SET_ADAPTER_LIMITS_ROLE, account)),
             "v2-grant-set-limits"
         );
         _try(
             delegator,
-            abi.encodeWithSignature("grantRole(bytes32,address)", SET_AUTO_ALLOCATE_ADAPTERS_ROLE, account),
+            abi.encodeCall(IAccessControl.grantRole, (SET_AUTO_ALLOCATE_ADAPTERS_ROLE, account)),
             "v2-grant-set-auto"
         );
+        _try(delegator, abi.encodeCall(IAccessControl.grantRole, (SWAP_ADAPTERS_ROLE, account)), "v2-grant-swap");
+        _try(delegator, abi.encodeCall(IAccessControl.grantRole, (ALLOCATE_ROLE, account)), "v2-grant-allocate");
+        _try(delegator, abi.encodeCall(IAccessControl.grantRole, (DEALLOCATE_ROLE, account)), "v2-grant-deallocate");
         _try(
             delegator,
-            abi.encodeWithSignature("grantRole(bytes32,address)", SWAP_ADAPTERS_ROLE, account),
-            "v2-grant-swap"
-        );
-        _try(
-            delegator,
-            abi.encodeWithSignature("grantRole(bytes32,address)", ALLOCATE_ROLE, account),
-            "v2-grant-allocate"
-        );
-        _try(
-            delegator,
-            abi.encodeWithSignature("grantRole(bytes32,address)", DEALLOCATE_ROLE, account),
-            "v2-grant-deallocate"
-        );
-        _try(
-            delegator,
-            abi.encodeWithSignature("grantRole(bytes32,address)", FORCE_DEALLOCATE_ROLE, account),
+            abi.encodeCall(IAccessControl.grantRole, (FORCE_DEALLOCATE_ROLE, account)),
             "v2-grant-force-deallocate"
         );
     }

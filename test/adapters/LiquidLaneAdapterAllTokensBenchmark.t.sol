@@ -375,7 +375,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     }
 
     function _mockVaultAsset(address asset) internal {
-        vm.mockCall(address(vault), abi.encodeWithSelector(IERC4626.asset.selector), abi.encode(asset));
+        vm.mockCall(address(vault), abi.encodeCall(IERC4626.asset, ()), abi.encode(asset));
     }
 
     function _benchmarkAccountGas(TokenBenchSpec[] memory specs, address[] memory tokens)
@@ -402,14 +402,13 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             {
                 vm.resumeGasMetering();
                 uint256 gasBefore = gasleft();
-                (bool success, bytes memory data) =
-                    account.staticcall(abi.encodeWithSelector(IAccount.totalAssets.selector));
+                (bool success, bytes memory data) = account.staticcall(abi.encodeCall(IAccount.totalAssets, ()));
                 totalAssetsGas = gasBefore - gasleft();
                 totalAssetsSuccess = success;
                 assets = success ? abi.decode(data, (uint256)) : 0;
 
                 gasBefore = gasleft();
-                (syncSuccess,) = account.call(abi.encodeWithSelector(IAccount.sync.selector));
+                (syncSuccess,) = account.call(abi.encodeCall(IAccount.sync, ()));
                 syncGas = gasBefore - gasleft();
                 vm.pauseGasMetering();
             }
@@ -444,12 +443,12 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         vm.resumeGasMetering();
         uint256 gasBefore = gasleft();
         (bool adapterTotalAssetsSuccess,) =
-            address(adapter).staticcall(abi.encodeWithSelector(LiquidLaneAdapter.totalAssets.selector));
+            address(adapter).staticcall(abi.encodeCall(LiquidLaneAdapter.totalAssets, ()));
         uint256 adapterTotalAssetsGas = gasBefore - gasleft();
 
         gasBefore = gasleft();
         (bool delegatorTotalAssetsSuccess,) =
-            address(delegator).staticcall(abi.encodeWithSelector(UniversalDelegator.totalAssets.selector));
+            address(delegator).staticcall(abi.encodeCall(UniversalDelegator.totalAssets, ()));
         uint256 delegatorTotalAssetsGas = gasBefore - gasleft();
         vm.pauseGasMetering();
 
@@ -476,7 +475,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             _fundRequest(index, token, account);
 
             vm.prank(curator);
-            (bool success, bytes memory reason) = account.call(abi.encodeWithSelector(IAccount.sync.selector));
+            (bool success, bytes memory reason) = account.call(abi.encodeCall(IAccount.sync, ()));
             if (!success) {
                 emit log_named_bytes("sync revert", reason);
                 emit log_named_uint("token balance", IERC20(token).balanceOf(account));
@@ -566,8 +565,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
 
     function _permissionCentrifugeMember(address token, address account) internal {
         address hook = ICentrifugeShareToken(token).hook();
-        bytes memory callData =
-            abi.encodeWithSelector(ICentrifugeTransferHook.updateMember.selector, token, account, type(uint64).max);
+        bytes memory callData = abi.encodeCall(ICentrifugeTransferHook.updateMember, (token, account, type(uint64).max));
 
         vm.prank(CENTRIFUGE_HOOK_WARD_1);
         (bool success, bytes memory reason) = hook.call(callData);
@@ -639,7 +637,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     }
 
     function _stabilizeMidasDataFeed(address dataFeed) internal {
-        (bool success,) = dataFeed.staticcall(abi.encodeWithSelector(IMidasDataFeed.getDataInBase18.selector));
+        (bool success,) = dataFeed.staticcall(abi.encodeCall(IMidasDataFeed.getDataInBase18, ()));
         if (success) {
             return;
         }
@@ -668,12 +666,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         address management = IDigiFTSecurityToken(token).management();
         address subAccount = vm.computeCreateAddress(account, vm.getNonce(account));
 
-        _storeObservedBool(
-            management, abi.encodeWithSelector(IDigiFTManagement.isWhiteContract.selector, account), true
-        );
-        _storeObservedBool(
-            management, abi.encodeWithSelector(IDigiFTManagement.isWhiteInvestor.selector, subAccount), true
-        );
+        _storeObservedBool(management, abi.encodeCall(IDigiFTManagement.isWhiteContract, (account)), true);
+        _storeObservedBool(management, abi.encodeCall(IDigiFTManagement.isWhiteInvestor, (subAccount)), true);
     }
 
     function _storeObservedBool(address target, bytes memory callData, bool value) internal {
@@ -787,13 +781,13 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
 
             deal(asset, account, IERC20(asset).balanceOf(account) + assets);
             vm.prank(account);
-            (bool approveSuccess,) = asset.call(abi.encodeWithSelector(IERC20.approve.selector, token, assets));
+            (bool approveSuccess,) = asset.call(abi.encodeCall(IERC20.approve, (token, assets)));
             if (!approveSuccess) {
                 return false;
             }
 
             vm.prank(account);
-            (bool mintSuccess,) = token.call(abi.encodeWithSelector(IERC4626.mint.selector, shares, account));
+            (bool mintSuccess,) = token.call(abi.encodeCall(IERC4626.mint, (shares, account)));
             return mintSuccess;
         } catch {
             return false;

@@ -9,7 +9,7 @@ import {Registry} from "../../src/contracts/common/Registry.sol";
 
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
 import {IERC4626Adapter} from "../../src/interfaces/adapters/IERC4626Adapter.sol";
-import {ICoWSwapConverter} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {ICoWSwapConverter, ICoWSwapSettlement} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 
 import {Token} from "../mocks/Token.sol";
@@ -39,7 +39,7 @@ contract ERC4626AdapterTest is Test {
         erc4626Vault = new ERC4626VaultMock(address(assetToken));
         vaultFactory.add(address(vault));
 
-        vm.mockCall(settlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(relayer));
+        vm.mockCall(settlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
         ERC4626Adapter implementation = new ERC4626Adapter(address(vaultFactory), address(factory), rewards, settlement);
         factory.whitelist(address(implementation));
 

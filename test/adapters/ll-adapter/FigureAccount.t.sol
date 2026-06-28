@@ -117,13 +117,13 @@ contract FigureAccountTest is AccountsBase {
 
         address subAccount = account.subAccounts(0);
 
-        (bool success,) = subAccount.staticcall(abi.encodeWithSignature("totalAssets()"));
+        (bool success,) = subAccount.staticcall(abi.encodeCall(ILegacyTotalAssets.totalAssets, ()));
         assertFalse(success);
 
         wylds.completeFigureRedeem(subAccount);
 
         vm.prank(address(account));
-        (success,) = subAccount.call(abi.encodeWithSignature("finalizeRedeem()"));
+        (success,) = subAccount.call(abi.encodeCall(ILegacyFinalizeRedeem.finalizeRedeem, ()));
         assertTrue(success);
 
         assertEq(asset.balanceOf(address(account)), 125e6);

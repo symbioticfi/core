@@ -21,6 +21,10 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
+interface ILegacyUniversalDelegatorAllocatable {
+    function allocatable(address adapter) external view returns (uint256 assets);
+}
+
 contract UniversalDelegatorSweepToken is ERC20 {
     constructor() ERC20("Token", "TKN") {}
 
@@ -403,7 +407,7 @@ contract UniversalDelegatorSweepPendingTest is Test {
 
     function test_AllocatableSelectorIsUnavailable() public view {
         (bool success,) = address(delegator)
-            .staticcall(abi.encodeWithSelector(bytes4(keccak256("allocatable(address)")), address(0xBEEF)));
+            .staticcall(abi.encodeCall(ILegacyUniversalDelegatorAllocatable.allocatable, (address(0xBEEF))));
 
         assertFalse(success);
     }

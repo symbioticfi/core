@@ -13,14 +13,24 @@ import {mRe7BTC_Account} from "../../../src/contracts/adapters/ll-adapter/tokens
 import {mevBTC_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mevBTC_Account.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {IConverter} from "../../../src/interfaces/adapters/common/IConverter.sol";
-import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {ICoWSwapConverter, ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IOracle} from "../../../src/interfaces/adapters/ll-adapter/IOracle.sol";
 import {REQUEST_STATUS_PENDING} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
+import {IMidasRedemptionVault} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 import {IChainlinkOracle} from "../../../src/interfaces/adapters/ll-adapter/oracles/IChainlinkOracle.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
+interface IMidasLegacyRequestRedeem {
+    function requestRedeem() external;
+}
+
+interface IMidasLegacyTotalRequests {
+    function totalRequests() external view returns (uint256 count);
+}
 
 contract MidasAccountOraclesTest is Test {
     uint256 internal constant MAX_EXPECTED_REQUESTS = 17;
@@ -297,7 +307,7 @@ contract MidasAccountOraclesTest is Test {
         MidasNonCompAccount account =
             _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
 
-        (bool success,) = address(account).call(abi.encodeWithSignature("requestRedeem()"));
+        (bool success,) = address(account).call(abi.encodeCall(IMidasLegacyRequestRedeem.requestRedeem, ()));
         assertFalse(success);
     }
 
@@ -309,7 +319,7 @@ contract MidasAccountOraclesTest is Test {
         MidasNonCompAccount account =
             _deployNonCompAccount(tokenToRedeem, asset, address(new MockERC20("Fallback", "FB")), redemptionVault);
 
-        (bool success,) = address(account).staticcall(abi.encodeWithSignature("totalRequests()"));
+        (bool success,) = address(account).staticcall(abi.encodeCall(IMidasLegacyTotalRequests.totalRequests, ()));
         assertFalse(success);
     }
 
@@ -556,7 +566,7 @@ contract MidasAccountOraclesTest is Test {
         vault = address(new MockVault(address(asset)));
         oracle = address(new MidasOracle(1, type(uint256).max, redemptionVault.mTokenDataFeed()));
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
+        vm.mockCall(cowSettlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(cowRelayer));
         MidasCompAccount implementation = new MidasCompAccount(
             oracle, address(factory), 0, address(tokenToRedeem), fallbackToken, address(redemptionVault), cowSettlement
         );
@@ -573,7 +583,7 @@ contract MidasAccountOraclesTest is Test {
         vault = address(new MockVault(address(asset)));
         oracle = address(new MidasOracle(1, type(uint256).max, redemptionVault.mTokenDataFeed()));
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
+        vm.mockCall(cowSettlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(cowRelayer));
         TestMidasCompAccount implementation = new TestMidasCompAccount(
             oracle, address(factory), 0, address(tokenToRedeem), fallbackToken, address(redemptionVault), cowSettlement
         );
@@ -600,7 +610,7 @@ contract MidasAccountOraclesTest is Test {
         vault = address(new MockVault(address(asset)));
         oracle = address(new MidasOracle(1, type(uint256).max, redemptionVault.mTokenDataFeed()));
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
+        vm.mockCall(cowSettlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(cowRelayer));
         MidasNonCompAccount implementation = new MidasNonCompAccount(
             oracle,
             address(factory),
@@ -655,20 +665,18 @@ contract MidasAccountOraclesTest is Test {
     }
 
     function _mockMidasTokenAccountConstructor(address tokenToRedeem, address redemptionVault) internal {
-        vm.mockCall(cowSettlement, abi.encodeWithSignature("vaultRelayer()"), abi.encode(cowRelayer));
-        vm.mockCall(tokenToRedeem, abi.encodeWithSignature("decimals()"), abi.encode(uint8(18)));
+        vm.mockCall(cowSettlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(cowRelayer));
+        vm.mockCall(tokenToRedeem, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
         vm.mockCall(
             redemptionVault,
-            abi.encodeWithSignature("mTokenDataFeed()"),
+            abi.encodeCall(IMidasRedemptionVault.mTokenDataFeed, ()),
             abi.encode(address(new MockMidasDataFeed(1e18)))
         );
     }
 
     function _mockAsset(address asset, uint8 decimals_) internal {
-        vm.mockCall(asset, abi.encodeWithSignature("decimals()"), abi.encode(decimals_));
-        vm.mockCall(
-            asset, abi.encodeWithSelector(IERC20.approve.selector, adapter, type(uint256).max), abi.encode(true)
-        );
+        vm.mockCall(asset, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(decimals_));
+        vm.mockCall(asset, abi.encodeCall(IERC20.approve, (adapter, type(uint256).max)), abi.encode(true));
     }
 
     function _initData(address) internal view returns (bytes memory) {
