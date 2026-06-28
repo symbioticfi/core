@@ -33,6 +33,7 @@ cache/
 out/
 broadcast/
 deployments/
+deploy-logs/
 
 script/logs.txt
 lcov.info
