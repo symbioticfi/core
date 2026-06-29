@@ -51,8 +51,6 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     uint256 public perRequestMaxCollateral;
     /// @inheritdoc IThreeFAdapter
     uint256 public minRequestYield;
-    /// @inheritdoc IThreeFAdapter
-    uint256 public maxConcurrentLoans;
 
     /// @dev Open (consumed, unredeemed) requests; backs isRequest/activeLoans/activeRequests.
     EnumerableSet.AddressSet private _activeRequests;
@@ -68,91 +66,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
         REQUEST_WHITELIST = requestWhitelist;
     }
 
-    /* PUBLIC FUNCTIONS */
-
-    /// @inheritdoc IThreeFAdapter
-    function setOfferSigner(address signer) public onlyOwner {
-        offerSigner = signer;
-
-        emit SetOfferSigner(signer);
-    }
-
-    /// @inheritdoc IThreeFAdapter
-    function setExposureLimits(uint256 perRequestMaxCollateral_, uint256 minRequestYield_, uint256 maxConcurrentLoans_)
-        public
-        onlyOwner
-    {
-        perRequestMaxCollateral = perRequestMaxCollateral_;
-        minRequestYield = minRequestYield_;
-        maxConcurrentLoans = maxConcurrentLoans_;
-
-        emit SetExposureLimits(perRequestMaxCollateral_, minRequestYield_, maxConcurrentLoans_);
-    }
-
-    /// @inheritdoc IThreeFRequestCallback
-    function onRequestConsumed(Offer calldata, bytes calldata, uint256 principal, uint256 yieldAmount) public {
-        if (
-            IThreeFWhitelist(REQUEST_WHITELIST).isWhitelisted(msg.sender)
-                != IThreeFWhitelist.WhitelistStatus.Whitelisted
-        ) {
-            revert NotAttested();
-        }
-        if (IThreeFRequest(msg.sender).asset() != IERC4626(vault).asset()) {
-            revert AssetMismatch();
-        }
-        if (perRequestMaxCollateral > 0 && principal > perRequestMaxCollateral) {
-            revert PerRequestCapExceeded();
-        }
-        if (minRequestYield > 0 && yieldAmount < principal.mulDiv(minRequestYield, YIELD_PRECISION, Math.Rounding.Ceil))
-        {
-            revert YieldTooLow();
-        }
-        if (maxConcurrentLoans > 0 && _activeRequests.length() >= maxConcurrentLoans) {
-            revert TooManyLoans();
-        }
-
-        uint256 freeAssets = freeAssets();
-        if (freeAssets < principal) {
-            _inConsume = true;
-            uint256 pulled =
-                IUniversalDelegator(IVaultV2(vault).delegator()).allocateExact(address(this), principal - freeAssets);
-            _inConsume = false;
-
-            if (pulled < principal - freeAssets) {
-                revert InsufficientLiquidity();
-            }
-        }
-
-        realizedPrincipal = realizedPrincipal.saturatingSub(Math.min(principal, freeAssets));
-
-        IERC20(IERC4626(vault).asset()).forceApprove(msg.sender, principal);
-
-        positions[msg.sender] = Position(principal, yieldAmount, uint48(block.timestamp), false);
-        _activeRequests.add(msg.sender);
-        outstandingPrincipal += principal;
-
-        emit PositionOpened(msg.sender, principal, yieldAmount);
-    }
-
-    /// @inheritdoc IThreeFAdapter
-    function redeem(address[] calldata requests) public nonReentrant {
-        uint256 length = requests.length;
-        for (uint256 i; i < length; ++i) {
-            if (!_activeRequests.contains(requests[i]) || !IThreeFVaultController(requests[i]).canWithdraw()) {
-                continue;
-            }
-
-            (,, uint256 pAssets, uint256 yAssets) =
-                IThreeFVaultController(requests[i]).burnAll(address(this), address(this));
-
-            outstandingPrincipal -= positions[requests[i]].principal;
-            realizedPrincipal += pAssets;
-            positions[requests[i]].redeemed = true;
-            _activeRequests.remove(requests[i]);
-
-            emit PositionRedeemed(requests[i], pAssets, yAssets);
-        }
-    }
+    /* VIEW FUNCTIONS */
 
     /// @inheritdoc IERC1271
     function isValidSignature(bytes32 hash, bytes calldata signature) public view returns (bytes4) {
@@ -162,8 +76,6 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
 
         return 0xffffffff;
     }
-
-    /* VIEW FUNCTIONS */
 
     /// @inheritdoc IThreeFAdapter
     function isRequest(address request) public view returns (bool) {
@@ -186,8 +98,99 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     }
 
     /// @inheritdoc IAdapter
-    function totalAssets() public view override(Adapter, IAdapter) returns (uint256) {
-        return freeAssets() + outstandingPrincipal;
+    function totalAssets() public view override(Adapter, IAdapter) returns (uint256 assets) {
+        assets = freeAssets() + outstandingPrincipal;
+    }
+
+    /* PUBLIC FUNCTIONS (OWNER) */
+
+    /// @inheritdoc IThreeFAdapter
+    function setOfferSigner(address signer) public onlyOwner {
+        offerSigner = signer;
+
+        emit SetOfferSigner(signer);
+    }
+
+    /// @inheritdoc IThreeFAdapter
+    function setExposureLimits(uint256 perRequestMaxCollateral_, uint256 minRequestYield_) public onlyOwner {
+        perRequestMaxCollateral = perRequestMaxCollateral_;
+        minRequestYield = minRequestYield_;
+
+        emit SetExposureLimits(perRequestMaxCollateral_, minRequestYield_);
+    }
+
+    /* PUBLIC FUNCTIONS (3F REQUEST) */
+
+    /// @inheritdoc IThreeFRequestCallback
+    function onRequestConsumed(Offer calldata, bytes calldata, uint256 principal, uint256 yieldAmount) public {
+        if (
+            IThreeFWhitelist(REQUEST_WHITELIST).isWhitelisted(msg.sender)
+                != IThreeFWhitelist.WhitelistStatus.Whitelisted
+        ) {
+            revert NotAttested();
+        }
+
+        address asset = IERC4626(vault).asset();
+        if (IThreeFRequest(msg.sender).asset() != asset) {
+            revert AssetMismatch();
+        }
+        if (_activeRequests.contains(msg.sender)) {
+            revert RequestAlreadyActive();
+        }
+        if (perRequestMaxCollateral > 0 && principal > perRequestMaxCollateral) {
+            revert PerRequestCapExceeded();
+        }
+        if (minRequestYield > 0 && yieldAmount < principal.mulDiv(minRequestYield, YIELD_PRECISION, Math.Rounding.Ceil))
+        {
+            revert YieldTooLow();
+        }
+
+        uint256 freeAssets = freeAssets();
+        if (freeAssets < principal) {
+            uint256 missingAssets = principal - freeAssets;
+
+            _inConsume = true;
+            uint256 pulled =
+                IUniversalDelegator(IVaultV2(vault).delegator()).allocateExact(address(this), missingAssets);
+            _inConsume = false;
+
+            if (pulled < missingAssets) {
+                revert InsufficientLiquidity();
+            }
+        }
+
+        realizedPrincipal = realizedPrincipal.saturatingSub(Math.min(principal, freeAssets));
+
+        IERC20(asset).forceApprove(msg.sender, principal);
+
+        positions[msg.sender] = Position(principal, yieldAmount, uint48(block.timestamp), false);
+        _activeRequests.add(msg.sender);
+        outstandingPrincipal += principal;
+
+        emit PositionOpened(msg.sender, principal, yieldAmount);
+    }
+
+    /* PUBLIC FUNCTIONS (PERMISSIONLESS) */
+
+    /// @inheritdoc IThreeFAdapter
+    function redeem(address[] calldata requests) public nonReentrant {
+        uint256 length = requests.length;
+        for (uint256 i; i < length; ++i) {
+            address request = requests[i];
+            if (!_activeRequests.contains(request) || !IThreeFVaultController(request).canWithdraw()) {
+                continue;
+            }
+
+            (,, uint256 pAssets, uint256 yAssets) =
+                IThreeFVaultController(request).burnAll(address(this), address(this));
+
+            outstandingPrincipal -= positions[request].principal;
+            realizedPrincipal += pAssets;
+            positions[request].redeemed = true;
+            _activeRequests.remove(request);
+
+            emit PositionRedeemed(request, pAssets, yAssets);
+        }
     }
 
     /* PUBLIC FUNCTIONS (INTERNAL) */

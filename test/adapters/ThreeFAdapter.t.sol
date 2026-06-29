@@ -88,6 +88,16 @@ contract ThreeFAdapterTest is Test {
         assertEq(IERC20(assetToken).balanceOf(adapter), 0);
     }
 
+    function test_ConsumeRevertsWhenRequestAlreadyActive() public {
+        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+
+        vm.expectRevert(IThreeFAdapter.RequestAlreadyActive.selector);
+        ThreeFRequestMock(request).consume(adapter, 1, 1);
+
+        assertEq(IThreeFAdapter(adapter).outstandingPrincipal(), PRINCIPAL);
+        assertEq(IThreeFAdapter(adapter).activeLoans(), 1);
+    }
+
     function test_ConsumeRevertsWhenNotAttested() public {
         ThreeFWhitelistMock(whitelist).set(request, IThreeFWhitelist.WhitelistStatus.NotWhitelisted);
 
@@ -126,24 +136,15 @@ contract ThreeFAdapterTest is Test {
     }
 
     function test_ConsumeRevertsWhenExposureLimitsAreExceeded() public {
-        IThreeFAdapter(adapter).setExposureLimits(PRINCIPAL - 1, 0, 0);
+        IThreeFAdapter(adapter).setExposureLimits(PRINCIPAL - 1, 0);
 
         vm.expectRevert(IThreeFAdapter.PerRequestCapExceeded.selector);
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
 
-        IThreeFAdapter(adapter).setExposureLimits(0, 30_000, 0);
+        IThreeFAdapter(adapter).setExposureLimits(0, 30_000);
 
         vm.expectRevert(IThreeFAdapter.YieldTooLow.selector);
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
-
-        IThreeFAdapter(adapter).setExposureLimits(0, 0, 1);
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
-
-        address nextRequest = address(new ThreeFRequestMock(assetToken));
-        ThreeFWhitelistMock(whitelist).set(nextRequest, IThreeFWhitelist.WhitelistStatus.Whitelisted);
-
-        vm.expectRevert(IThreeFAdapter.TooManyLoans.selector);
-        ThreeFRequestMock(nextRequest).consume(adapter, 1, 1);
     }
 
     function test_AllocatableIsZeroOutsideConsume() public view {
@@ -317,7 +318,7 @@ contract ThreeFAdapterTest is Test {
         IThreeFAdapter(adapter).setOfferSigner(makeAddr("x"));
 
         vm.expectRevert();
-        IThreeFAdapter(adapter).setExposureLimits(1, 2, 3);
+        IThreeFAdapter(adapter).setExposureLimits(1, 2);
 
         vm.stopPrank();
     }

@@ -130,9 +130,9 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     error PerRequestCapExceeded();
 
     /**
-     * @notice Raised when the request would exceed the configured loan cap.
+     * @notice Raised when the request already has an open position.
      */
-    error TooManyLoans();
+    error RequestAlreadyActive();
 
     /**
      * @notice Raised when the request yield is below the configured floor.
@@ -167,9 +167,8 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
      * @notice Emitted when exposure limits are set.
      * @param perRequestMaxCollateral Maximum principal per request.
      * @param minRequestYield Minimum request yield in ppm.
-     * @param maxConcurrentLoans Maximum number of concurrent open loans (0 = no limit).
      */
-    event SetExposureLimits(uint256 perRequestMaxCollateral, uint256 minRequestYield, uint256 maxConcurrentLoans);
+    event SetExposureLimits(uint256 perRequestMaxCollateral, uint256 minRequestYield);
 
     /**
      * @notice Emitted when a request position is opened.
@@ -194,12 +193,6 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
      * @return requestWhitelist Request whitelist.
      */
     function REQUEST_WHITELIST() external view returns (address requestWhitelist);
-
-    /**
-     * @notice Returns the maximum number of concurrent open loans (0 = no limit).
-     * @return count Maximum concurrent open loans.
-     */
-    function maxConcurrentLoans() external view returns (uint256 count);
 
     /**
      * @notice Returns the signer accepted by EIP-1271 offer validation.
@@ -273,10 +266,8 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
      * @notice Sets adapter-level exposure limits.
      * @param perRequestMaxCollateral_ Maximum principal per request.
      * @param minRequestYield_ Minimum request yield in ppm.
-     * @param maxConcurrentLoans_ Maximum number of concurrent open loans (0 = no limit).
      */
-    function setExposureLimits(uint256 perRequestMaxCollateral_, uint256 minRequestYield_, uint256 maxConcurrentLoans_)
-        external;
+    function setExposureLimits(uint256 perRequestMaxCollateral_, uint256 minRequestYield_) external;
 
     /**
      * @notice Redeems ready 3F requests.
