@@ -41,6 +41,7 @@ jobs:
 
   forge-mainnet-test:
     name: Foundry ${{ matrix.suite.name }}
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
