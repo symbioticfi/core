@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {DeployMorphoVaultV2AdapterBaseScript} from "./base/DeployMorphoVaultV2AdapterBase.s.sol";
 
-// forge script script/deploy/DeployMorphoVaultV2Adapter.s.sol:DeployMorphoVaultV2AdapterScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
+// forge script script/deploy/DeployMorphoVaultV2Adapter.s.sol:DeployMorphoVaultV2AdapterScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key <>
 
 contract DeployMorphoVaultV2AdapterScript is DeployMorphoVaultV2AdapterBaseScript {
     // Address that will own the adapter factory after deployment.

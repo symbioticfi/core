@@ -396,6 +396,8 @@ contract MockWstETH is MockERC20 {
 }
 
 contract MockLidoWithdrawalQueue {
+    error InvalidRequestIdRange(uint256 startId, uint256 endId);
+
     struct WithdrawalRequestStatus {
         uint256 amountOfStETH;
         uint256 amountOfShares;
@@ -412,6 +414,7 @@ contract MockLidoWithdrawalQueue {
     uint256 public constant MIN_STETH_WITHDRAWAL_AMOUNT = 100;
 
     uint256 public nextRequestId = 1;
+    uint256 public maxHintRequestId = type(uint256).max;
 
     mapping(uint256 requestId => uint256 amount) public requestedWstETH;
     mapping(uint256 requestId => uint256 amount) public requestedStETH;
@@ -463,6 +466,10 @@ contract MockLidoWithdrawalQueue {
         statusAmountOfStETH[requestId] = amount;
     }
 
+    function setMaxHintRequestId(uint256 requestId) external {
+        maxHintRequestId = requestId;
+    }
+
     function claimWithdrawal(uint256 requestId) external {
         uint256 amount = claimAmount[requestId];
         if (amount == 0 && !successfulClaim[requestId]) {
@@ -502,13 +509,16 @@ contract MockLidoWithdrawalQueue {
 
     function findCheckpointHints(uint256[] calldata requestIds, uint256, uint256)
         external
-        pure
+        view
         returns (uint256[] memory hints)
     {
         hints = new uint256[](requestIds.length);
         for (uint256 i; i < requestIds.length; ++i) {
             if (i > 0) {
                 require(requestIds[i - 1] <= requestIds[i], "UNSORTED");
+            }
+            if (requestIds[i] > maxHintRequestId) {
+                revert InvalidRequestIdRange(requestIds[i], maxHintRequestId);
             }
             hints[i] = 1;
         }

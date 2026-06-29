@@ -73,24 +73,57 @@ contract LidoAccount is Account, ILidoAccount {
             ids[index] = requestId;
         }
 
+        address withdrawalQueue = WITHDRAWAL_QUEUE;
         ILidoWithdrawalQueue.WithdrawalRequestStatus[] memory statuses =
-            ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).getWithdrawalStatus(ids);
+            ILidoWithdrawalQueue(withdrawalQueue).getWithdrawalStatus(ids);
 
         uint256[] memory claimableEther;
-        uint256 lastCheckpointIndex = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).getLastCheckpointIndex();
+        bool hasClaimableEther;
+        uint256 lastCheckpointIndex = ILidoWithdrawalQueue(withdrawalQueue).getLastCheckpointIndex();
         if (lastCheckpointIndex > 0) {
-            claimableEther = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE)
-                .getClaimableEther(
-                    ids, ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).findCheckpointHints(ids, 1, lastCheckpointIndex)
-                );
+            uint256 finalizedLength;
+            for (uint256 i; i < length; ++i) {
+                if (statuses[i].isFinalized && !statuses[i].isClaimed && statuses[i].owner == address(this)) {
+                    ++finalizedLength;
+                }
+            }
+
+            if (finalizedLength > 0) {
+                uint256[] memory finalizedIds = new uint256[](finalizedLength);
+                uint256 finalizedIndex;
+                for (uint256 i; i < length; ++i) {
+                    if (statuses[i].isFinalized && !statuses[i].isClaimed && statuses[i].owner == address(this)) {
+                        finalizedIds[finalizedIndex++] = ids[i];
+                    }
+                }
+
+                try ILidoWithdrawalQueue(withdrawalQueue)
+                    .findCheckpointHints(finalizedIds, 1, lastCheckpointIndex) returns (
+                    uint256[] memory hints
+                ) {
+                    try ILidoWithdrawalQueue(withdrawalQueue).getClaimableEther(finalizedIds, hints) returns (
+                        uint256[] memory amounts
+                    ) {
+                        if (amounts.length == finalizedLength) {
+                            claimableEther = amounts;
+                            hasClaimableEther = true;
+                        }
+                    } catch {}
+                } catch {}
+            }
         }
 
+        uint256 claimableIndex;
         for (uint256 i; i < length; ++i) {
             if (!statuses[i].isClaimed && statuses[i].owner == address(this)) {
-                assets += _redemptionTokenToAssets(
-                    WETH,
-                    statuses[i].isFinalized && lastCheckpointIndex > 0 ? claimableEther[i] : statuses[i].amountOfStETH
-                );
+                uint256 requestAssets = statuses[i].amountOfStETH;
+                if (statuses[i].isFinalized) {
+                    if (hasClaimableEther) {
+                        requestAssets = claimableEther[claimableIndex];
+                    }
+                    ++claimableIndex;
+                }
+                assets += _redemptionTokenToAssets(WETH, requestAssets);
             }
         }
     }

@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {DeployAppAdapterBaseScript} from "./base/DeployAppAdapterBase.s.sol";
 
-// forge script script/deploy/DeployAppAdapter.s.sol:DeployAppAdapterScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
+// forge script script/deploy/DeployAppAdapter.s.sol:DeployAppAdapterScript --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key <>
 
 contract DeployAppAdapterScript is DeployAppAdapterBaseScript {
     // Address that will own the adapter factory after deployment.

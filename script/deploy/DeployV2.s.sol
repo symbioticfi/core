@@ -3,15 +3,15 @@ pragma solidity ^0.8.0;
 
 import {DeployV2BaseScript} from "./base/DeployV2Base.s.sol";
 
-// forge script script/deploy/DeployV2.s.sol:DeployV2Script --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
+// forge script script/deploy/DeployV2.s.sol:DeployV2Script --rpc-url RPC/hoodi --broadcast --verify --etherscan-api-key <>
 
 contract DeployV2Script is DeployV2BaseScript {
     // Address that will own the new AdapterRegistry.
-    address public constant ADAPTER_REGISTRY_OWNER = 0x0000000000000000000000000000000000000001;
+    address public constant ADAPTER_REGISTRY_OWNER = 0x0000000000000000000000000000000000000000;
     // Address that will own the new ProtocolFeeRegistry.
-    address public constant PROTOCOL_FEE_REGISTRY_OWNER = 0x0000000000000000000000000000000000000001;
+    address public constant PROTOCOL_FEE_REGISTRY_OWNER = 0x0000000000000000000000000000000000000000;
     // Address that will own the new adapter factories.
-    address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000001;
+    address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
     // Morpho Vault V2 factory used by MorphoVaultV2Adapter implementations.
     address public constant MORPHO_VAULT_FACTORY = 0xA1D94F746dEfa1928926b84fB2596c06926C0405;
     // Morpho liquidity adapter registry required by MorphoVaultV2Adapter implementations.

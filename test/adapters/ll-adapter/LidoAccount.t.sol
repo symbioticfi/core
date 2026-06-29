@@ -116,6 +116,23 @@ contract LidoAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 17 ether);
     }
 
+    function testWstETHAccountValuesFreshRequestWhenCheckpointHintsRejectRange() public {
+        MockERC20 stETH = new MockERC20("Liquid staked Ether", "stETH", 18);
+        MockWETH weth = new MockWETH();
+        MockWstETH wstETH = new MockWstETH(address(stETH));
+        MockLidoWithdrawalQueue withdrawalQueue = new MockLidoWithdrawalQueue(address(wstETH), address(stETH));
+        MockOracle oracle = new MockOracle(1e18);
+        wstETH_Account account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
+
+        wstETH.mint(address(account), 25 ether);
+        account.sync();
+
+        withdrawalQueue.setMaxHintRequestId(0);
+
+        assertEq(account.pendingAssets(), 25 ether);
+        assertEq(account.totalAssets(), 25 ether);
+    }
+
     function testWstETHAccountUsesClaimableEtherForFinalizedRequest() public {
         MockERC20 stETH = new MockERC20("Liquid staked Ether", "stETH", 18);
         MockWETH weth = new MockWETH();

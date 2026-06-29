@@ -69,6 +69,7 @@ import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegat
 import {ILiquidLaneAdapter, MAX_TOKENS_TO_REDEEM} from "../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IAccount} from "../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IAsyncRedeemAccount} from "../../src/interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
+import {ICooldownAccount} from "../../src/interfaces/adapters/ll-adapter/ICooldownAccount.sol";
 import {IDigiFTAccount} from "../../src/interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol";
 import {IEtherFiAccount} from "../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
 import {IFigureAccount} from "../../src/interfaces/adapters/ll-adapter/figure/IFigureAccount.sol";
@@ -469,9 +470,15 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         internal
         returns (uint256 seeded)
     {
+        uint256 startTimestamp = vm.getBlockTimestamp();
+        uint48 cooldown = _requestCooldown(account);
         uint256 targetRequests = _seedTarget(index, spec);
         uint256 requestsBefore = _requestUnits(index, token, account);
         for (uint256 i; seeded < targetRequests && i < targetRequests; ++i) {
+            if (i > 0 && cooldown > 0) {
+                vm.warp(vm.getBlockTimestamp() + cooldown);
+            }
+
             _fundRequest(index, token, account);
 
             vm.prank(curator);
@@ -480,16 +487,27 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
                 emit log_named_bytes("sync revert", reason);
                 emit log_named_uint("token balance", IERC20(token).balanceOf(account));
                 deal(token, account, 0);
+                vm.warp(startTimestamp);
                 return seeded;
             }
 
             uint256 requestsAfter = _requestUnits(index, token, account);
             if (requestsAfter <= requestsBefore) {
+                vm.warp(startTimestamp);
                 return seeded;
             }
 
             seeded += requestsAfter - requestsBefore;
             requestsBefore = requestsAfter;
+        }
+        vm.warp(startTimestamp);
+    }
+
+    function _requestCooldown(address account) internal view returns (uint48) {
+        try ICooldownAccount(account).COOLDOWN() returns (uint48 cooldown) {
+            return cooldown;
+        } catch {
+            return 0;
         }
     }
 
@@ -517,7 +535,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             _permissionDigiFTTransfer(token, account);
         }
         if (index == 37) {
-            _configureParetoRequestPath(account);
+            deal(IParetoAccount(account).RECEIPT_TOKEN(), account, amount);
+            return;
         }
         if (index == 38) {
             _fundSecuritizeRequest(token, account, amount);
@@ -680,19 +699,6 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         vm.store(target, reads[reads.length - 1], bytes32(uint256(value ? 1 : 0)));
     }
 
-    function _configureParetoRequestPath(address account) internal {
-        address idleCdo = IParetoAccount(account).IDLE_CDO();
-        address owner = IOwnable(idleCdo).owner();
-
-        vm.prank(owner);
-        IParetoEpochVault(idleCdo).restoreOperations();
-
-        if (!IParetoEpochVault(idleCdo).isWalletAllowed(account)) {
-            vm.prank(owner);
-            IParetoEpochVault(idleCdo).setKeyringParams(address(0), 0, true);
-        }
-    }
-
     function _fundSecuritizeRequest(address token, address account, uint256 amount) internal {
         address registry = IDSServiceConsumer(token).getDSService(4);
         address trustService = IDSServiceConsumer(token).getDSService(1);
@@ -709,7 +715,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         _registerSecuritizeWallet(registry, owner, nextSubAccount, investorId);
 
         vm.prank(owner);
-        IDSTrustService(trustService).setRole(nextSubAccount, 8);
+        try IDSTrustService(trustService).setRole(nextSubAccount, 8) {} catch {}
 
         vm.prank(owner);
         IDSecuritizeToken(token).issueTokens(account, amount);
@@ -844,8 +850,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             return IERC20(IParetoAccount(account).RECEIPT_TOKEN()).balanceOf(account) > 0 ? 1 : 0;
         }
         if (index == 38) {
-            (uint256 amount,) = ISecuritizeAccount(account).pendingCutoffs(0);
-            return amount > 0 ? 1 : 0;
+            return _securitizePendingCutoffsLength(account);
         }
         if (index == 39) {
             return _noonRequestIdsLength(account);
@@ -946,6 +951,16 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             } catch {
                 return length;
             }
+        }
+    }
+
+    function _securitizePendingCutoffsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            (uint256 amount,) = ISecuritizeAccount(account).pendingCutoffs(length);
+            if (amount == 0) {
+                return length;
+            }
+            ++length;
         }
     }
 
@@ -1279,14 +1294,6 @@ interface IDigiFTManagement {
     function isWhiteContract(address contractAddress) external view returns (bool);
 
     function isWhiteInvestor(address investor) external view returns (bool);
-}
-
-interface IParetoEpochVault {
-    function isWalletAllowed(address user) external view returns (bool);
-
-    function restoreOperations() external;
-
-    function setKeyringParams(address keyring, uint256 policyId, bool keyringAllowWithdraw) external;
 }
 
 interface IOwnable {

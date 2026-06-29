@@ -10,7 +10,7 @@ import {V2WhitelistAdaptersBaseScript} from "script/upgrade/base/V2WhitelistAdap
 import {Logs} from "script/utils/Logs.sol";
 import {ScriptBase} from "script/utils/ScriptBase.s.sol";
 
-// forge script script/deploy/DeployAndWhitelistAaveMorpho.s.sol:DeployAndWhitelistAaveMorphoScript --rpc-url RPC/mainnet --broadcast --verify --etherscan-api-key 5NEH7KHHDWPQSEXNXJT3YSVBSS67MXRFXE
+// forge script script/deploy/DeployAndWhitelistAaveMorpho.s.sol:DeployAndWhitelistAaveMorphoScript --rpc-url RPC/mainnet --broadcast --verify --etherscan-api-key <>
 
 contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
     // Address that will own the new AdapterRegistry after both adapters are whitelisted.
