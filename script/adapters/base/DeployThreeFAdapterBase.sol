@@ -8,7 +8,6 @@ contract DeployThreeFAdapterBase is DeployAdapterBase {
     struct DeployParams {
         address adapterFactoryOwner;
         address requestWhitelist;
-        uint256 maxLoans;
     }
 
     function runBase(DeployParams memory params) public virtual returns (DeploymentData memory data) {
@@ -19,7 +18,7 @@ contract DeployThreeFAdapterBase is DeployAdapterBase {
         _startBroadcast();
         data.adapterFactory = _deployAdapterFactory();
         data.adapterImplementation =
-            address(new ThreeFAdapter(params.requestWhitelist, data.adapterFactory, vaultFactory, params.maxLoans));
+            address(new ThreeFAdapter(params.requestWhitelist, data.adapterFactory, vaultFactory));
         _whitelistAndTransferOwnership(data, params.adapterFactoryOwner);
         _stopBroadcast();
 
@@ -30,6 +29,5 @@ contract DeployThreeFAdapterBase is DeployAdapterBase {
     function _validateParams(DeployParams memory params) internal pure {
         _validateAdapterFactoryOwner(params.adapterFactoryOwner);
         require(params.requestWhitelist != address(0), "invalid request whitelist");
-        require(params.maxLoans != 0, "invalid max loans");
     }
 }

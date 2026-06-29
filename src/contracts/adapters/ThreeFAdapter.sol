@@ -23,19 +23,19 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /// @title ThreeFAdapter
 /// @notice VaultV2 adapter for 3F bridge facilitator requests.
 contract ThreeFAdapter is Adapter, IThreeFAdapter {
     using SafeERC20 for IERC20;
     using Math for uint256;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     /* IMMUTABLES */
 
     /// @inheritdoc IThreeFAdapter
     address public immutable REQUEST_WHITELIST;
-    /// @inheritdoc IThreeFAdapter
-    uint256 public immutable MAX_LOANS;
 
     /* STATE VARIABLES */
 
@@ -44,10 +44,6 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     /// @inheritdoc IThreeFAdapter
     mapping(address request => Position) public positions;
     /// @inheritdoc IThreeFAdapter
-    mapping(address request => bool) public isRequest;
-    /// @inheritdoc IThreeFAdapter
-    uint256 public activeLoans;
-    /// @inheritdoc IThreeFAdapter
     uint256 public realizedPrincipal;
     /// @inheritdoc IThreeFAdapter
     uint256 public outstandingPrincipal;
@@ -55,17 +51,21 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     uint256 public perRequestMaxCollateral;
     /// @inheritdoc IThreeFAdapter
     uint256 public minRequestYield;
+    /// @inheritdoc IThreeFAdapter
+    uint256 public maxConcurrentLoans;
+
+    /// @dev Open (consumed, unredeemed) requests; backs isRequest/activeLoans/activeRequests.
+    EnumerableSet.AddressSet private _activeRequests;
 
     /// @dev Opens allocatable capacity only during the just-in-time request callback.
     bool internal transient _inConsume;
 
     /* CONSTRUCTOR */
 
-    constructor(address requestWhitelist, address adapterFactory, address vaultFactory, uint256 maxLoans)
+    constructor(address requestWhitelist, address adapterFactory, address vaultFactory)
         Adapter(vaultFactory, adapterFactory)
     {
         REQUEST_WHITELIST = requestWhitelist;
-        MAX_LOANS = maxLoans;
     }
 
     /* PUBLIC FUNCTIONS */
@@ -78,11 +78,15 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     }
 
     /// @inheritdoc IThreeFAdapter
-    function setExposureLimits(uint256 perRequestMaxCollateral_, uint256 minRequestYield_) public onlyOwner {
+    function setExposureLimits(uint256 perRequestMaxCollateral_, uint256 minRequestYield_, uint256 maxConcurrentLoans_)
+        public
+        onlyOwner
+    {
         perRequestMaxCollateral = perRequestMaxCollateral_;
         minRequestYield = minRequestYield_;
+        maxConcurrentLoans = maxConcurrentLoans_;
 
-        emit SetExposureLimits(perRequestMaxCollateral_, minRequestYield_);
+        emit SetExposureLimits(perRequestMaxCollateral_, minRequestYield_, maxConcurrentLoans_);
     }
 
     /// @inheritdoc IThreeFRequestCallback
@@ -103,7 +107,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
         {
             revert YieldTooLow();
         }
-        if (activeLoans >= MAX_LOANS) {
+        if (maxConcurrentLoans > 0 && _activeRequests.length() >= maxConcurrentLoans) {
             revert TooManyLoans();
         }
 
@@ -124,8 +128,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
         IERC20(IERC4626(vault).asset()).forceApprove(msg.sender, principal);
 
         positions[msg.sender] = Position(principal, yieldAmount, uint48(block.timestamp), false);
-        isRequest[msg.sender] = true;
-        ++activeLoans;
+        _activeRequests.add(msg.sender);
         outstandingPrincipal += principal;
 
         emit PositionOpened(msg.sender, principal, yieldAmount);
@@ -134,7 +137,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     /// @inheritdoc IThreeFAdapter
     function redeem(address[] calldata requests) public nonReentrant {
         for (uint256 i; i < requests.length; ++i) {
-            if (!isRequest[requests[i]] || !IThreeFVaultController(requests[i]).canWithdraw()) {
+            if (!_activeRequests.contains(requests[i]) || !IThreeFVaultController(requests[i]).canWithdraw()) {
                 continue;
             }
 
@@ -144,8 +147,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
             outstandingPrincipal -= positions[requests[i]].principal;
             realizedPrincipal += pAssets;
             positions[requests[i]].redeemed = true;
-            isRequest[requests[i]] = false;
-            --activeLoans;
+            _activeRequests.remove(requests[i]);
 
             emit PositionRedeemed(requests[i], pAssets, yAssets);
         }
@@ -161,6 +163,21 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     }
 
     /* VIEW FUNCTIONS */
+
+    /// @inheritdoc IThreeFAdapter
+    function isRequest(address request) public view returns (bool) {
+        return _activeRequests.contains(request);
+    }
+
+    /// @inheritdoc IThreeFAdapter
+    function activeLoans() public view returns (uint256) {
+        return _activeRequests.length();
+    }
+
+    /// @inheritdoc IThreeFAdapter
+    function activeRequests() public view returns (address[] memory) {
+        return _activeRequests.values();
+    }
 
     /// @inheritdoc IAdapter
     function allocatable() public view override(Adapter, IAdapter) returns (uint256) {

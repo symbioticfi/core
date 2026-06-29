@@ -482,7 +482,7 @@ contract DeploymentScriptsTest is Test {
         DeployThreeFAdapterBase.DeploymentData memory threeF = new DeployThreeFAdapterBaseHarness(address(vaultFactory))
             .runBase(
                 DeployThreeFAdapterBase.DeployParams({
-                adapterFactoryOwner: owner, requestWhitelist: address(0xC001), maxLoans: 11
+                adapterFactoryOwner: owner, requestWhitelist: address(0xC001)
             })
             );
 
@@ -504,7 +504,6 @@ contract DeploymentScriptsTest is Test {
         assertEq(RestakingAppAdapter(restaking.adapterImplementation).FACTORY(), restaking.adapterFactory);
         assertEq(ThreeFAdapter(threeF.adapterImplementation).FACTORY(), threeF.adapterFactory);
         assertEq(ThreeFAdapter(threeF.adapterImplementation).REQUEST_WHITELIST(), address(0xC001));
-        assertEq(ThreeFAdapter(threeF.adapterImplementation).MAX_LOANS(), 11);
     }
 
     function _assertAdapterDeployment(address adapterFactory, address adapterImplementation) internal view {
