@@ -72,6 +72,17 @@ contract MidasTokensToRedeemMainnetTest is Test {
     address internal constant MIDAS_ACCESS_CONTROL_ADMIN = 0xd4195CF4df289a4748C1A7B6dDBE770e27bA1227;
     address internal constant MIDAS_GREENLIST_ADMIN = 0xb5CcD8dC8082467849eE008d4242f7b3b569EF05;
     address internal constant MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
+    uint48 internal constant MGLOBAL_JUNE_SUBS_OPEN = 1_781_856_000; // 2026-06-19 08:00 UTC
+    uint48 internal constant MGLOBAL_JUNE_TOKEN_CUTOFF = 1_782_493_200; // 2026-06-26 17:00 UTC
+    uint48 internal constant MGLOBAL_JUNE_FUND_CUTOFF = 1_782_590_400; // 2026-06-27 20:00 UTC
+    uint48 internal constant MGLOBAL_JUNE_STANDARD_REDEMPTION = 1_782_734_400; // 2026-06-29 12:00 UTC
+    uint48 internal constant MGLOBAL_JULY_NAV_PROPAGATED = 1_784_160_000; // 2026-07-16 00:00 UTC
+    uint48 internal constant MGLOBAL_JULY_SUBS_OPEN = 1_784_620_800; // 2026-07-21 08:00 UTC
+    uint48 internal constant MGLOBAL_JULY_TOKEN_CUTOFF = 1_785_085_200; // 2026-07-26 17:00 UTC
+    uint48 internal constant MGLOBAL_AUGUST_NAV_PROPAGATED = 1_786_838_400; // 2026-08-16 00:00 UTC
+    uint48 internal constant MGLOBAL_AUGUST_TOKEN_CUTOFF = 1_787_763_600; // 2026-08-26 17:00 UTC
+    uint48 internal constant MGLOBAL_SETTLEMENT_PROCESSED = 1_788_220_800; // 2026-09-01 00:00 UTC
+    uint48 internal constant MGLOBAL_NOVEMBER_NAV_PROPAGATED = 1_794_787_200; // 2026-11-16 00:00 UTC
 
     address internal adapter = makeAddr("adapter");
     string internal mainnetRpcUrl;
@@ -125,6 +136,54 @@ contract MidasTokensToRedeemMainnetTest is Test {
         );
     }
 
+    function testMGlobalMainnetLongestTimelineUsesCurrentMonthlyNavPrint() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet mGLOBAL timeline");
+        _createFork();
+
+        address account = _deployDirectMGlobalAccount();
+        address dataFeed = MidasOracle(MidasAccount(account).ORACLE()).DATA_FEED();
+        address aggregator = IMidasDataFeed(dataFeed).aggregator();
+
+        assertEq(MidasAccount(account).TOKEN_TO_REDEEM(), MGLOBAL);
+        assertEq(MidasAccount(account).REDEMPTION_TOKEN(), MAINNET_USDC);
+        assertEq(CutoffMidasAccount(account).CUTOFF_DAY(), 26);
+        assertEq(CutoffMidasAccount(account).CUTOFF_HOUR(), 17);
+        assertEq(CutoffMidasAccount(account).bucketToTimestamp(1), MGLOBAL_JULY_TOKEN_CUTOFF);
+        assertEq(CutoffMidasAccount(account).bucketToTimestamp(2), MGLOBAL_AUGUST_TOKEN_CUTOFF);
+        assertLt(MGLOBAL_JUNE_SUBS_OPEN, MGLOBAL_JUNE_TOKEN_CUTOFF);
+        assertLt(MGLOBAL_JUNE_TOKEN_CUTOFF, MGLOBAL_JUNE_STANDARD_REDEMPTION);
+        assertLt(MGLOBAL_JUNE_FUND_CUTOFF, MGLOBAL_JUNE_STANDARD_REDEMPTION);
+        assertLt(MGLOBAL_JULY_SUBS_OPEN, MGLOBAL_JULY_TOKEN_CUTOFF);
+
+        uint256 amount = 100e18;
+        _mockMGlobalRound(dataFeed, aggregator, 100, 1.0058e8, MGLOBAL_JUNE_STANDARD_REDEMPTION);
+        deal(MGLOBAL, account, amount);
+        vm.warp(MGLOBAL_JUNE_STANDARD_REDEMPTION);
+        MidasAccount(account).sync();
+
+        uint64 requestId = MidasAccount(account).requestIds(0);
+        assertEq(CutoffMidasAccount(account).timestampToBucket(MGLOBAL_JUNE_STANDARD_REDEMPTION), 0);
+        assertEq(CutoffMidasAccount(account).requestToBucket(requestId), 0);
+
+        (,, uint8 status, uint256 amountMToken,,) =
+            IMidasRedemptionVault(MidasAccount(account).REDEMPTION_VAULT()).redeemRequests(requestId);
+        assertEq(status, REQUEST_STATUS_PENDING);
+        assertGt(amountMToken, 0);
+
+        vm.clearMockedCalls();
+        _mockMGlobalTimelineRounds(dataFeed, aggregator);
+
+        uint256 julyValue = amountMToken * 1.1e8 * 1e6 / 1e26;
+        uint256 augustValue = amountMToken * 1.2e8 * 1e6 / 1e26;
+        assertEq(MidasAccount(account).totalAssets(), julyValue);
+        assertNotEq(MidasAccount(account).totalAssets(), augustValue);
+
+        vm.warp(MGLOBAL_NOVEMBER_NAV_PROPAGATED + 1 days);
+        (,, status,,,) = IMidasRedemptionVault(MidasAccount(account).REDEMPTION_VAULT()).redeemRequests(requestId);
+        assertEq(status, REQUEST_STATUS_PENDING);
+        assertEq(MidasAccount(account).totalAssets(), julyValue);
+    }
+
     function _setUpMGlobalCycle() internal returns (MGlobalCycle memory cycle) {
         address vaultFactory = address(new MidasMainnetVaultRegistry());
         cycle.vault = address(new MidasMainnetLiquidLaneVault(MAINNET_USDC));
@@ -153,6 +212,39 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
         cycle.account = LiquidLaneAdapter(cycle.llAdapter).accounts(MGLOBAL);
         _configureMidasRequestPath(cycle.account, cycle.llAdapter);
+    }
+
+    function _deployDirectMGlobalAccount() internal returns (address account) {
+        MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(MAINNET_USDC);
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        mGLOBAL_Account implementation = new mGLOBAL_Account(address(factory), COW_SWAP_SETTLEMENT);
+        factory.whitelist(address(implementation));
+        account = factory.create(1, address(this), _initData(MGLOBAL, vault));
+        _configureMidasRequestPath(account, adapter);
+    }
+
+    function _mockMGlobalTimelineRounds(address dataFeed, address aggregator) internal {
+        _mockMGlobalRound(dataFeed, aggregator, 1, 1.1e8, MGLOBAL_JULY_NAV_PROPAGATED);
+        _mockMGlobalRound(dataFeed, aggregator, 2, 1.2e8, MGLOBAL_AUGUST_NAV_PROPAGATED);
+        _mockMGlobalRound(dataFeed, aggregator, 3, 1.3e8, MGLOBAL_SETTLEMENT_PROCESSED);
+        _mockMGlobalRound(dataFeed, aggregator, 4, 1.4e8, MGLOBAL_NOVEMBER_NAV_PROPAGATED);
+    }
+
+    function _mockMGlobalRound(address dataFeed, address aggregator, uint80 roundId, int256 answer, uint48 updatedAt)
+        internal
+    {
+        vm.mockCall(dataFeed, abi.encodeCall(IMidasDataFeed.getDataInBase18, ()), abi.encode(uint256(answer) * 1e10));
+        vm.mockCall(aggregator, abi.encodeCall(IChainlinkAggregatorV3.decimals, ()), abi.encode(uint8(8)));
+        vm.mockCall(
+            aggregator,
+            abi.encodeCall(IChainlinkAggregatorV3.latestRoundData, ()),
+            abi.encode(roundId, answer, uint256(updatedAt), uint256(updatedAt), roundId)
+        );
+        vm.mockCall(
+            aggregator,
+            abi.encodeCall(IChainlinkAggregatorV3.getRoundData, (roundId)),
+            abi.encode(roundId, answer, uint256(updatedAt), uint256(updatedAt), roundId)
+        );
     }
 
     function _swapAndAssertPendingMGlobal(MGlobalCycle memory cycle)
@@ -628,6 +720,13 @@ interface IMidasAccessControl {
 }
 
 interface IChainlinkAggregatorV3 {
+    function decimals() external view returns (uint8);
+
+    function getRoundData(uint80 roundId)
+        external
+        view
+        returns (uint80, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
+
     function latestRoundData()
         external
         view

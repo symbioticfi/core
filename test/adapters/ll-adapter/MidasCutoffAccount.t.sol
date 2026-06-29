@@ -17,9 +17,13 @@ contract MidasCutoffAccountTest is Test {
     uint48 internal constant JULY_20_2026 = 1_784_505_600;
     uint48 internal constant JULY_23_2026 = 1_784_764_800;
     uint48 internal constant JULY_26_2026 = 1_785_024_000;
-    uint48 internal constant JULY_26_2026_PLUS_ONE = 1_785_024_001;
     uint48 internal constant AUGUST_23_2026 = 1_787_443_200;
     uint48 internal constant AUGUST_26_2026 = 1_787_702_400;
+    uint48 internal constant JULY_23_2026_17 = JULY_23_2026 + 17 hours;
+    uint48 internal constant JULY_26_2026_17 = JULY_26_2026 + 17 hours;
+    uint48 internal constant JULY_26_2026_17_PLUS_ONE = JULY_26_2026_17 + 1;
+    uint48 internal constant AUGUST_23_2026_17 = AUGUST_23_2026 + 17 hours;
+    uint48 internal constant AUGUST_26_2026_17 = AUGUST_26_2026 + 17 hours;
 
     address internal adapter = makeAddr("adapter");
     address internal cowSettlement = makeAddr("cowSettlement");
@@ -36,7 +40,7 @@ contract MidasCutoffAccountTest is Test {
 
     function setUp() public {
         vm.warp(JULY_23_2026);
-        CUTOFF = JULY_26_2026;
+        CUTOFF = JULY_26_2026_17;
 
         usdc = new MockERC20("USD Coin", "USDC", 6);
         mGlobal = new MockERC20("Midas Global", "mGLOBAL", 18);
@@ -82,11 +86,11 @@ contract MidasCutoffAccountTest is Test {
 
         assertEq(julyBucketIndex, 0);
         assertEq(account.bucketToTimestamp(julyBucketIndex), 0);
-        assertEq(account.timestampToBucket(JULY_26_2026 - 1), julyBucketIndex);
-        assertEq(account.timestampToBucket(JULY_26_2026), 1);
-        assertEq(account.timestampToBucket(JULY_26_2026_PLUS_ONE), 1);
-        assertEq(account.bucketToTimestamp(account.timestampToBucket(JULY_26_2026_PLUS_ONE)), JULY_26_2026);
-        assertEq(account.bucketToTimestamp(2), AUGUST_26_2026);
+        assertEq(account.timestampToBucket(JULY_26_2026_17 - 1), julyBucketIndex);
+        assertEq(account.timestampToBucket(JULY_26_2026_17), 1);
+        assertEq(account.timestampToBucket(JULY_26_2026_17_PLUS_ONE), 1);
+        assertEq(account.bucketToTimestamp(account.timestampToBucket(JULY_26_2026_17_PLUS_ONE)), JULY_26_2026_17);
+        assertEq(account.bucketToTimestamp(2), AUGUST_26_2026_17);
     }
 
     function testDoesNotRequestBeforePreCutoffWindow() public {
@@ -102,7 +106,7 @@ contract MidasCutoffAccountTest is Test {
         account.requestIds(0);
         assertEq(mGlobal.balanceOf(address(account)), 100e18);
 
-        vm.warp(JULY_23_2026);
+        vm.warp(JULY_23_2026_17);
         vm.prank(caller);
         account.sync();
 
@@ -139,13 +143,13 @@ contract MidasCutoffAccountTest is Test {
         account.sync();
 
         // a request submitted in the next pre-cutoff window joins the next monthly bucket
-        vm.warp(AUGUST_23_2026);
+        vm.warp(AUGUST_23_2026_17);
         mGlobal.mint(address(account), 50e18);
         account.sync();
 
         assertEq(account.requestIds(1), 1);
         assertEq(account.requestToBucket(1), 1);
-        assertEq(account.bucketToTimestamp(account.requestToBucket(1)), JULY_26_2026);
+        assertEq(account.bucketToTimestamp(account.requestToBucket(1)), JULY_26_2026_17);
     }
 
     function testCurrentBucketReturnsCurrentMonthlyBucket() public view {

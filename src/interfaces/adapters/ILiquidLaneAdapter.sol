@@ -225,9 +225,9 @@ interface ILiquidLaneAdapter is IAdapter {
      * @notice Emitted when a filler authorization is updated.
      * @param marketMaker The market maker address.
      * @param filler The filler address.
-     * @param isAuthorized Whether the filler is authorized.
+     * @param status Whether the filler is authorized.
      */
-    event SetFiller(address indexed marketMaker, address indexed filler, bool isAuthorized);
+    event SetFiller(address indexed marketMaker, address indexed filler, bool status);
 
     /**
      * @notice Emitted when acquisition assets are deposited.
@@ -428,9 +428,9 @@ interface ILiquidLaneAdapter is IAdapter {
     /**
      * @notice Sets filler authorization for the market maker.
      * @param filler The filler address.
-     * @param isAuthorized Whether the filler is authorized.
+     * @param status Whether the filler is authorized.
      */
-    function setFiller(address filler, bool isAuthorized) external;
+    function setFiller(address filler, bool status) external;
 
     /**
      * @notice Marks a signed-swap nonce as used.

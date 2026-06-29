@@ -179,6 +179,8 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
 
     /// @dev Cutoff day for monthly schedules.
     uint256 public immutable CUTOFF_DAY;
+    /// @dev Cutoff hour for monthly schedules.
+    uint256 public immutable CUTOFF_HOUR;
     /// @dev Initial cutoff year for monthly schedules.
     uint256 public immutable INITIAL_YEAR;
     /// @dev Initial cutoff month for monthly schedules.
@@ -209,7 +211,7 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
     ) MidasAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, redemptionVault, cowSwapSettlement) {
         INITIAL_CUTOFF = initialCutoff;
         PRE_CUTOFF_WINDOW = preCutoffWindow;
-        (INITIAL_YEAR, INITIAL_MONTH, CUTOFF_DAY) = DateTimeLib.timestampToDate(initialCutoff);
+        (INITIAL_YEAR, INITIAL_MONTH, CUTOFF_DAY, CUTOFF_HOUR,,) = DateTimeLib.timestampToDateTime(initialCutoff);
     }
 
     /* VIEW FUNCTIONS */
@@ -222,7 +224,7 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
 
         (uint256 year, uint256 month,) = DateTimeLib.timestampToDate(timestamp);
         bucket = uint48((year - INITIAL_YEAR) * 12 + month - INITIAL_MONTH);
-        if (timestamp >= DateTimeLib.dateToTimestamp(year, month, CUTOFF_DAY)) {
+        if (timestamp >= DateTimeLib.dateTimeToTimestamp(year, month, CUTOFF_DAY, CUTOFF_HOUR, 0, 0)) {
             ++bucket;
         }
     }
@@ -234,7 +236,9 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
         }
 
         uint256 month = INITIAL_MONTH + bucket - 2;
-        return uint48(DateTimeLib.dateToTimestamp(INITIAL_YEAR + month / 12, month % 12 + 1, CUTOFF_DAY));
+        return uint48(
+            DateTimeLib.dateTimeToTimestamp(INITIAL_YEAR + month / 12, month % 12 + 1, CUTOFF_DAY, CUTOFF_HOUR, 0, 0)
+        );
     }
 
     /* INTERNAL FUNCTIONS */
@@ -264,25 +268,28 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
     ///      skipped: Midas pays the assets and marks the request processed atomically, and the stale
     ///      cohort entry is only cleared on the next sync.
     function _pendingAssets() internal view override returns (uint256 assets) {
+        // Call getPrice() to trigger oracle validation checks.
+        IMidasOracle(ORACLE).getPrice();
         address aggregator = IMidasDataFeed(IMidasOracle(ORACLE).DATA_FEED()).aggregator();
+        uint8 decimals = AggregatorV3Interface(aggregator).decimals();
+        (uint80 latestRoundId, int256 latestAnswer,, uint256 latestTimestamp,) =
+            AggregatorV3Interface(aggregator).latestRoundData();
         for (uint256 i; i < requestIds.length; ++i) {
             uint64 requestId = requestIds[i];
             (,, uint8 status, uint256 amountMToken,,) =
                 IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestId);
             if (status == REQUEST_STATUS_PENDING) {
-                (uint80 roundId, int256 answer,, uint256 timestamp,) =
-                    AggregatorV3Interface(aggregator).latestRoundData();
+                int256 answer = latestAnswer;
+                uint80 roundId = latestRoundId;
+                uint256 timestamp = latestTimestamp;
                 uint48 nextBucketTimestamp = bucketToTimestamp(requestToBucket[requestId] + 1);
                 while (timestamp >= nextBucketTimestamp) {
-                    --roundId;
-                    (, answer,, timestamp,) = AggregatorV3Interface(aggregator).getRoundData(roundId);
+                    (, answer,, timestamp,) = AggregatorV3Interface(aggregator).getRoundData(--roundId);
                 }
                 if (answer <= 0) {
                     revert InvalidCutoffPrice();
                 }
-                assets += _tokenToRedeemToAssets(
-                    amountMToken, uint256(answer) * 10 ** (18 - AggregatorV3Interface(aggregator).decimals())
-                );
+                assets += _tokenToRedeemToAssets(amountMToken, uint256(answer) * 10 ** (18 - decimals));
             }
         }
     }
