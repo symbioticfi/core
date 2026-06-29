@@ -145,7 +145,12 @@ contract ActionScriptsTest is SymbioticCoreInit {
         if (bytes(mainnetRpcUrl).length == 0) {
             vm.skip(true, "ETH_RPC_URL is required for action script integration tests");
         }
-        vm.selectFork(vm.createFork(mainnetRpcUrl));
+        uint256 forkBlock = vm.envOr("MAINNET_FORK_BLOCK", uint256(0));
+        if (forkBlock == 0) {
+            vm.selectFork(vm.createFork(mainnetRpcUrl));
+        } else {
+            vm.selectFork(vm.createFork(mainnetRpcUrl, forkBlock));
+        }
         SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;
 
         super.setUp();

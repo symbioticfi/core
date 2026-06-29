@@ -136,7 +136,12 @@ contract AaveMorphoMainnetAccountingTest is Test {
         if (bytes(rpcUrl).length == 0) {
             vm.skip(true, reason);
         }
-        vm.createSelectFork(rpcUrl);
+        uint256 forkBlock = vm.envOr("MAINNET_FORK_BLOCK", uint256(0));
+        if (forkBlock == 0) {
+            vm.createSelectFork(rpcUrl);
+        } else {
+            vm.createSelectFork(rpcUrl, forkBlock);
+        }
     }
 }
 

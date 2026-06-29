@@ -187,7 +187,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         _skipWithoutRpc(rpcUrl, "ETH_RPC_URL is required for all-token LiquidLaneAdapter onboarding benchmark");
 
         vm.pauseGasMetering();
-        vm.createSelectFork(rpcUrl);
+        _createFork(rpcUrl);
         _setUpAdapter();
 
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
@@ -208,7 +208,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         _skipWithoutRpc(rpcUrl, "ETH_RPC_URL is required for account totalAssets/sync benchmark");
 
         vm.pauseGasMetering();
-        vm.createSelectFork(rpcUrl);
+        _createFork(rpcUrl);
         _setUpAdapter();
 
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
@@ -236,7 +236,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         _skipWithoutRpc(rpcUrl, "ETH_RPC_URL is required for exact max-request seeding benchmark");
 
         vm.pauseGasMetering();
-        vm.createSelectFork(rpcUrl);
+        _createFork(rpcUrl);
         _setUpAdapter();
 
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
@@ -1235,6 +1235,15 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     function _skipWithoutRpc(string memory rpcUrl, string memory reason) internal {
         if (bytes(rpcUrl).length == 0) {
             vm.skip(true, reason);
+        }
+    }
+
+    function _createFork(string memory rpcUrl) internal {
+        uint256 forkBlock = vm.envOr("MAINNET_FORK_BLOCK", uint256(0));
+        if (forkBlock == 0) {
+            vm.createSelectFork(rpcUrl);
+        } else {
+            vm.createSelectFork(rpcUrl, forkBlock);
         }
     }
 }

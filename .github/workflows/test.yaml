@@ -5,6 +5,9 @@ on:
     branches: [main, master, staging, dev, feat/**, fix/**]
   push:
     branches: [main, master, staging, dev]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -12,7 +15,6 @@ concurrency:
 
 env:
   FOUNDRY_PROFILE: ${{ github.event_name == 'push' && 'ci' || 'pr' }}
-  ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
 
 jobs:
   forge-test:
@@ -34,4 +36,51 @@ jobs:
         run: forge fmt --check
 
       - name: Run Forge tests
-        run: forge test --isolate --no-match-path test/invariant/UniversalDelegatorArithmeticInvariants.t.sol
+        run: >
+          forge test
+          --no-match-contract '.*(Mainnet|Benchmark).*'
+          --no-match-path 'test/{integration/actions/ActionScripts.t.sol,invariant/UniversalDelegatorArithmeticInvariants.t.sol}'
+
+  forge-mainnet-test:
+    name: Foundry ${{ matrix.suite.name }}
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - name: mainnet forks
+            id: mainnet-forks
+            command: "forge test --isolate --match-contract '.*Mainnet.*' --no-match-contract '.*Benchmark.*'"
+          - name: fork benchmarks
+            id: fork-benchmarks
+            command: "forge test --isolate --match-contract '.*Benchmark.*'"
+          - name: action script forks
+            id: action-script-forks
+            command: "forge test --isolate --match-path test/integration/actions/ActionScripts.t.sol"
+    env:
+      FOUNDRY_PROFILE: pr
+      ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
+      MAINNET_FORK_BLOCK: 25422678
+    steps:
+      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@82dee4ba654bd2146511f85f0d013af94670c4de # v1.4.0
+        with:
+          version: v1.7.0
+
+      - name: Cache Foundry RPC responses
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.foundry/cache/rpc
+          key: ${{ runner.os }}-foundry-rpc-mainnet-${{ env.MAINNET_FORK_BLOCK }}-${{ matrix.suite.id }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-rpc-mainnet-${{ env.MAINNET_FORK_BLOCK }}-
+
+      - name: Run Forge mainnet tests
+        run: ${{ matrix.suite.command }}

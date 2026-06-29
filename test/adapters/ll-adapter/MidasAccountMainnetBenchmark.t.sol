@@ -40,7 +40,7 @@ contract MidasAccountMainnetBenchmarkTest is Test {
             return;
         }
 
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
         vault = new MainnetAssetVault(MAINNET_USDC);
     }
 
@@ -205,6 +205,15 @@ contract MidasAccountMainnetBenchmarkTest is Test {
     function _skipWithoutMainnetRpc() internal {
         if (bytes(mainnetRpcUrl).length == 0) {
             vm.skip(true, "ETH_RPC_URL is required for mainnet fork benchmarks");
+        }
+    }
+
+    function _createFork() internal {
+        uint256 forkBlock = vm.envOr("MAINNET_FORK_BLOCK", uint256(0));
+        if (forkBlock == 0) {
+            vm.createSelectFork(mainnetRpcUrl);
+        } else {
+            vm.createSelectFork(mainnetRpcUrl, forkBlock);
         }
     }
 }

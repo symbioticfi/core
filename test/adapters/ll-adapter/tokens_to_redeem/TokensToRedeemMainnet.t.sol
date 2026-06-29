@@ -214,7 +214,7 @@ contract TokensToRedeemMainnetTest is Test {
 
     function testAllTokenAccountsUseRealMainnetTokens() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet token account checks");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
         assertEq(specs.length, 43);
@@ -226,7 +226,7 @@ contract TokensToRedeemMainnetTest is Test {
 
     function testAllTokenAccountsRunMainnetRedemptionSequence() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet token redemption checks");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
         assertEq(specs.length, 43);
@@ -238,7 +238,7 @@ contract TokensToRedeemMainnetTest is Test {
 
     function testAllTokenAccountsRunMainnetCloseRedemptionSequences() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet close redemption checks");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
         assertEq(specs.length, 43);
@@ -250,7 +250,7 @@ contract TokensToRedeemMainnetTest is Test {
 
     function testCentrifugeMainnetFullSwapRedemptionCycles() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Centrifuge cycle");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         uint256[6] memory indexes = [uint256(0), 3, 4, 8, 9, 10];
         TokenSpec[] memory specs = _tokenSpecs();
@@ -267,35 +267,35 @@ contract TokensToRedeemMainnetTest is Test {
 
     function testDigiFTBEQTYMainnetRedemptionSequence() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet DigiFT checks");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         _assertRedemptionSequence(7, TokenSpec("bEQTY", BEQTY));
     }
 
     function testDigiFTBEQTYMainnetCloseRedemptionSequence() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet DigiFT checks");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         _assertCloseRedemptionSequence(7, TokenSpec("bEQTY", BEQTY));
     }
 
     function testThreeJaneSUSD3MainnetCooldownSequence() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         _assertRedemptionSequence(33, TokenSpec("sUSD3", SUSD3));
     }
 
     function testThreeJaneSUSD3MainnetCloseCooldownSequence() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         _assertCloseRedemptionSequence(33, TokenSpec("sUSD3", SUSD3));
     }
 
     function testThreeJaneSUSD3MainnetMaturedCooldownSync() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         IAccount implementation = _deployImplementation(33, address(factory));
@@ -1295,6 +1295,15 @@ contract TokensToRedeemMainnetTest is Test {
     function _skipWithoutRpc(string memory rpcUrl, string memory reason) internal {
         if (bytes(rpcUrl).length == 0) {
             vm.skip(true, reason);
+        }
+    }
+
+    function _createFork() internal {
+        uint256 forkBlock = vm.envOr("MAINNET_FORK_BLOCK", uint256(0));
+        if (forkBlock == 0) {
+            vm.createSelectFork(mainnetRpcUrl);
+        } else {
+            vm.createSelectFork(mainnetRpcUrl, forkBlock);
         }
     }
 }

@@ -135,7 +135,12 @@ contract InfiniFiAccountMainnetTest is Test {
         if (bytes(mainnetRpcUrl).length == 0) {
             vm.skip(true, "ETH_RPC_URL is required for InfiniFi mainnet checks");
         }
-        vm.createSelectFork(mainnetRpcUrl);
+        uint256 forkBlock = vm.envOr("MAINNET_FORK_BLOCK", uint256(0));
+        if (forkBlock == 0) {
+            vm.createSelectFork(mainnetRpcUrl);
+        } else {
+            vm.createSelectFork(mainnetRpcUrl, forkBlock);
+        }
     }
 
     function _specs() internal pure returns (TokenSpec[2] memory specs) {

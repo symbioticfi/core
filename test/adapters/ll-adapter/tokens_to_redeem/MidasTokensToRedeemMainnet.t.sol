@@ -90,7 +90,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
     function testOnboardsEthereumMainnetMidasTokensToRedeem() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Midas onboarding");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         TokenSpec[] memory specs = _ethereumMainnetSpecs();
         assertEq(specs.length, 23);
@@ -103,7 +103,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
     function testOnboardsRequestedPikuMidasTokensToRedeem() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Midas onboarding");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         TokenSpec[] memory specs = _ethereumMainnetSpecs();
 
@@ -115,7 +115,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
     function testMGlobalMainnetFullSwapRedemptionCycle() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet mGLOBAL cycle");
-        vm.createSelectFork(mainnetRpcUrl);
+        _createFork();
 
         MGlobalCycle memory cycle = _setUpMGlobalCycle();
         (uint256 requestId, uint256 amountOut, uint256 expectedRedeemedAssets) = _swapAndAssertPendingMGlobal(cycle);
@@ -480,6 +480,15 @@ contract MidasTokensToRedeemMainnetTest is Test {
     function _skipWithoutRpc(string memory rpcUrl, string memory reason) internal {
         if (bytes(rpcUrl).length == 0) {
             vm.skip(true, reason);
+        }
+    }
+
+    function _createFork() internal {
+        uint256 forkBlock = vm.envOr("MAINNET_FORK_BLOCK", uint256(0));
+        if (forkBlock == 0) {
+            vm.createSelectFork(mainnetRpcUrl);
+        } else {
+            vm.createSelectFork(mainnetRpcUrl, forkBlock);
         }
     }
 }
