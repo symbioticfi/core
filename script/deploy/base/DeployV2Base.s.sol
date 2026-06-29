@@ -7,6 +7,11 @@ import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreCon
 
 import {AdapterRegistry} from "../../../src/contracts/AdapterRegistry.sol";
 import {ProtocolFeeRegistry} from "../../../src/contracts/ProtocolFeeRegistry.sol";
+import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
+import {AaveV3Adapter} from "../../../src/contracts/adapters/AaveV3Adapter.sol";
+import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
+import {MorphoVaultV2Adapter} from "../../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
+import {RestakingAppAdapter} from "../../../src/contracts/adapters/RestakingAppAdapter.sol";
 import {UniversalDelegator} from "../../../src/contracts/delegator/UniversalDelegator.sol";
 import {UniversalDelegatorFactory} from "../../../src/contracts/UniversalDelegatorFactory.sol";
 import {VaultV2} from "../../../src/contracts/vault/VaultV2.sol";
@@ -17,6 +22,18 @@ import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntit
 import {UNIVERSAL_DELEGATOR_VERSION} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 
 contract DeployV2BaseScript is Script {
+    struct DeployParams {
+        address adapterRegistryOwner;
+        address protocolFeeRegistryOwner;
+        address adapterFactoryOwner;
+        address morphoVaultFactory;
+        address morphoAdapterRegistry;
+        address aavePool;
+        address cowSwapSettlement;
+        address merklDistributor;
+        address networkMiddlewareService;
+    }
+
     struct DeploymentData {
         SymbioticCoreConstants.Core core;
         AdapterRegistry adapterRegistry;
@@ -26,6 +43,14 @@ contract DeployV2BaseScript is Script {
         UniversalDelegatorFactory universalDelegatorFactory;
         VaultV2 vaultV2;
         UniversalDelegator universalDelegator;
+        AdapterFactory morphoVaultV2AdapterFactory;
+        MorphoVaultV2Adapter morphoVaultV2Adapter;
+        AdapterFactory aaveV3AdapterFactory;
+        AaveV3Adapter aaveV3Adapter;
+        AdapterFactory appAdapterFactory;
+        AppAdapter appAdapter;
+        AdapterFactory restakingAppAdapterFactory;
+        RestakingAppAdapter restakingAppAdapter;
     }
 
     function runBase(address owner) public virtual returns (DeploymentData memory data) {
@@ -59,7 +84,6 @@ contract DeployV2BaseScript is Script {
             address(data.protocolFeeRegistry),
             address(data.withdrawalQueueFactory)
         );
-        data.core.vaultFactory.whitelist(address(data.vaultV2));
         data.universalDelegator =
             new UniversalDelegator(address(data.adapterRegistry), address(data.universalDelegatorFactory));
         data.universalDelegatorFactory.whitelist(address(data.universalDelegator));
@@ -74,7 +98,6 @@ contract DeployV2BaseScript is Script {
         assert(data.universalDelegatorFactory.owner() == adapterRegistryOwner);
         assert(IMigratableEntity(address(data.vaultV2)).FACTORY() == address(data.core.vaultFactory));
         assert(IMigratableEntity(address(data.universalDelegator)).FACTORY() == address(data.universalDelegatorFactory));
-        assert(data.core.vaultFactory.implementation(data.core.vaultFactory.lastVersion()) == address(data.vaultV2));
         assert(
             data.universalDelegatorFactory.implementation(UNIVERSAL_DELEGATOR_VERSION)
                 == address(data.universalDelegator)
@@ -89,6 +112,47 @@ contract DeployV2BaseScript is Script {
         );
         Logs.log(string.concat("Deployed VaultV2: ", vm.toString(address(data.vaultV2))));
         Logs.log(string.concat("Deployed UniversalDelegator: ", vm.toString(address(data.universalDelegator))));
+    }
+
+    function runBase(DeployParams memory params) public virtual returns (DeploymentData memory data) {
+        _validateParams(params);
+
+        data = runBase(params.adapterRegistryOwner, params.protocolFeeRegistryOwner);
+
+        _startBroadcast();
+        _deployAdapterFactories(data, params);
+        _stopBroadcast();
+
+        _validateAdapterDeployment(
+            data.morphoVaultV2AdapterFactory, address(data.morphoVaultV2Adapter), params.adapterFactoryOwner
+        );
+        _validateAdapterDeployment(data.aaveV3AdapterFactory, address(data.aaveV3Adapter), params.adapterFactoryOwner);
+        _validateAdapterDeployment(data.appAdapterFactory, address(data.appAdapter), params.adapterFactoryOwner);
+        _validateAdapterDeployment(
+            data.restakingAppAdapterFactory, address(data.restakingAppAdapter), params.adapterFactoryOwner
+        );
+
+        Logs.log(
+            string.concat(
+                "Deployed V2 adapter factories",
+                "\n    morphoVaultV2AdapterFactory:",
+                vm.toString(address(data.morphoVaultV2AdapterFactory)),
+                "\n    morphoVaultV2Adapter:",
+                vm.toString(address(data.morphoVaultV2Adapter)),
+                "\n    aaveV3AdapterFactory:",
+                vm.toString(address(data.aaveV3AdapterFactory)),
+                "\n    aaveV3Adapter:",
+                vm.toString(address(data.aaveV3Adapter)),
+                "\n    appAdapterFactory:",
+                vm.toString(address(data.appAdapterFactory)),
+                "\n    appAdapter:",
+                vm.toString(address(data.appAdapter)),
+                "\n    restakingAppAdapterFactory:",
+                vm.toString(address(data.restakingAppAdapterFactory)),
+                "\n    restakingAppAdapter:",
+                vm.toString(address(data.restakingAppAdapter))
+            )
+        );
     }
 
     function _startBroadcast() internal virtual {
@@ -106,5 +170,74 @@ contract DeployV2BaseScript is Script {
 
     function _core() internal view virtual returns (SymbioticCoreConstants.Core memory) {
         return SymbioticCoreConstants.core();
+    }
+
+    function _deployAdapterFactories(DeploymentData memory data, DeployParams memory params) internal {
+        address broadcaster = _scriptOwner();
+        address vaultFactory = address(data.core.vaultFactory);
+
+        data.morphoVaultV2AdapterFactory = new AdapterFactory(broadcaster);
+        data.morphoVaultV2Adapter = new MorphoVaultV2Adapter(
+            vaultFactory,
+            address(data.morphoVaultV2AdapterFactory),
+            params.merklDistributor,
+            params.cowSwapSettlement,
+            params.morphoVaultFactory,
+            params.morphoAdapterRegistry
+        );
+        data.morphoVaultV2AdapterFactory.whitelist(address(data.morphoVaultV2Adapter));
+
+        data.aaveV3AdapterFactory = new AdapterFactory(broadcaster);
+        data.aaveV3Adapter = new AaveV3Adapter(
+            params.aavePool,
+            vaultFactory,
+            address(data.aaveV3AdapterFactory),
+            params.merklDistributor,
+            params.cowSwapSettlement
+        );
+        data.aaveV3AdapterFactory.whitelist(address(data.aaveV3Adapter));
+
+        data.appAdapterFactory = new AdapterFactory(broadcaster);
+        data.appAdapter = new AppAdapter(
+            vaultFactory, address(data.appAdapterFactory), params.cowSwapSettlement, params.networkMiddlewareService
+        );
+        data.appAdapterFactory.whitelist(address(data.appAdapter));
+
+        data.restakingAppAdapterFactory = new AdapterFactory(broadcaster);
+        data.restakingAppAdapter = new RestakingAppAdapter(
+            vaultFactory,
+            address(data.restakingAppAdapterFactory),
+            params.cowSwapSettlement,
+            params.networkMiddlewareService
+        );
+        data.restakingAppAdapterFactory.whitelist(address(data.restakingAppAdapter));
+
+        if (params.adapterFactoryOwner != broadcaster) {
+            data.morphoVaultV2AdapterFactory.transferOwnership(params.adapterFactoryOwner);
+            data.aaveV3AdapterFactory.transferOwnership(params.adapterFactoryOwner);
+            data.appAdapterFactory.transferOwnership(params.adapterFactoryOwner);
+            data.restakingAppAdapterFactory.transferOwnership(params.adapterFactoryOwner);
+        }
+    }
+
+    function _validateAdapterDeployment(AdapterFactory adapterFactory, address adapterImplementation, address owner)
+        internal
+        view
+    {
+        assert(adapterFactory.owner() == owner);
+        assert(IMigratableEntity(adapterImplementation).FACTORY() == address(adapterFactory));
+        assert(adapterFactory.implementation(1) == adapterImplementation);
+    }
+
+    function _validateParams(DeployParams memory params) internal pure {
+        require(params.adapterRegistryOwner != address(0), "invalid adapter registry owner");
+        require(params.protocolFeeRegistryOwner != address(0), "invalid protocol fee registry owner");
+        require(params.adapterFactoryOwner != address(0), "invalid adapter factory owner");
+        require(params.morphoVaultFactory != address(0), "invalid Morpho vault factory");
+        require(params.morphoAdapterRegistry != address(0), "invalid Morpho adapter registry");
+        require(params.aavePool != address(0), "invalid Aave pool");
+        require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
+        require(params.merklDistributor != address(0), "invalid Merkl distributor");
+        require(params.networkMiddlewareService != address(0), "invalid network middleware service");
     }
 }

@@ -280,7 +280,7 @@ contract DeployThreeFAdapterBaseHarness is DeployThreeFAdapterBase {
 contract DeploymentScriptsTest is Test {
     address internal owner = address(0x1001);
 
-    function test_DeployV2InstallsProtocolFeeRegistryAndWhitelistsImplementations() public {
+    function test_DeployV2InstallsProtocolFeeRegistryAndDoesNotWhitelistVaultV2() public {
         VaultFactory vaultFactory = new VaultFactory(address(this));
         DelegatorFactory delegatorFactory = new DelegatorFactory(address(this));
 
@@ -298,13 +298,67 @@ contract DeploymentScriptsTest is Test {
         DeployV2BaseScript.DeploymentData memory data = script.runBase(owner, owner);
 
         assertEq(data.protocolFeeRegistry.owner(), owner);
-        assertEq(vaultFactory.implementation(3), address(data.vaultV2));
+        assertEq(vaultFactory.lastVersion(), 2);
+        vm.expectRevert(IMigratablesFactory.InvalidVersion.selector);
+        vaultFactory.implementation(3);
         assertEq(
             data.universalDelegatorFactory.implementation(UNIVERSAL_DELEGATOR_VERSION), address(data.universalDelegator)
         );
         assertEq(VaultV2(address(data.vaultV2)).FACTORY(), address(vaultFactory));
         assertEq(
             UniversalDelegator(address(data.universalDelegator)).FACTORY(), address(data.universalDelegatorFactory)
+        );
+    }
+
+    function test_DeployV2FullParamsDeploysAdapterFactoriesAndWhitelistedImplementations() public {
+        VaultFactory vaultFactory = new VaultFactory(address(this));
+        DelegatorFactory delegatorFactory = new DelegatorFactory(address(this));
+
+        vaultFactory.whitelist(address(new SimpleMigratableEntity(address(vaultFactory))));
+        vaultFactory.whitelist(address(new SimpleMigratableEntity(address(vaultFactory))));
+        for (uint64 i; i < 4; ++i) {
+            delegatorFactory.whitelist(address(new SimpleEntity(address(delegatorFactory), i)));
+        }
+
+        DeployV2BaseScriptHarness script = new DeployV2BaseScriptHarness(vaultFactory, delegatorFactory);
+
+        vaultFactory.transferOwnership(address(script));
+        delegatorFactory.transferOwnership(address(script));
+
+        vm.mockCall(address(0x5002), abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(address(0x5003)));
+
+        DeployV2BaseScript.DeploymentData memory data = script.runBase(
+            DeployV2BaseScript.DeployParams({
+                adapterRegistryOwner: owner,
+                protocolFeeRegistryOwner: owner,
+                adapterFactoryOwner: owner,
+                morphoVaultFactory: address(0x5004),
+                morphoAdapterRegistry: address(0x5005),
+                aavePool: address(0x5006),
+                cowSwapSettlement: address(0x5002),
+                merklDistributor: address(0x5007),
+                networkMiddlewareService: address(0x5008)
+            })
+        );
+
+        assertEq(vaultFactory.lastVersion(), 2);
+        _assertAdapterDeployment(address(data.morphoVaultV2AdapterFactory), address(data.morphoVaultV2Adapter));
+        _assertAdapterDeployment(address(data.aaveV3AdapterFactory), address(data.aaveV3Adapter));
+        _assertAdapterDeployment(address(data.appAdapterFactory), address(data.appAdapter));
+        _assertAdapterDeployment(address(data.restakingAppAdapterFactory), address(data.restakingAppAdapter));
+
+        assertEq(data.morphoVaultV2AdapterFactory.owner(), owner);
+        assertEq(data.aaveV3AdapterFactory.owner(), owner);
+        assertEq(data.appAdapterFactory.owner(), owner);
+        assertEq(data.restakingAppAdapterFactory.owner(), owner);
+        assertEq(
+            MorphoVaultV2Adapter(address(data.morphoVaultV2Adapter)).FACTORY(),
+            address(data.morphoVaultV2AdapterFactory)
+        );
+        assertEq(AaveV3Adapter(address(data.aaveV3Adapter)).FACTORY(), address(data.aaveV3AdapterFactory));
+        assertEq(AppAdapter(address(data.appAdapter)).FACTORY(), address(data.appAdapterFactory));
+        assertEq(
+            RestakingAppAdapter(address(data.restakingAppAdapter)).FACTORY(), address(data.restakingAppAdapterFactory)
         );
     }
 
