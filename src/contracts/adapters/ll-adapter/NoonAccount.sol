@@ -43,7 +43,8 @@ contract NoonAccount is CooldownAccount, INoonAccount {
     function _totalAssets() internal view override returns (uint256 assets) {
         address withdrawalHandler = WITHDRAWAL_HANDLER;
 
-        for (uint256 i; i < requestIds.length; ++i) {
+        uint256 length = requestIds.length;
+        for (uint256 i; i < length; ++i) {
             INoonWithdrawalHandler.WithdrawalRequest memory request =
                 INoonWithdrawalHandler(withdrawalHandler).getWithdrawalRequest(address(this), requestIds[i]);
             if (!request.claimed) {
@@ -56,7 +57,8 @@ contract NoonAccount is CooldownAccount, INoonAccount {
     function _finalizeRequests() internal override {
         address withdrawalHandler = WITHDRAWAL_HANDLER;
 
-        for (uint256 i = requestIds.length; i > 0; --i) {
+        uint256 length = requestIds.length;
+        for (uint256 i = length; i > 0; --i) {
             uint256 index = i - 1;
             INoonWithdrawalHandler.WithdrawalRequest memory request =
                 INoonWithdrawalHandler(withdrawalHandler).getWithdrawalRequest(address(this), requestIds[index]);
@@ -68,7 +70,8 @@ contract NoonAccount is CooldownAccount, INoonAccount {
                 }
             }
 
-            requestIds[index] = requestIds[requestIds.length - 1];
+            --length;
+            requestIds[index] = requestIds[length];
             requestIds.pop();
         }
     }

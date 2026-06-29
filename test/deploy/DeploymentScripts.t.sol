@@ -496,9 +496,7 @@ contract DeploymentScriptsTest is Test {
             );
         DeployThreeFAdapterBase.DeploymentData memory threeF = new DeployThreeFAdapterBaseHarness(address(vaultFactory))
             .runBase(
-                DeployThreeFAdapterBase.DeployParams({
-                adapterFactoryOwner: owner, requestWhitelist: address(0xC001)
-            })
+                DeployThreeFAdapterBase.DeployParams({adapterFactoryOwner: owner, requestWhitelist: address(0xC001)})
             );
 
         _assertAdapterDeployment(aave.adapterFactory, aave.adapterImplementation);

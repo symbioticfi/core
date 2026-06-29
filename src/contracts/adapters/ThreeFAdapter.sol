@@ -136,7 +136,8 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
 
     /// @inheritdoc IThreeFAdapter
     function redeem(address[] calldata requests) public nonReentrant {
-        for (uint256 i; i < requests.length; ++i) {
+        uint256 length = requests.length;
+        for (uint256 i; i < length; ++i) {
             if (!_activeRequests.contains(requests[i]) || !IThreeFVaultController(requests[i]).canWithdraw()) {
                 continue;
             }

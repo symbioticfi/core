@@ -64,7 +64,8 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
 
     /// @inheritdoc IEtherFiAccount
     function pendingAssets() public view returns (uint256 assets) {
-        for (uint256 i; i < requestIds.length; ++i) {
+        uint256 length = requestIds.length;
+        for (uint256 i; i < length; ++i) {
             IEtherFiWithdrawRequestNFT.WithdrawRequest memory request =
                 IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).getRequest(requestIds[i]);
             if (request.isValid) {
@@ -88,9 +89,10 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
         IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(requestId);
         _wrapClaimedEth(ethBalanceBefore);
 
-        for (uint256 i; i < requestIds.length; ++i) {
+        uint256 length = requestIds.length;
+        for (uint256 i; i < length; ++i) {
             if (requestIds[i] == requestId) {
-                requestIds[i] = requestIds[requestIds.length - 1];
+                requestIds[i] = requestIds[length - 1];
                 requestIds.pop();
                 return;
             }
@@ -111,13 +113,15 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
 
     /// @dev Uses no-fee instant redemption into WETH when available, otherwise queues a WETH-backed withdrawal.
     function _sync() internal override {
-        for (uint256 i = requestIds.length; i > 0; --i) {
+        uint256 length = requestIds.length;
+        for (uint256 i = length; i > 0; --i) {
             uint256 index = i - 1;
             uint64 requestId = requestIds[index];
             uint256 ethBalanceBefore = address(this).balance;
             try IEtherFiWithdrawRequestNFT(WITHDRAW_REQUEST_NFT).claimWithdraw(requestId) {
                 _wrapClaimedEth(ethBalanceBefore);
-                requestIds[index] = requestIds[requestIds.length - 1];
+                --length;
+                requestIds[index] = requestIds[length];
                 requestIds.pop();
             } catch {}
         }

@@ -58,7 +58,8 @@ contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
     /// @dev Returns pending unwinding and held iUSD value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
         uint256 receiptAmount = IERC20(IUSD).balanceOf(address(this));
-        for (uint256 i; i < unwindingTimestamps.length; ++i) {
+        uint256 length = unwindingTimestamps.length;
+        for (uint256 i; i < length; ++i) {
             receiptAmount += IInfiniFiUnwindingModule(UNWINDING_MODULE).balanceOf(address(this), unwindingTimestamps[i]);
         }
         if (receiptAmount > 0) {
@@ -70,11 +71,13 @@ contract InfiniFiAccount is CooldownAccount, IInfiniFiAccount {
     ///      The gateway reverts withdrawals and redemptions for immature positions and while protocol
     ///      losses are unaccrued, so both calls are try/catch-tolerated and retried on later syncs.
     function _finalizeRequests() internal override {
-        for (uint256 i = unwindingTimestamps.length; i > 0; --i) {
+        uint256 length = unwindingTimestamps.length;
+        for (uint256 i = length; i > 0; --i) {
             uint256 index = i - 1;
 
             try IInfiniFiGateway(GATEWAY).withdraw(unwindingTimestamps[index]) {
-                unwindingTimestamps[index] = unwindingTimestamps[unwindingTimestamps.length - 1];
+                --length;
+                unwindingTimestamps[index] = unwindingTimestamps[length];
                 unwindingTimestamps.pop();
             } catch {}
         }

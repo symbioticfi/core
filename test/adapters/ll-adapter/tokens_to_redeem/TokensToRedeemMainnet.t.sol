@@ -219,7 +219,8 @@ contract TokensToRedeemMainnetTest is Test {
         TokenSpec[] memory specs = _tokenSpecs();
         assertEq(specs.length, 43);
 
-        for (uint256 i; i < specs.length; ++i) {
+        uint256 length = specs.length;
+        for (uint256 i; i < length; ++i) {
             _assertTokenAccount(i, specs[i]);
         }
     }
@@ -231,7 +232,8 @@ contract TokensToRedeemMainnetTest is Test {
         TokenSpec[] memory specs = _tokenSpecs();
         assertEq(specs.length, 43);
 
-        for (uint256 i; i < specs.length; ++i) {
+        uint256 length = specs.length;
+        for (uint256 i; i < length; ++i) {
             _assertRedemptionSequence(i, specs[i]);
         }
     }
@@ -243,7 +245,8 @@ contract TokensToRedeemMainnetTest is Test {
         TokenSpec[] memory specs = _tokenSpecs();
         assertEq(specs.length, 43);
 
-        for (uint256 i; i < specs.length; ++i) {
+        uint256 length = specs.length;
+        for (uint256 i; i < length; ++i) {
             _assertCloseRedemptionSequence(i, specs[i]);
         }
     }
@@ -255,7 +258,8 @@ contract TokensToRedeemMainnetTest is Test {
         uint256[6] memory indexes = [uint256(0), 3, 4, 8, 9, 10];
         TokenSpec[] memory specs = _tokenSpecs();
 
-        for (uint256 i; i < indexes.length; ++i) {
+        uint256 length = indexes.length;
+        for (uint256 i; i < length; ++i) {
             emit log_named_string("centrifuge cycle", specs[indexes[i]].symbol);
 
             CentrifugeCycle memory cycle = _setUpCentrifugeCycle(indexes[i], specs[indexes[i]].token);
@@ -532,14 +536,15 @@ contract TokensToRedeemMainnetTest is Test {
     function _fundCentrifugeEscrow(uint64 poolId, bytes16 scId, uint256 assets) internal {
         address balanceSheet = IMainnetCentrifugeAsyncManager(CENTRIFUGE_ASYNC_MANAGER).balanceSheet();
         address poolEscrow = IMainnetCentrifugeBalanceSheet(balanceSheet).escrow(poolId);
-        uint256 availableAssets = IMainnetCentrifugePoolEscrow(poolEscrow).availableBalanceOf(scId, USDC, 0);
+        (uint128 total, uint128 reserved) = IMainnetCentrifugePoolEscrow(poolEscrow).holding(scId, USDC, 0);
+        uint256 requiredTotal = uint256(reserved) + assets;
 
-        if (availableAssets < assets) {
+        if (total < requiredTotal) {
             vm.prank(balanceSheet);
-            IMainnetCentrifugePoolEscrow(poolEscrow).deposit(scId, USDC, 0, uint128(assets - availableAssets));
+            IMainnetCentrifugePoolEscrow(poolEscrow).deposit(scId, USDC, 0, uint128(requiredTotal - total));
         }
-        if (IERC20(USDC).balanceOf(poolEscrow) < assets) {
-            deal(USDC, poolEscrow, assets);
+        if (IERC20(USDC).balanceOf(poolEscrow) < requiredTotal) {
+            deal(USDC, poolEscrow, requiredTotal);
         }
     }
 
@@ -752,7 +757,8 @@ contract TokensToRedeemMainnetTest is Test {
         }
 
         bool isConfigured;
-        for (uint256 i; i < paymentTokens.length; ++i) {
+        uint256 length = paymentTokens.length;
+        for (uint256 i; i < length; ++i) {
             if (paymentTokens[i] == redemptionToken) {
                 isConfigured = true;
                 break;
@@ -1402,6 +1408,11 @@ interface IMainnetCentrifugePoolEscrow {
     function availableBalanceOf(bytes16 scId, address asset, uint256 tokenId) external view returns (uint128);
 
     function deposit(bytes16 scId, address asset, uint256 tokenId, uint128 value) external;
+
+    function holding(bytes16 scId, address asset, uint256 tokenId)
+        external
+        view
+        returns (uint128 total, uint128 reserved);
 }
 
 interface IMainnetCentrifugeShareToken {

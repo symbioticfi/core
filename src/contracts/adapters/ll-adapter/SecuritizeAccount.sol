@@ -78,7 +78,8 @@ abstract contract SecuritizeAccount is CooldownAccount, CutoffAccount, ISecuriti
     function _totalAssets() internal view override returns (uint256 assets) {
         uint256 remainingAssets = IERC20(_asset).balanceOf(address(this));
 
-        for (uint256 i; i < _pendingKeys.length; ++i) {
+        uint256 length = _pendingKeys.length;
+        for (uint256 i; i < length; ++i) {
             (uint256 value,) = _cutoffValue(_pendingKeys[i]);
             if (remainingAssets >= value) {
                 remainingAssets -= value;
@@ -93,7 +94,8 @@ abstract contract SecuritizeAccount is CooldownAccount, CutoffAccount, ISecuriti
     function _finalizeRequests() internal override {
         uint256 remainingAssets = IERC20(_asset).balanceOf(address(this));
 
-        for (uint256 i = _pendingKeys.length; i > 0; --i) {
+        uint256 length = _pendingKeys.length;
+        for (uint256 i = length; i > 0; --i) {
             uint256 index = i - 1;
             uint256 key = _pendingKeys[index];
             PendingCutoff storage pendingCutoff = pendingCutoffs[key];
@@ -123,7 +125,8 @@ abstract contract SecuritizeAccount is CooldownAccount, CutoffAccount, ISecuriti
 
             bucket.pendingTokenToRedeem -= pendingCutoff.amount;
             delete pendingCutoffs[key];
-            _pendingKeys[index] = _pendingKeys[_pendingKeys.length - 1];
+            --length;
+            _pendingKeys[index] = _pendingKeys[length];
             _pendingKeys.pop();
         }
     }

@@ -30,7 +30,8 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
     /// @dev Returns pending async redemption request value plus claimable value at fulfillment prices.
     function _totalAssets() internal view virtual override returns (uint256 assets) {
         address asyncRedeemVault = _asyncRedeemVault();
-        for (uint256 i; i < requestIds.length; ++i) {
+        uint256 length = requestIds.length;
+        for (uint256 i; i < length; ++i) {
             assets += IAsyncRedeemVault(asyncRedeemVault)
                 .convertToAssets(IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestIds[i], address(this)));
         }
@@ -41,7 +42,8 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
     function _finalizeRequests() internal virtual override {
         address asyncRedeemVault = _asyncRedeemVault();
 
-        for (uint256 i = requestIds.length; i > 0; --i) {
+        uint256 length = requestIds.length;
+        for (uint256 i = length; i > 0; --i) {
             uint256 index = i - 1;
             uint64 requestId = requestIds[index];
             uint256 claimableShares =
@@ -51,7 +53,7 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
             }
 
             if (IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestId, address(this)) == 0) {
-                requestIds[index] = requestIds[requestIds.length - 1];
+                requestIds[index] = requestIds[--length];
                 requestIds.pop();
             }
         }
@@ -63,7 +65,8 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
             IAsyncRedeemVault(_asyncRedeemVault())
                 .requestRedeem(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), address(this), address(this))
         );
-        for (uint256 i; i < requestIds.length; ++i) {
+        uint256 length = requestIds.length;
+        for (uint256 i; i < length; ++i) {
             if (requestIds[i] == requestId) {
                 return true;
             }

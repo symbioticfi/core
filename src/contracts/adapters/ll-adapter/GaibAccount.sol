@@ -40,20 +40,23 @@ contract GaibAccount is CooldownAccount, IGaibAccount {
 
     /// @dev Returns pending sAID unstake value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
-        for (uint256 i; i < subAccounts.length; ++i) {
+        uint256 length = subAccounts.length;
+        for (uint256 i; i < length; ++i) {
             assets += _redemptionTokenToAssets(ASSET, IGaibSubAccount(subAccounts[i]).totalAssets());
         }
     }
 
     /// @dev Processes fulfilled unstake queue items.
     function _finalizeRequests() internal override {
-        for (uint256 i = subAccounts.length; i > 0; --i) {
+        uint256 length = subAccounts.length;
+        for (uint256 i = length; i > 0; --i) {
             uint256 index = i - 1;
             address subAccount = subAccounts[index];
 
             IGaibSubAccount(subAccount).sync();
             if (IGaibSubAccount(subAccount).totalAssets() == 0) {
-                subAccounts[index] = subAccounts[subAccounts.length - 1];
+                --length;
+                subAccounts[index] = subAccounts[length];
                 subAccounts.pop();
             }
         }

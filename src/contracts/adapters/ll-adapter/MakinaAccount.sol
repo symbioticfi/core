@@ -59,7 +59,8 @@ contract MakinaAccount is CooldownAccount, IMakinaAccount {
 
     /// @dev Returns pending and finalized Makina redemption receipt value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
-        for (uint256 i; i < requestIds.length; ++i) {
+        uint256 length = requestIds.length;
+        for (uint256 i; i < length; ++i) {
             uint64 requestId = requestIds[i];
             try IMakinaRedeemer(REDEEMER).getClaimableAssets(requestId) returns (uint256 claimableAssets) {
                 assets += _redemptionTokenToAssets(_accountingToken, claimableAssets);
@@ -75,13 +76,15 @@ contract MakinaAccount is CooldownAccount, IMakinaAccount {
 
     /// @dev Claims finalized Makina receipts and clears their request ids.
     function _finalizeRequests() internal override {
-        for (uint256 i = requestIds.length; i > 0; --i) {
+        uint256 length = requestIds.length;
+        for (uint256 i = length; i > 0; --i) {
             uint256 index = i - 1;
             uint64 requestId = requestIds[index];
 
             try IMakinaRedeemer(REDEEMER).claimAssets(requestId) returns (uint256) {
                 delete requestQuotes[requestId];
-                requestIds[index] = requestIds[requestIds.length - 1];
+                --length;
+                requestIds[index] = requestIds[length];
                 requestIds.pop();
             } catch {}
         }

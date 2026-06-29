@@ -96,7 +96,8 @@ contract LiquidLaneAdapter is Adapter, EIP712Upgradeable, PausableUpgradeable, I
     /// @inheritdoc IAdapter
     function freeAssets() public view override(Adapter, IAdapter) returns (uint256 assets) {
         address asset = IERC4626(vault).asset();
-        for (uint256 i; i < tokensToRedeem.length; ++i) {
+        uint256 length = tokensToRedeem.length;
+        for (uint256 i; i < length; ++i) {
             assets += IERC20(asset).balanceOf(accounts[tokensToRedeem[i]]);
         }
     }
@@ -104,7 +105,8 @@ contract LiquidLaneAdapter is Adapter, EIP712Upgradeable, PausableUpgradeable, I
     /// @inheritdoc IAdapter
     function totalAssets() public view override(Adapter, IAdapter) returns (uint256 assets) {
         assets = _inSwapAmount;
-        for (uint256 i; i < tokensToRedeem.length; ++i) {
+        uint256 length = tokensToRedeem.length;
+        for (uint256 i; i < length; ++i) {
             assets += IAccount(accounts[tokensToRedeem[i]]).totalAssets();
         }
     }
@@ -245,14 +247,14 @@ contract LiquidLaneAdapter is Adapter, EIP712Upgradeable, PausableUpgradeable, I
     }
 
     /// @inheritdoc ILiquidLaneAdapter
-    function setFiller(address filler, bool isAuthorized) public {
+    function setFiller(address filler, bool status) public {
         if (owner() != msg.sender && marketMaker != msg.sender) {
             revert InvalidCaller();
         }
 
-        isFiller[marketMaker][filler] = isAuthorized;
+        isFiller[marketMaker][filler] = status;
 
-        emit SetFiller(marketMaker, filler, isAuthorized);
+        emit SetFiller(marketMaker, filler, status);
     }
 
     /// @inheritdoc ILiquidLaneAdapter
@@ -320,9 +322,10 @@ contract LiquidLaneAdapter is Adapter, EIP712Upgradeable, PausableUpgradeable, I
             revert AccountHasAssets();
         }
 
-        for (uint256 i; i < tokensToRedeem.length; ++i) {
+        uint256 length = tokensToRedeem.length;
+        for (uint256 i; i < length; ++i) {
             if (tokenToRedeem == tokensToRedeem[i]) {
-                tokensToRedeem[i] = tokensToRedeem[tokensToRedeem.length - 1];
+                tokensToRedeem[i] = tokensToRedeem[length - 1];
                 tokensToRedeem.pop();
                 _isTokenToRedeem[tokenToRedeem] = false;
                 limit[tokenToRedeem] = 0;
@@ -399,7 +402,8 @@ contract LiquidLaneAdapter is Adapter, EIP712Upgradeable, PausableUpgradeable, I
     /// @inheritdoc IAdapter
     function deallocate(uint256) public override(Adapter, IAdapter) onlyDelegator returns (uint256 deallocated) {
         address asset = IERC4626(vault).asset();
-        for (uint256 i; i < tokensToRedeem.length; ++i) {
+        uint256 length = tokensToRedeem.length;
+        for (uint256 i; i < length; ++i) {
             address account = accounts[tokensToRedeem[i]];
             // Sweep the account's full realized asset balance to the adapter. The delegator then pulls it to the vault.
             uint256 amount = IERC20(asset).balanceOf(account);

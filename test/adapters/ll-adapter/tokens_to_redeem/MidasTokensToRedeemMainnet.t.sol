@@ -94,7 +94,8 @@ contract MidasTokensToRedeemMainnetTest is Test {
     function testMidasTokenAccountsUseUsdcVaultAsset() public pure {
         TokenSpec[] memory specs = _ethereumMainnetSpecs();
 
-        for (uint256 i; i < specs.length; ++i) {
+        uint256 length = specs.length;
+        for (uint256 i; i < length; ++i) {
             assertEq(_assetFor(i), MAINNET_USDC);
         }
     }
@@ -106,7 +107,8 @@ contract MidasTokensToRedeemMainnetTest is Test {
         TokenSpec[] memory specs = _ethereumMainnetSpecs();
         assertEq(specs.length, 23);
 
-        for (uint256 i; i < specs.length; ++i) {
+        uint256 length = specs.length;
+        for (uint256 i; i < length; ++i) {
             MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(_assetFor(i));
             _assertOnboarded(i, specs[i], vault);
         }
@@ -118,7 +120,8 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
         TokenSpec[] memory specs = _ethereumMainnetSpecs();
 
-        for (uint256 i = 21; i < specs.length; ++i) {
+        uint256 length = specs.length;
+        for (uint256 i = 21; i < length; ++i) {
             MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(_assetFor(i));
             _assertOnboarded(i, specs[i], vault);
         }
@@ -409,7 +412,8 @@ contract MidasTokensToRedeemMainnetTest is Test {
         }
 
         bool isConfigured;
-        for (uint256 i; i < paymentTokens.length; ++i) {
+        uint256 length = paymentTokens.length;
+        for (uint256 i; i < length; ++i) {
             if (paymentTokens[i] == redemptionToken) {
                 isConfigured = true;
                 break;

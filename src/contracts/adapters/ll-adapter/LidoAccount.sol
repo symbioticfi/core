@@ -142,7 +142,8 @@ contract LidoAccount is Account, ILidoAccount {
 
     /// @dev Claims finalized withdrawals and submits held wstETH or stETH inventory.
     function _sync() internal override {
-        for (uint256 i = requestIds.length; i > 0; --i) {
+        uint256 length = requestIds.length;
+        for (uint256 i = length; i > 0; --i) {
             uint256 index = i - 1;
             uint256 ethBalanceBefore = address(this).balance;
             try ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).claimWithdrawal(requestIds[index]) {
@@ -150,7 +151,8 @@ contract LidoAccount is Account, ILidoAccount {
                 if (claimed > 0) {
                     IWETH(WETH).deposit{value: claimed}();
                 }
-                requestIds[index] = requestIds[requestIds.length - 1];
+                --length;
+                requestIds[index] = requestIds[length];
                 requestIds.pop();
             } catch {}
         }
@@ -163,7 +165,8 @@ contract LidoAccount is Account, ILidoAccount {
             uint256[] memory amounts = _splitAmounts(amountToRedeem, maxWstETHAmount);
             uint256[] memory ids =
                 ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).requestWithdrawalsWstETH(amounts, address(this));
-            for (uint256 i; i < ids.length; ++i) {
+            length = ids.length;
+            for (uint256 i; i < length; ++i) {
                 requestIds.push(uint64(ids[i]));
             }
         }
@@ -172,7 +175,8 @@ contract LidoAccount is Account, ILidoAccount {
         if (stETHBalance >= minStETHAmount) {
             uint256[] memory amounts = _splitAmounts(stETHBalance, maxStETHAmount);
             uint256[] memory ids = ILidoWithdrawalQueue(WITHDRAWAL_QUEUE).requestWithdrawals(amounts, address(this));
-            for (uint256 i; i < ids.length; ++i) {
+            length = ids.length;
+            for (uint256 i; i < length; ++i) {
                 requestIds.push(uint64(ids[i]));
             }
         }
@@ -181,7 +185,8 @@ contract LidoAccount is Account, ILidoAccount {
     /// @dev Splits an amount into Lido queue-sized requests.
     function _splitAmounts(uint256 amount, uint256 maxAmount) internal pure returns (uint256[] memory amounts) {
         amounts = new uint256[](amount.ceilDiv(maxAmount));
-        for (uint256 i; i < amounts.length; ++i) {
+        uint256 length = amounts.length;
+        for (uint256 i; i < length; ++i) {
             amounts[i] = amount > maxAmount ? maxAmount : amount;
             amount -= amounts[i];
         }

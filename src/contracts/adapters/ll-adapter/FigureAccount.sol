@@ -56,7 +56,8 @@ contract FigureAccount is CooldownAccount, IFigureAccount {
         }
 
         uint256 assets;
-        for (uint256 i; i < subAccounts.length; ++i) {
+        uint256 length = subAccounts.length;
+        for (uint256 i; i < length; ++i) {
             (, uint256 pendingAssets,) = IFigureYieldVault(ASYNC_REDEEM_VAULT).pendingRedemptions(subAccounts[i]);
             assets += _redemptionTokenToAssets(
                 REDEMPTION_TOKEN, pendingAssets + IERC20(REDEMPTION_TOKEN).balanceOf(subAccounts[i])
@@ -75,14 +76,16 @@ contract FigureAccount is CooldownAccount, IFigureAccount {
 
     /// @dev Figure redemptions are finalized offchain by the yield vault admin.
     function _finalizeRequests() internal override {
-        for (uint256 i = subAccounts.length; i > 0; --i) {
+        uint256 length = subAccounts.length;
+        for (uint256 i = length; i > 0; --i) {
             uint256 index = i - 1;
             address subAccount = subAccounts[index];
 
             (uint256 pendingShares,,) = IFigureYieldVault(ASYNC_REDEEM_VAULT).pendingRedemptions(subAccount);
             if (pendingShares == 0) {
                 IFigureSubAccount(subAccount).finalizeRedeem();
-                subAccounts[index] = subAccounts[subAccounts.length - 1];
+                --length;
+                subAccounts[index] = subAccounts[length];
                 subAccounts.pop();
             }
         }

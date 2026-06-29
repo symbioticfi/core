@@ -66,13 +66,13 @@ abstract contract MidasAccount is CooldownAccount, IMidasAccount {
 
     /// @dev Clears Midas redemption requests that are no longer pending.
     function _finalizeRequests() internal virtual override {
-        for (uint256 i = requestIds.length; i > 0; --i) {
+        uint256 length = requestIds.length;
+        for (uint256 i = length; i > 0; --i) {
             (,, uint8 status,,,) = IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestIds[i - 1]);
             if (status == REQUEST_STATUS_PENDING) {
                 continue;
             }
-
-            requestIds[i - 1] = requestIds[requestIds.length - 1];
+            requestIds[i - 1] = requestIds[--length];
             requestIds.pop();
         }
     }
@@ -128,7 +128,8 @@ contract MidasCompAccount is MidasAccount {
     /// @dev Returns pending request value using the current oracle rate.
     function _pendingAssets() internal view override returns (uint256) {
         uint256 amount;
-        for (uint256 i; i < requestIds.length; ++i) {
+        uint256 length = requestIds.length;
+        for (uint256 i; i < length; ++i) {
             (,, uint8 status, uint256 amountMToken,,) =
                 IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestIds[i]);
             if (status == REQUEST_STATUS_PENDING) {
@@ -161,7 +162,8 @@ contract MidasNonCompAccount is MidasAccount {
 
     /// @dev Returns pending request value using each request's locked rate.
     function _pendingAssets() internal view override returns (uint256 assets) {
-        for (uint256 i; i < requestIds.length; ++i) {
+        uint256 length = requestIds.length;
+        for (uint256 i; i < length; ++i) {
             (,, uint8 status, uint256 amountMToken, uint256 mTokenRate, uint256 tokenOutRate) =
                 IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestIds[i]);
             if (status == REQUEST_STATUS_PENDING) {
@@ -274,7 +276,8 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
         uint8 decimals = AggregatorV3Interface(aggregator).decimals();
         (uint80 latestRoundId, int256 latestAnswer,, uint256 latestTimestamp,) =
             AggregatorV3Interface(aggregator).latestRoundData();
-        for (uint256 i; i < requestIds.length; ++i) {
+        uint256 length = requestIds.length;
+        for (uint256 i; i < length; ++i) {
             uint64 requestId = requestIds[i];
             (,, uint8 status, uint256 amountMToken,,) =
                 IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestId);

@@ -76,7 +76,8 @@ abstract contract SettlementAccount is CooldownAccount, CutoffAccount, ISettleme
         if (!isSubAccount[subAccount]) {
             revert UnknownSubAccount();
         }
-        for (uint256 i; i < subAccounts.length; ++i) {
+        uint256 length = subAccounts.length;
+        for (uint256 i; i < length; ++i) {
             if (subAccounts[i] == subAccount) {
                 revert SubAccountTracked();
             }
@@ -112,7 +113,8 @@ abstract contract SettlementAccount is CooldownAccount, CutoffAccount, ISettleme
 
     /// @dev Returns each subaccount's pending value or isolated holdings, whichever is larger.
     function _totalAssets() internal view override returns (uint256 assets) {
-        for (uint256 i; i < subAccounts.length; ++i) {
+        uint256 length = subAccounts.length;
+        for (uint256 i; i < length; ++i) {
             address subAccount = subAccounts[i];
             uint256 holdings = _subAccountAssets(subAccount);
             (uint256 value,) = _cutoffValue(uint160(subAccount));
@@ -122,7 +124,8 @@ abstract contract SettlementAccount is CooldownAccount, CutoffAccount, ISettleme
 
     /// @dev Freezes cohort rates and releases subaccounts that are covered or written off.
     function _finalizeRequests() internal override {
-        for (uint256 i = subAccounts.length; i > 0; --i) {
+        uint256 length = subAccounts.length;
+        for (uint256 i = length; i > 0; --i) {
             uint256 index = i - 1;
             address subAccount = subAccounts[index];
             uint256 key = uint160(subAccount);
@@ -152,7 +155,8 @@ abstract contract SettlementAccount is CooldownAccount, CutoffAccount, ISettleme
 
             bucket.pendingTokenToRedeem -= pendingCutoff.amount;
             delete pendingCutoffs[key];
-            subAccounts[index] = subAccounts[subAccounts.length - 1];
+            --length;
+            subAccounts[index] = subAccounts[length];
             subAccounts.pop();
 
             if (sweptAssets > 0 || sweptTokenAmount > 0) {
