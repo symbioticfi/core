@@ -48,7 +48,7 @@ contract ThreeFAdapterTest is Test {
         ThreeFVaultFactoryMock(vaultFactory).setEntity(vault, true);
 
         adapterFactory = address(new AdapterFactory(address(this)));
-        AdapterFactory(adapterFactory).whitelist(address(new ThreeFAdapter(whitelist, adapterFactory, vaultFactory, 1)));
+        AdapterFactory(adapterFactory).whitelist(address(new ThreeFAdapter(whitelist, adapterFactory, vaultFactory)));
 
         adapter = AdapterFactory(adapterFactory).create(1, address(this), abi.encode(vault, bytes("")));
 
@@ -126,17 +126,17 @@ contract ThreeFAdapterTest is Test {
     }
 
     function test_ConsumeRevertsWhenExposureLimitsAreExceeded() public {
-        IThreeFAdapter(adapter).setExposureLimits(PRINCIPAL - 1, 0);
+        IThreeFAdapter(adapter).setExposureLimits(PRINCIPAL - 1, 0, 0);
 
         vm.expectRevert(IThreeFAdapter.PerRequestCapExceeded.selector);
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
 
-        IThreeFAdapter(adapter).setExposureLimits(0, 30_000);
+        IThreeFAdapter(adapter).setExposureLimits(0, 30_000, 0);
 
         vm.expectRevert(IThreeFAdapter.YieldTooLow.selector);
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
 
-        IThreeFAdapter(adapter).setExposureLimits(0, 0);
+        IThreeFAdapter(adapter).setExposureLimits(0, 0, 1);
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
 
         address nextRequest = address(new ThreeFRequestMock(assetToken));
@@ -191,6 +191,37 @@ contract ThreeFAdapterTest is Test {
 
         (,,, bool redeemed) = IThreeFAdapter(adapter).positions(request);
         assertTrue(redeemed);
+    }
+
+    function test_ActiveRequestsTracksOpenSet() public {
+        assertEq(IThreeFAdapter(adapter).activeRequests().length, 0);
+
+        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+
+        address second = address(new ThreeFRequestMock(assetToken));
+        ThreeFWhitelistMock(whitelist).set(second, IThreeFWhitelist.WhitelistStatus.Whitelisted);
+        ThreeFRequestMock(second).consume(adapter, PRINCIPAL, YIELD);
+
+        address[] memory open = IThreeFAdapter(adapter).activeRequests();
+        assertEq(open.length, 2);
+        assertEq(IThreeFAdapter(adapter).activeLoans(), 2);
+        assertTrue(IThreeFAdapter(adapter).isRequest(request));
+        assertTrue(IThreeFAdapter(adapter).isRequest(second));
+
+        // Redeem the first; it leaves the active set while the second remains.
+        ThreeFRequestMock(request).fundRedemption(PRINCIPAL, YIELD);
+        ThreeFTokenMock(assetToken).mint(request, YIELD);
+        ThreeFRequestMock(request).setCanWithdraw(true);
+        address[] memory toRedeem = new address[](1);
+        toRedeem[0] = request;
+        IThreeFAdapter(adapter).redeem(toRedeem);
+
+        open = IThreeFAdapter(adapter).activeRequests();
+        assertEq(open.length, 1);
+        assertEq(open[0], second);
+        assertEq(IThreeFAdapter(adapter).activeLoans(), 1);
+        assertFalse(IThreeFAdapter(adapter).isRequest(request));
+        assertTrue(IThreeFAdapter(adapter).isRequest(second));
     }
 
     function test_RedeemLossScenarioRealizesLessThanPrincipal() public {
@@ -286,7 +317,7 @@ contract ThreeFAdapterTest is Test {
         IThreeFAdapter(adapter).setOfferSigner(makeAddr("x"));
 
         vm.expectRevert();
-        IThreeFAdapter(adapter).setExposureLimits(1, 2);
+        IThreeFAdapter(adapter).setExposureLimits(1, 2, 3);
 
         vm.stopPrank();
     }

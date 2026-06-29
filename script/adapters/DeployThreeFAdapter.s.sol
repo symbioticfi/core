@@ -12,14 +12,8 @@ contract DeployThreeFAdapterScript is DeployThreeFAdapterBase {
     address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
     // Whitelist contract used to authorize 3F requests.
     address public constant REQUEST_WHITELIST = 0x0000000000000000000000000000000000000000;
-    // Maximum number of concurrently active 3F loans.
-    uint256 public constant MAX_LOANS = 1;
 
     function run() public {
-        runBase(
-            DeployParams({
-                adapterFactoryOwner: ADAPTER_FACTORY_OWNER, requestWhitelist: REQUEST_WHITELIST, maxLoans: MAX_LOANS
-            })
-        );
+        runBase(DeployParams({adapterFactoryOwner: ADAPTER_FACTORY_OWNER, requestWhitelist: REQUEST_WHITELIST}));
     }
 }
