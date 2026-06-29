@@ -93,7 +93,12 @@ contract AaveMorphoMainnetAccountingTest is Test {
             new AaveV3Adapter(AAVE_POOL, address(vaultFactory), address(adapterFactory), rewards, settlement);
         adapterFactory.whitelist(address(implementation));
 
-        return IAaveV3Adapter(adapterFactory.create(1, curator, abi.encode(address(vault), bytes(""))));
+        address[] memory converters = new address[](0);
+        return IAaveV3Adapter(
+            adapterFactory.create(
+                1, curator, abi.encode(address(vault), abi.encode(IAaveV3Adapter.InitParams({converters: converters})))
+            )
+        );
     }
 
     function _deployMorphoAdapter(address asset, address morphoVault) internal returns (IMorphoVaultV2Adapter) {
@@ -113,10 +118,17 @@ contract AaveMorphoMainnetAccountingTest is Test {
         );
         adapterFactory.whitelist(address(implementation));
 
-        return
-            IMorphoVaultV2Adapter(
-                adapterFactory.create(1, curator, abi.encode(address(vault), abi.encode(morphoVault)))
-            );
+        address[] memory converters = new address[](0);
+        return IMorphoVaultV2Adapter(
+            adapterFactory.create(
+                1,
+                curator,
+                abi.encode(
+                    address(vault),
+                    abi.encode(IMorphoVaultV2Adapter.InitParams({morphoVault: morphoVault, converters: converters}))
+                )
+            )
+        );
     }
 
     function _forkMainnet(string memory reason) internal {

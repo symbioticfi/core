@@ -982,6 +982,22 @@ contract DeployFullCoreLiquidLaneTestnetV2Script is DeployV2BaseScript {
     function _core() internal view override returns (SymbioticCoreConstants.Core memory) {
         return _localCore;
     }
+
+    function runBase(address adapterRegistryOwner, address protocolFeeRegistryOwner)
+        public
+        override
+        returns (DeploymentData memory data)
+    {
+        data = super.runBase(adapterRegistryOwner, protocolFeeRegistryOwner);
+
+        _startBroadcast();
+        if (VaultFactory(address(data.core.vaultFactory)).lastVersion() < VAULT_V2_VERSION) {
+            VaultFactory(address(data.core.vaultFactory)).whitelist(address(data.vaultV2));
+        }
+        _stopBroadcast();
+
+        assert(VaultFactory(address(data.core.vaultFactory)).implementation(VAULT_V2_VERSION) == address(data.vaultV2));
+    }
 }
 
 contract TestnetCowSwapVaultRelayerMock {}

@@ -538,7 +538,7 @@ contract AppAdapterTest is Test {
 
         vm.expectRevert(IAppAdapter.InsufficientBurnerGas.selector);
         vm.prank(networkMiddleware);
-        adapter.slash{gas: BURNER_GAS_LIMIT + 80_000}(40);
+        adapter.slash{gas: BURNER_GAS_LIMIT + 120_000}(40);
     }
 
     function test_ZeroStateViewsReturnZeroAndSlashReverts() public {

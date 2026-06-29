@@ -141,7 +141,11 @@ contract ActionScriptsTest is SymbioticCoreInit {
     uint256 internal constant DEFAULT_DEPOSIT = 800 ether;
 
     function setUp() public virtual override {
-        vm.selectFork(vm.createFork(vm.rpcUrl("mainnet")));
+        string memory mainnetRpcUrl = vm.envOr("ETH_RPC_URL", string(""));
+        if (bytes(mainnetRpcUrl).length == 0) {
+            vm.skip(true, "ETH_RPC_URL is required for action script integration tests");
+        }
+        vm.selectFork(vm.createFork(mainnetRpcUrl));
         SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;
 
         super.setUp();
