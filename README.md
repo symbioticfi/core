@@ -208,7 +208,7 @@ Interaction with different actions is similar; let's consider [SetNetworkLimit](
    - If you use a Safe multisig and want to get a transaction calldata:
 
      ```bash
-     forge script script/actions/SetMaxNetworkLimit.s.sol --rpc-url <RPC_URL> --sender <MULTISIG_ADDRESS> --unlocked
+     forge script script/actions/SetNetworkLimit.s.sol --rpc-url <RPC_URL> --sender <MULTISIG_ADDRESS> --unlocked
      ```
 
      In the logs, you will see `data` and `target` fields like this:
