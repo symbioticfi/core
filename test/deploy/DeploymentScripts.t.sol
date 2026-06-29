@@ -295,9 +295,16 @@ contract DeploymentScriptsTest is Test {
         vaultFactory.transferOwnership(address(script));
         delegatorFactory.transferOwnership(address(script));
 
-        DeployV2BaseScript.DeploymentData memory data = script.runBase(owner, owner);
+        address protocolFeeRegistryOwner = address(0x1002);
+        address adapterFactoryOwner = address(0x1003);
 
-        assertEq(data.protocolFeeRegistry.owner(), owner);
+        DeployV2BaseScript.DeploymentData memory data =
+            script.runBase(owner, protocolFeeRegistryOwner, adapterFactoryOwner);
+
+        assertEq(data.adapterRegistry.owner(), owner);
+        assertEq(data.protocolFeeRegistry.owner(), protocolFeeRegistryOwner);
+        assertEq(data.withdrawalQueueFactory.owner(), adapterFactoryOwner);
+        assertEq(data.universalDelegatorFactory.owner(), adapterFactoryOwner);
         assertEq(vaultFactory.lastVersion(), 2);
         vm.expectRevert(IMigratablesFactory.InvalidVersion.selector);
         vaultFactory.implementation(3);
@@ -327,11 +334,15 @@ contract DeploymentScriptsTest is Test {
 
         vm.mockCall(address(0x5002), abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(address(0x5003)));
 
+        address adapterRegistryOwner = address(0x1002);
+        address protocolFeeRegistryOwner = address(0x1003);
+        address adapterFactoryOwner = address(0x1004);
+
         DeployV2BaseScript.DeploymentData memory data = script.runBase(
             DeployV2BaseScript.DeployParams({
-                adapterRegistryOwner: owner,
-                protocolFeeRegistryOwner: owner,
-                adapterFactoryOwner: owner,
+                adapterRegistryOwner: adapterRegistryOwner,
+                protocolFeeRegistryOwner: protocolFeeRegistryOwner,
+                adapterFactoryOwner: adapterFactoryOwner,
                 morphoVaultFactory: address(0x5004),
                 morphoAdapterRegistry: address(0x5005),
                 aavePool: address(0x5006),
@@ -342,15 +353,19 @@ contract DeploymentScriptsTest is Test {
         );
 
         assertEq(vaultFactory.lastVersion(), 2);
+        assertEq(data.adapterRegistry.owner(), adapterRegistryOwner);
+        assertEq(data.protocolFeeRegistry.owner(), protocolFeeRegistryOwner);
+        assertEq(data.withdrawalQueueFactory.owner(), adapterFactoryOwner);
+        assertEq(data.universalDelegatorFactory.owner(), adapterFactoryOwner);
         _assertAdapterDeployment(address(data.morphoVaultV2AdapterFactory), address(data.morphoVaultV2Adapter));
         _assertAdapterDeployment(address(data.aaveV3AdapterFactory), address(data.aaveV3Adapter));
         _assertAdapterDeployment(address(data.appAdapterFactory), address(data.appAdapter));
         _assertAdapterDeployment(address(data.restakingAppAdapterFactory), address(data.restakingAppAdapter));
 
-        assertEq(data.morphoVaultV2AdapterFactory.owner(), owner);
-        assertEq(data.aaveV3AdapterFactory.owner(), owner);
-        assertEq(data.appAdapterFactory.owner(), owner);
-        assertEq(data.restakingAppAdapterFactory.owner(), owner);
+        assertEq(data.morphoVaultV2AdapterFactory.owner(), adapterFactoryOwner);
+        assertEq(data.aaveV3AdapterFactory.owner(), adapterFactoryOwner);
+        assertEq(data.appAdapterFactory.owner(), adapterFactoryOwner);
+        assertEq(data.restakingAppAdapterFactory.owner(), adapterFactoryOwner);
         assertEq(
             MorphoVaultV2Adapter(address(data.morphoVaultV2Adapter)).FACTORY(),
             address(data.morphoVaultV2AdapterFactory)

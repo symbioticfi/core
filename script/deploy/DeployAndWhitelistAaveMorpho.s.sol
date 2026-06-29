@@ -124,7 +124,8 @@ contract DeployAndWhitelistAaveMorphoScript is ScriptBase {
         virtual
         returns (DeployV2BaseScript.DeploymentData memory data)
     {
-        data = new DeployV2BaseScript().runBase(params.adapterRegistryOwner, params.protocolFeeRegistryOwner);
+        data = new DeployV2BaseScript()
+            .runBase(params.adapterRegistryOwner, params.protocolFeeRegistryOwner, params.adapterFactoryOwner);
     }
 
     function _deployAave(DeployParams memory params)

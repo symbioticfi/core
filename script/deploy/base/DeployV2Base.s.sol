@@ -54,7 +54,7 @@ contract DeployV2BaseScript is Script {
     }
 
     function runBase(address owner) public virtual returns (DeploymentData memory data) {
-        data = runBase(owner, owner);
+        data = runBase(owner, owner, owner);
     }
 
     function runBase(address adapterRegistryOwner, address protocolFeeRegistryOwner)
@@ -62,8 +62,17 @@ contract DeployV2BaseScript is Script {
         virtual
         returns (DeploymentData memory data)
     {
+        data = runBase(adapterRegistryOwner, protocolFeeRegistryOwner, adapterRegistryOwner);
+    }
+
+    function runBase(address adapterRegistryOwner, address protocolFeeRegistryOwner, address adapterFactoryOwner)
+        public
+        virtual
+        returns (DeploymentData memory data)
+    {
         require(adapterRegistryOwner != address(0), "invalid adapter registry owner");
         require(protocolFeeRegistryOwner != address(0), "invalid protocol fee registry owner");
+        require(adapterFactoryOwner != address(0), "invalid adapter factory owner");
 
         data.core = _core();
 
@@ -74,8 +83,8 @@ contract DeployV2BaseScript is Script {
         data.withdrawalQueueFactory = new WithdrawalQueueFactory(broadcaster);
         data.withdrawalQueue = new WithdrawalQueue(address(data.withdrawalQueueFactory));
         data.withdrawalQueueFactory.whitelist(address(data.withdrawalQueue));
-        if (adapterRegistryOwner != broadcaster) {
-            data.withdrawalQueueFactory.transferOwnership(adapterRegistryOwner);
+        if (adapterFactoryOwner != broadcaster) {
+            data.withdrawalQueueFactory.transferOwnership(adapterFactoryOwner);
         }
         data.universalDelegatorFactory = new UniversalDelegatorFactory(broadcaster);
         data.vaultV2 = new VaultV2(
@@ -87,15 +96,15 @@ contract DeployV2BaseScript is Script {
         data.universalDelegator =
             new UniversalDelegator(address(data.adapterRegistry), address(data.universalDelegatorFactory));
         data.universalDelegatorFactory.whitelist(address(data.universalDelegator));
-        if (adapterRegistryOwner != broadcaster) {
-            data.universalDelegatorFactory.transferOwnership(adapterRegistryOwner);
+        if (adapterFactoryOwner != broadcaster) {
+            data.universalDelegatorFactory.transferOwnership(adapterFactoryOwner);
         }
         _stopBroadcast();
 
         assert(data.adapterRegistry.owner() == adapterRegistryOwner);
         assert(data.protocolFeeRegistry.owner() == protocolFeeRegistryOwner);
-        assert(data.withdrawalQueueFactory.owner() == adapterRegistryOwner);
-        assert(data.universalDelegatorFactory.owner() == adapterRegistryOwner);
+        assert(data.withdrawalQueueFactory.owner() == adapterFactoryOwner);
+        assert(data.universalDelegatorFactory.owner() == adapterFactoryOwner);
         assert(IMigratableEntity(address(data.vaultV2)).FACTORY() == address(data.core.vaultFactory));
         assert(IMigratableEntity(address(data.universalDelegator)).FACTORY() == address(data.universalDelegatorFactory));
         assert(
@@ -117,7 +126,7 @@ contract DeployV2BaseScript is Script {
     function runBase(DeployParams memory params) public virtual returns (DeploymentData memory data) {
         _validateParams(params);
 
-        data = runBase(params.adapterRegistryOwner, params.protocolFeeRegistryOwner);
+        data = runBase(params.adapterRegistryOwner, params.protocolFeeRegistryOwner, params.adapterFactoryOwner);
 
         _startBroadcast();
         _deployAdapterFactories(data, params);
