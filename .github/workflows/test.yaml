@@ -28,7 +28,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@82dee4ba654bd2146511f85f0d013af94670c4de # v1.4.0
         with:
-          version: v1.7.0
+          version: v1.7.1
 
       - name: Run Forge fmt check
         run: forge fmt --check
@@ -69,7 +69,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@82dee4ba654bd2146511f85f0d013af94670c4de # v1.4.0
         with:
-          version: v1.7.0
+          version: v1.7.1
 
       - name: Cache Foundry RPC responses
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
