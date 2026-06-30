@@ -28,6 +28,6 @@ contract AdapterNoAccountShapeTest is Test {
         new MorphoVaultV2Adapter(
             vaultFactory, adapterFactory, rewards, settlement, morphoVaultFactory, morphoAdapterRegistry
         );
-        new ThreeFAdapter(requestWhitelist, adapterFactory, vaultFactory);
+        new ThreeFAdapter(vaultFactory, adapterFactory, requestWhitelist);
     }
 }

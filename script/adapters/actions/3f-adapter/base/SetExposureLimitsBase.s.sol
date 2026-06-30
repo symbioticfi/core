@@ -6,24 +6,29 @@ import {Logs} from "../../../../utils/Logs.sol";
 import {ScriptBase} from "../../../../utils/ScriptBase.s.sol";
 
 contract SetExposureLimitsBaseScript is ScriptBase {
-    function runBase(address adapter, uint256 perRequestMaxCollateral, uint256 minRequestYield)
-        public
-        virtual
-        returns (bytes memory data, address target)
-    {
+    function runBase(
+        address adapter,
+        uint256 minYieldPerRequest,
+        uint256 minAssetsPerRequest,
+        uint256 maxAssetsPerRequest
+    ) public virtual returns (bytes memory data, address target) {
         target = adapter;
-        data = abi.encodeCall(IThreeFAdapter.setExposureLimits, (perRequestMaxCollateral, minRequestYield));
+        data = abi.encodeCall(
+            IThreeFAdapter.setLimitsPerRequest, (minYieldPerRequest, minAssetsPerRequest, maxAssetsPerRequest)
+        );
         sendTransaction(target, data);
 
         Logs.log(
             string.concat(
-                "Set 3F exposure limits",
+                "Set 3F per-request limits",
                 "\n    adapter:",
                 vm.toString(adapter),
-                "\n    perRequestMaxCollateral:",
-                vm.toString(perRequestMaxCollateral),
-                "\n    minRequestYield:",
-                vm.toString(minRequestYield)
+                "\n    minYieldPerRequest:",
+                vm.toString(minYieldPerRequest),
+                "\n    minAssetsPerRequest:",
+                vm.toString(minAssetsPerRequest),
+                "\n    maxAssetsPerRequest:",
+                vm.toString(maxAssetsPerRequest)
             )
         );
         Logs.logSimulationLink(target, data);

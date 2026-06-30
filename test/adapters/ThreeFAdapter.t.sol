@@ -2,17 +2,16 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
+import {stdError} from "forge-std/StdError.sol";
 
 import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
 import {ThreeFAdapter} from "../../src/contracts/adapters/ThreeFAdapter.sol";
 
 import {IAdapter} from "../../src/interfaces/adapters/IAdapter.sol";
-import {
-    IThreeFAdapter,
-    IThreeFRequestCallback,
-    IThreeFWhitelist,
-    Offer
-} from "../../src/interfaces/adapters/IThreeFAdapter.sol";
+import {IThreeFAdapter, MAX_REQUESTS} from "../../src/interfaces/adapters/IThreeFAdapter.sol";
+import {IThreeFRequestCallback} from "../../src/interfaces/adapters/3f-adapter/IThreeFRequestCallback.sol";
+import {IThreeFWhitelist} from "../../src/interfaces/adapters/3f-adapter/IThreeFWhitelist.sol";
+import {Offer} from "../../src/interfaces/adapters/3f-adapter/ThreeFTypes.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -42,73 +41,135 @@ contract ThreeFAdapterTest is Test {
         whitelist = address(new ThreeFWhitelistMock());
         vault = address(new ThreeFVaultMock(assetToken));
         delegator = address(new ThreeFDelegatorMock(vault));
-        request = address(new ThreeFRequestMock(assetToken));
+        request = _newRequest();
 
         ThreeFVaultMock(vault).setDelegator(delegator);
         ThreeFVaultFactoryMock(vaultFactory).setEntity(vault, true);
 
         adapterFactory = address(new AdapterFactory(address(this)));
-        AdapterFactory(adapterFactory).whitelist(address(new ThreeFAdapter(whitelist, adapterFactory, vaultFactory)));
+        AdapterFactory(adapterFactory).whitelist(address(new ThreeFAdapter(vaultFactory, adapterFactory, whitelist)));
 
         adapter = AdapterFactory(adapterFactory).create(1, address(this), abi.encode(vault, bytes("")));
 
         IThreeFAdapter(adapter).setOfferSigner(signer);
-        ThreeFWhitelistMock(whitelist).set(request, IThreeFWhitelist.WhitelistStatus.Whitelisted);
+        IThreeFAdapter(adapter).setLimitsPerRequest(0, 1, type(uint256).max);
         ThreeFDelegatorMock(delegator).setLimit(adapter, type(uint256).max);
         ThreeFTokenMock(assetToken).mint(vault, VAULT_LIQUIDITY);
     }
 
-    function test_ConsumePullsPrincipalJustInTime() public {
+    function test_ConsumePullsPrincipalJustInTimeAndTracksRequest() public {
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
 
         assertEq(IERC20(assetToken).balanceOf(request), PRINCIPAL);
         assertEq(IERC20(assetToken).balanceOf(vault), VAULT_LIQUIDITY - PRINCIPAL);
         assertEq(IERC20(assetToken).balanceOf(adapter), 0);
-        assertEq(IThreeFAdapter(adapter).outstandingPrincipal(), PRINCIPAL);
         assertEq(IThreeFAdapter(adapter).totalAssets(), PRINCIPAL);
-
-        (uint256 principal, uint256 ytExpected, uint48 openedAt, bool redeemed) =
-            IThreeFAdapter(adapter).positions(request);
-        assertEq(principal, PRINCIPAL);
-        assertEq(ytExpected, YIELD);
-        assertEq(openedAt, uint48(vm.getBlockTimestamp()));
-        assertFalse(redeemed);
-
-        assertTrue(IThreeFAdapter(adapter).isRequest(request));
-        assertEq(IThreeFAdapter(adapter).activeLoans(), 1);
+        assertEq(IThreeFAdapter(adapter).requests(0), request);
+        assertEq(IThreeFAdapter(adapter).requestIndex(request), 1);
     }
 
-    function test_ConsumeSpendsIdleBalanceBeforePulling() public {
-        ThreeFTokenMock(assetToken).mint(adapter, 30_000e6);
-
+    function test_TotalAssetsUsesPrincipalSharesBeforeRequestIsWithdrawable() public {
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        ThreeFRequestMock(request).pull(makeAddr("borrower"), PRINCIPAL - 1);
 
-        assertEq(IERC20(assetToken).balanceOf(request), PRINCIPAL);
-        assertEq(IERC20(assetToken).balanceOf(vault), VAULT_LIQUIDITY - 70_000e6);
-        assertEq(IERC20(assetToken).balanceOf(adapter), 0);
+        assertEq(IERC20(assetToken).balanceOf(request), 1);
+        assertEq(IThreeFAdapter(adapter).totalAssets(), PRINCIPAL);
+    }
+
+    function test_TotalAssetsUsesConvertToAssetsWhenRequestIsWithdrawable() public {
+        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        ThreeFRequestMock(request).pull(makeAddr("loss"), 10_000e6);
+        ThreeFRequestMock(request).setCanWithdraw(true);
+
+        assertEq(IThreeFAdapter(adapter).totalAssets(), PRINCIPAL - 10_000e6);
+
+        ThreeFTokenMock(assetToken).mint(request, YIELD);
+
+        assertEq(IThreeFAdapter(adapter).totalAssets(), PRINCIPAL - 10_000e6 + YIELD);
+    }
+
+    function test_FinalizeRequestBurnsTrackedRequestAndRemovesIt() public {
+        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        ThreeFTokenMock(assetToken).mint(request, YIELD);
+        ThreeFRequestMock(request).setCanWithdraw(true);
+
+        IThreeFAdapter(adapter).finalizeRequest(request);
+
+        assertEq(IThreeFAdapter(adapter).requestIndex(request), 0);
+        assertEq(IERC20(assetToken).balanceOf(adapter), PRINCIPAL + YIELD);
+        assertEq(IThreeFAdapter(adapter).totalAssets(), PRINCIPAL + YIELD);
+    }
+
+    function test_FinalizeRequestKeepsMovedRequestIndex() public {
+        address firstRequest = request;
+        address secondRequest = _newRequest();
+
+        ThreeFRequestMock(firstRequest).consume(adapter, PRINCIPAL, YIELD);
+        ThreeFRequestMock(secondRequest).consume(adapter, PRINCIPAL / 2, YIELD / 2);
+        ThreeFTokenMock(assetToken).mint(firstRequest, YIELD);
+        ThreeFTokenMock(assetToken).mint(secondRequest, YIELD / 2);
+        ThreeFRequestMock(firstRequest).setCanWithdraw(true);
+        ThreeFRequestMock(secondRequest).setCanWithdraw(true);
+
+        IThreeFAdapter(adapter).finalizeRequest(firstRequest);
+
+        assertEq(IThreeFAdapter(adapter).requestIndex(firstRequest), 0);
+        assertEq(IThreeFAdapter(adapter).requestIndex(secondRequest), 1);
+        assertEq(IThreeFAdapter(adapter).requests(0), secondRequest);
+
+        IThreeFAdapter(adapter).finalizeRequest(secondRequest);
+
+        assertEq(IThreeFAdapter(adapter).requestIndex(secondRequest), 0);
+        assertEq(IERC20(assetToken).balanceOf(adapter), PRINCIPAL + YIELD + PRINCIPAL / 2 + YIELD / 2);
+    }
+
+    function test_FinalizeRequestRevertsForUnknownRequest() public {
+        vm.expectRevert(stdError.arithmeticError);
+        IThreeFAdapter(adapter).finalizeRequest(makeAddr("unknown"));
     }
 
     function test_ConsumeRevertsWhenRequestAlreadyActive() public {
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
 
-        vm.expectRevert(IThreeFAdapter.RequestAlreadyActive.selector);
-        ThreeFRequestMock(request).consume(adapter, 1, 1);
-
-        assertEq(IThreeFAdapter(adapter).outstandingPrincipal(), PRINCIPAL);
-        assertEq(IThreeFAdapter(adapter).activeLoans(), 1);
+        vm.expectRevert(IThreeFAdapter.AlreadyRequest.selector);
+        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
     }
 
-    function test_ConsumeRevertsWhenNotAttested() public {
+    function test_ConsumeRevertsBeforeMaxLimitConfigured() public {
+        address unconfiguredAdapter =
+            AdapterFactory(adapterFactory).create(1, address(this), abi.encode(vault, bytes("")));
+        ThreeFDelegatorMock(delegator).setLimit(unconfiguredAdapter, type(uint256).max);
+
+        vm.expectRevert(IThreeFAdapter.TooLargeRequest.selector);
+        ThreeFRequestMock(request).consume(unconfiguredAdapter, 1e6, 1);
+    }
+
+    function test_ConsumeRevertsWhenPrincipalIsBelowConfiguredMinimum() public {
+        vm.expectRevert(IThreeFAdapter.TooSmallRequest.selector);
+        ThreeFRequestMock(request).consume(adapter, 0, YIELD);
+    }
+
+    function test_ConsumeRevertsWhenMaxRequestsExceeded() public {
+        for (uint256 i; i < MAX_REQUESTS; ++i) {
+            ThreeFRequestMock(_newRequest()).consume(adapter, 1e6, 1);
+        }
+
+        address extraRequest = _newRequest();
+        vm.expectRevert(IThreeFAdapter.TooManyRequests.selector);
+        ThreeFRequestMock(extraRequest).consume(adapter, 1e6, 1);
+    }
+
+    function test_ConsumeRevertsWhenNotWhitelisted() public {
         ThreeFWhitelistMock(whitelist).set(request, IThreeFWhitelist.WhitelistStatus.NotWhitelisted);
 
-        vm.expectRevert(IThreeFAdapter.NotAttested.selector);
+        vm.expectRevert(IThreeFAdapter.NotRequest.selector);
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
     }
 
     function test_ConsumeRevertsWhenPausedWhitelisted() public {
         ThreeFWhitelistMock(whitelist).set(request, IThreeFWhitelist.WhitelistStatus.PausedWhitelisted);
 
-        vm.expectRevert(IThreeFAdapter.NotAttested.selector);
+        vm.expectRevert(IThreeFAdapter.NotRequest.selector);
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
     }
 
@@ -116,7 +177,7 @@ contract ThreeFAdapterTest is Test {
         address wrongRequest = address(new ThreeFRequestMock(address(new ThreeFTokenMock())));
         ThreeFWhitelistMock(whitelist).set(wrongRequest, IThreeFWhitelist.WhitelistStatus.Whitelisted);
 
-        vm.expectRevert(IThreeFAdapter.AssetMismatch.selector);
+        vm.expectRevert(IThreeFAdapter.WrongAsset.selector);
         ThreeFRequestMock(wrongRequest).consume(adapter, PRINCIPAL, YIELD);
     }
 
@@ -124,26 +185,31 @@ contract ThreeFAdapterTest is Test {
         vm.prank(delegator);
         ThreeFVaultMock(vault).pull(makeAddr("drain"), VAULT_LIQUIDITY);
 
-        vm.expectRevert(IThreeFAdapter.InsufficientLiquidity.selector);
+        vm.expectRevert(IThreeFAdapter.InsufficientAllocate.selector);
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
     }
 
     function test_ConsumeRevertsWhenDelegatorCapExceeded() public {
         ThreeFDelegatorMock(delegator).setLimit(adapter, PRINCIPAL - 1);
 
-        vm.expectRevert(IThreeFAdapter.InsufficientLiquidity.selector);
+        vm.expectRevert(IThreeFAdapter.InsufficientAllocate.selector);
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
     }
 
-    function test_ConsumeRevertsWhenExposureLimitsAreExceeded() public {
-        IThreeFAdapter(adapter).setExposureLimits(PRINCIPAL - 1, 0);
+    function test_ConsumeRevertsWhenRequestLimitsAreExceeded() public {
+        IThreeFAdapter(adapter).setLimitsPerRequest(0, 10e6, PRINCIPAL - 1);
 
-        vm.expectRevert(IThreeFAdapter.PerRequestCapExceeded.selector);
+        vm.expectRevert(IThreeFAdapter.TooLargeRequest.selector);
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
 
-        IThreeFAdapter(adapter).setExposureLimits(0, 30_000);
+        IThreeFAdapter(adapter).setLimitsPerRequest(0, PRINCIPAL + 1, type(uint256).max);
 
-        vm.expectRevert(IThreeFAdapter.YieldTooLow.selector);
+        vm.expectRevert(IThreeFAdapter.TooSmallRequest.selector);
+        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+
+        IThreeFAdapter(adapter).setLimitsPerRequest(30_000, 1, type(uint256).max);
+
+        vm.expectRevert(IThreeFAdapter.TooLowYield.selector);
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
     }
 
@@ -151,131 +217,17 @@ contract ThreeFAdapterTest is Test {
         assertEq(IThreeFAdapter(adapter).allocatable(), 0);
     }
 
-    function test_RedeemSkipsUnknownRequest() public {
-        address[] memory requests = new address[](1);
-        requests[0] = makeAddr("strangerRequest");
-
-        IThreeFAdapter(adapter).redeem(requests);
-
-        assertEq(IThreeFAdapter(adapter).realizedPrincipal(), 0);
-    }
-
-    function test_RedeemSkipsNotReadyRequest() public {
+    function test_DeallocateRecallsFinalizedBalanceToVault() public {
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
-
-        address[] memory requests = new address[](1);
-        requests[0] = request;
-
-        IThreeFAdapter(adapter).redeem(requests);
-
-        assertEq(IThreeFAdapter(adapter).realizedPrincipal(), 0);
-        assertTrue(IThreeFAdapter(adapter).isRequest(request));
-        assertEq(IThreeFAdapter(adapter).activeLoans(), 1);
-    }
-
-    function test_RedeemRealizesReadyPosition() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
-        ThreeFRequestMock(request).fundRedemption(PRINCIPAL, YIELD);
         ThreeFTokenMock(assetToken).mint(request, YIELD);
         ThreeFRequestMock(request).setCanWithdraw(true);
-
-        address[] memory requests = new address[](1);
-        requests[0] = request;
-
-        IThreeFAdapter(adapter).redeem(requests);
-
-        assertEq(IThreeFAdapter(adapter).realizedPrincipal(), PRINCIPAL);
-        assertEq(IThreeFAdapter(adapter).outstandingPrincipal(), 0);
-        assertEq(IERC20(assetToken).balanceOf(adapter), PRINCIPAL + YIELD);
-        assertFalse(IThreeFAdapter(adapter).isRequest(request));
-        assertEq(IThreeFAdapter(adapter).activeLoans(), 0);
-
-        (,,, bool redeemed) = IThreeFAdapter(adapter).positions(request);
-        assertTrue(redeemed);
-    }
-
-    function test_ActiveRequestsTracksOpenSet() public {
-        assertEq(IThreeFAdapter(adapter).activeRequests().length, 0);
-
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
-
-        address second = address(new ThreeFRequestMock(assetToken));
-        ThreeFWhitelistMock(whitelist).set(second, IThreeFWhitelist.WhitelistStatus.Whitelisted);
-        ThreeFRequestMock(second).consume(adapter, PRINCIPAL, YIELD);
-
-        address[] memory open = IThreeFAdapter(adapter).activeRequests();
-        assertEq(open.length, 2);
-        assertEq(IThreeFAdapter(adapter).activeLoans(), 2);
-        assertTrue(IThreeFAdapter(adapter).isRequest(request));
-        assertTrue(IThreeFAdapter(adapter).isRequest(second));
-
-        // Redeem the first; it leaves the active set while the second remains.
-        ThreeFRequestMock(request).fundRedemption(PRINCIPAL, YIELD);
-        ThreeFTokenMock(assetToken).mint(request, YIELD);
-        ThreeFRequestMock(request).setCanWithdraw(true);
-        address[] memory toRedeem = new address[](1);
-        toRedeem[0] = request;
-        IThreeFAdapter(adapter).redeem(toRedeem);
-
-        open = IThreeFAdapter(adapter).activeRequests();
-        assertEq(open.length, 1);
-        assertEq(open[0], second);
-        assertEq(IThreeFAdapter(adapter).activeLoans(), 1);
-        assertFalse(IThreeFAdapter(adapter).isRequest(request));
-        assertTrue(IThreeFAdapter(adapter).isRequest(second));
-    }
-
-    function test_RedeemLossScenarioRealizesLessThanPrincipal() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
-        ThreeFRequestMock(request).fundRedemption(PRINCIPAL - 10_000e6, 0);
-        ThreeFRequestMock(request).setCanWithdraw(true);
-
-        address[] memory requests = new address[](1);
-        requests[0] = request;
-
-        IThreeFAdapter(adapter).redeem(requests);
-
-        assertEq(IThreeFAdapter(adapter).realizedPrincipal(), PRINCIPAL - 10_000e6);
-        assertEq(IThreeFAdapter(adapter).outstandingPrincipal(), 0);
-        assertEq(IERC20(assetToken).balanceOf(adapter), PRINCIPAL - 10_000e6);
-    }
-
-    function test_ConsumeRecyclesRealizedPrincipalAccounting() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
-        ThreeFRequestMock(request).fundRedemption(PRINCIPAL, 0);
-        ThreeFRequestMock(request).setCanWithdraw(true);
-
-        address[] memory requests = new address[](1);
-        requests[0] = request;
-
-        IThreeFAdapter(adapter).redeem(requests);
-        assertEq(IThreeFAdapter(adapter).realizedPrincipal(), PRINCIPAL);
-
-        address nextRequest = address(new ThreeFRequestMock(assetToken));
-        ThreeFWhitelistMock(whitelist).set(nextRequest, IThreeFWhitelist.WhitelistStatus.Whitelisted);
-
-        ThreeFRequestMock(nextRequest).consume(adapter, 40_000e6, YIELD);
-
-        assertEq(IThreeFAdapter(adapter).realizedPrincipal(), PRINCIPAL - 40_000e6);
-    }
-
-    function test_DeallocateRecallsRealizedBalanceToVault() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
-        ThreeFRequestMock(request).fundRedemption(PRINCIPAL, YIELD);
-        ThreeFTokenMock(assetToken).mint(request, YIELD);
-        ThreeFRequestMock(request).setCanWithdraw(true);
-
-        address[] memory requests = new address[](1);
-        requests[0] = request;
-
-        IThreeFAdapter(adapter).redeem(requests);
+        IThreeFAdapter(adapter).finalizeRequest(request);
 
         uint256 vaultBefore = IERC20(assetToken).balanceOf(vault);
         uint256 deallocated = ThreeFDelegatorMock(delegator).deallocate(adapter, PRINCIPAL);
 
         assertEq(deallocated, PRINCIPAL + YIELD);
         assertEq(IERC20(assetToken).balanceOf(vault) - vaultBefore, PRINCIPAL + YIELD);
-        assertEq(IThreeFAdapter(adapter).realizedPrincipal(), 0);
         assertEq(IERC20(assetToken).balanceOf(adapter), 0);
     }
 
@@ -284,6 +236,16 @@ contract ThreeFAdapterTest is Test {
 
         vm.expectRevert(IAdapter.NotVault.selector);
         IThreeFAdapter(adapter).deallocate(PRINCIPAL);
+    }
+
+    function test_GetMaxAssetsAccountsForDelegatorLimitAndVaultWithdrawable() public {
+        ThreeFDelegatorMock(delegator).setLimit(adapter, PRINCIPAL);
+
+        assertEq(IThreeFAdapter(adapter).getMaxAssets(), PRINCIPAL);
+
+        ThreeFRequestMock(request).consume(adapter, 40_000e6, YIELD);
+
+        assertEq(IThreeFAdapter(adapter).getMaxAssets(), 60_000e6);
     }
 
     function test_IsValidSignatureAcceptsOfferSigner() public view {
@@ -318,9 +280,14 @@ contract ThreeFAdapterTest is Test {
         IThreeFAdapter(adapter).setOfferSigner(makeAddr("x"));
 
         vm.expectRevert();
-        IThreeFAdapter(adapter).setExposureLimits(1, 2);
+        IThreeFAdapter(adapter).setLimitsPerRequest(1, 2, 3);
 
         vm.stopPrank();
+    }
+
+    function _newRequest() internal returns (address newRequest) {
+        newRequest = address(new ThreeFRequestMock(assetToken));
+        ThreeFWhitelistMock(whitelist).set(newRequest, IThreeFWhitelist.WhitelistStatus.Whitelisted);
     }
 }
 
@@ -372,6 +339,10 @@ contract ThreeFVaultMock {
         IERC20(asset).transfer(receiver, amount);
     }
 
+    function withdrawable() external view returns (uint256) {
+        return IERC20(asset).balanceOf(address(this));
+    }
+
     function recall(address account, uint256 amount) external {
         if (msg.sender != delegator) {
             revert();
@@ -395,6 +366,10 @@ contract ThreeFDelegatorMock {
 
     function limitOf(address adapter) external view returns (uint256) {
         return limits[adapter];
+    }
+
+    function sweepPending() external pure returns (uint256) {
+        return 0;
     }
 
     function allocateExact(address adapter, uint256 assets) external returns (uint256 allocated) {
@@ -432,8 +407,12 @@ contract ThreeFDelegatorMock {
 contract ThreeFRequestMock {
     address public immutable asset;
     bool public canWithdraw;
-    uint256 public pAssets;
-    uint256 public yAssets;
+
+    uint256 public ptSupply;
+    uint256 public ytSupply;
+
+    mapping(address account => uint256 balance) internal _ptBalances;
+    mapping(address account => uint256 balance) internal _ytBalances;
 
     constructor(address asset_) {
         asset = asset_;
@@ -441,6 +420,29 @@ contract ThreeFRequestMock {
 
     function setCanWithdraw(bool status) external {
         canWithdraw = status;
+    }
+
+    function balancesOf(address account) external view returns (uint256 ptShares, uint256 ytShares) {
+        ptShares = _ptBalances[account];
+        ytShares = _ytBalances[account];
+    }
+
+    function convertToAssets(uint256 ptShares, uint256 ytShares)
+        public
+        view
+        returns (uint256 pAssets, uint256 yAssets)
+    {
+        uint256 balance = IERC20(asset).balanceOf(address(this));
+        if (ptSupply > 0) {
+            pAssets = balance * ptShares / ptSupply;
+        }
+        if (ytSupply > 0 && balance > pAssets) {
+            yAssets = (balance - pAssets) * ytShares / ytSupply;
+        }
+    }
+
+    function pull(address receiver, uint256 amount) external {
+        IERC20(asset).transfer(receiver, amount);
     }
 
     function consume(address adapter, uint256 principal, uint256 yieldAmount) external {
@@ -460,22 +462,24 @@ contract ThreeFRequestMock {
             );
 
         IERC20(asset).transferFrom(adapter, address(this), principal);
+        _ptBalances[adapter] += principal;
+        _ytBalances[adapter] += yieldAmount;
+        ptSupply += principal;
+        ytSupply += yieldAmount;
     }
 
-    function fundRedemption(uint256 pAssets_, uint256 yAssets_) external {
-        pAssets = pAssets_;
-        yAssets = yAssets_;
-    }
+    function burnAll(address owner, address receiver) external returns (uint256, uint256, uint256, uint256) {
+        uint256 ptShares = _ptBalances[owner];
+        uint256 ytShares = _ytBalances[owner];
+        (uint256 pAssets, uint256 yAssets) = convertToAssets(ptShares, ytShares);
 
-    function burnAll(address, address receiver) external returns (uint256, uint256, uint256, uint256) {
-        uint256 curPAssets = pAssets;
-        uint256 curYAssets = yAssets;
+        _ptBalances[owner] = 0;
+        _ytBalances[owner] = 0;
+        ptSupply -= ptShares;
+        ytSupply -= ytShares;
 
-        pAssets = 0;
-        yAssets = 0;
+        IERC20(asset).transfer(receiver, pAssets + yAssets);
 
-        IERC20(asset).transfer(receiver, curPAssets + curYAssets);
-
-        return (0, 0, curPAssets, curYAssets);
+        return (ptShares, ytShares, pAssets, yAssets);
     }
 }

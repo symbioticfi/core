@@ -18,7 +18,7 @@ contract DeployThreeFAdapterBase is DeployAdapterBase {
         _startBroadcast();
         data.adapterFactory = _deployAdapterFactory();
         data.adapterImplementation =
-            address(new ThreeFAdapter(params.requestWhitelist, data.adapterFactory, vaultFactory));
+            address(new ThreeFAdapter(vaultFactory, data.adapterFactory, params.requestWhitelist));
         _whitelistAndTransferOwnership(data, params.adapterFactoryOwner);
         _stopBroadcast();
 

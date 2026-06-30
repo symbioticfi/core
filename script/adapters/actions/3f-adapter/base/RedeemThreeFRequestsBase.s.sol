@@ -12,10 +12,13 @@ contract RedeemThreeFRequestsBaseScript is ScriptBase {
         returns (bytes memory data, address target)
     {
         target = adapter;
-        data = abi.encodeCall(IThreeFAdapter.redeem, (requests));
-        sendTransaction(target, data);
+        uint256 length = requests.length;
+        for (uint256 i; i < length; ++i) {
+            data = abi.encodeCall(IThreeFAdapter.finalizeRequest, (requests[i]));
+            sendTransaction(target, data);
+        }
 
-        Logs.log(string.concat("Redeem 3F requests", "\n    adapter:", vm.toString(adapter)));
+        Logs.log(string.concat("Finalize 3F requests", "\n    adapter:", vm.toString(adapter)));
         Logs.logSimulationLink(target, data);
     }
 }
