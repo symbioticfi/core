@@ -42,35 +42,23 @@ git clone --recurse-submodules https://github.com/symbioticfi/core.git
 Open [`DeployVaultV2.s.sol`](./script/DeployVaultV2.s.sol), you will see config like this:
 
 ```solidity
-// Name of the ERC20 representing shares of the active stake in the vault
+// Name of the ERC20 representing shares in the vault
 string NAME = "SymVault";
-// Symbol of the ERC20 representing shares of the active stake in the vault
+// Symbol of the ERC20 representing shares in the vault
 string SYMBOL = "SV";
 // Address of the owner of the vault who can migrate the vault to new versions whitelisted by Symbiotic
 address OWNER = 0x0000000000000000000000000000000000000000;
-// Address of the collateral token
-address COLLATERAL = 0x0000000000000000000000000000000000000001;
-// Vault's burner to send slashed funds to (e.g., 0xdEaD or some unwrapper contract; not used in case of no slasher)
-address BURNER = 0x000000000000000000000000000000000000dEaD;
-// Duration of the vault epoch (the withdrawal delay for staker varies from EPOCH_DURATION to 2 * EPOCH_DURATION depending on when the withdrawal is requested)
-uint48 EPOCH_DURATION = 7 days;
-// Initial depositor to whitelist (VaultV2 requires one non-zero address even when the deposit whitelist is disabled)
-address DEPOSITOR_TO_WHITELIST = 0x0000000000000000000000000000000000000001;
-// Initial withdrawal buffer size
-uint128 WITHDRAWAL_BUFFER_SIZE = type(uint128).max;
-// Whether to deploy a slasher
-bool WITH_SLASHER = true;
-// Whether slash execution should make a call to the burner on slashing
-bool IS_BURNER_HOOK = BURNER != address(0);
-// Duration of a veto period (should be less than EPOCH_DURATION)
-uint48 VETO_DURATION = 1 days;
-// Delay before a resolver update becomes active (should be greater than EPOCH_DURATION)
-uint48 RESOLVER_SET_DELAY = 21 days;
+// Address of the vault asset token
+address ASSET = 0x0000000000000000000000000000000000000000;
 
 // Optional
 
-// Deposit limit (maximum amount of the active stake allowed in the vault)
+// Deposit limit (maximum amount of assets allowed in the vault)
 uint256 DEPOSIT_LIMIT = 0;
+// Whether deposits are restricted to whitelisted depositors
+bool DEPOSIT_WHITELIST = false;
+// Initial whitelisted depositor (used only when DEPOSIT_WHITELIST is true)
+address DEPOSITOR_TO_WHITELIST = 0x0000000000000000000000000000000000000000;
 ```
 
 Edit needed fields, and execute the script via:
