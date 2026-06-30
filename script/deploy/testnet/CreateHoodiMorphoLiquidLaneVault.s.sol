@@ -36,7 +36,7 @@ contract CreateHoodiMorphoLiquidLaneVault is Script {
     uint256 internal constant LIQUID_LANE_LIMIT = 5_000_000e6;
     uint256 internal constant TOKEN_LIMIT = 2_000_000e6;
     uint256 internal constant LIQUID_LANE_SHARE_LIMIT = MAX_SHARE * 75 / 100;
-    uint256 internal constant MFONE_DISCOUNT = 8_000;
+    uint256 internal constant MFONE_DISCOUNT = 8000;
     uint256 internal constant MGLOBAL_DISCOUNT = 15_000;
 
     struct DeploymentData {
@@ -70,7 +70,8 @@ contract CreateHoodiMorphoLiquidLaneVault is Script {
         IUniversalDelegator(data.delegator).addAdapter(data.morphoAdapter);
         IUniversalDelegator(data.delegator).addAdapter(data.liquidLaneAdapter);
         IUniversalDelegator(data.delegator).setLimits(data.morphoAdapter, type(uint256).max, MAX_SHARE);
-        IUniversalDelegator(data.delegator).setLimits(data.liquidLaneAdapter, LIQUID_LANE_LIMIT, LIQUID_LANE_SHARE_LIMIT);
+        IUniversalDelegator(data.delegator)
+            .setLimits(data.liquidLaneAdapter, LIQUID_LANE_LIMIT, LIQUID_LANE_SHARE_LIMIT);
 
         ILiquidLaneAdapter(data.liquidLaneAdapter).addTokenToRedeem(MFONE);
         ILiquidLaneAdapter(data.liquidLaneAdapter).addTokenToRedeem(MGLOBAL);
@@ -94,22 +95,26 @@ contract CreateHoodiMorphoLiquidLaneVault is Script {
 
     function _createMorphoAdapter(address vault) internal returns (address) {
         address[] memory converters = new address[](0);
-        return IMigratablesFactory(MORPHO_ADAPTER_FACTORY).create(
-            IMigratablesFactory(MORPHO_ADAPTER_FACTORY).lastVersion(),
-            OWNER,
-            abi.encode(
-                vault,
-                abi.encode(IMorphoVaultV2Adapter.InitParams({morphoVault: MORPHO_USDC_VAULT, converters: converters}))
-            )
-        );
+        return IMigratablesFactory(MORPHO_ADAPTER_FACTORY)
+            .create(
+                IMigratablesFactory(MORPHO_ADAPTER_FACTORY).lastVersion(),
+                OWNER,
+                abi.encode(
+                    vault,
+                    abi.encode(
+                        IMorphoVaultV2Adapter.InitParams({morphoVault: MORPHO_USDC_VAULT, converters: converters})
+                    )
+                )
+            );
     }
 
     function _createLiquidLaneAdapter(address vault) internal returns (address) {
-        return IMigratablesFactory(LIQUID_LANE_ADAPTER_FACTORY).create(
-            IMigratablesFactory(LIQUID_LANE_ADAPTER_FACTORY).lastVersion(),
-            OWNER,
-            abi.encode(vault, abi.encode(ILiquidLaneAdapter.InitParams({pauser: OWNER, unpauser: OWNER})))
-        );
+        return IMigratablesFactory(LIQUID_LANE_ADAPTER_FACTORY)
+            .create(
+                IMigratablesFactory(LIQUID_LANE_ADAPTER_FACTORY).lastVersion(),
+                OWNER,
+                abi.encode(vault, abi.encode(ILiquidLaneAdapter.InitParams({pauser: OWNER, unpauser: OWNER})))
+            );
     }
 
     function _vaultParams() internal pure returns (bytes memory) {
@@ -193,8 +198,12 @@ contract CreateHoodiMorphoLiquidLaneVault is Script {
         console2.log("Vault free assets:", IVaultV2(data.vault).freeAssets());
         console2.log("Delegator total assets:", IUniversalDelegator(data.delegator).totalAssets());
         console2.log("Morpho adapter assets:", IAdapter(data.morphoAdapter).totalAssets());
-        console2.log("LiquidLane adapter limit:", IUniversalDelegator(data.delegator).absoluteLimitOf(data.liquidLaneAdapter));
-        console2.log("LiquidLane relative limit:", IUniversalDelegator(data.delegator).shareLimitOf(data.liquidLaneAdapter));
+        console2.log(
+            "LiquidLane adapter limit:", IUniversalDelegator(data.delegator).absoluteLimitOf(data.liquidLaneAdapter)
+        );
+        console2.log(
+            "LiquidLane relative limit:", IUniversalDelegator(data.delegator).shareLimitOf(data.liquidLaneAdapter)
+        );
         console2.log("mF-ONE token limit:", ILiquidLaneAdapter(data.liquidLaneAdapter).limit(MFONE));
         console2.log("mGLOBAL token limit:", ILiquidLaneAdapter(data.liquidLaneAdapter).limit(MGLOBAL));
         console2.log("mF-ONE discount ppm:", ILiquidLaneAdapter(data.liquidLaneAdapter).minDiscount(MFONE));
