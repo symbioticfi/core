@@ -246,6 +246,9 @@ Create `.env` based on the template:
 
 ```
 ETH_RPC_URL=
+ETH_RPC_URL_HOODI=
+ETH_RPC_URL_HOLESKY=
+ETH_RPC_URL_SEPOLIA=
 ETHERSCAN_API_KEY=
 ```
 
