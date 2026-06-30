@@ -212,7 +212,7 @@ contract MainnetThreeFAdapterHarness is ThreeFAdapter {
     function pushRequest(address request, uint256 principalAssets) external {
         requests.push(request);
         requestIndex[request] = requests.length;
-        requestPrincipalAssets[request] = principalAssets;
+        pendingAssets[request] = principalAssets;
     }
 }
 

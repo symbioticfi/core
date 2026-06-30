@@ -66,7 +66,7 @@ contract ThreeFAdapterTest is Test {
         assertEq(IThreeFAdapter(adapter).totalAssets(), PRINCIPAL);
         assertEq(IThreeFAdapter(adapter).requests(0), request);
         assertEq(IThreeFAdapter(adapter).requestIndex(request), 1);
-        assertEq(IThreeFAdapter(adapter).requestPrincipalAssets(request), PRINCIPAL);
+        assertEq(IThreeFAdapter(adapter).pendingAssets(request), PRINCIPAL);
     }
 
     function test_TotalAssetsUsesPrincipalSharesBeforeRequestIsWithdrawable() public {
@@ -98,7 +98,7 @@ contract ThreeFAdapterTest is Test {
         IThreeFAdapter(adapter).finalizeRequest(request);
 
         assertEq(IThreeFAdapter(adapter).requestIndex(request), 0);
-        assertEq(IThreeFAdapter(adapter).requestPrincipalAssets(request), 0);
+        assertEq(IThreeFAdapter(adapter).pendingAssets(request), 0);
         assertEq(IERC20(assetToken).balanceOf(adapter), PRINCIPAL + YIELD);
         assertEq(IThreeFAdapter(adapter).totalAssets(), PRINCIPAL + YIELD);
     }
@@ -117,9 +117,9 @@ contract ThreeFAdapterTest is Test {
         IThreeFAdapter(adapter).finalizeRequest(firstRequest);
 
         assertEq(IThreeFAdapter(adapter).requestIndex(firstRequest), 0);
-        assertEq(IThreeFAdapter(adapter).requestPrincipalAssets(firstRequest), 0);
+        assertEq(IThreeFAdapter(adapter).pendingAssets(firstRequest), 0);
         assertEq(IThreeFAdapter(adapter).requestIndex(secondRequest), 1);
-        assertEq(IThreeFAdapter(adapter).requestPrincipalAssets(secondRequest), PRINCIPAL / 2);
+        assertEq(IThreeFAdapter(adapter).pendingAssets(secondRequest), PRINCIPAL / 2);
         assertEq(IThreeFAdapter(adapter).requests(0), secondRequest);
 
         IThreeFAdapter(adapter).finalizeRequest(secondRequest);
