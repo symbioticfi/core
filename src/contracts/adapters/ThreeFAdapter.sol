@@ -124,11 +124,12 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
         emit SetLimitsPerRequest(newMinYieldPerRequest, newMinAssetsPerRequest, newMaxAssetsPerRequest);
     }
 
-    /* PUBLIC FUNCTIONS (3F REQUEST) */
+    /* PUBLIC FUNCTIONS (3F) */
 
     /// @inheritdoc IThreeFRequestCallback
     function onRequestConsumed(Offer calldata offer, bytes calldata, uint256 principalAssets, uint256 yieldAssets)
         public
+        nonReentrant
     {
         if (requests.length >= MAX_REQUESTS) {
             revert TooManyRequests();
