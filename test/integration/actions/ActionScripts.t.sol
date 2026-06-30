@@ -17,15 +17,13 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 import {ScriptBase} from "../../../script/utils/ScriptBase.s.sol";
 import {ScriptBaseHarness} from "./ScriptBaseHarness.s.sol";
 
-import {OptInNetworkBaseScript} from "../../../script/actions/base/OptInNetworkBase.s.sol";
-import {OptInVaultBaseScript} from "../../../script/actions/base/OptInVaultBase.s.sol";
-import {RegisterOperatorBaseScript} from "../../../script/actions/base/RegisterOperatorBase.s.sol";
-import {SetHookBaseScript} from "../../../script/actions/base/SetHookBase.s.sol";
-import {SetMaxNetworkLimitBaseScript} from "../../../script/actions/base/SetMaxNetworkLimitBase.s.sol";
-import {SetNetworkLimitBaseScript} from "../../../script/actions/base/SetNetworkLimitBase.s.sol";
-import {SetOperatorNetworkSharesBaseScript} from "../../../script/actions/base/SetOperatorNetworkSharesBase.s.sol";
-import {SetResolverBaseScript} from "../../../script/actions/base/SetResolverBase.s.sol";
-import {VetoSlashBaseScript} from "../../../script/actions/base/VetoSlashBase.s.sol";
+import {OptInNetworkBaseScript} from "../../../script/actions/v1/base/OptInNetworkBase.s.sol";
+import {OptInVaultBaseScript} from "../../../script/actions/v1/base/OptInVaultBase.s.sol";
+import {RegisterOperatorBaseScript} from "../../../script/actions/v1/base/RegisterOperatorBase.s.sol";
+import {SetHookBaseScript} from "../../../script/actions/v1/base/SetHookBase.s.sol";
+import {SetMaxNetworkLimitBaseScript} from "../../../script/actions/v1/base/SetMaxNetworkLimitBase.s.sol";
+import {SetNetworkLimitBaseScript} from "../../../script/actions/v1/base/SetNetworkLimitBase.s.sol";
+import {SetOperatorNetworkSharesBaseScript} from "../../../script/actions/v1/base/SetOperatorNetworkSharesBase.s.sol";
 
 interface IVetoSlasherExtended is IVetoSlasher {
     function slashRequests(uint256 index)
@@ -97,19 +95,26 @@ contract SetOperatorNetworkSharesScriptHarness is SetOperatorNetworkSharesBaseSc
     }
 }
 
-contract SetResolverScriptHarness is SetResolverBaseScript, ScriptBaseHarness {
+contract SetResolverScriptHarness is ScriptBaseHarness {
     constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
 
-    function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
-        ScriptBaseHarness.sendTransaction(target, data);
+    function runBase(address vault, uint96 identifier, address resolver)
+        public
+        returns (bytes memory data, address target)
+    {
+        target = IVault(vault).slasher();
+        data = abi.encodeCall(IVetoSlasher.setResolver, (identifier, resolver, ""));
+        sendTransaction(target, data);
     }
 }
 
-contract VetoSlashScriptHarness is VetoSlashBaseScript, ScriptBaseHarness {
+contract VetoSlashScriptHarness is ScriptBaseHarness {
     constructor(address broadcaster_) ScriptBaseHarness(broadcaster_) {}
 
-    function sendTransaction(address target, bytes memory data) public override(ScriptBase, ScriptBaseHarness) {
-        ScriptBaseHarness.sendTransaction(target, data);
+    function runBase(address vault, uint256 slashIndex) public returns (bytes memory data, address target) {
+        target = IVault(vault).slasher();
+        data = abi.encodeCall(IVetoSlasher.vetoSlash, (slashIndex, ""));
+        sendTransaction(target, data);
     }
 }
 
@@ -136,7 +141,16 @@ contract ActionScriptsTest is SymbioticCoreInit {
     uint256 internal constant DEFAULT_DEPOSIT = 800 ether;
 
     function setUp() public virtual override {
-        vm.selectFork(vm.createFork(vm.rpcUrl("mainnet")));
+        string memory mainnetRpcUrl = vm.envOr("ETH_RPC_URL", string(""));
+        if (bytes(mainnetRpcUrl).length == 0) {
+            vm.skip(true, "ETH_RPC_URL is required for action script integration tests");
+        }
+        uint256 forkBlock = vm.envOr("MAINNET_FORK_BLOCK", uint256(0));
+        if (forkBlock == 0) {
+            vm.selectFork(vm.createFork(mainnetRpcUrl));
+        } else {
+            vm.selectFork(vm.createFork(mainnetRpcUrl, forkBlock));
+        }
         SYMBIOTIC_CORE_USE_EXISTING_DEPLOYMENT = true;
 
         super.setUp();
@@ -268,8 +282,8 @@ contract ActionScriptsTest is SymbioticCoreInit {
         _deal_Symbiotic(collateral, staker.addr, depositAmount, true);
         _stakerDeposit_SymbioticCore(staker.addr, vaultAddr, depositAmount);
 
-        vm.warp(block.timestamp + 10);
-        captureTimestamp = uint48(block.timestamp - 1);
+        vm.warp(vm.getBlockTimestamp() + 10);
+        captureTimestamp = uint48(vm.getBlockTimestamp() - 1);
     }
 
     function _setupStakeForFullRestake(
@@ -292,8 +306,8 @@ contract ActionScriptsTest is SymbioticCoreInit {
         _deal_Symbiotic(collateral, staker.addr, depositAmount, true);
         _stakerDeposit_SymbioticCore(staker.addr, vaultAddr, depositAmount);
 
-        vm.warp(block.timestamp + 10);
-        captureTimestamp = uint48(block.timestamp - 1);
+        vm.warp(vm.getBlockTimestamp() + 10);
+        captureTimestamp = uint48(vm.getBlockTimestamp() - 1);
     }
 
     function test_RegisterOperator() public {

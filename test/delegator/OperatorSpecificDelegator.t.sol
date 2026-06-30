@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
@@ -41,9 +41,9 @@ import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 contract OperatorSpecificDelegatorTest is Test {
-    using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
+    using Math for uint256;
 
     address owner;
     address alice;
@@ -239,6 +239,24 @@ contract OperatorSpecificDelegatorTest is Test {
                 )
             )
         );
+    }
+
+    function test_StakeAtReturnsZeroForWrongOperatorEvenWithHints() public {
+        (vault, delegator) = _getVaultAndDelegator(7 days);
+
+        bytes memory hints = abi.encode(
+            IOperatorSpecificDelegator.StakeHints({
+                baseHints: abi.encode(
+                    IBaseDelegator.StakeBaseHints({
+                        operatorVaultOptInHint: abi.encode(uint32(0)), operatorNetworkOptInHint: abi.encode(uint32(0))
+                    })
+                ),
+                activeStakeHint: abi.encode(uint32(0)),
+                networkLimitHint: abi.encode(uint32(0))
+            })
+        );
+
+        assertEq(delegator.stakeAt(alice.subnetwork(0), bob, uint48(vm.getBlockTimestamp()), hints), 0);
     }
 
     function test_CreateRevertZeroAddressRoleHolder1(uint48 epochDuration) public {

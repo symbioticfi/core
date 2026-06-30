@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
-abstract contract MigratableEntity is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, IMigratableEntity {
-    /**
-     * @inheritdoc IMigratableEntity
-     */
+/// @title MigratableEntity
+/// @notice Base contract for controlled upgradeable entity migration lifecycle.
+abstract contract MigratableEntity is Initializable, OwnableUpgradeable, ReentrancyGuardTransient, IMigratableEntity {
+    /// @inheritdoc IMigratableEntity
     address public immutable FACTORY;
 
     modifier notInitialized() {
@@ -27,23 +28,17 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, Reentra
         FACTORY = factory;
     }
 
-    /**
-     * @inheritdoc IMigratableEntity
-     */
+    /// @inheritdoc IMigratableEntity
     function version() external view returns (uint64) {
         return _getInitializedVersion();
     }
 
-    /**
-     * @inheritdoc IMigratableEntity
-     */
+    /// @inheritdoc IMigratableEntity
     function initialize(uint64 initialVersion, address owner_, bytes calldata data)
         external
         notInitialized
         reinitializer(initialVersion)
     {
-        __ReentrancyGuard_init();
-
         if (owner_ != address(0)) {
             __Ownable_init(owner_);
         }
@@ -51,9 +46,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, Reentra
         _initialize(initialVersion, owner_, data);
     }
 
-    /**
-     * @inheritdoc IMigratableEntity
-     */
+    /// @inheritdoc IMigratableEntity
     function migrate(uint64 newVersion, bytes calldata data) external nonReentrant {
         if (msg.sender != FACTORY) {
             revert NotFactory();
@@ -69,6 +62,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, Reentra
         _migrate(oldVersion, newVersion, data);
     }
 
+    /// @dev Initialization hook for migratable entity implementations.
     function _initialize(
         uint64,
         /* initialVersion */
@@ -79,6 +73,7 @@ abstract contract MigratableEntity is Initializable, OwnableUpgradeable, Reentra
         internal
         virtual {}
 
+    /// @dev Migration hook for versioned implementation-specific state changes.
     function _migrate(
         uint64,
         /* oldVersion */

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2026 Symbiotic
+pragma solidity ^0.8.25;
 
 import {MigratableEntityProxy} from "./MigratableEntityProxy.sol";
 import {Registry} from "./Registry.sol";
@@ -8,17 +9,15 @@ import {IMigratableEntityProxy} from "../../interfaces/common/IMigratableEntityP
 import {IMigratableEntity} from "../../interfaces/common/IMigratableEntity.sol";
 import {IMigratablesFactory} from "../../interfaces/common/IMigratablesFactory.sol";
 
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
+/// @title MigratablesFactory
+/// @notice Factory contract for versioned entity deployment and migration.
 contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
-    using Address for address;
 
-    /**
-     * @inheritdoc IMigratablesFactory
-     */
+    /// @inheritdoc IMigratablesFactory
     mapping(uint64 version => bool value) public blacklisted;
 
     EnumerableSet.AddressSet private _whitelistedImplementations;
@@ -32,23 +31,17 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
 
     constructor(address owner_) Ownable(owner_) {}
 
-    /**
-     * @inheritdoc IMigratablesFactory
-     */
+    /// @inheritdoc IMigratablesFactory
     function lastVersion() public view returns (uint64) {
         return uint64(_whitelistedImplementations.length());
     }
 
-    /**
-     * @inheritdoc IMigratablesFactory
-     */
+    /// @inheritdoc IMigratablesFactory
     function implementation(uint64 version) public view checkVersion(version) returns (address) {
         return _whitelistedImplementations.at(version - 1);
     }
 
-    /**
-     * @inheritdoc IMigratablesFactory
-     */
+    /// @inheritdoc IMigratablesFactory
     function whitelist(address implementation_) external onlyOwner {
         if (IMigratableEntity(implementation_).FACTORY() != address(this)) {
             revert InvalidImplementation();
@@ -60,9 +53,7 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
         emit Whitelist(implementation_);
     }
 
-    /**
-     * @inheritdoc IMigratablesFactory
-     */
+    /// @inheritdoc IMigratablesFactory
     function blacklist(uint64 version) external onlyOwner checkVersion(version) {
         if (blacklisted[version]) {
             revert AlreadyBlacklisted();
@@ -73,22 +64,18 @@ contract MigratablesFactory is Registry, Ownable, IMigratablesFactory {
         emit Blacklist(version);
     }
 
-    /**
-     * @inheritdoc IMigratablesFactory
-     */
-    function create(uint64 version, address owner_, bytes calldata data) external returns (address entity_) {
+    /// @inheritdoc IMigratablesFactory
+    function create(uint64 version, address owner_, bytes calldata data) public virtual returns (address entity_) {
         entity_ = address(
             new MigratableEntityProxy{salt: keccak256(abi.encode(totalEntities(), version, owner_, data))}(
-                implementation(version), abi.encodeCall(IMigratableEntity.initialize, (version, owner_, data))
+                implementation(version), ""
             )
         );
-
         _addEntity(entity_);
+        IMigratableEntity(entity_).initialize(version, owner_, data);
     }
 
-    /**
-     * @inheritdoc IMigratablesFactory
-     */
+    /// @inheritdoc IMigratablesFactory
     function migrate(address entity_, uint64 newVersion, bytes calldata data) external checkEntity(entity_) {
         if (msg.sender != Ownable(entity_).owner()) {
             revert NotOwner();

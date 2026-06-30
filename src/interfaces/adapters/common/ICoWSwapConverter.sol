@@ -1,0 +1,226 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import {IConverter} from "./IConverter.sol";
+
+/// @dev CoW Protocol "sell" order kind.
+bytes32 constant COW_SWAP_KIND_SELL = hex"f3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775";
+
+/// @dev CoW Protocol ERC20 balance marker.
+bytes32 constant COW_SWAP_BALANCE_ERC20 = hex"5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9";
+
+/// @dev CoW Protocol order typehash.
+bytes32 constant COW_SWAP_ORDER_TYPEHASH = hex"d5a25ba2e97094ad7d83dc28a6572da797d6b3e7fc6663bd93efb789fc17e489";
+
+/// @dev Encoded CoW Protocol order UID length.
+uint256 constant COW_SWAP_ORDER_UID_LENGTH = 56;
+
+/// @dev Delay before a prepared conversion can be executed permissionlessly.
+uint48 constant EXECUTION_DELAY = 1 days;
+
+/// @dev Maximum distance allowed between `block.timestamp` and CoW order `validTo`.
+uint48 constant MAX_VALID_TO_DURATION = 30 minutes;
+
+/**
+ * @title ICoWSwapSettlement
+ * @notice Interface for the CoW Protocol settlement contract.
+ */
+interface ICoWSwapSettlement {
+    /* FUNCTIONS */
+
+    /**
+     * @notice Sets or clears the pre-signature for an order UID.
+     * @param orderUid The order UID.
+     * @param signed The new pre-signature status.
+     */
+    function setPreSignature(bytes calldata orderUid, bool signed) external;
+
+    /**
+     * @notice Returns the settlement EIP-712 domain separator.
+     * @return separator Settlement domain separator.
+     */
+    function domainSeparator() external view returns (bytes32 separator);
+
+    /**
+     * @notice Returns the CoW Protocol vault relayer.
+     * @return relayer The vault relayer address.
+     */
+    function vaultRelayer() external view returns (address relayer);
+}
+
+/**
+ * @title ICoWSwapConverter
+ * @notice Interface for the CoW Protocol pre-signing converter.
+ */
+interface ICoWSwapConverter is IConverter {
+    /* ERRORS */
+
+    /**
+     * @notice Raised when the order UID is already reserved.
+     */
+    error AlreadyReservedOrder();
+
+    /**
+     * @notice Raised when a prepared conversion delay has not elapsed yet.
+     */
+    error ExecutionDelayNotElapsed();
+
+    /**
+     * @notice Raised when the order is already expired.
+     */
+    error ExpiredOrder();
+
+    /**
+     * @notice Raised when the buy amount is zero.
+     */
+    error InvalidBuyAmount();
+
+    /**
+     * @notice Raised when the caller is not authorized.
+     */
+    error InvalidCaller();
+
+    /**
+     * @notice Raised when the sell amount is zero or inconsistent with the converter input.
+     */
+    error InvalidSellAmount();
+
+    /**
+     * @notice Raised when the input token is invalid for the requested conversion.
+     */
+    error InvalidTokenIn();
+
+    /**
+     * @notice Raised when the order expiry is too far in the future.
+     */
+    error TooFarValidTo();
+
+    /* STRUCTS */
+
+    struct Data {
+        address sellToken;
+        address buyToken;
+        address receiver;
+        uint256 sellAmount;
+        uint256 buyAmount;
+        uint32 validTo;
+        bytes32 appData;
+        uint256 feeAmount;
+        bytes32 kind;
+        bool partiallyFillable;
+        bytes32 sellTokenBalance;
+        bytes32 buyTokenBalance;
+    }
+
+    /**
+     * @notice CoW Protocol order parameters provided through converter data.
+     * @param buyAmount The buy amount in `tokenOut`.
+     * @param validTo The order expiry timestamp.
+     * @param appData The CoW Protocol app data hash.
+     */
+    struct OrderParams {
+        uint256 buyAmount;
+        uint32 validTo;
+        bytes32 appData;
+    }
+
+    /* EVENTS */
+
+    /**
+     * @notice Emitted when a conversion request is prepared.
+     * @param tokenIn The sell token.
+     * @param amountIn Input token amount.
+     * @param tokenOut The buy token.
+     * @param data Converter-specific route data.
+     */
+    event PrepareConvert(address indexed tokenIn, uint256 amountIn, address indexed tokenOut, bytes data);
+
+    /**
+     * @notice Emitted when a pre-signed CoW Protocol order is created.
+     * @param orderUid The pre-signed order UID.
+     * @param tokenIn The sell token.
+     * @param amountIn Input token amount.
+     * @param tokenOut The buy token.
+     * @param params The CoW Protocol order parameters.
+     */
+    event Convert(
+        bytes orderUid, address indexed tokenIn, uint256 amountIn, address indexed tokenOut, OrderParams params
+    );
+
+    /**
+     * @notice Emitted when converter authorizations are replaced.
+     * @param converters The authorized converters.
+     */
+    event SetConverters(address[] converters);
+
+    /**
+     * @notice Emitted when a pre-signed CoW Protocol order is invalidated.
+     * @param orderUid The invalidated order UID.
+     */
+    event InvalidateConvert(bytes orderUid);
+
+    /**
+     * @notice Emitted when all prepared conversions for a sell token are invalidated.
+     * @param tokenIn The sell token whose prepared conversions were invalidated.
+     */
+    event InvalidateConverts(address indexed tokenIn);
+
+    /* FUNCTIONS */
+
+    /**
+     * @notice Returns the CoW Protocol settlement contract used for order signing.
+     * @return settlement The CoW Protocol settlement contract.
+     */
+    function COW_SWAP_SETTLEMENT() external view returns (address settlement);
+
+    /**
+     * @notice Returns the CoW Protocol vault relayer approved to pull sell tokens.
+     * @return relayer The CoW Protocol vault relayer.
+     */
+    function COW_SWAP_VAULT_RELAYER() external view returns (address relayer);
+
+    /**
+     * @notice Returns when a prepared conversion request can be executed.
+     * @param nonce Nonce bucket for the prepared conversion request.
+     * @param requestHash Hash of the prepared conversion request.
+     * @return timestamp Time when the request can be executed.
+     */
+    function executableAt(uint256 nonce, bytes32 requestHash) external view returns (uint48 timestamp);
+
+    /**
+     * @notice Returns an authorized converter by index.
+     * @param index The converter index.
+     * @return converter The authorized converter.
+     */
+    function converters(uint256 index) external view returns (address converter);
+
+    /**
+     * @notice Prepares a conversion request for delayed permissionless execution.
+     * @param tokenIn Input token address.
+     * @param amountIn Input token amount.
+     * @param tokenOut Output token address.
+     * @param data Converter-specific route data.
+     * @return requestHash Hash of the prepared conversion request.
+     */
+    function prepareConvert(address tokenIn, uint256 amountIn, address tokenOut, bytes calldata data)
+        external
+        returns (bytes32 requestHash);
+
+    /**
+     * @notice Replaces the converters that may create orders without the prepared-request delay.
+     * @param newConverters The authorized converters.
+     */
+    function setConverters(address[] calldata newConverters) external;
+
+    /**
+     * @notice Clears the pre-signature for a CoW Protocol order UID.
+     * @param orderUid The order UID to invalidate.
+     */
+    function invalidateConvert(bytes calldata orderUid) external;
+
+    /**
+     * @notice Invalidates all prepared conversion requests for a sell token.
+     * @param tokenIn The sell token whose prepared conversions should be invalidated.
+     */
+    function invalidateConverts(address tokenIn) external;
+}

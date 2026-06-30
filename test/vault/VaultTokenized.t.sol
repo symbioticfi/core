@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
@@ -39,10 +39,18 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
+contract VaultTokenizedUpdateHarness is VaultTokenized {
+    constructor() VaultTokenized(address(1), address(2), address(3)) {}
+
+    function exposeUpdate(address from, address to, uint256 value) external {
+        _update(from, to, value);
+    }
+}
+
 contract VaultTokenizedTest is Test {
-    using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
+    using Math for uint256;
 
     address owner;
     address alice;
@@ -347,6 +355,28 @@ contract VaultTokenizedTest is Test {
         assertEq(vault.decimals(), collateral.decimals());
         assertEq(vault.symbol(), "TEST");
         assertEq(vault.name(), "Test");
+    }
+
+    function test_DepositAndWithdrawMaintainTokenizedShareAccounting() public {
+        (vault,,) = _getVaultAndDelegatorAndSlasher(7 days);
+
+        (, uint256 mintedShares) = _deposit(alice, 100);
+        assertGt(mintedShares, 0);
+
+        (uint256 burnedShares,) = _withdraw(alice, 40);
+        assertGt(burnedShares, 0);
+    }
+
+    function test_InternalUpdateHandlesMintAndBurnPaths() public {
+        VaultTokenizedUpdateHarness harness = new VaultTokenizedUpdateHarness();
+
+        harness.exposeUpdate(address(0), address(this), 100);
+        assertEq(harness.totalSupply(), 100);
+        assertEq(harness.balanceOf(address(this)), 100);
+
+        harness.exposeUpdate(address(this), address(0), 40);
+        assertEq(harness.totalSupply(), 60);
+        assertEq(harness.balanceOf(address(this)), 60);
     }
 
     function test_CreateRevertInvalidEpochDuration() public {
@@ -2630,11 +2660,10 @@ contract VaultTokenizedTest is Test {
     //     bytes memory hint = vaultHints.activeSharesHint(address(vault), timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     vault.activeSharesAt(timestamp, new bytes(0));
+    //     vault.activeSharesAt(timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     vault.activeSharesAt(timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
-    //     assertApproxEqRel(gasStruct.gasSpent1, gasStruct.gasSpent2, 0.05e18);
     // }
 
     // function test_ActiveStakeHint(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {
@@ -2663,7 +2692,7 @@ contract VaultTokenizedTest is Test {
     //     bytes memory hint = vaultHints.activeStakeHint(address(vault), timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     vault.activeStakeAt(timestamp, new bytes(0));
+    //     vault.activeStakeAt(timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     vault.activeStakeAt(timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
@@ -2696,7 +2725,7 @@ contract VaultTokenizedTest is Test {
     //     bytes memory hint = vaultHints.activeSharesOfHint(address(vault), alice, timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     vault.activeSharesOfAt(alice, timestamp, new bytes(0));
+    //     vault.activeSharesOfAt(alice, timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     vault.activeSharesOfAt(alice, timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;

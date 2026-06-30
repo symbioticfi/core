@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
 import {MigratableEntity} from "../common/MigratableEntity.sol";
 import {VaultStorage} from "./VaultStorage.sol";
@@ -14,39 +15,33 @@ import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title Vault
+/// @notice Contract for epoch-based collateral deposits, withdrawals, and slashing callbacks.
 contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVault {
     using Checkpoints for Checkpoints.Trace256;
-    using Math for uint256;
-    using SafeCast for uint256;
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
     constructor(address delegatorFactory, address slasherFactory, address vaultFactory)
         VaultStorage(delegatorFactory, slasherFactory)
         MigratableEntity(vaultFactory)
     {}
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function isInitialized() external view returns (bool) {
         return isDelegatorInitialized && isSlasherInitialized;
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function totalStake() public view returns (uint256) {
         uint256 epoch = currentEpoch();
         return activeStake() + withdrawals[epoch] + withdrawals[epoch + 1];
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function activeBalanceOfAt(address account, uint48 timestamp, bytes calldata hints) public view returns (uint256) {
         ActiveBalanceOfHints memory activeBalanceOfHints;
         if (hints.length > 0) {
@@ -59,32 +54,24 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         );
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function activeBalanceOf(address account) public view returns (uint256) {
         return ERC4626Math.previewRedeem(activeSharesOf(account), activeStake(), activeShares());
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function withdrawalsOf(uint256 epoch, address account) public view returns (uint256) {
         return
             ERC4626Math.previewRedeem(withdrawalSharesOf[epoch][account], withdrawals[epoch], withdrawalShares[epoch]);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function slashableBalanceOf(address account) external view returns (uint256) {
         uint256 epoch = currentEpoch();
         return activeBalanceOf(account) + withdrawalsOf(epoch, account) + withdrawalsOf(epoch + 1, account);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function deposit(address onBehalfOf, uint256 amount)
         public
         virtual
@@ -123,9 +110,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit Deposit(msg.sender, onBehalfOf, depositedAmount, mintedShares);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function withdraw(address claimer, uint256 amount)
         external
         nonReentrant
@@ -148,9 +133,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         mintedShares = _withdraw(claimer, amount, burnedShares);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function redeem(address claimer, uint256 shares)
         external
         nonReentrant
@@ -173,9 +156,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         mintedShares = _withdraw(claimer, withdrawnAssets, shares);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function claim(address recipient, uint256 epoch) external nonReentrant returns (uint256 amount) {
         if (recipient == address(0)) {
             revert InvalidRecipient();
@@ -188,9 +169,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit Claim(msg.sender, recipient, epoch, amount);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function claimBatch(address recipient, uint256[] calldata epochs) external nonReentrant returns (uint256 amount) {
         if (recipient == address(0)) {
             revert InvalidRecipient();
@@ -210,9 +189,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit ClaimBatch(msg.sender, recipient, epochs, amount);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function onSlash(uint256 amount, uint48 captureTimestamp) external nonReentrant returns (uint256 slashedAmount) {
         if (msg.sender != slasher) {
             revert NotSlasher();
@@ -263,9 +240,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit OnSlash(amount, captureTimestamp, slashedAmount);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function setDepositWhitelist(bool status) external nonReentrant onlyRole(DEPOSIT_WHITELIST_SET_ROLE) {
         if (depositWhitelist == status) {
             revert AlreadySet();
@@ -276,9 +251,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetDepositWhitelist(status);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function setDepositorWhitelistStatus(address account, bool status)
         external
         nonReentrant
@@ -297,9 +270,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetDepositorWhitelistStatus(account, status);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function setIsDepositLimit(bool status) external nonReentrant onlyRole(IS_DEPOSIT_LIMIT_SET_ROLE) {
         if (isDepositLimit == status) {
             revert AlreadySet();
@@ -310,9 +281,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetIsDepositLimit(status);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function setDepositLimit(uint256 limit) external nonReentrant onlyRole(DEPOSIT_LIMIT_SET_ROLE) {
         if (depositLimit == limit) {
             revert AlreadySet();
@@ -365,6 +334,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit SetSlasher(slasher_);
     }
 
+    /// @dev Accounts a withdrawal into the next epoch and mints epoch withdrawal shares.
     function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
         internal
         virtual
@@ -387,6 +357,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         emit Withdraw(msg.sender, claimer, withdrawnAssets, burnedShares, mintedShares);
     }
 
+    /// @dev Marks a caller's epoch withdrawal as claimed and returns the claimable amount.
     function _claim(uint256 epoch) internal returns (uint256 amount) {
         if (epoch >= currentEpoch()) {
             revert InvalidEpoch();
@@ -405,6 +376,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         isWithdrawalsClaimed[epoch][msg.sender] = true;
     }
 
+    /// @dev Initializes vault storage from encoded vault parameters.
     function _initialize(uint64, address, bytes memory data) internal virtual override {
         (InitParams memory params) = abi.decode(data, (InitParams));
 
@@ -467,6 +439,7 @@ contract Vault is VaultStorage, MigratableEntity, AccessControlUpgradeable, IVau
         }
     }
 
+    /// @dev Migration hook for vault implementation upgrades.
     function _migrate(
         uint64,
         /* oldVersion */

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
 
@@ -8,13 +8,20 @@ import {BaseSlasherHints} from "../../../src/contracts/hints/SlasherHints.sol";
 import {VaultHints} from "../../../src/contracts/hints/VaultHints.sol";
 import {OptInServiceHints} from "../../../src/contracts/hints/OptInServiceHints.sol";
 import {Logs} from "../../utils/Logs.sol";
+import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
 contract DeployHintsBaseScript is Script {
     function run() public virtual {
         vm.startBroadcast();
         OptInServiceHints optInServiceHints = new OptInServiceHints();
         VaultHints vaultHints = new VaultHints();
-        BaseDelegatorHints baseDelegatorHints = new BaseDelegatorHints(address(optInServiceHints), address(vaultHints));
+        SymbioticCoreConstants.Core memory core = SymbioticCoreConstants.core();
+        BaseDelegatorHints baseDelegatorHints = new BaseDelegatorHints(
+            address(optInServiceHints),
+            address(vaultHints),
+            address(core.operatorVaultOptInService),
+            address(core.operatorNetworkOptInService)
+        );
         BaseSlasherHints baseSlasherHints = new BaseSlasherHints(address(baseDelegatorHints));
         vm.stopBroadcast();
 

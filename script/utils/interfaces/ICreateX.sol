@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
 /**
@@ -77,12 +77,10 @@ interface ICreateX {
         payable
         returns (address newContract);
 
-    function deployCreate2AndInit(
-        bytes memory initCode,
-        bytes memory data,
-        Values memory values,
-        address refundAddress
-    ) external payable returns (address newContract);
+    function deployCreate2AndInit(bytes memory initCode, bytes memory data, Values memory values, address refundAddress)
+        external
+        payable
+        returns (address newContract);
 
     function deployCreate2AndInit(bytes memory initCode, bytes memory data, Values memory values)
         external
@@ -124,12 +122,10 @@ interface ICreateX {
         payable
         returns (address newContract);
 
-    function deployCreate3AndInit(
-        bytes memory initCode,
-        bytes memory data,
-        Values memory values,
-        address refundAddress
-    ) external payable returns (address newContract);
+    function deployCreate3AndInit(bytes memory initCode, bytes memory data, Values memory values, address refundAddress)
+        external
+        payable
+        returns (address newContract);
 
     function deployCreate3AndInit(bytes memory initCode, bytes memory data, Values memory values)
         external

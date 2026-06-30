@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
 import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
@@ -15,46 +16,34 @@ import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuardUpgradeable, IBaseSlasher {
+/// @title BaseSlasher
+/// @notice Base contract for shared slashing flow, middleware checks, and burner hooks.
+abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard, IBaseSlasher {
     using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     uint256 public constant BURNER_GAS_LIMIT = 150_000;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     uint256 public constant BURNER_RESERVE = 20_000;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     address public immutable VAULT_FACTORY;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     address public vault;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     bool public isBurnerHook;
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     mapping(bytes32 subnetwork => mapping(address operator => uint48 value)) public latestSlashedCaptureTimestamp;
 
     mapping(bytes32 subnetwork => mapping(address operator => Checkpoints.Trace256 amount)) internal _cumulativeSlash;
@@ -72,9 +61,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     function cumulativeSlashAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
         public
         view
@@ -83,16 +70,12 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         return _cumulativeSlash[subnetwork][operator].upperLookupRecent(timestamp, hint);
     }
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     function cumulativeSlash(bytes32 subnetwork, address operator) public view returns (uint256) {
         return _cumulativeSlash[subnetwork][operator].latest();
     }
 
-    /**
-     * @inheritdoc IBaseSlasher
-     */
+    /// @inheritdoc IBaseSlasher
     function slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
         public
         view
@@ -101,6 +84,7 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         (amount,) = _slashableStake(subnetwork, operator, captureTimestamp, hints);
     }
 
+    /// @dev Computes stake still slashable at a capture timestamp after prior cumulative slashes.
     function _slashableStake(bytes32 subnetwork, address operator, uint48 captureTimestamp, bytes memory hints)
         internal
         view
@@ -130,12 +114,14 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             );
     }
 
+    /// @dev Reverts unless the caller is the configured middleware for the subnetwork's network.
     function _checkNetworkMiddleware(bytes32 subnetwork) internal view {
         if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(subnetwork.network()) != msg.sender) {
             revert NotNetworkMiddleware();
         }
     }
 
+    /// @dev Stores the latest slashed capture timestamp when the new timestamp is greater.
     function _updateLatestSlashedCaptureTimestamp(bytes32 subnetwork, address operator, uint48 captureTimestamp)
         internal
     {
@@ -144,10 +130,12 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         }
     }
 
+    /// @dev Adds a slash amount to the operator's cumulative slash checkpoint.
     function _updateCumulativeSlash(bytes32 subnetwork, address operator, uint256 amount) internal {
         _cumulativeSlash[subnetwork][operator].push(Time.timestamp(), cumulativeSlash(subnetwork, operator) + amount);
     }
 
+    /// @dev Notifies the vault delegator about a slash.
     function _delegatorOnSlash(
         bytes32 subnetwork,
         address operator,
@@ -165,10 +153,12 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
             );
     }
 
+    /// @dev Notifies the vault about a slash.
     function _vaultOnSlash(uint256 amount, uint48 captureTimestamp) internal {
         IVault(vault).onSlash(amount, captureTimestamp);
     }
 
+    /// @dev Notifies the burner hook about a slash when burner hooks are enabled.
     function _burnerOnSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp) internal {
         if (isBurnerHook) {
             address burner = IVault(vault).burner();
@@ -184,14 +174,13 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         }
     }
 
+    /// @dev Initializes the slasher with a vault and implementation-specific parameters.
     function _initialize(bytes calldata data) internal override {
         (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
             revert NotVault();
         }
-
-        __ReentrancyGuard_init();
 
         vault = vault_;
 
@@ -204,5 +193,6 @@ abstract contract BaseSlasher is Entity, StaticDelegateCallable, ReentrancyGuard
         isBurnerHook = baseParams.isBurnerHook;
     }
 
+    /// @dev Decodes implementation-specific slasher initialization data.
     function __initialize(address vault_, bytes memory data) internal virtual returns (BaseParams memory) {}
 }

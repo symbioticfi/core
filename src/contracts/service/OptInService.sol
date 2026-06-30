@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
 
@@ -12,17 +13,15 @@ import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title OptInService
+/// @notice Contract for signed opt-in and opt-out consent tracking between entities.
 contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
     using Checkpoints for Checkpoints.Trace208;
 
-    /**
-     * @inheritdoc IOptInService
-     */
+    /// @inheritdoc IOptInService
     address public immutable WHO_REGISTRY;
 
-    /**
-     * @inheritdoc IOptInService
-     */
+    /// @inheritdoc IOptInService
     address public immutable WHERE_REGISTRY;
 
     bytes32 private constant OPT_IN_TYPEHASH =
@@ -31,9 +30,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
     bytes32 private constant OPT_OUT_TYPEHASH =
         keccak256("OptOut(address who,address where,uint256 nonce,uint48 deadline)");
 
-    /**
-     * @inheritdoc IOptInService
-     */
+    /// @inheritdoc IOptInService
     mapping(address who => mapping(address where => uint256 nonce)) public nonces;
 
     mapping(address who => mapping(address where => Checkpoints.Trace208 value)) internal _isOptedIn;
@@ -50,9 +47,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         WHERE_REGISTRY = whereRegistry;
     }
 
-    /**
-     * @inheritdoc IOptInService
-     */
+    /// @inheritdoc IOptInService
     function isOptedInAt(address who, address where, uint48 timestamp, bytes calldata hint)
         external
         view
@@ -61,23 +56,17 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         return _isOptedIn[who][where].upperLookupRecent(timestamp, hint) == 1;
     }
 
-    /**
-     * @inheritdoc IOptInService
-     */
+    /// @inheritdoc IOptInService
     function isOptedIn(address who, address where) public view returns (bool) {
         return _isOptedIn[who][where].latest() == 1;
     }
 
-    /**
-     * @inheritdoc IOptInService
-     */
+    /// @inheritdoc IOptInService
     function optIn(address where) external {
         _optIn(msg.sender, where);
     }
 
-    /**
-     * @inheritdoc IOptInService
-     */
+    /// @inheritdoc IOptInService
     function optIn(address who, address where, uint48 deadline, bytes calldata signature)
         external
         checkDeadline(deadline)
@@ -89,16 +78,12 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         _optIn(who, where);
     }
 
-    /**
-     * @inheritdoc IOptInService
-     */
+    /// @inheritdoc IOptInService
     function optOut(address where) external {
         _optOut(msg.sender, where);
     }
 
-    /**
-     * @inheritdoc IOptInService
-     */
+    /// @inheritdoc IOptInService
     function optOut(address who, address where, uint48 deadline, bytes calldata signature)
         external
         checkDeadline(deadline)
@@ -110,13 +95,12 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         _optOut(who, where);
     }
 
-    /**
-     * @inheritdoc IOptInService
-     */
+    /// @inheritdoc IOptInService
     function increaseNonce(address where) external {
         _increaseNonce(msg.sender, where);
     }
 
+    /// @dev Records an opt-in checkpoint and advances the pair nonce.
     function _optIn(address who, address where) internal {
         if (!IRegistry(WHO_REGISTRY).isEntity(who)) {
             revert NotWho();
@@ -137,6 +121,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         emit OptIn(who, where);
     }
 
+    /// @dev Records an opt-out checkpoint and advances the pair nonce.
     function _optOut(address who, address where) internal {
         (, uint48 latestTimestamp, uint208 latestValue) = _isOptedIn[who][where].latestCheckpoint();
 
@@ -155,6 +140,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         emit OptOut(who, where);
     }
 
+    /// @dev Builds the EIP-712 digest for an opt-in or opt-out signature.
     function _hash(bool ifOptIn, address who, address where, uint48 deadline) internal view returns (bytes32) {
         return _hashTypedDataV4(
             keccak256(
@@ -163,6 +149,7 @@ contract OptInService is StaticDelegateCallable, EIP712, IOptInService {
         );
     }
 
+    /// @dev Increments the nonce for a who/where pair.
     function _increaseNonce(address who, address where) internal {
         unchecked {
             ++nonces[who][where];

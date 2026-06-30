@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
 import {Entity} from "../common/Entity.sol";
 import {StaticDelegateCallable} from "../common/StaticDelegateCallable.sol";
@@ -13,66 +14,48 @@ import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+/// @title BaseDelegator
+/// @notice Base contract for shared delegator allocation and slashing logic.
 abstract contract BaseDelegator is
     Entity,
     StaticDelegateCallable,
     AccessControlUpgradeable,
-    ReentrancyGuardUpgradeable,
+    ReentrancyGuard,
     IBaseDelegator
 {
     using Subnetwork for bytes32;
     using Subnetwork for address;
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     uint256 public constant HOOK_GAS_LIMIT = 250_000;
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     uint256 public constant HOOK_RESERVE = 20_000;
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     bytes32 public constant HOOK_SET_ROLE = keccak256("HOOK_SET_ROLE");
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     address public immutable NETWORK_REGISTRY;
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     address public immutable VAULT_FACTORY;
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     address public vault;
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     address public hook;
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     mapping(bytes32 subnetwork => uint256 value) public maxNetworkLimit;
 
     constructor(
@@ -89,16 +72,12 @@ abstract contract BaseDelegator is
         OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
     }
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     function VERSION() external pure returns (uint64) {
         return 1;
     }
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     function stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
         public
         view
@@ -123,9 +102,7 @@ abstract contract BaseDelegator is
         return stake_;
     }
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     function stake(bytes32 subnetwork, address operator) external view returns (uint256) {
         if (
             !IOptInService(OPERATOR_VAULT_OPT_IN_SERVICE).isOptedIn(operator, vault)
@@ -137,9 +114,7 @@ abstract contract BaseDelegator is
         return _stake(subnetwork, operator);
     }
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     function setMaxNetworkLimit(uint96 identifier, uint256 amount) external nonReentrant {
         if (!IRegistry(NETWORK_REGISTRY).isEntity(msg.sender)) {
             revert NotNetwork();
@@ -157,9 +132,7 @@ abstract contract BaseDelegator is
         emit SetMaxNetworkLimit(subnetwork, amount);
     }
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     function setHook(address hook_) external nonReentrant onlyRole(HOOK_SET_ROLE) {
         if (hook == hook_) {
             revert AlreadySet();
@@ -170,9 +143,7 @@ abstract contract BaseDelegator is
         emit SetHook(hook_);
     }
 
-    /**
-     * @inheritdoc IBaseDelegator
-     */
+    /// @inheritdoc IBaseDelegator
     function onSlash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes memory data)
         external
         nonReentrant
@@ -198,14 +169,13 @@ abstract contract BaseDelegator is
         emit OnSlash(subnetwork, operator, amount, captureTimestamp);
     }
 
+    /// @dev Initializes the delegator with a vault and implementation-specific parameters.
     function _initialize(bytes calldata data) internal override {
         (address vault_, bytes memory data_) = abi.decode(data, (address, bytes));
 
         if (!IRegistry(VAULT_FACTORY).isEntity(vault_)) {
             revert NotVault();
         }
-
-        __ReentrancyGuard_init();
 
         vault = vault_;
 
@@ -221,6 +191,7 @@ abstract contract BaseDelegator is
         }
     }
 
+    /// @dev Returns slashable stake for an operator in a subnetwork at a past timestamp.
     function _stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
         internal
         view
@@ -228,9 +199,12 @@ abstract contract BaseDelegator is
         returns (uint256, bytes memory)
     {}
 
+    /// @dev Returns current slashable stake for an operator in a subnetwork.
     function _stake(bytes32 subnetwork, address operator) internal view virtual returns (uint256) {}
 
+    /// @dev Applies a maximum network limit update to delegator-specific state.
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal virtual {}
 
+    /// @dev Decodes implementation-specific initialization data.
     function __initialize(address vault_, bytes memory data) internal virtual returns (BaseParams memory) {}
 }

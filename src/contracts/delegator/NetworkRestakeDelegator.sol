@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
 import {BaseDelegator} from "./BaseDelegator.sol";
 
@@ -12,18 +13,16 @@ import {IVault} from "../../interfaces/vault/IVault.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title NetworkRestakeDelegator
+/// @notice Contract for network restake delegation with operator share weighting.
 contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     bytes32 public constant NETWORK_LIMIT_SET_ROLE = keccak256("NETWORK_LIMIT_SET_ROLE");
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     bytes32 public constant OPERATOR_NETWORK_SHARES_SET_ROLE = keccak256("OPERATOR_NETWORK_SHARES_SET_ROLE");
 
     mapping(bytes32 subnetwork => Checkpoints.Trace256 value) internal _networkLimit;
@@ -51,23 +50,17 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         )
     {}
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function networkLimitAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) public view returns (uint256) {
         return _networkLimit[subnetwork].upperLookupRecent(timestamp, hint);
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function networkLimit(bytes32 subnetwork) public view returns (uint256) {
         return _networkLimit[subnetwork].latest();
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function totalOperatorNetworkSharesAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint)
         public
         view
@@ -76,16 +69,12 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         return _totalOperatorNetworkShares[subnetwork].upperLookupRecent(timestamp, hint);
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function totalOperatorNetworkShares(bytes32 subnetwork) public view returns (uint256) {
         return _totalOperatorNetworkShares[subnetwork].latest();
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function operatorNetworkSharesAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hint)
         public
         view
@@ -94,16 +83,12 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         return _operatorNetworkShares[subnetwork][operator].upperLookupRecent(timestamp, hint);
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function operatorNetworkShares(bytes32 subnetwork, address operator) public view returns (uint256) {
         return _operatorNetworkShares[subnetwork][operator].latest();
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function setNetworkLimit(bytes32 subnetwork, uint256 amount) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
         if (amount > maxNetworkLimit[subnetwork]) {
             revert ExceedsMaxNetworkLimit();
@@ -118,9 +103,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         emit SetNetworkLimit(subnetwork, amount);
     }
 
-    /**
-     * @inheritdoc INetworkRestakeDelegator
-     */
+    /// @inheritdoc INetworkRestakeDelegator
     function setOperatorNetworkShares(bytes32 subnetwork, address operator, uint256 shares)
         external
         onlyRole(OPERATOR_NETWORK_SHARES_SET_ROLE)
@@ -130,13 +113,15 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             revert AlreadySet();
         }
 
-        _totalOperatorNetworkShares[subnetwork]
-        .push(Time.timestamp(), totalOperatorNetworkShares(subnetwork) - operatorNetworkShares_ + shares);
+        _totalOperatorNetworkShares[subnetwork].push(
+            Time.timestamp(), totalOperatorNetworkShares(subnetwork) - operatorNetworkShares_ + shares
+        );
         _operatorNetworkShares[subnetwork][operator].push(Time.timestamp(), shares);
 
         emit SetOperatorNetworkShares(subnetwork, operator, shares);
     }
 
+    /// @dev Returns the operator's proportional stake under network shares at a past timestamp.
     function _stakeAt(bytes32 subnetwork, address operator, uint48 timestamp, bytes memory hints)
         internal
         view
@@ -165,6 +150,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
             );
     }
 
+    /// @dev Returns the operator's current proportional stake under network shares.
     function _stake(bytes32 subnetwork, address operator) internal view override returns (uint256) {
         uint256 totalOperatorNetworkShares_ = totalOperatorNetworkShares(subnetwork);
         return totalOperatorNetworkShares_ == 0
@@ -173,6 +159,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
                 .mulDiv(Math.min(IVault(vault).activeStake(), networkLimit(subnetwork)), totalOperatorNetworkShares_);
     }
 
+    /// @dev Caps an existing network limit when the max network limit is reduced below it.
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal override {
         (bool exists,, uint256 latestValue) = _networkLimit[subnetwork].latestCheckpoint();
         if (exists && latestValue > amount) {
@@ -180,6 +167,7 @@ contract NetworkRestakeDelegator is BaseDelegator, INetworkRestakeDelegator {
         }
     }
 
+    /// @dev Decodes network-restake initialization data and grants role holders.
     function __initialize(address, bytes memory data) internal override returns (IBaseDelegator.BaseParams memory) {
         InitParams memory params = abi.decode(data, (InitParams));
 

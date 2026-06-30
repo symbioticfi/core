@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
@@ -29,6 +29,8 @@ contract OperatorOptInServiceTest is Test {
         owner = address(this);
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
         (bob, bobPrivateKey) = makeAddrAndKey("bob");
+        vm.etch(alice, "");
+        vm.etch(bob, "");
 
         operatorRegistry = new OperatorRegistry();
         networkRegistry = new NetworkRegistry();
@@ -199,17 +201,6 @@ contract OperatorOptInServiceTest is Test {
         vm.expectRevert(IOptInService.NotOptedIn.selector);
         service.optOut(where);
         vm.stopPrank();
-    }
-
-    struct GasStruct {
-        uint256 gasSpent1;
-        uint256 gasSpent2;
-    }
-
-    struct HintStruct {
-        uint256 num;
-        bool back;
-        uint256 secondsAgo;
     }
 
     // function test_OptInWithHint(uint48 epochDuration, uint256 num, HintStruct memory hintStruct) public {

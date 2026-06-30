@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
 import {BaseSlasher} from "./BaseSlasher.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 import {Subnetwork} from "../libraries/Subnetwork.sol";
 
-import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 import {IVetoSlasher} from "../../interfaces/slasher/IVetoSlasher.sol";
@@ -15,30 +15,24 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title VetoSlasher
+/// @notice Contract for resolver-vetoed slash request execution.
 contract VetoSlasher is BaseSlasher, IVetoSlasher {
-    using Math for uint256;
-    using SafeCast for uint256;
     using Checkpoints for Checkpoints.Trace208;
     using Subnetwork for address;
+    using SafeCast for uint256;
+    using Math for uint256;
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
+    /// @inheritdoc IVetoSlasher
     address public immutable NETWORK_REGISTRY;
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
+    /// @inheritdoc IVetoSlasher
     SlashRequest[] public slashRequests;
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
+    /// @inheritdoc IVetoSlasher
     uint48 public vetoDuration;
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
+    /// @inheritdoc IVetoSlasher
     uint256 public resolverSetEpochsDelay;
 
     mapping(bytes32 subnetwork => Checkpoints.Trace208 value) internal _resolver;
@@ -53,30 +47,22 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         NETWORK_REGISTRY = networkRegistry;
     }
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
+    /// @inheritdoc IVetoSlasher
     function slashRequestsLength() external view returns (uint256) {
         return slashRequests.length;
     }
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
+    /// @inheritdoc IVetoSlasher
     function resolverAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) public view returns (address) {
         return address(uint160(_resolver[subnetwork].upperLookupRecent(timestamp, hint)));
     }
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
+    /// @inheritdoc IVetoSlasher
     function resolver(bytes32 subnetwork, bytes memory hint) public view returns (address) {
         return resolverAt(subnetwork, Time.timestamp(), hint);
     }
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
+    /// @inheritdoc IVetoSlasher
     function requestSlash(
         bytes32 subnetwork,
         address operator,
@@ -120,9 +106,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         emit RequestSlash(slashIndex, subnetwork, operator, amount, captureTimestamp, vetoDeadline);
     }
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
+    /// @inheritdoc IVetoSlasher
     function executeSlash(uint256 slashIndex, bytes calldata hints)
         external
         nonReentrant
@@ -189,9 +173,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         emit ExecuteSlash(slashIndex, slashedAmount);
     }
 
-    /**
-     * @inheritdoc IVetoSlasher
-     */
+    /// @inheritdoc IVetoSlasher
     function vetoSlash(uint256 slashIndex, bytes calldata hints) external nonReentrant {
         VetoSlashHints memory vetoSlashHints;
         if (hints.length > 0) {
@@ -231,6 +213,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         emit VetoSlash(slashIndex, msg.sender);
     }
 
+    /// @inheritdoc IVetoSlasher
     function setResolver(uint96 identifier, address resolver_, bytes calldata hints) external nonReentrant {
         SetResolverHints memory setResolverHints;
         if (hints.length > 0) {
@@ -252,8 +235,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
             }
 
             if (resolver_ != address(uint160(_resolver[subnetwork].latest()))) {
-                _resolver[subnetwork]
-                .push(
+                _resolver[subnetwork].push(
                     (IVault(vault_).currentEpochStart() + resolverSetEpochsDelay * IVault(vault_).epochDuration())
                     .toUint48(),
                     uint160(resolver_)
@@ -270,6 +252,7 @@ contract VetoSlasher is BaseSlasher, IVetoSlasher {
         emit SetResolver(subnetwork, resolver_);
     }
 
+    /// @dev Decodes veto slasher initialization data and validates veto timing.
     function __initialize(address vault_, bytes memory data) internal override returns (BaseParams memory) {
         (InitParams memory params) = abi.decode(data, (InitParams));
 

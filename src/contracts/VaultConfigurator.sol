@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
-import {BaseSlasher} from "./slasher/BaseSlasher.sol";
 import {DelegatorFactory} from "./DelegatorFactory.sol";
 import {SlasherFactory} from "./SlasherFactory.sol";
 import {VaultFactory} from "./VaultFactory.sol";
@@ -9,20 +9,16 @@ import {Vault} from "./vault/Vault.sol";
 
 import {IVaultConfigurator} from "../interfaces/IVaultConfigurator.sol";
 
+/// @title VaultConfigurator
+/// @notice Contract for creating and wiring vault, delegator, and optional slasher instances.
 contract VaultConfigurator is IVaultConfigurator {
-    /**
-     * @inheritdoc IVaultConfigurator
-     */
+    /// @inheritdoc IVaultConfigurator
     address public immutable VAULT_FACTORY;
 
-    /**
-     * @inheritdoc IVaultConfigurator
-     */
+    /// @inheritdoc IVaultConfigurator
     address public immutable DELEGATOR_FACTORY;
 
-    /**
-     * @inheritdoc IVaultConfigurator
-     */
+    /// @inheritdoc IVaultConfigurator
     address public immutable SLASHER_FACTORY;
 
     constructor(address vaultFactory, address delegatorFactory, address slasherFactory) {
@@ -31,9 +27,7 @@ contract VaultConfigurator is IVaultConfigurator {
         SLASHER_FACTORY = slasherFactory;
     }
 
-    /**
-     * @inheritdoc IVaultConfigurator
-     */
+    /// @inheritdoc IVaultConfigurator
     function create(InitParams memory params) public returns (address vault, address delegator, address slasher) {
         vault = VaultFactory(VAULT_FACTORY).create(params.version, params.owner, params.vaultParams);
 

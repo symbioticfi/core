@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
@@ -1254,17 +1254,6 @@ contract FullRestakeDelegatorTest is Test {
 
         vm.expectRevert(IBaseDelegator.AlreadySet.selector);
         _setHook(alice, hook);
-    }
-
-    struct GasStruct {
-        uint256 gasSpent1;
-        uint256 gasSpent2;
-    }
-
-    struct HintStruct {
-        uint256 num;
-        bool back;
-        uint256 secondsAgo;
     }
 
     // function test_NetworkLimitHint(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {

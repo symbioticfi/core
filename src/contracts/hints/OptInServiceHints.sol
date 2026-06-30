@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {Hints} from "./Hints.sol";
 
 import {Checkpoints} from "../libraries/Checkpoints.sol";
 
+/// @title OptInServiceHints
+/// @notice Contract for opt-in service checkpoint hint construction.
 contract OptInServiceHints is Hints {
     using Checkpoints for Checkpoints.Trace208;
 

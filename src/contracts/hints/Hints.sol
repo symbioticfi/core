@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {IStaticDelegateCallable} from "../../interfaces/common/IStaticDelegateCallable.sol";
 
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-
+/// @title Hints
+/// @notice Base contract for self static-delegate hint computation.
 abstract contract Hints {
-    using Address for address;
-
     address private immutable _SELF;
 
     constructor() {
@@ -23,6 +21,7 @@ abstract contract Hints {
         _;
     }
 
+    /// @dev Performs a static self-delegate-style call through the target hint reader.
     function _selfStaticDelegateCall(address target, bytes memory dataInternal) internal view returns (bytes memory) {
         (, bytes memory returnDataInternal) =
             target.staticcall(abi.encodeCall(IStaticDelegateCallable.staticDelegateCall, (address(this), dataInternal)));

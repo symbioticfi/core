@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {Hints} from "./Hints.sol";
 import {OptInServiceHints} from "./OptInServiceHints.sol";
@@ -14,6 +14,8 @@ import {INetworkRestakeDelegator} from "../../interfaces/delegator/INetworkResta
 import {IOperatorNetworkSpecificDelegator} from "../../interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {IOperatorSpecificDelegator} from "../../interfaces/delegator/IOperatorSpecificDelegator.sol";
 
+/// @title BaseDelegatorHints
+/// @notice Base contract for reusable delegator checkpoint hint construction.
 contract BaseDelegatorHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
     using Subnetwork for bytes32;
@@ -24,17 +26,28 @@ contract BaseDelegatorHints is Hints {
     address public immutable OPERATOR_SPECIFIC_DELEGATOR_HINTS;
     address public immutable OPERATOR_NETWORK_SPECIFIC_DELEGATOR_HINTS;
 
+    address public immutable OPERATOR_VAULT_OPT_IN_SERVICE;
+    address public immutable OPERATOR_NETWORK_OPT_IN_SERVICE;
+
     address public vault;
     address public hook;
     mapping(bytes32 subnetwork => uint256 value) public maxNetworkLimit;
 
-    constructor(address optInServiceHints, address vaultHints_) {
+    constructor(
+        address optInServiceHints,
+        address vaultHints_,
+        address operatorVaultOptInService,
+        address operatorNetworkOptInService
+    ) {
         OPT_IN_SERVICE_HINTS = optInServiceHints;
         NETWORK_RESTAKE_DELEGATOR_HINTS = address(new NetworkRestakeDelegatorHints(address(this), vaultHints_));
         FULL_RESTAKE_DELEGATOR_HINTS = address(new FullRestakeDelegatorHints(address(this), vaultHints_));
         OPERATOR_SPECIFIC_DELEGATOR_HINTS = address(new OperatorSpecificDelegatorHints(address(this), vaultHints_));
         OPERATOR_NETWORK_SPECIFIC_DELEGATOR_HINTS =
             address(new OperatorNetworkSpecificDelegatorHints(address(this), vaultHints_));
+
+        OPERATOR_VAULT_OPT_IN_SERVICE = operatorVaultOptInService;
+        OPERATOR_NETWORK_OPT_IN_SERVICE = operatorNetworkOptInService;
     }
 
     function stakeHints(address delegator, bytes32 subnetwork, address operator, uint48 timestamp)
@@ -63,16 +76,9 @@ contract BaseDelegatorHints is Hints {
         returns (bytes memory baseHints)
     {
         bytes memory operatorVaultOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS)
-            .optInHint(
-                IBaseDelegator(delegator).OPERATOR_VAULT_OPT_IN_SERVICE(),
-                operator,
-                IBaseDelegator(delegator).vault(),
-                timestamp
-            );
+            .optInHint(OPERATOR_VAULT_OPT_IN_SERVICE, operator, IBaseDelegator(delegator).vault(), timestamp);
         bytes memory operatorNetworkOptInHint = OptInServiceHints(OPT_IN_SERVICE_HINTS)
-            .optInHint(
-                IBaseDelegator(delegator).OPERATOR_NETWORK_OPT_IN_SERVICE(), operator, subnetwork.network(), timestamp
-            );
+            .optInHint(OPERATOR_NETWORK_OPT_IN_SERVICE, operator, subnetwork.network(), timestamp);
 
         if (operatorVaultOptInHint.length != 0 || operatorNetworkOptInHint.length != 0) {
             baseHints = abi.encode(
@@ -84,6 +90,8 @@ contract BaseDelegatorHints is Hints {
     }
 }
 
+/// @title NetworkRestakeDelegatorHints
+/// @notice Contract for network restake delegator hint construction.
 contract NetworkRestakeDelegatorHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
 
@@ -221,6 +229,8 @@ contract NetworkRestakeDelegatorHints is Hints {
     }
 }
 
+/// @title FullRestakeDelegatorHints
+/// @notice Contract for full restake delegator hint construction.
 contract FullRestakeDelegatorHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
 
@@ -325,6 +335,8 @@ contract FullRestakeDelegatorHints is Hints {
     }
 }
 
+/// @title OperatorSpecificDelegatorHints
+/// @notice Contract for operator-specific delegator hint construction.
 contract OperatorSpecificDelegatorHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
 
@@ -360,9 +372,7 @@ contract OperatorSpecificDelegatorHints is Hints {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
-                abi.encodeWithSelector(
-                    OperatorSpecificDelegatorHints.networkLimitHintInternal.selector, subnetwork, timestamp
-                )
+                abi.encodeCall(OperatorSpecificDelegatorHints.networkLimitHintInternal, (subnetwork, timestamp))
             ),
             (bool, uint32)
         );
@@ -395,6 +405,8 @@ contract OperatorSpecificDelegatorHints is Hints {
     }
 }
 
+/// @title OperatorNetworkSpecificDelegatorHints
+/// @notice Contract for operator-network-specific delegator hint construction.
 contract OperatorNetworkSpecificDelegatorHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
 
@@ -431,8 +443,8 @@ contract OperatorNetworkSpecificDelegatorHints is Hints {
         (bool exists, uint32 hint_) = abi.decode(
             _selfStaticDelegateCall(
                 delegator,
-                abi.encodeWithSelector(
-                    OperatorNetworkSpecificDelegatorHints.maxNetworkLimitHintInternal.selector, subnetwork, timestamp
+                abi.encodeCall(
+                    OperatorNetworkSpecificDelegatorHints.maxNetworkLimitHintInternal, (subnetwork, timestamp)
                 )
             ),
             (bool, uint32)

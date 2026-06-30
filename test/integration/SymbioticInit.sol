@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {SymbioticUtils} from "./SymbioticUtils.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20 as IERC20BalanceOf} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import {Test} from "forge-std/Test.sol";
@@ -48,7 +49,7 @@ contract SymbioticInit is SymbioticUtils, Test {
         }
 
         address to = address(this);
-        (bool success, bytes memory balData) = token.staticcall(abi.encodeWithSelector(0x70a08231, to));
+        (bool success, bytes memory balData) = token.staticcall(abi.encodeCall(IERC20BalanceOf.balanceOf, (to)));
         if (!success) {
             return false;
         }

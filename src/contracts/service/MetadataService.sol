@@ -1,31 +1,28 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
 import {IMetadataService} from "../../interfaces/service/IMetadataService.sol";
 import {IRegistry} from "../../interfaces/common/IRegistry.sol";
 
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
+/// @title MetadataService
+/// @notice Contract for storing metadata URLs for registered entities.
 contract MetadataService is IMetadataService {
     using Strings for string;
 
-    /**
-     * @inheritdoc IMetadataService
-     */
+    /// @inheritdoc IMetadataService
     address public immutable REGISTRY;
 
-    /**
-     * @inheritdoc IMetadataService
-     */
+    /// @inheritdoc IMetadataService
     mapping(address entity => string value) public metadataURL;
 
     constructor(address registry) {
         REGISTRY = registry;
     }
 
-    /**
-     * @inheritdoc IMetadataService
-     */
+    /// @inheritdoc IMetadataService
     function setMetadataURL(string calldata metadataURL_) external {
         if (!IRegistry(REGISTRY).isEntity(msg.sender)) {
             revert NotEntity();

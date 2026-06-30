@@ -8,9 +8,9 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Subnetwork} from "../src/contracts/libraries/Subnetwork.sol";
 
 contract POCTest is POCBaseTest {
-    using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
+    using Math for uint256;
 
     function setUp() public override {
         // There are 4 initially deployed Vaults:

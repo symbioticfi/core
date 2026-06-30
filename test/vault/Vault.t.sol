@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
@@ -38,10 +38,18 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
+contract VaultMigrateHarness is Vault {
+    constructor() Vault(address(1), address(2), address(3)) {}
+
+    function exposeMigrate(bytes calldata data) external {
+        _migrate(1, 2, data);
+    }
+}
+
 contract VaultTest is Test {
-    using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
+    using Math for uint256;
 
     address owner;
     address alice;
@@ -297,6 +305,27 @@ contract VaultTest is Test {
         assertEq(vault.currentEpochStart(), blockTimestamp - (vault.epochDuration() - 1));
         assertEq(vault.previousEpochStart(), blockTimestamp - (vault.epochDuration() - 1) - vault.epochDuration());
         assertEq(vault.nextEpochStart(), blockTimestamp + 1);
+    }
+
+    function test_WithdrawalsOfReturnsNextEpochAmountAndRejectsFutureCaptureEpoch() public {
+        (vault,, slasher) = _getVaultAndDelegatorAndSlasher(7 days);
+
+        _deposit(alice, 100);
+        _withdraw(alice, 40);
+
+        assertGt(vault.withdrawalsOf(vault.currentEpoch() + 1, alice), 0);
+
+        uint48 futureCapture = uint48(vm.getBlockTimestamp() + vault.epochDuration());
+        vm.prank(address(slasher));
+        vm.expectRevert(IVault.InvalidCaptureEpoch.selector);
+        vault.onSlash(1, futureCapture);
+    }
+
+    function test_MigrateRevertsForBaseVault() public {
+        VaultMigrateHarness harness = new VaultMigrateHarness();
+
+        vm.expectRevert();
+        harness.exposeMigrate("");
     }
 
     function test_CreateRevertInvalidEpochDuration() public {
@@ -2486,11 +2515,10 @@ contract VaultTest is Test {
     //     bytes memory hint = vaultHints.activeSharesHint(address(vault), timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     vault.activeSharesAt(timestamp, new bytes(0));
+    //     vault.activeSharesAt(timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     vault.activeSharesAt(timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
-    //     assertApproxEqRel(gasStruct.gasSpent1, gasStruct.gasSpent2, 0.05e18);
     // }
 
     // function test_ActiveStakeHint(uint256 amount1, uint48 epochDuration, HintStruct memory hintStruct) public {
@@ -2519,7 +2547,7 @@ contract VaultTest is Test {
     //     bytes memory hint = vaultHints.activeStakeHint(address(vault), timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     vault.activeStakeAt(timestamp, new bytes(0));
+    //     vault.activeStakeAt(timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     vault.activeStakeAt(timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;
@@ -2552,7 +2580,7 @@ contract VaultTest is Test {
     //     bytes memory hint = vaultHints.activeSharesOfHint(address(vault), alice, timestamp);
 
     //     GasStruct memory gasStruct = GasStruct({gasSpent1: 1, gasSpent2: 1});
-    //     vault.activeSharesOfAt(alice, timestamp, new bytes(0));
+    //     vault.activeSharesOfAt(alice, timestamp, "");
     //     gasStruct.gasSpent1 = vm.lastCallGas().gasTotalUsed;
     //     vault.activeSharesOfAt(alice, timestamp, hint);
     //     gasStruct.gasSpent2 = vm.lastCallGas().gasTotalUsed;

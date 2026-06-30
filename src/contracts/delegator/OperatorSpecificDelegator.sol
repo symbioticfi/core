@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
 import {BaseDelegator} from "./BaseDelegator.sol";
 
@@ -13,25 +14,21 @@ import {IVault} from "../../interfaces/vault/IVault.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title OperatorSpecificDelegator
+/// @notice Contract for delegating stake to a single operator across subnetworks.
 contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator {
     using Checkpoints for Checkpoints.Trace256;
     using Math for uint256;
 
-    /**
-     * @inheritdoc IOperatorSpecificDelegator
-     */
+    /// @inheritdoc IOperatorSpecificDelegator
     bytes32 public constant NETWORK_LIMIT_SET_ROLE = keccak256("NETWORK_LIMIT_SET_ROLE");
 
-    /**
-     * @inheritdoc IOperatorSpecificDelegator
-     */
+    /// @inheritdoc IOperatorSpecificDelegator
     address public immutable OPERATOR_REGISTRY;
 
     mapping(bytes32 subnetwork => Checkpoints.Trace256 value) internal _networkLimit;
 
-    /**
-     * @inheritdoc IOperatorSpecificDelegator
-     */
+    /// @inheritdoc IOperatorSpecificDelegator
     address public operator;
 
     constructor(
@@ -55,23 +52,17 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         OPERATOR_REGISTRY = operatorRegistry;
     }
 
-    /**
-     * @inheritdoc IOperatorSpecificDelegator
-     */
+    /// @inheritdoc IOperatorSpecificDelegator
     function networkLimitAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) public view returns (uint256) {
         return _networkLimit[subnetwork].upperLookupRecent(timestamp, hint);
     }
 
-    /**
-     * @inheritdoc IOperatorSpecificDelegator
-     */
+    /// @inheritdoc IOperatorSpecificDelegator
     function networkLimit(bytes32 subnetwork) public view returns (uint256) {
         return _networkLimit[subnetwork].latest();
     }
 
-    /**
-     * @inheritdoc IOperatorSpecificDelegator
-     */
+    /// @inheritdoc IOperatorSpecificDelegator
     function setNetworkLimit(bytes32 subnetwork, uint256 amount) external onlyRole(NETWORK_LIMIT_SET_ROLE) {
         if (amount > maxNetworkLimit[subnetwork]) {
             revert ExceedsMaxNetworkLimit();
@@ -86,6 +77,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         emit SetNetworkLimit(subnetwork, amount);
     }
 
+    /// @dev Returns stake at a past timestamp only for the configured operator.
     function _stakeAt(bytes32 subnetwork, address operator_, uint48 timestamp, bytes memory hints)
         internal
         view
@@ -110,6 +102,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         );
     }
 
+    /// @dev Returns current stake only for the configured operator.
     function _stake(bytes32 subnetwork, address operator_) internal view override returns (uint256) {
         if (operator != operator_) {
             return 0;
@@ -118,6 +111,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         return Math.min(IVault(vault).activeStake(), networkLimit(subnetwork));
     }
 
+    /// @dev Caps an existing network limit when the max network limit is reduced below it.
     function _setMaxNetworkLimit(bytes32 subnetwork, uint256 amount) internal override {
         (bool exists,, uint256 latestValue) = _networkLimit[subnetwork].latestCheckpoint();
         if (exists && latestValue > amount) {
@@ -125,6 +119,7 @@ contract OperatorSpecificDelegator is BaseDelegator, IOperatorSpecificDelegator 
         }
     }
 
+    /// @dev Decodes operator-specific initialization data and grants role holders.
     function __initialize(address, bytes memory data) internal override returns (IBaseDelegator.BaseParams memory) {
         InitParams memory params = abi.decode(data, (InitParams));
 

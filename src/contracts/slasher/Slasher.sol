@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
 import {BaseSlasher} from "./BaseSlasher.sol";
 
-import {IBaseDelegator} from "../../interfaces/delegator/IBaseDelegator.sol";
 import {ISlasher} from "../../interfaces/slasher/ISlasher.sol";
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title Slasher
+/// @notice Contract for immediate slash request execution without veto.
 contract Slasher is BaseSlasher, ISlasher {
     constructor(address vaultFactory, address networkMiddlewareService, address slasherFactory, uint64 entityType)
         BaseSlasher(vaultFactory, networkMiddlewareService, slasherFactory, entityType)
     {}
 
-    /**
-     * @inheritdoc ISlasher
-     */
+    /// @inheritdoc ISlasher
     function slash(bytes32 subnetwork, address operator, uint256 amount, uint48 captureTimestamp, bytes calldata hints)
         external
         nonReentrant
@@ -60,6 +60,7 @@ contract Slasher is BaseSlasher, ISlasher {
         emit Slash(subnetwork, operator, slashedAmount, captureTimestamp);
     }
 
+    /// @dev Decodes instant slasher initialization data.
     function __initialize(
         address,
         /* vault_ */

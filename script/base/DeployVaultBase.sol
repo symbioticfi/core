@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
 
 import {Script} from "forge-std/Script.sol";
 
@@ -49,7 +49,7 @@ contract DeployVaultBase is Script {
         SlasherParams slasherParams;
     }
 
-    bytes32 DEFAULT_ADMIN_ROLE = 0x00;
+    bytes32 DEFAULT_ADMIN_ROLE = 0x0000000000000000000000000000000000000000000000000000000000000000;
 
     function runBase(DeployVaultParams memory params) public returns (address, address, address) {
         vm.startBroadcast();
@@ -120,15 +120,15 @@ contract DeployVaultBase is Script {
             )
             .create(
                 IVaultConfigurator.InitParams({
-                    version: _getVaultVersion(),
-                    owner: params.owner,
-                    vaultParams: _getVaultParamsEncoded(params),
-                    delegatorIndex: params.delegatorIndex,
-                    delegatorParams: delegatorParamsEncoded,
-                    withSlasher: params.withSlasher,
-                    slasherIndex: params.slasherIndex,
-                    slasherParams: slasherParamsEncoded
-                })
+                version: _getVaultVersion(),
+                owner: params.owner,
+                vaultParams: _getVaultParamsEncoded(params),
+                delegatorIndex: params.delegatorIndex,
+                delegatorParams: delegatorParamsEncoded,
+                withSlasher: params.withSlasher,
+                slasherIndex: params.slasherIndex,
+                slasherParams: slasherParamsEncoded
+            })
             );
 
         if (params.vaultParams.whitelistedDepositors.length != 0) {

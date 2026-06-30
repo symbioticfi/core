@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
@@ -44,9 +44,9 @@ import {VaultHints} from "../../src/contracts/hints/VaultHints.sol";
 import {Subnetwork} from "../../src/contracts/libraries/Subnetwork.sol";
 
 contract VetoSlasherTest is Test {
-    using Math for uint256;
     using Subnetwork for bytes32;
     using Subnetwork for address;
+    using Math for uint256;
 
     address owner;
     address alice;
@@ -278,6 +278,35 @@ contract VetoSlasherTest is Test {
                 )
             )
         );
+    }
+
+    function test_RequestAndExecuteSlashWithHints() public {
+        uint256 blockTimestamp = _bootstrapSlashEnvironment(1 days);
+
+        bytes memory requestHints = abi.encode(IVetoSlasher.RequestSlashHints({slashableStakeHints: ""}));
+        assertEq(_requestSlash(alice, alice, alice, 1, uint48(blockTimestamp - 1), requestHints), 0);
+
+        bytes memory executeHints = abi.encode(
+            IVetoSlasher.ExecuteSlashHints({captureResolverHint: "", currentResolverHint: "", slashableStakeHints: ""})
+        );
+        assertEq(_executeSlash(alice, 0, executeHints), 1);
+    }
+
+    function test_SetResolverAndVetoWithHints() public {
+        uint256 blockTimestamp = _bootstrapSlashEnvironment(2 days);
+
+        bytes memory setResolverHints = abi.encode(IVetoSlasher.SetResolverHints({resolverHint: ""}));
+        _setResolver(alice, 0, alice, setResolverHints);
+
+        blockTimestamp += 1;
+        vm.warp(blockTimestamp);
+
+        bytes memory requestHints = abi.encode(IVetoSlasher.RequestSlashHints({slashableStakeHints: ""}));
+        assertEq(_requestSlash(alice, alice, alice, 1, uint48(blockTimestamp - 1), requestHints), 0);
+
+        bytes memory vetoHints =
+            abi.encode(IVetoSlasher.VetoSlashHints({captureResolverHint: "", currentResolverHint: ""}));
+        _vetoSlash(alice, 0, vetoHints);
     }
 
     function test_RequestSlash(
@@ -2453,6 +2482,25 @@ contract VetoSlasherTest is Test {
         collateral.approve(address(vault), amount);
         (depositedAmount, mintedShares) = vault.deposit(user, amount);
         vm.stopPrank();
+    }
+
+    function _bootstrapSlashEnvironment(uint48 vetoDuration) internal returns (uint256 blockTimestamp) {
+        blockTimestamp = vm.getBlockTimestamp() + 1_720_700_948;
+        vm.warp(blockTimestamp);
+
+        (vault, delegator, slasher) = _getVaultAndDelegatorAndSlasher(7 days, vetoDuration);
+
+        _registerNetwork(alice, alice);
+        _setMaxNetworkLimit(alice, 0, type(uint256).max);
+        _registerOperator(alice);
+        _optInOperatorVault(alice);
+        _optInOperatorNetwork(alice, address(alice));
+        _deposit(alice, 100);
+        _setNetworkLimit(alice, alice, type(uint256).max);
+        _setOperatorNetworkLimit(alice, alice, alice, type(uint256).max);
+
+        blockTimestamp += 1;
+        vm.warp(blockTimestamp);
     }
 
     function _withdraw(address user, uint256 amount) internal returns (uint256 burnedShares, uint256 mintedShares) {

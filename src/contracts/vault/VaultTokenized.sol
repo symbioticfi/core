@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// Copyright (c) 2025 Symbiotic
+pragma solidity ^0.8.25;
 
 import {Vault} from "./Vault.sol";
 
@@ -10,41 +11,33 @@ import {IVault} from "../../interfaces/vault/IVault.sol";
 
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+/// @title VaultTokenized
+/// @notice Contract for ERC20-tokenized vault share accounting.
 contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
     using Checkpoints for Checkpoints.Trace256;
-    using SafeERC20 for IERC20;
 
     constructor(address delegatorFactory, address slasherFactory, address vaultFactory)
         Vault(delegatorFactory, slasherFactory, vaultFactory)
     {}
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function decimals() public view override returns (uint8) {
         return IERC20Metadata(collateral).decimals();
     }
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function totalSupply() public view override returns (uint256) {
         return activeShares();
     }
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function balanceOf(address account) public view override returns (uint256) {
         return activeSharesOf(account);
     }
 
-    /**
-     * @inheritdoc IVault
-     */
+    /// @inheritdoc IVault
     function deposit(address onBehalfOf, uint256 amount)
         public
         override(Vault, IVault)
@@ -55,6 +48,7 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
         emit Transfer(address(0), onBehalfOf, mintedShares);
     }
 
+    /// @dev Extends base withdrawal accounting with ERC20 burn event emission.
     function _withdraw(address claimer, uint256 withdrawnAssets, uint256 burnedShares)
         internal
         override
@@ -65,12 +59,10 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
         emit Transfer(msg.sender, address(0), burnedShares);
     }
 
-    /**
-     * @inheritdoc ERC20Upgradeable
-     */
+    /// @inheritdoc ERC20Upgradeable
     function _update(address from, address to, uint256 value) internal override {
         if (from == address(0)) {
-            // Overflow check required: The rest of the code assumes that totalSupply never overflows
+            // Overflow check required: The rest of the code assumes that totalSupply never overflows.
             _activeShares.push(Time.timestamp(), totalSupply() + value);
         } else {
             uint256 fromBalance = balanceOf(from);
@@ -98,6 +90,7 @@ contract VaultTokenized is Vault, ERC20Upgradeable, IVaultTokenized {
         emit Transfer(from, to, value);
     }
 
+    /// @dev Initializes base vault state and ERC20 metadata.
     function _initialize(uint64 initialVersion, address owner_, bytes memory data) internal override {
         (InitParamsTokenized memory params) = abi.decode(data, (InitParamsTokenized));
 

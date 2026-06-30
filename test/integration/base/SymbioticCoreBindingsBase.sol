@@ -88,11 +88,11 @@ abstract contract SymbioticCoreBindingsBase is Test {
         _optInVault_SymbioticCore(symbioticCore, who, who, vault, deadline, signature);
     }
 
-    function _optInNetwork_SymbioticCore(
-        SymbioticCoreConstants.Core memory symbioticCore,
-        address who,
-        address network
-    ) internal virtual broadcast(who) {
+    function _optInNetwork_SymbioticCore(SymbioticCoreConstants.Core memory symbioticCore, address who, address network)
+        internal
+        virtual
+        broadcast(who)
+    {
         symbioticCore.operatorNetworkOptInService.optIn(network);
     }
 

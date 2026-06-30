@@ -3,6 +3,12 @@ pragma solidity ^0.8.0;
 
 import {IBaseSlasher} from "./IBaseSlasher.sol";
 
+uint64 constant VETO_SLASHER_TYPE = 1;
+
+/**
+ * @title IVetoSlasher
+ * @notice Interface for the VetoSlasher contract.
+ */
 interface IVetoSlasher is IBaseSlasher {
     error AlreadySet();
     error InsufficientSlash();
@@ -20,9 +26,9 @@ interface IVetoSlasher is IBaseSlasher {
 
     /**
      * @notice Initial parameters needed for a slasher deployment.
-     * @param baseParams base parameters for slashers' deployment
-     * @param vetoDuration duration of the veto period for a slash request
-     * @param resolverSetEpochsDelay delay in epochs for a network to update a resolver
+     * @param baseParams Base parameters for slashers' deployment.
+     * @param vetoDuration Duration of the veto period for a slash request.
+     * @param resolverSetEpochsDelay Delay in epochs for a network to update a resolver.
      */
     struct InitParams {
         IBaseSlasher.BaseParams baseParams;
@@ -32,12 +38,12 @@ interface IVetoSlasher is IBaseSlasher {
 
     /**
      * @notice Structure for a slash request.
-     * @param subnetwork subnetwork that requested the slash
-     * @param operator operator that could be slashed (if the request is not vetoed)
-     * @param amount maximum amount of the collateral to be slashed
-     * @param captureTimestamp time point when the stake was captured
-     * @param vetoDeadline deadline for the resolver to veto the slash (exclusively)
-     * @param completed if the slash was vetoed/executed
+     * @param subnetwork Subnetwork that requested the slash.
+     * @param operator Operator that could be slashed (if the request is not vetoed).
+     * @param amount Maximum amount of the collateral to be slashed.
+     * @param captureTimestamp Time point when the stake was captured.
+     * @param vetoDeadline Deadline for the resolver to veto the slash (exclusively).
+     * @param completed If the slash was vetoed/executed.
      */
     struct SlashRequest {
         bytes32 subnetwork;
@@ -50,7 +56,7 @@ interface IVetoSlasher is IBaseSlasher {
 
     /**
      * @notice Hints for a slash request.
-     * @param slashableStakeHints hints for the slashable stake checkpoints
+     * @param slashableStakeHints Hints for the slashable stake checkpoints.
      */
     struct RequestSlashHints {
         bytes slashableStakeHints;
@@ -58,9 +64,9 @@ interface IVetoSlasher is IBaseSlasher {
 
     /**
      * @notice Hints for a slash execute.
-     * @param captureResolverHint hint for the resolver checkpoint at the capture time
-     * @param currentResolverHint hint for the resolver checkpoint at the current time
-     * @param slashableStakeHints hints for the slashable stake checkpoints
+     * @param captureResolverHint Hint for the resolver checkpoint at the capture time.
+     * @param currentResolverHint Hint for the resolver checkpoint at the current time.
+     * @param slashableStakeHints Hints for the slashable stake checkpoints.
      */
     struct ExecuteSlashHints {
         bytes captureResolverHint;
@@ -70,8 +76,8 @@ interface IVetoSlasher is IBaseSlasher {
 
     /**
      * @notice Hints for a slash veto.
-     * @param captureResolverHint hint for the resolver checkpoint at the capture time
-     * @param currentResolverHint hint for the resolver checkpoint at the current time
+     * @param captureResolverHint Hint for the resolver checkpoint at the capture time.
+     * @param currentResolverHint Hint for the resolver checkpoint at the current time.
      */
     struct VetoSlashHints {
         bytes captureResolverHint;
@@ -80,7 +86,7 @@ interface IVetoSlasher is IBaseSlasher {
 
     /**
      * @notice Hints for a resolver set.
-     * @param resolverHint hint for the resolver checkpoint
+     * @param resolverHint Hint for the resolver checkpoint.
      */
     struct SetResolverHints {
         bytes resolverHint;
@@ -88,9 +94,9 @@ interface IVetoSlasher is IBaseSlasher {
 
     /**
      * @notice Extra data for the delegator.
-     * @param slashableStake amount of the slashable stake before the slash (cache)
-     * @param stakeAt amount of the stake at the capture time (cache)
-     * @param slashIndex index of the slash request
+     * @param slashableStake Amount of the slashable stake before the slash (cache).
+     * @param stakeAt Amount of the stake at the capture time (cache).
+     * @param slashIndex Index of the slash request.
      */
     struct DelegatorData {
         uint256 slashableStake;
@@ -100,12 +106,12 @@ interface IVetoSlasher is IBaseSlasher {
 
     /**
      * @notice Emitted when a slash request is created.
-     * @param slashIndex index of the slash request
-     * @param subnetwork subnetwork that requested the slash
-     * @param operator operator that could be slashed (if the request is not vetoed)
-     * @param slashAmount maximum amount of the collateral to be slashed
-     * @param captureTimestamp time point when the stake was captured
-     * @param vetoDeadline deadline for the resolver to veto the slash (exclusively)
+     * @param slashIndex Index of the slash request.
+     * @param subnetwork Subnetwork that requested the slash.
+     * @param operator Operator that could be slashed (if the request is not vetoed).
+     * @param slashAmount Maximum amount of the collateral to be slashed.
+     * @param captureTimestamp Time point when the stake was captured.
+     * @param vetoDeadline Deadline for the resolver to veto the slash (exclusively).
      */
     event RequestSlash(
         uint256 indexed slashIndex,
@@ -118,52 +124,40 @@ interface IVetoSlasher is IBaseSlasher {
 
     /**
      * @notice Emitted when a slash request is executed.
-     * @param slashIndex index of the slash request
-     * @param slashedAmount virtual amount of the collateral slashed
+     * @param slashIndex Index of the slash request.
+     * @param slashedAmount Virtual amount of the collateral slashed.
      */
     event ExecuteSlash(uint256 indexed slashIndex, uint256 slashedAmount);
 
     /**
      * @notice Emitted when a slash request is vetoed.
-     * @param slashIndex index of the slash request
-     * @param resolver address of the resolver that vetoed the slash
+     * @param slashIndex Index of the slash request.
+     * @param resolver Address of the resolver that vetoed the slash.
      */
     event VetoSlash(uint256 indexed slashIndex, address indexed resolver);
 
     /**
      * @notice Emitted when a resolver is set.
-     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
-     * @param resolver address of the resolver
+     * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
+     * @param resolver Address of the resolver.
      */
     event SetResolver(bytes32 indexed subnetwork, address resolver);
 
     /**
      * @notice Get the network registry's address.
-     * @return address of the network registry
+     * @return Address Of the network registry.
      */
     function NETWORK_REGISTRY() external view returns (address);
 
     /**
-     * @notice Get a duration during which resolvers can veto slash requests.
-     * @return duration of the veto period
-     */
-    function vetoDuration() external view returns (uint48);
-
-    /**
-     * @notice Get a total number of slash requests.
-     * @return total number of slash requests
-     */
-    function slashRequestsLength() external view returns (uint256);
-
-    /**
      * @notice Get a particular slash request.
-     * @param slashIndex index of the slash request
-     * @return subnetwork subnetwork that requested the slash
-     * @return operator operator that could be slashed (if the request is not vetoed)
-     * @return amount maximum amount of the collateral to be slashed
-     * @return captureTimestamp time point when the stake was captured
-     * @return vetoDeadline deadline for the resolver to veto the slash (exclusively)
-     * @return completed if the slash was vetoed/executed
+     * @param slashIndex Index of the slash request.
+     * @return subnetwork Subnetwork that requested the slash.
+     * @return operator Operator that could be slashed (if the request is not vetoed).
+     * @return amount Maximum amount of the collateral to be slashed.
+     * @return captureTimestamp Time point when the stake was captured.
+     * @return vetoDeadline Deadline for the resolver to veto the slash (exclusively).
+     * @return completed If the slash was vetoed/executed.
      */
     function slashRequests(uint256 slashIndex)
         external
@@ -178,36 +172,48 @@ interface IVetoSlasher is IBaseSlasher {
         );
 
     /**
+     * @notice Get a duration during which resolvers can veto slash requests.
+     * @return Duration Of the veto period.
+     */
+    function vetoDuration() external view returns (uint48);
+
+    /**
      * @notice Get a delay for networks in epochs to update a resolver.
-     * @return updating resolver delay in epochs
+     * @return Updating Resolver delay in epochs.
      */
     function resolverSetEpochsDelay() external view returns (uint256);
 
     /**
+     * @notice Get a total number of slash requests.
+     * @return Total Number of slash requests.
+     */
+    function slashRequestsLength() external view returns (uint256);
+
+    /**
      * @notice Get a resolver for a given subnetwork at a particular timestamp using a hint.
-     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
-     * @param timestamp timestamp to get the resolver at
-     * @param hint hint for the checkpoint index
-     * @return address of the resolver
+     * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
+     * @param timestamp Timestamp to get the resolver at.
+     * @param hint Hint for the checkpoint index.
+     * @return Address Of the resolver.
      */
     function resolverAt(bytes32 subnetwork, uint48 timestamp, bytes memory hint) external view returns (address);
 
     /**
      * @notice Get a resolver for a given subnetwork using a hint.
-     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
-     * @param hint hint for the checkpoint index
-     * @return address of the resolver
+     * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
+     * @param hint Hint for the checkpoint index.
+     * @return Address Of the resolver.
      */
     function resolver(bytes32 subnetwork, bytes memory hint) external view returns (address);
 
     /**
      * @notice Request a slash using a subnetwork for a particular operator by a given amount using hints.
-     * @param subnetwork full identifier of the subnetwork (address of the network concatenated with the uint96 identifier)
-     * @param operator address of the operator
-     * @param amount maximum amount of the collateral to be slashed
-     * @param captureTimestamp time point when the stake was captured
-     * @param hints hints for checkpoints' indexes
-     * @return slashIndex index of the slash request
+     * @param subnetwork Full identifier of the subnetwork (address of the network concatenated with the uint96 identifier).
+     * @param operator Address of the operator.
+     * @param amount Maximum amount of the collateral to be slashed.
+     * @param captureTimestamp Time point when the stake was captured.
+     * @param hints Hints for checkpoints' indexes.
+     * @return slashIndex Index of the slash request.
      * @dev Only a network middleware can call this function.
      */
     function requestSlash(
@@ -220,26 +226,26 @@ interface IVetoSlasher is IBaseSlasher {
 
     /**
      * @notice Execute a slash with a given slash index using hints.
-     * @param slashIndex index of the slash request
-     * @param hints hints for checkpoints' indexes
-     * @return slashedAmount virtual amount of the collateral slashed
+     * @param slashIndex Index of the slash request.
+     * @param hints Hints for checkpoints' indexes.
+     * @return slashedAmount Virtual amount of the collateral slashed.
      * @dev Only a network middleware can call this function.
      */
     function executeSlash(uint256 slashIndex, bytes calldata hints) external returns (uint256 slashedAmount);
 
     /**
      * @notice Veto a slash with a given slash index using hints.
-     * @param slashIndex index of the slash request
-     * @param hints hints for checkpoints' indexes
+     * @param slashIndex Index of the slash request.
+     * @param hints Hints for checkpoints' indexes.
      * @dev Only a resolver can call this function.
      */
     function vetoSlash(uint256 slashIndex, bytes calldata hints) external;
 
     /**
      * @notice Set a resolver for a subnetwork using hints.
-     * identifier identifier of the subnetwork
-     * @param resolver address of the resolver
-     * @param hints hints for checkpoints' indexes
+     * @param identifier Identifier of the subnetwork.
+     * @param resolver Address of the resolver.
+     * @param hints Hints for checkpoints' indexes.
      * @dev Only a network can call this function.
      */
     function setResolver(uint96 identifier, address resolver, bytes calldata hints) external;

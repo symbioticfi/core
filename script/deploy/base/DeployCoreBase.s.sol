@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.25;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
 
 import {Script} from "forge-std/Script.sol";
 import {Logs} from "../../utils/Logs.sol";
@@ -25,7 +25,7 @@ import {VetoSlasher} from "../../../src/contracts/slasher/VetoSlasher.sol";
 import {VaultConfigurator} from "../../../src/contracts/VaultConfigurator.sol";
 
 contract DeployCoreBaseScript is Script {
-    struct DeploymentData {
+    struct CoreDeploymentData {
         VaultFactory vaultFactory;
         DelegatorFactory delegatorFactory;
         SlasherFactory slasherFactory;
@@ -47,13 +47,11 @@ contract DeployCoreBaseScript is Script {
         VaultConfigurator vaultConfigurator;
     }
 
-    function run(address owner) public {
-        vm.startBroadcast();
+    function run(address owner) public virtual returns (CoreDeploymentData memory data) {
+        _startBroadcast();
         (,, address deployer) = vm.readCallers();
 
-        DeploymentData memory data;
-
-        data.vaultFactory = new VaultFactory(deployer);
+        data.vaultFactory = _deployVaultFactory(deployer);
         data.delegatorFactory = new DelegatorFactory(deployer);
         data.slasherFactory = new SlasherFactory(deployer);
         data.networkRegistry = new NetworkRegistry();
@@ -165,7 +163,7 @@ contract DeployCoreBaseScript is Script {
         assert(data.vaultFactory.owner() == owner);
         assert(data.delegatorFactory.owner() == owner);
         assert(data.slasherFactory.owner() == owner);
-        vm.stopBroadcast();
+        _stopBroadcast();
 
         Logs.log(string.concat("Deployed VaultFactory: ", vm.toString(address(data.vaultFactory))));
         Logs.log(string.concat("Deployed DelegatorFactory: ", vm.toString(address(data.delegatorFactory))));
@@ -188,5 +186,17 @@ contract DeployCoreBaseScript is Script {
             )
         );
         Logs.log(string.concat("Deployed VaultConfigurator: ", vm.toString(address(data.vaultConfigurator))));
+    }
+
+    function _startBroadcast() internal virtual {
+        vm.startBroadcast();
+    }
+
+    function _stopBroadcast() internal virtual {
+        vm.stopBroadcast();
+    }
+
+    function _deployVaultFactory(address owner) internal virtual returns (VaultFactory) {
+        return new VaultFactory(owner);
     }
 }

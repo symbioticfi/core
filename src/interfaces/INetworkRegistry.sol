@@ -3,6 +3,10 @@ pragma solidity ^0.8.0;
 
 import {IRegistry} from "./common/IRegistry.sol";
 
+/**
+ * @title INetworkRegistry
+ * @notice Interface for the NetworkRegistry contract.
+ */
 interface INetworkRegistry is IRegistry {
     error NetworkAlreadyRegistered();
 

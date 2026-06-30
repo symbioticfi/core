@@ -1,0 +1,177 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+import {MigratableEntity} from "../common/MigratableEntity.sol";
+import {Multicallable} from "../common/Multicallable.sol";
+import {UniversalDelegator} from "../delegator/UniversalDelegator.sol";
+import {VaultV2} from "./VaultV2.sol";
+
+import {IWithdrawalQueue} from "../../interfaces/vault/IWithdrawalQueue.sol";
+
+import {Checkpoints} from "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
+import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+/// @title Withdrawal Queue
+/// @notice Holds pending share withdrawal requests as ERC721 positions.
+contract WithdrawalQueue is MigratableEntity, ERC721Upgradeable, IWithdrawalQueue, Multicallable {
+    using Checkpoints for Checkpoints.Trace256;
+    using SafeERC20 for IERC20;
+    using SafeCast for uint256;
+    using Math for uint256;
+
+    /* STATE VARIABLES */
+
+    /// @inheritdoc IWithdrawalQueue
+    address public vault;
+    /// @inheritdoc IWithdrawalQueue
+    uint256 public totalRequested;
+    /// @inheritdoc IWithdrawalQueue
+    mapping(uint256 tokenId => WithdrawalRequest) public requests;
+    /// @inheritdoc IWithdrawalQueue
+    uint256 public totalRequests;
+
+    /// @dev Cumulative filled shares to packed fill index and cumulative assets.
+    Checkpoints.Trace256 internal _cumulSharesToCumulAssets;
+
+    /* CONSTRUCTOR */
+
+    constructor(address factory) MigratableEntity(factory) {}
+
+    /* VIEW FUNCTIONS */
+
+    /// @inheritdoc IWithdrawalQueue
+    function totalFilled() public view returns (uint256) {
+        return _cumulSharesToCumulAssets.at(uint32(_cumulSharesToCumulAssets.length() - 1))._key;
+    }
+
+    /// @inheritdoc IWithdrawalQueue
+    function pendingShares() public view returns (uint256) {
+        return totalRequested - totalFilled();
+    }
+
+    /// @inheritdoc IWithdrawalQueue
+    function pendingAssets() public view returns (uint256) {
+        return IERC4626(vault).previewRedeem(pendingShares());
+    }
+
+    /// @inheritdoc IWithdrawalQueue
+    function isClaimed(uint256 tokenId) public view returns (bool) {
+        WithdrawalRequest storage request = requests[tokenId];
+        return request.sharesClaimed > 0 && request.sharesClaimed == request.shares;
+    }
+
+    /// @inheritdoc IWithdrawalQueue
+    function claimable(uint256 tokenId) public view returns (uint256 assets, uint256 shares) {
+        WithdrawalRequest storage request = requests[tokenId];
+
+        if (request.sharesClaimed == request.shares) {
+            return (0, 0);
+        }
+
+        uint256 startShares = request.prevRequestSum + request.sharesClaimed;
+        uint256 endShares = Math.min(request.prevRequestSum + request.shares, totalFilled());
+        shares = endShares.saturatingSub(startShares);
+        if (shares == 0) {
+            return (0, 0);
+        }
+
+        uint32 pos = uint32(_cumulSharesToCumulAssets.upperLookupRecent(startShares) >> 224);
+        Checkpoints.Checkpoint256 memory checkpoint = _cumulSharesToCumulAssets.at(pos);
+        Checkpoints.Checkpoint256 memory nextCheckpoint = _cumulSharesToCumulAssets.at(pos + 1);
+        uint256 startAssets = uint224(checkpoint._value)
+            + (startShares - checkpoint._key)
+            .mulDiv(uint224(nextCheckpoint._value) - uint224(checkpoint._value), nextCheckpoint._key - checkpoint._key);
+
+        pos = uint32(_cumulSharesToCumulAssets.upperLookupRecent(endShares - 1) >> 224);
+        checkpoint = _cumulSharesToCumulAssets.at(pos);
+        nextCheckpoint = _cumulSharesToCumulAssets.at(pos + 1);
+        uint256 endAssets = uint224(checkpoint._value)
+            + (endShares - checkpoint._key)
+            .mulDiv(uint224(nextCheckpoint._value) - uint224(checkpoint._value), nextCheckpoint._key - checkpoint._key);
+
+        assets = endAssets - startAssets;
+    }
+
+    /* PUBLIC FUNCTIONS */
+
+    /// @inheritdoc IWithdrawalQueue
+    function requestRedeem(uint256 shares, address receiver) public returns (uint256 tokenId) {
+        if (shares == 0) {
+            revert ZeroShares();
+        }
+
+        IERC20(vault).safeTransferFrom(msg.sender, address(this), shares);
+
+        tokenId = totalRequests++;
+        requests[tokenId] = WithdrawalRequest({shares: shares, sharesClaimed: 0, prevRequestSum: totalRequested});
+        totalRequested += shares;
+
+        _mint(receiver, tokenId);
+
+        emit RequestRedeem(msg.sender, receiver, shares, tokenId);
+
+        UniversalDelegator(VaultV2(vault).delegator()).sweepPending();
+    }
+
+    /// @inheritdoc IWithdrawalQueue
+    function claim(uint256 tokenId, address receiver) public returns (uint256 assets, uint256 shares) {
+        if (ownerOf(tokenId) != msg.sender) {
+            revert NotTokenOwner();
+        }
+
+        (assets, shares) = claimable(tokenId);
+
+        requests[tokenId].sharesClaimed += shares;
+
+        IERC20(IERC4626(vault).asset()).safeTransfer(receiver, assets);
+
+        emit Claim(tokenId, receiver, assets, shares);
+    }
+
+    /// @inheritdoc IWithdrawalQueue
+    function fill() public returns (uint256 assets, uint256 shares) {
+        shares = pendingShares();
+        if (shares == 0) {
+            return (0, 0);
+        }
+        shares = Math.min(shares, IERC4626(vault).previewDeposit(VaultV2(vault).withdrawable()));
+        if (shares == 0) {
+            return (0, 0);
+        }
+
+        assets = IERC4626(vault).redeem(shares, address(this), address(this));
+
+        _cumulSharesToCumulAssets.push(
+            totalFilled() + shares,
+            _cumulSharesToCumulAssets.length() << 224
+                | (uint224(_cumulSharesToCumulAssets.latest()) + assets).toUint224()
+        );
+
+        emit Fill(assets, shares);
+    }
+
+    /* INITIALIZATION */
+
+    /// @dev Initialize withdrawal queue metadata and bind it to a vault.
+    function _initialize(uint64, address owner, bytes memory data) internal override {
+        (string memory vaultName, string memory vaultSymbol) = abi.decode(data, (string, string));
+
+        __ERC721_init(string.concat(vaultName, "(WQ)"), string.concat(vaultSymbol, "_WQ"));
+
+        vault = owner;
+
+        _cumulSharesToCumulAssets.push(0, 0);
+    }
+
+    /* MIGRATION */
+
+    /// @dev Migration is intentionally unsupported for this implementation.
+    function _migrate(uint64, uint64, bytes calldata) internal pure override {
+        revert();
+    }
+}

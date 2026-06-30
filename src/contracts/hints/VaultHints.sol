@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.25;
+pragma solidity ^0.8.25;
 
 import {Hints} from "./Hints.sol";
 
@@ -7,6 +7,8 @@ import {Checkpoints} from "../libraries/Checkpoints.sol";
 
 import {IVault} from "../../interfaces/vault/IVault.sol";
 
+/// @title VaultHints
+/// @notice Contract for vault checkpoint hint construction.
 contract VaultHints is Hints {
     using Checkpoints for Checkpoints.Trace256;
 

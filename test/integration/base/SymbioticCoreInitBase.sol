@@ -18,10 +18,10 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindingsBase {
-    using SafeERC20 for IERC20;
-    using Math for uint256;
     using SymbioticSubnetwork for bytes32;
     using SymbioticSubnetwork for address;
+    using SafeERC20 for IERC20;
+    using Math for uint256;
 
     struct InitCoreLocalVars {
         VmSafe.CallerMode callerMode;
@@ -236,6 +236,8 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             .whitelist(
                 _deployCreate2(bytes32("vaultTokenized"), SymbioticCoreBytecode.vaultTokenized(), constructorArgs)
             );
+        symbioticCore.vaultFactory
+            .whitelist(_deployCreate2(bytes32("vaultV2"), SymbioticCoreBytecode.vaultV2(), constructorArgs));
     }
 
     function _whitelistDelegatorImplementations() internal virtual {
@@ -309,6 +311,19 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
             constructorArgs
         );
         factory.whitelist(implementation);
+
+        typeIndex = factory.totalTypes();
+        constructorArgs = abi.encode(
+            networkRegistry,
+            vaultFactory,
+            operatorVaultOptInService,
+            operatorNetworkOptInService,
+            factoryAddress,
+            typeIndex
+        );
+        implementation =
+            _deployCreate2(bytes32("universalDelegator"), SymbioticCoreBytecode.universalDelegator(), constructorArgs);
+        factory.whitelist(implementation);
     }
 
     function _whitelistSlasherImplementations() internal virtual {
@@ -329,6 +344,12 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         typeIndex = factory.totalTypes();
         constructorArgs = abi.encode(vaultFactory, networkMiddlewareService, networkRegistry, factoryAddress, typeIndex);
         implementation = _deployCreate2(bytes32("vetoSlasher"), SymbioticCoreBytecode.vetoSlasher(), constructorArgs);
+        factory.whitelist(implementation);
+
+        typeIndex = factory.totalTypes();
+        constructorArgs = abi.encode(vaultFactory, networkMiddlewareService, networkRegistry, factoryAddress, typeIndex);
+        implementation =
+            _deployCreate2(bytes32("universalSlasher"), SymbioticCoreBytecode.universalSlasher(), constructorArgs);
         factory.whitelist(implementation);
     }
 
@@ -610,9 +631,9 @@ abstract contract SymbioticCoreInitBase is SymbioticUtils, SymbioticCoreBindings
         } else if (type_ == 2) {
             delegatorSpecificCondition = ISymbioticOperatorSpecificDelegator(delegator).networkLimit(subnetwork) > 0;
         } else if (type_ == 3) {
-            delegatorSpecificCondition =
-                ISymbioticOperatorNetworkSpecificDelegator(delegator).network() == subnetwork.network()
-                    && ISymbioticOperatorNetworkSpecificDelegator(delegator).maxNetworkLimit(subnetwork) > 0;
+            delegatorSpecificCondition = ISymbioticOperatorNetworkSpecificDelegator(delegator).network()
+                    == subnetwork.network()
+                && ISymbioticOperatorNetworkSpecificDelegator(delegator).maxNetworkLimit(subnetwork) > 0;
         }
 
         return delegatorSpecificCondition;
