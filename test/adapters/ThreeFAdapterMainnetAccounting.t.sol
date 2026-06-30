@@ -140,7 +140,7 @@ contract ThreeFAdapterMainnetAccountingTest is Test {
         assertEq(IERC20(asset).balanceOf(request), totalPrincipalAssets + totalYieldAssets);
 
         address adapter = _deployAdapter(asset);
-        MainnetThreeFAdapterHarness(adapter).pushRequest(request);
+        MainnetThreeFAdapterHarness(adapter).pushRequest(request, ptSupply);
 
         vm.mockCall(
             request,
@@ -209,9 +209,10 @@ contract MainnetThreeFAdapterHarness is ThreeFAdapter {
         ThreeFAdapter(vaultFactory, adapterFactory, address(0x1234))
     {}
 
-    function pushRequest(address request) external {
+    function pushRequest(address request, uint256 principalAssets) external {
         requests.push(request);
         requestIndex[request] = requests.length;
+        requestPrincipalAssets[request] = principalAssets;
     }
 }
 

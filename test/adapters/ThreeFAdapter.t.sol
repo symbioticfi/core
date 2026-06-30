@@ -66,11 +66,13 @@ contract ThreeFAdapterTest is Test {
         assertEq(IThreeFAdapter(adapter).totalAssets(), PRINCIPAL);
         assertEq(IThreeFAdapter(adapter).requests(0), request);
         assertEq(IThreeFAdapter(adapter).requestIndex(request), 1);
+        assertEq(IThreeFAdapter(adapter).requestPrincipalAssets(request), PRINCIPAL);
     }
 
     function test_TotalAssetsUsesPrincipalSharesBeforeRequestIsWithdrawable() public {
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
         ThreeFRequestMock(request).pull(makeAddr("borrower"), PRINCIPAL - 1);
+        ThreeFRequestMock(request).setRevertBalancesOf(true);
 
         assertEq(IERC20(assetToken).balanceOf(request), 1);
         assertEq(IThreeFAdapter(adapter).totalAssets(), PRINCIPAL);
@@ -96,6 +98,7 @@ contract ThreeFAdapterTest is Test {
         IThreeFAdapter(adapter).finalizeRequest(request);
 
         assertEq(IThreeFAdapter(adapter).requestIndex(request), 0);
+        assertEq(IThreeFAdapter(adapter).requestPrincipalAssets(request), 0);
         assertEq(IERC20(assetToken).balanceOf(adapter), PRINCIPAL + YIELD);
         assertEq(IThreeFAdapter(adapter).totalAssets(), PRINCIPAL + YIELD);
     }
@@ -114,7 +117,9 @@ contract ThreeFAdapterTest is Test {
         IThreeFAdapter(adapter).finalizeRequest(firstRequest);
 
         assertEq(IThreeFAdapter(adapter).requestIndex(firstRequest), 0);
+        assertEq(IThreeFAdapter(adapter).requestPrincipalAssets(firstRequest), 0);
         assertEq(IThreeFAdapter(adapter).requestIndex(secondRequest), 1);
+        assertEq(IThreeFAdapter(adapter).requestPrincipalAssets(secondRequest), PRINCIPAL / 2);
         assertEq(IThreeFAdapter(adapter).requests(0), secondRequest);
 
         IThreeFAdapter(adapter).finalizeRequest(secondRequest);
@@ -407,6 +412,7 @@ contract ThreeFDelegatorMock {
 contract ThreeFRequestMock {
     address public immutable asset;
     bool public canWithdraw;
+    bool public revertBalancesOf;
 
     uint256 public ptSupply;
     uint256 public ytSupply;
@@ -422,7 +428,15 @@ contract ThreeFRequestMock {
         canWithdraw = status;
     }
 
+    function setRevertBalancesOf(bool status) external {
+        revertBalancesOf = status;
+    }
+
     function balancesOf(address account) external view returns (uint256 ptShares, uint256 ytShares) {
+        if (revertBalancesOf) {
+            revert();
+        }
+
         ptShares = _ptBalances[account];
         ytShares = _ytBalances[account];
     }

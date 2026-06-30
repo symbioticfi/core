@@ -46,6 +46,8 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     address[] public requests;
     /// @inheritdoc IThreeFAdapter
     mapping(address request => uint256 index) public requestIndex;
+    /// @inheritdoc IThreeFAdapter
+    mapping(address request => uint256 assets) public pendingAssets;
 
     /// @dev Opens allocatable capacity only during the just-in-time request callback.
     bool internal transient _inConsume;
@@ -83,8 +85,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
                 (uint256 pAssets, uint256 yAssets) = IThreeFRequest(request).convertToAssets(ptShares, ytShares);
                 assets += pAssets + yAssets;
             } else {
-                (uint256 ptShares,) = IThreeFRequest(request).balancesOf(address(this));
-                assets += ptShares;
+                assets += pendingAssets[request];
             }
         }
     }
@@ -172,6 +173,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
 
         requests.push(msg.sender);
         requestIndex[msg.sender] = requests.length;
+        pendingAssets[msg.sender] = principalAssets;
 
         emit OnRequestConsumed(msg.sender, offer, principalAssets, yieldAssets);
     }
@@ -184,6 +186,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
         uint256 index = requestIndex[request];
         requests.pop();
         requestIndex[request] = 0;
+        pendingAssets[request] = 0;
         if (request != lastRequest) {
             requests[index - 1] = lastRequest;
             requestIndex[lastRequest] = index;

@@ -119,6 +119,13 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     function requestIndex(address request) external view returns (uint256 index);
 
     /**
+     * @notice Returns the principal assets stored when the request was consumed.
+     * @param request Request address.
+     * @return assets Consumed principal assets.
+     */
+    function pendingAssets(address request) external view returns (uint256 assets);
+
+    /**
      * @notice Returns the maximum principal assets that can currently be funded into a new request.
      * @return assets Maximum assets available for the next request.
      */
