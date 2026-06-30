@@ -135,7 +135,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
         if (requestIndex[msg.sender] > 0) {
             revert AlreadyRequest();
         }
-        if (principalAssets == 0 || principalAssets < minAssetsPerRequest) {
+        if (principalAssets < minAssetsPerRequest) {
             revert TooSmallRequest();
         }
         if (principalAssets > maxAssetsPerRequest) {
