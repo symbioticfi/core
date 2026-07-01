@@ -126,6 +126,12 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     function pendingAssets(address request) external view returns (uint256 assets);
 
     /**
+     * @notice Returns the number of active requests currently tracked.
+     * @return length Active request count.
+     */
+    function requestsLength() external view returns (uint256 length);
+
+    /**
      * @notice Returns the maximum principal assets that can currently be funded into a new request.
      * @return assets Maximum assets available for the next request.
      */
