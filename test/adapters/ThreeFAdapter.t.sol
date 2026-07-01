@@ -133,6 +133,22 @@ contract ThreeFAdapterTest is Test {
         IThreeFAdapter(adapter).finalizeRequest(makeAddr("unknown"));
     }
 
+    function test_RequestsLengthTracksActiveSet() public {
+        assertEq(IThreeFAdapter(adapter).requestsLength(), 0);
+
+        address firstRequest = request;
+        address secondRequest = _newRequest();
+        ThreeFRequestMock(firstRequest).consume(adapter, PRINCIPAL, YIELD);
+        assertEq(IThreeFAdapter(adapter).requestsLength(), 1);
+        ThreeFRequestMock(secondRequest).consume(adapter, PRINCIPAL / 2, YIELD / 2);
+        assertEq(IThreeFAdapter(adapter).requestsLength(), 2);
+
+        ThreeFTokenMock(assetToken).mint(firstRequest, YIELD);
+        ThreeFRequestMock(firstRequest).setCanWithdraw(true);
+        IThreeFAdapter(adapter).finalizeRequest(firstRequest);
+        assertEq(IThreeFAdapter(adapter).requestsLength(), 1);
+    }
+
     function test_ConsumeRevertsWhenRequestAlreadyActive() public {
         ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
 

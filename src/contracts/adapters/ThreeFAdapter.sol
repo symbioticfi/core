@@ -91,6 +91,11 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     }
 
     /// @inheritdoc IThreeFAdapter
+    function requestsLength() external view returns (uint256) {
+        return requests.length;
+    }
+
+    /// @inheritdoc IThreeFAdapter
     function getMaxAssets() public returns (uint256 assets) {
         address delegator = IVaultV2(vault).delegator();
         if (IUniversalDelegator(delegator).sweepPending() > 0) {
