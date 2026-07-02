@@ -175,7 +175,7 @@ contract MidasNonCompAccount is MidasAccount {
 
 /// @title CutoffMidasAccount
 /// @notice Midas account for cutoff-cohort redemptions: pending requests compound until the cohort
-///         pricing date, then freeze at the first vault-feed print at/after it.
+///         boundary, then use the latest valid vault-feed print before the next cohort cutoff.
 contract CutoffMidasAccount is MidasAccount, CutoffAccount {
     /* IMMUTABLES */
 
