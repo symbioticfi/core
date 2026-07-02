@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 
 import {CoWSwapConverter} from "../../common/CoWSwapConverter.sol";
 import {MigratableEntity} from "../../../common/MigratableEntity.sol";
+import {Multicallable} from "../../../common/Multicallable.sol";
 
 import {IAccount} from "../../../../interfaces/adapters/ll-adapter/IAccount.sol";
 import {IConverter} from "../../../../interfaces/adapters/common/IConverter.sol";
@@ -17,7 +18,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /// @title Account
 /// @notice Base account for token-to-redeem integrations.
-abstract contract Account is MigratableEntity, CoWSwapConverter, IAccount {
+abstract contract Account is MigratableEntity, CoWSwapConverter, Multicallable, IAccount {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
