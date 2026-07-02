@@ -270,18 +270,25 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
     ///      skipped: Midas pays the assets and marks the request processed atomically, and the stale
     ///      cohort entry is only cleared on the next sync.
     function _pendingAssets() internal view override returns (uint256 assets) {
-        // Call getPrice() to trigger oracle validation checks.
-        IMidasOracle(ORACLE).getPrice();
-        address aggregator = IMidasDataFeed(IMidasOracle(ORACLE).DATA_FEED()).aggregator();
-        uint8 decimals = AggregatorV3Interface(aggregator).decimals();
-        (uint80 latestRoundId, int256 latestAnswer,, uint256 latestTimestamp,) =
-            AggregatorV3Interface(aggregator).latestRoundData();
+        address aggregator;
+        uint256 multiplier;
+        uint80 latestRoundId;
+        int256 latestAnswer;
+        uint256 latestTimestamp;
         uint256 length = requestIds.length;
         for (uint256 i; i < length; ++i) {
             uint64 requestId = requestIds[i];
             (,, uint8 status, uint256 amountMToken,,) =
                 IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestId);
             if (status == REQUEST_STATUS_PENDING) {
+                if (aggregator == address(0)) {
+                    // Call getPrice() to trigger oracle validation checks.
+                    IMidasOracle(ORACLE).getPrice();
+                    aggregator = IMidasDataFeed(IMidasOracle(ORACLE).DATA_FEED()).aggregator();
+                    multiplier = 10 ** (18 - AggregatorV3Interface(aggregator).decimals());
+                    (latestRoundId, latestAnswer,, latestTimestamp,) =
+                        AggregatorV3Interface(aggregator).latestRoundData();
+                }
                 int256 answer = latestAnswer;
                 uint80 roundId = latestRoundId;
                 uint256 timestamp = latestTimestamp;
@@ -292,7 +299,7 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
                 if (answer <= 0) {
                     revert InvalidCutoffPrice();
                 }
-                assets += _tokenToRedeemToAssets(amountMToken, uint256(answer) * 10 ** (18 - decimals));
+                assets += _tokenToRedeemToAssets(amountMToken, uint256(answer) * multiplier);
             }
         }
     }

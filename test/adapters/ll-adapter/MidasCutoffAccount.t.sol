@@ -81,6 +81,22 @@ contract MidasCutoffAccountTest is Test {
         assertEq(account.totalAssets(), 95e6);
     }
 
+    function testTotalAssetsSkipsOracleWhenNoRequests() public {
+        aggregator.setRound(0, vm.getBlockTimestamp());
+
+        assertEq(account.totalAssets(), 0);
+    }
+
+    function testTotalAssetsSkipsOracleWhenOnlyStaleProcessedRequest() public {
+        mGlobal.mint(address(account), 100e18);
+        account.sync();
+
+        redemptionVault.process(0);
+        aggregator.setRound(0, vm.getBlockTimestamp());
+
+        assertEq(account.totalAssets(), 0);
+    }
+
     function testMonthlyBucketConversionUsesTwentySixthCutoff() public view {
         uint48 julyBucketIndex = account.timestampToBucket(JULY_20_2026);
 
