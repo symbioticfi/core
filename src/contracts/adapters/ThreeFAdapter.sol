@@ -188,8 +188,14 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
 
     /// @inheritdoc IThreeFAdapter
     function finalizeRequest(address request) public nonReentrant {
-        address lastRequest = requests[requests.length - 1];
         uint256 index = requestIndex[request];
+        if (index == 0) {
+            revert NotRequest();
+        }
+
+        IThreeFRequest(request).burnAll(address(this), address(this));
+
+        address lastRequest = requests[requests.length - 1];
         requests.pop();
         requestIndex[request] = 0;
         pendingAssets[request] = 0;
@@ -197,8 +203,6 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
             requests[index - 1] = lastRequest;
             requestIndex[lastRequest] = index;
         }
-
-        IThreeFRequest(request).burnAll(address(this), address(this));
 
         emit FinalizeRequest(request);
     }
