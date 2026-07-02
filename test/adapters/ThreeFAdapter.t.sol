@@ -103,6 +103,20 @@ contract ThreeFAdapterTest is Test {
         assertEq(IThreeFAdapter(adapter).totalAssets(), PRINCIPAL + YIELD);
     }
 
+    function test_FinalizeRequestKeepsRequestAccountedDuringExternalBurn() public {
+        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        ThreeFTokenMock(assetToken).mint(request, YIELD);
+        ThreeFRequestMock(request).setCanWithdraw(true);
+        ThreeFRequestMock(request).setAdapterToReadDuringBurn(adapter);
+
+        IThreeFAdapter(adapter).finalizeRequest(request);
+
+        assertEq(ThreeFRequestMock(request).totalAssetsDuringBurn(), PRINCIPAL + YIELD);
+        assertEq(IThreeFAdapter(adapter).requestIndex(request), 0);
+        assertEq(IThreeFAdapter(adapter).pendingAssets(request), 0);
+        assertEq(IERC20(assetToken).balanceOf(adapter), PRINCIPAL + YIELD);
+    }
+
     function test_FinalizeRequestKeepsMovedRequestIndex() public {
         address firstRequest = request;
         address secondRequest = _newRequest();
@@ -129,7 +143,7 @@ contract ThreeFAdapterTest is Test {
     }
 
     function test_FinalizeRequestRevertsForUnknownRequest() public {
-        vm.expectRevert(stdError.arithmeticError);
+        vm.expectRevert(IThreeFAdapter.NotRequest.selector);
         IThreeFAdapter(adapter).finalizeRequest(makeAddr("unknown"));
     }
 
@@ -427,8 +441,10 @@ contract ThreeFDelegatorMock {
 
 contract ThreeFRequestMock {
     address public immutable asset;
+    address public adapterToReadDuringBurn;
     bool public canWithdraw;
     bool public revertBalancesOf;
+    uint256 public totalAssetsDuringBurn;
 
     uint256 public ptSupply;
     uint256 public ytSupply;
@@ -446,6 +462,10 @@ contract ThreeFRequestMock {
 
     function setRevertBalancesOf(bool status) external {
         revertBalancesOf = status;
+    }
+
+    function setAdapterToReadDuringBurn(address adapter) external {
+        adapterToReadDuringBurn = adapter;
     }
 
     function balancesOf(address account) external view returns (uint256 ptShares, uint256 ytShares) {
@@ -499,6 +519,10 @@ contract ThreeFRequestMock {
     }
 
     function burnAll(address owner, address receiver) external returns (uint256, uint256, uint256, uint256) {
+        if (adapterToReadDuringBurn != address(0)) {
+            totalAssetsDuringBurn = IThreeFAdapter(adapterToReadDuringBurn).totalAssets();
+        }
+
         uint256 ptShares = _ptBalances[owner];
         uint256 ytShares = _ytBalances[owner];
         (uint256 pAssets, uint256 yAssets) = convertToAssets(ptShares, ytShares);
