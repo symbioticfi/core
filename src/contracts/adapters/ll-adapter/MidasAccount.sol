@@ -299,7 +299,7 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
                 while (timestamp >= nextBucketTimestamp) {
                     (, answer,, timestamp,) = AggregatorV3Interface(aggregator).getRoundData(--roundId);
                 }
-                if (answer <= 0) {
+                if (answer <= 0 || timestamp == 0) {
                     revert InvalidCutoffPrice();
                 }
                 assets += _tokenToRedeemToAssets(amountMToken, uint256(answer) * multiplier);

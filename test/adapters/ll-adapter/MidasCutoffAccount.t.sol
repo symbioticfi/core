@@ -159,6 +159,16 @@ contract MidasCutoffAccountTest is Test {
         assertEq(account.totalAssets(), 94e6);
     }
 
+    function testRejectsZeroTimestampHistoricalCutoffPrice() public {
+        aggregator.setRound(0, 0.94e8, 0);
+        aggregator.setRound(1, 0.97e8, uint256(CUTOFF) + 1);
+        mGlobal.mint(address(account), 100e18);
+        account.sync();
+
+        vm.expectRevert(ICutoffAccount.InvalidCutoffPrice.selector);
+        account.totalAssets();
+    }
+
     function testFulfilledRequestNotDoubleCountedBeforeSync() public {
         mGlobal.mint(address(account), 100e18);
         account.sync();
