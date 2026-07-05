@@ -20,8 +20,14 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     /// @notice Raised when a request cannot be fully funded through the delegator.
     error InsufficientAllocate();
 
+    /// @notice Raised when the consumed 3F offer is expired.
+    error ExpiredOffer();
+
     /// @notice Raised when the request already has an active position.
     error AlreadyRequest();
+
+    /// @notice Raised when the consumed 3F offer fields do not match the callback.
+    error InvalidOffer();
 
     /// @notice Raised when the callback caller is not an active whitelisted 3F request.
     error NotRequest();

@@ -58,7 +58,7 @@ contract ThreeFAdapterTest is Test {
     }
 
     function test_ConsumePullsPrincipalJustInTimeAndTracksRequest() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _consume(request, PRINCIPAL, YIELD);
 
         assertEq(IERC20(assetToken).balanceOf(request), PRINCIPAL);
         assertEq(IERC20(assetToken).balanceOf(vault), VAULT_LIQUIDITY - PRINCIPAL);
@@ -70,7 +70,7 @@ contract ThreeFAdapterTest is Test {
     }
 
     function test_TotalAssetsUsesPrincipalSharesBeforeRequestIsWithdrawable() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _consume(request, PRINCIPAL, YIELD);
         ThreeFRequestMock(request).pull(makeAddr("borrower"), PRINCIPAL - 1);
         ThreeFRequestMock(request).setRevertBalancesOf(true);
 
@@ -79,7 +79,7 @@ contract ThreeFAdapterTest is Test {
     }
 
     function test_TotalAssetsUsesConvertToAssetsWhenRequestIsWithdrawable() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _consume(request, PRINCIPAL, YIELD);
         ThreeFRequestMock(request).pull(makeAddr("loss"), 10_000e6);
         ThreeFRequestMock(request).setCanWithdraw(true);
 
@@ -91,7 +91,7 @@ contract ThreeFAdapterTest is Test {
     }
 
     function test_FinalizeRequestBurnsTrackedRequestAndRemovesIt() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _consume(request, PRINCIPAL, YIELD);
         ThreeFTokenMock(assetToken).mint(request, YIELD);
         ThreeFRequestMock(request).setCanWithdraw(true);
 
@@ -104,7 +104,7 @@ contract ThreeFAdapterTest is Test {
     }
 
     function test_FinalizeRequestKeepsRequestAccountedDuringExternalBurn() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _consume(request, PRINCIPAL, YIELD);
         ThreeFTokenMock(assetToken).mint(request, YIELD);
         ThreeFRequestMock(request).setCanWithdraw(true);
         ThreeFRequestMock(request).setAdapterToReadDuringBurn(adapter);
@@ -121,8 +121,8 @@ contract ThreeFAdapterTest is Test {
         address firstRequest = request;
         address secondRequest = _newRequest();
 
-        ThreeFRequestMock(firstRequest).consume(adapter, PRINCIPAL, YIELD);
-        ThreeFRequestMock(secondRequest).consume(adapter, PRINCIPAL / 2, YIELD / 2);
+        _consume(firstRequest, PRINCIPAL, YIELD);
+        _consume(secondRequest, PRINCIPAL / 2, YIELD / 2);
         ThreeFTokenMock(assetToken).mint(firstRequest, YIELD);
         ThreeFTokenMock(assetToken).mint(secondRequest, YIELD / 2);
         ThreeFRequestMock(firstRequest).setCanWithdraw(true);
@@ -152,9 +152,9 @@ contract ThreeFAdapterTest is Test {
 
         address firstRequest = request;
         address secondRequest = _newRequest();
-        ThreeFRequestMock(firstRequest).consume(adapter, PRINCIPAL, YIELD);
+        _consume(firstRequest, PRINCIPAL, YIELD);
         assertEq(IThreeFAdapter(adapter).requestsLength(), 1);
-        ThreeFRequestMock(secondRequest).consume(adapter, PRINCIPAL / 2, YIELD / 2);
+        _consume(secondRequest, PRINCIPAL / 2, YIELD / 2);
         assertEq(IThreeFAdapter(adapter).requestsLength(), 2);
 
         ThreeFTokenMock(assetToken).mint(firstRequest, YIELD);
@@ -164,10 +164,9 @@ contract ThreeFAdapterTest is Test {
     }
 
     function test_ConsumeRevertsWhenRequestAlreadyActive() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _consume(request, PRINCIPAL, YIELD);
 
-        vm.expectRevert(IThreeFAdapter.AlreadyRequest.selector);
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _expectConsumeRevert(IThreeFAdapter.AlreadyRequest.selector, request, PRINCIPAL, YIELD);
     }
 
     function test_ConsumeRevertsBeforeMaxLimitConfigured() public {
@@ -175,77 +174,95 @@ contract ThreeFAdapterTest is Test {
             AdapterFactory(adapterFactory).create(1, address(this), abi.encode(vault, bytes("")));
         ThreeFDelegatorMock(delegator).setLimit(unconfiguredAdapter, type(uint256).max);
 
-        vm.expectRevert(IThreeFAdapter.TooLargeRequest.selector);
-        ThreeFRequestMock(request).consume(unconfiguredAdapter, 1e6, 1);
+        _expectConsumeRevert(IThreeFAdapter.TooLargeRequest.selector, request, unconfiguredAdapter, 1e6, 1);
     }
 
     function test_ConsumeRevertsWhenPrincipalIsBelowConfiguredMinimum() public {
-        vm.expectRevert(IThreeFAdapter.TooSmallRequest.selector);
-        ThreeFRequestMock(request).consume(adapter, 0, YIELD);
+        _expectConsumeRevert(IThreeFAdapter.TooSmallRequest.selector, request, 0, YIELD);
     }
 
     function test_ConsumeRevertsWhenMaxRequestsExceeded() public {
         for (uint256 i; i < MAX_REQUESTS; ++i) {
-            ThreeFRequestMock(_newRequest()).consume(adapter, 1e6, 1);
+            _consume(_newRequest(), 1e6, 1);
         }
 
         address extraRequest = _newRequest();
-        vm.expectRevert(IThreeFAdapter.TooManyRequests.selector);
-        ThreeFRequestMock(extraRequest).consume(adapter, 1e6, 1);
+        _expectConsumeRevert(IThreeFAdapter.TooManyRequests.selector, extraRequest, 1e6, 1);
     }
 
     function test_ConsumeRevertsWhenNotWhitelisted() public {
         ThreeFWhitelistMock(whitelist).set(request, IThreeFWhitelist.WhitelistStatus.NotWhitelisted);
 
-        vm.expectRevert(IThreeFAdapter.NotRequest.selector);
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _expectConsumeRevert(IThreeFAdapter.NotRequest.selector, request, PRINCIPAL, YIELD);
     }
 
     function test_ConsumeRevertsWhenPausedWhitelisted() public {
         ThreeFWhitelistMock(whitelist).set(request, IThreeFWhitelist.WhitelistStatus.PausedWhitelisted);
 
-        vm.expectRevert(IThreeFAdapter.NotRequest.selector);
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _expectConsumeRevert(IThreeFAdapter.NotRequest.selector, request, PRINCIPAL, YIELD);
     }
 
     function test_ConsumeRevertsOnAssetMismatch() public {
         address wrongRequest = address(new ThreeFRequestMock(address(new ThreeFTokenMock())));
         ThreeFWhitelistMock(whitelist).set(wrongRequest, IThreeFWhitelist.WhitelistStatus.Whitelisted);
 
-        vm.expectRevert(IThreeFAdapter.WrongAsset.selector);
-        ThreeFRequestMock(wrongRequest).consume(adapter, PRINCIPAL, YIELD);
+        _expectConsumeRevert(IThreeFAdapter.WrongAsset.selector, wrongRequest, PRINCIPAL, YIELD);
     }
 
     function test_ConsumeRevertsWhenVaultLiquidityDry() public {
         vm.prank(delegator);
         ThreeFVaultMock(vault).pull(makeAddr("drain"), VAULT_LIQUIDITY);
 
-        vm.expectRevert(IThreeFAdapter.InsufficientAllocate.selector);
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _expectConsumeRevert(IThreeFAdapter.InsufficientAllocate.selector, request, PRINCIPAL, YIELD);
     }
 
     function test_ConsumeRevertsWhenDelegatorCapExceeded() public {
         ThreeFDelegatorMock(delegator).setLimit(adapter, PRINCIPAL - 1);
 
-        vm.expectRevert(IThreeFAdapter.InsufficientAllocate.selector);
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _expectConsumeRevert(IThreeFAdapter.InsufficientAllocate.selector, request, PRINCIPAL, YIELD);
     }
 
     function test_ConsumeRevertsWhenRequestLimitsAreExceeded() public {
         IThreeFAdapter(adapter).setLimitsPerRequest(0, 10e6, PRINCIPAL - 1);
 
-        vm.expectRevert(IThreeFAdapter.TooLargeRequest.selector);
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _expectConsumeRevert(IThreeFAdapter.TooLargeRequest.selector, request, PRINCIPAL, YIELD);
 
         IThreeFAdapter(adapter).setLimitsPerRequest(0, PRINCIPAL + 1, type(uint256).max);
 
-        vm.expectRevert(IThreeFAdapter.TooSmallRequest.selector);
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _expectConsumeRevert(IThreeFAdapter.TooSmallRequest.selector, request, PRINCIPAL, YIELD);
 
         IThreeFAdapter(adapter).setLimitsPerRequest(30_000, 1, type(uint256).max);
 
-        vm.expectRevert(IThreeFAdapter.TooLowYield.selector);
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _expectConsumeRevert(IThreeFAdapter.TooLowYield.selector, request, PRINCIPAL, YIELD);
+    }
+
+    function test_ConsumeRevertsWhenOfferMakerIsNotAdapter() public {
+        Offer memory offer = _offer(makeAddr("maker"), PRINCIPAL, YIELD, type(uint256).max);
+
+        vm.expectRevert(IThreeFAdapter.InvalidOffer.selector);
+        ThreeFRequestMock(request).consume(adapter, offer, "", PRINCIPAL, YIELD);
+    }
+
+    function test_ConsumeRevertsWhenOfferDoesNotUseCallback() public {
+        Offer memory offer = _offer(adapter, PRINCIPAL, YIELD, type(uint256).max);
+        offer.useCallback = false;
+
+        vm.expectRevert(IThreeFAdapter.InvalidOffer.selector);
+        ThreeFRequestMock(request).consume(adapter, offer, "", PRINCIPAL, YIELD);
+    }
+
+    function test_ConsumeRevertsWhenOfferExpectedReturnIsZero() public {
+        Offer memory offer = _offer(adapter, PRINCIPAL, 0, type(uint256).max);
+
+        vm.expectRevert(IThreeFAdapter.InvalidOffer.selector);
+        ThreeFRequestMock(request).consume(adapter, offer, "", PRINCIPAL, 0);
+    }
+
+    function test_ConsumeRevertsWhenOfferIsExpired() public {
+        Offer memory offer = _offer(adapter, PRINCIPAL, YIELD, block.timestamp - 1);
+
+        vm.expectRevert(IThreeFAdapter.ExpiredOffer.selector);
+        ThreeFRequestMock(request).consume(adapter, offer, "", PRINCIPAL, YIELD);
     }
 
     function test_AllocatableIsZeroOutsideConsume() public view {
@@ -253,7 +270,7 @@ contract ThreeFAdapterTest is Test {
     }
 
     function test_DeallocateRecallsFinalizedBalanceToVault() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _consume(request, PRINCIPAL, YIELD);
         ThreeFTokenMock(assetToken).mint(request, YIELD);
         ThreeFRequestMock(request).setCanWithdraw(true);
         IThreeFAdapter(adapter).finalizeRequest(request);
@@ -267,7 +284,7 @@ contract ThreeFAdapterTest is Test {
     }
 
     function test_DeallocateOnlyDelegator() public {
-        ThreeFRequestMock(request).consume(adapter, PRINCIPAL, YIELD);
+        _consume(request, PRINCIPAL, YIELD);
 
         vm.expectRevert(IAdapter.NotVault.selector);
         IThreeFAdapter(adapter).deallocate(PRINCIPAL);
@@ -278,7 +295,7 @@ contract ThreeFAdapterTest is Test {
 
         assertEq(IThreeFAdapter(adapter).getMaxAssets(), PRINCIPAL);
 
-        ThreeFRequestMock(request).consume(adapter, 40_000e6, YIELD);
+        _consume(request, 40_000e6, YIELD);
 
         assertEq(IThreeFAdapter(adapter).getMaxAssets(), 60_000e6);
     }
@@ -323,6 +340,47 @@ contract ThreeFAdapterTest is Test {
     function _newRequest() internal returns (address newRequest) {
         newRequest = address(new ThreeFRequestMock(assetToken));
         ThreeFWhitelistMock(whitelist).set(newRequest, IThreeFWhitelist.WhitelistStatus.Whitelisted);
+    }
+
+    function _consume(address request_, uint256 principal, uint256 yieldAmount) internal {
+        _consume(request_, adapter, principal, yieldAmount);
+    }
+
+    function _consume(address request_, address adapter_, uint256 principal, uint256 yieldAmount) internal {
+        Offer memory offer = _offer(adapter_, principal, yieldAmount, type(uint256).max);
+        ThreeFRequestMock(request_).consume(adapter_, offer, "", principal, yieldAmount);
+    }
+
+    function _expectConsumeRevert(bytes4 selector, address request_, uint256 principal, uint256 yieldAmount) internal {
+        _expectConsumeRevert(selector, request_, adapter, principal, yieldAmount);
+    }
+
+    function _expectConsumeRevert(
+        bytes4 selector,
+        address request_,
+        address adapter_,
+        uint256 principal,
+        uint256 yieldAmount
+    ) internal {
+        Offer memory offer = _offer(adapter_, principal, yieldAmount, type(uint256).max);
+
+        vm.expectRevert(selector);
+        ThreeFRequestMock(request_).consume(adapter_, offer, "", principal, yieldAmount);
+    }
+
+    function _offer(address maker, uint256 amount, uint256 expectedReturn, uint256 expiration)
+        internal
+        pure
+        returns (Offer memory offer)
+    {
+        offer = Offer({
+            maker: maker,
+            amount: amount,
+            expectedReturn: expectedReturn,
+            nonce: 1,
+            expiration: expiration,
+            useCallback: true
+        });
     }
 }
 
@@ -495,21 +553,14 @@ contract ThreeFRequestMock {
         IERC20(asset).transfer(receiver, amount);
     }
 
-    function consume(address adapter, uint256 principal, uint256 yieldAmount) external {
-        IThreeFRequestCallback(adapter)
-            .onRequestConsumed(
-                Offer({
-                maker: adapter,
-                amount: principal,
-                expectedReturn: yieldAmount,
-                nonce: 1,
-                expiration: type(uint256).max,
-                useCallback: true
-            }),
-                "",
-                principal,
-                yieldAmount
-            );
+    function consume(
+        address adapter,
+        Offer calldata offer,
+        bytes calldata signature,
+        uint256 principal,
+        uint256 yieldAmount
+    ) external {
+        IThreeFRequestCallback(adapter).onRequestConsumed(offer, signature, principal, yieldAmount);
 
         IERC20(asset).transferFrom(adapter, address(this), principal);
         _ptBalances[adapter] += principal;

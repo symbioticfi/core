@@ -164,6 +164,13 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
             revert WrongAsset();
         }
 
+        if (offer.maker != address(this) || !offer.useCallback || offer.expectedReturn == 0) {
+            revert InvalidOffer();
+        }
+        if (offer.expiration < block.timestamp) {
+            revert ExpiredOffer();
+        }
+
         if (principalAssets > 0) {
             _inConsume = true;
             if (
