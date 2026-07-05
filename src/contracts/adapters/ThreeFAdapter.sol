@@ -64,7 +64,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
 
     /// @inheritdoc IERC1271
     function isValidSignature(bytes32 hash, bytes calldata signature) public view returns (bytes4) {
-        return SignatureChecker.isValidSignatureNow(offerSigner, hash, signature)
+        return SignatureChecker.isValidSignatureNowCalldata(offerSigner, hash, signature)
             ? IERC1271.isValidSignature.selector
             : bytes4(0xffffffff);
     }
