@@ -132,8 +132,9 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     function requestsLength() external view returns (uint256 length);
 
     /**
-     * @notice Returns the maximum principal assets that can currently be funded into a new request.
-     * @return assets Maximum assets available for the next request.
+     * @notice Returns the current vault/delegator capacity available to 3F requests.
+     * @dev The returned value is not capped by `maxAssetsPerRequest`; request consumption applies that cap.
+     * @return assets Current available capacity before the per-request maximum is applied.
      */
     function getMaxAssets() external returns (uint256 assets);
 
