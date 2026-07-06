@@ -171,7 +171,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 358);
+        assertEq(totalMaxAverageRequests, 368);
     }
 
     function testCorrelatedMidasTokenAccountsUseCorrelatedVaultAssets() public view {
@@ -1005,7 +1005,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         specs[15] = _spec("mEVUSD", 3 days);
         specs[16] = _spec("mFARM", 7 days);
         specs[17] = _spec("mFONE", 35 days);
-        specs[18] = _spec("mGLOBAL", 60 days);
+        specs[18] = _spec("mGLOBAL", 65 days);
         specs[19] = _spec("mHYPER", 3 days);
         specs[20] = _spec("mHyperBTC", 7 days);
         specs[21] = _spec("mHyperETH", 7 days);

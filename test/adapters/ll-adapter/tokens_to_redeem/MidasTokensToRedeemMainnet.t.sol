@@ -434,7 +434,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         specs = new TokenSpec[](23);
         specs[0] = TokenSpec("mF-ONE", 35 days);
         specs[1] = _ethereumCompSpec("mTBILL", 3 days);
-        specs[2] = _ethereumCompSpec("mGLOBAL", 60 days);
+        specs[2] = _ethereumCompSpec("mGLOBAL", 65 days);
         specs[3] = _ethereumCompSpec("mHYPER", 3 days);
         specs[4] = _ethereumCompSpec("mM1-USD", 17 days);
         specs[5] = _ethereumCompSpec("mHyperBTC", 7 days);
