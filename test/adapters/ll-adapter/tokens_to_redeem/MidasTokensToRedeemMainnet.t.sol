@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 /// @dev Mainnet-fork suite: requires `ETH_RPC_URL` (skipped otherwise). Last updated for the
 ///      cutoff-based redemptions change: mGLOBAL is now a `CutoffMidasAccount` with a
-///      26th-of-month cutoff, 3-day pre-cutoff window and 36-hour cooldown. Re-run on fork
+///      27th-of-month cutoff, 3-day pre-cutoff window and 12-hour cooldown. Re-run on fork
 ///      after any change to the Midas accounts.
 import {Test} from "forge-std/Test.sol";
 
@@ -73,14 +73,14 @@ contract MidasTokensToRedeemMainnetTest is Test {
     address internal constant MIDAS_GREENLIST_ADMIN = 0xb5CcD8dC8082467849eE008d4242f7b3b569EF05;
     address internal constant MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
     uint48 internal constant MGLOBAL_JUNE_SUBS_OPEN = 1_781_856_000; // 2026-06-19 08:00 UTC
-    uint48 internal constant MGLOBAL_JUNE_TOKEN_CUTOFF = 1_782_493_200; // 2026-06-26 17:00 UTC
+    uint48 internal constant MGLOBAL_JUNE_TOKEN_CUTOFF = 1_782_579_600; // 2026-06-27 17:00 UTC
     uint48 internal constant MGLOBAL_JUNE_FUND_CUTOFF = 1_782_590_400; // 2026-06-27 20:00 UTC
     uint48 internal constant MGLOBAL_JUNE_STANDARD_REDEMPTION = 1_782_734_400; // 2026-06-29 12:00 UTC
     uint48 internal constant MGLOBAL_JULY_NAV_PROPAGATED = 1_784_160_000; // 2026-07-16 00:00 UTC
     uint48 internal constant MGLOBAL_JULY_SUBS_OPEN = 1_784_620_800; // 2026-07-21 08:00 UTC
-    uint48 internal constant MGLOBAL_JULY_TOKEN_CUTOFF = 1_785_085_200; // 2026-07-26 17:00 UTC
+    uint48 internal constant MGLOBAL_JULY_TOKEN_CUTOFF = 1_785_171_600; // 2026-07-27 17:00 UTC
     uint48 internal constant MGLOBAL_AUGUST_NAV_PROPAGATED = 1_786_838_400; // 2026-08-16 00:00 UTC
-    uint48 internal constant MGLOBAL_AUGUST_TOKEN_CUTOFF = 1_787_763_600; // 2026-08-26 17:00 UTC
+    uint48 internal constant MGLOBAL_AUGUST_TOKEN_CUTOFF = 1_787_850_000; // 2026-08-27 17:00 UTC
     uint48 internal constant MGLOBAL_SETTLEMENT_PROCESSED = 1_788_220_800; // 2026-09-01 00:00 UTC
     uint48 internal constant MGLOBAL_NOVEMBER_NAV_PROPAGATED = 1_794_787_200; // 2026-11-16 00:00 UTC
 
@@ -149,7 +149,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
         assertEq(MidasAccount(account).TOKEN_TO_REDEEM(), MGLOBAL);
         assertEq(MidasAccount(account).REDEMPTION_TOKEN(), MAINNET_USDC);
-        assertEq(CutoffMidasAccount(account).CUTOFF_DAY(), 26);
+        assertEq(CutoffMidasAccount(account).CUTOFF_DAY(), 27);
         assertEq(CutoffMidasAccount(account).CUTOFF_HOUR(), 17);
         assertEq(CutoffMidasAccount(account).bucketToTimestamp(1), MGLOBAL_JULY_TOKEN_CUTOFF);
         assertEq(CutoffMidasAccount(account).bucketToTimestamp(2), MGLOBAL_AUGUST_TOKEN_CUTOFF);
@@ -379,13 +379,18 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(
             MidasOracle(account.ORACLE()).DATA_FEED(), address(IMidasRedemptionVault(redemptionVault).mTokenDataFeed())
         );
+        (uint256 minPrice, uint256 maxPrice) = _expectedOracleBounds(index);
+        if (minPrice != 0) {
+            assertEq(MidasOracle(account.ORACLE()).MIN_PRICE(), minPrice, spec.symbol);
+            assertEq(MidasOracle(account.ORACLE()).MAX_PRICE(), maxPrice, spec.symbol);
+        }
         _stabilizeMidasDataFeed(MidasOracle(account.ORACLE()).DATA_FEED());
         assertGt(MidasOracle(account.ORACLE()).getPrice(), 0);
         assertEq(IERC20(token).allowance(address(account), redemptionVault), type(uint256).max);
         assertEq(IAccount(address(account)).totalAssets(), 0);
 
         if (keccak256(bytes(spec.symbol)) == keccak256("mGLOBAL")) {
-            // mGLOBAL is a CutoffMidasAccount: bucket conversion is fixed to the 26th of each month.
+            // mGLOBAL is a CutoffMidasAccount: bucket conversion is fixed to the 27th of each month.
             assertEq(
                 CutoffMidasAccount(address(account))
                     .bucketToTimestamp(CutoffMidasAccount(address(account)).timestampToBucket(1_784_505_600)),
@@ -429,7 +434,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         specs = new TokenSpec[](23);
         specs[0] = TokenSpec("mF-ONE", 35 days);
         specs[1] = _ethereumCompSpec("mTBILL", 3 days);
-        specs[2] = _ethereumCompSpec("mGLOBAL", 65 days);
+        specs[2] = _ethereumCompSpec("mGLOBAL", 60 days);
         specs[3] = _ethereumCompSpec("mHYPER", 3 days);
         specs[4] = _ethereumCompSpec("mM1-USD", 17 days);
         specs[5] = _ethereumCompSpec("mHyperBTC", 7 days);
@@ -495,7 +500,13 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
     function _cooldown(uint256 index, uint48 maxWithdrawalDelay) internal pure returns (uint48) {
         if (index == 2) {
-            return 36 hours;
+            return 12 hours;
+        }
+        if (index == 4) {
+            return 2 days;
+        }
+        if (index == 6) {
+            return 3 days;
         }
 
         uint48 cooldownDays = maxWithdrawalDelay / 10 / 1 days;
@@ -503,6 +514,23 @@ contract MidasTokensToRedeemMainnetTest is Test {
             return 1 days;
         }
         return cooldownDays * 1 days;
+    }
+
+    function _expectedOracleBounds(uint256 index) internal pure returns (uint256 minPrice, uint256 maxPrice) {
+        if (index == 0) return (275_900_000_000_000_000, 3_862_200_000_000_000_000);
+        if (index == 1) return (266_300_000_000_000_000, 3_727_800_000_000_000_000);
+        if (index == 2) return (251_400_000_000_000_000, 3_520_200_000_000_000_000);
+        if (index == 3) return (277_200_000_000_000_000, 3_880_300_000_000_000_000);
+        if (index == 4) return (253_500_000_000_000_000, 3_548_800_000_000_000_000);
+        if (index == 6) return (266_900_000_000_000_000, 3_736_600_000_000_000_000);
+        if (index == 9) return (275_000_000_000_000_000, 3_850_500_000_000_000_000);
+        if (index == 10) return (282_900_000_000_000_000, 3_961_200_000_000_000_000);
+        if (index == 11) return (264_400_000_000_000_000, 3_701_100_000_000_000_000);
+        if (index == 13) return (280_800_000_000_000_000, 3_931_300_000_000_000_000);
+        if (index == 14) return (282_900_000_000_000_000, 3_961_200_000_000_000_000);
+        if (index == 15) return (298_900_000_000_000_000, 4_184_700_000_000_000_000);
+        if (index == 21) return (261_000_000_000_000_000, 3_653_400_000_000_000_000);
+        if (index == 22) return (253_000_000_000_000_000, 3_541_400_000_000_000_000);
     }
 
     function _configureMidasRequestPath(address account, address llAdapter) internal {

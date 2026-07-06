@@ -20,8 +20,8 @@ contract mEDGE_Account is MidasCompAccount, IMidasTokenAccount {
         MidasCompAccount(
             address(
                 new MidasOracle(
-                    560_381_475_000_000_000,
-                    2_241_525_900_000_000_000,
+                    280_800_000_000_000_000,
+                    3_931_300_000_000_000_000,
                     address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
                 )
             ),

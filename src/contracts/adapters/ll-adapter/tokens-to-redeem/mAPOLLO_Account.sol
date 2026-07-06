@@ -20,8 +20,8 @@ contract mAPOLLO_Account is MidasCompAccount, IMidasTokenAccount {
         MidasCompAccount(
             address(
                 new MidasOracle(
-                    549_026_110_000_000_000,
-                    2_196_104_440_000_000_000,
+                    275_000_000_000_000_000,
+                    3_850_500_000_000_000_000,
                     address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
                 )
             ),

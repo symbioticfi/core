@@ -20,8 +20,8 @@ contract mFONE_Account is MidasNonCompAccount, IMidasTokenAccount {
         MidasNonCompAccount(
             address(
                 new MidasOracle(
-                    550_191_060_000_000_000,
-                    2_200_764_240_000_000_000,
+                    275_900_000_000_000_000,
+                    3_862_200_000_000_000_000,
                     address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
                 )
             ),

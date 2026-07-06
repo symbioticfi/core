@@ -171,7 +171,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 286);
+        assertEq(totalMaxAverageRequests, 346);
     }
 
     function testCorrelatedMidasTokenAccountsUseCorrelatedVaultAssets() public view {
@@ -1005,8 +1005,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         specs[15] = _spec("mEVUSD", 3 days);
         specs[16] = _spec("mFARM", 7 days);
         specs[17] = _spec("mFONE", 35 days);
-        // mGLOBAL cohort worst case: 30-day wait to cutoff + next monthly cutoff + 7-day post-cutoff window.
-        specs[18] = _spec("mGLOBAL", 67 days);
+        specs[18] = _spec("mGLOBAL", 60 days);
         specs[19] = _spec("mHYPER", 3 days);
         specs[20] = _spec("mHyperBTC", 7 days);
         specs[21] = _spec("mHyperETH", 7 days);
@@ -1200,8 +1199,17 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     }
 
     function _cooldown(string memory symbol, uint48 maxDelay) internal pure returns (uint48) {
-        if (keccak256(bytes(symbol)) == keccak256("mFONE") || keccak256(bytes(symbol)) == keccak256("mGLOBAL")) {
-            return 36 hours;
+        if (keccak256(bytes(symbol)) == keccak256("mFONE")) {
+            return 3 days;
+        }
+        if (keccak256(bytes(symbol)) == keccak256("mGLOBAL")) {
+            return 12 hours;
+        }
+        if (keccak256(bytes(symbol)) == keccak256("mM1USD")) {
+            return 2 days;
+        }
+        if (keccak256(bytes(symbol)) == keccak256("mRe7YIELD")) {
+            return 3 days;
         }
 
         uint48 cooldown = maxDelay / 10;

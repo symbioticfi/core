@@ -20,8 +20,8 @@ contract StockMarketTRBasisTrade_Account is MidasCompAccount, IMidasTokenAccount
         MidasCompAccount(
             address(
                 new MidasOracle(
-                    504_412_465_000_000_000,
-                    2_017_649_860_000_000_000,
+                    253_000_000_000_000_000,
+                    3_541_400_000_000_000_000,
                     address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
                 )
             ),

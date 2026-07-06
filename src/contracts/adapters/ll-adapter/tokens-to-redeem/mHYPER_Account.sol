@@ -20,8 +20,8 @@ contract mHYPER_Account is MidasCompAccount, IMidasTokenAccount {
         MidasCompAccount(
             address(
                 new MidasOracle(
-                    553_267_385_000_000_000,
-                    2_213_069_540_000_000_000,
+                    277_200_000_000_000_000,
+                    3_880_300_000_000_000_000,
                     address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
                 )
             ),

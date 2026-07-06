@@ -20,8 +20,8 @@ contract mROX_Account is MidasCompAccount, IMidasTokenAccount {
         MidasCompAccount(
             address(
                 new MidasOracle(
-                    564_677_780_000_000_000,
-                    2_258_711_120_000_000_000,
+                    282_900_000_000_000_000,
+                    3_961_200_000_000_000_000,
                     address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
                 )
             ),

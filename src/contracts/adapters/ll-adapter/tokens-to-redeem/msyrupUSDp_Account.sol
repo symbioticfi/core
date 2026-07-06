@@ -20,8 +20,8 @@ contract msyrupUSDp_Account is MidasCompAccount, IMidasTokenAccount {
         MidasCompAccount(
             address(
                 new MidasOracle(
-                    528_476_375_000_000_000,
-                    2_113_905_500_000_000_000,
+                    264_400_000_000_000_000,
+                    3_701_100_000_000_000_000,
                     address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
                 )
             ),

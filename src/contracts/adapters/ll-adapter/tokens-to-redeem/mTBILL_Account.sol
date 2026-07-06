@@ -20,8 +20,8 @@ contract mTBILL_Account is MidasCompAccount, IMidasTokenAccount {
         MidasCompAccount(
             address(
                 new MidasOracle(
-                    532_179_920_000_000_000,
-                    2_128_719_680_000_000_000,
+                    266_300_000_000_000_000,
+                    3_727_800_000_000_000_000,
                     address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
                 )
             ),
