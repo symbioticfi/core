@@ -61,10 +61,12 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         AccountDeploymentData mM1USD;
     }
 
-    // Configurations - UPDATE OWNER BEFORE DEPLOYMENT.
+    // Configurations - UPDATE ACCOUNT_REGISTRY_OWNER BEFORE DEPLOYMENT.
 
-    // Address that will own the account registry and factories after deployment.
-    address public constant OWNER = 0x0000000000000000000000000000000000000000;
+    // Address that will own the account registry after deployment.
+    address public constant ACCOUNT_REGISTRY_OWNER = 0x0000000000000000000000000000000000000000;
+    // Address that will own all factories after deployment.
+    address public constant FACTORIES_OWNER = 0x0000000000000000000000000000000000000000;
 
     address public constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -78,8 +80,9 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
     address public constant MM1_USD = 0xCc5C22C7A6BCC25e66726AeF011dDE74289ED203;
 
     function run() public returns (LiquidLaneDeploymentData memory data) {
-        address owner = OWNER;
-        _validateDeploymentParams(owner);
+        address accountRegistryOwner = ACCOUNT_REGISTRY_OWNER;
+        address factoriesOwner = FACTORIES_OWNER;
+        _validateDeploymentParams(accountRegistryOwner, factoriesOwner);
 
         address scriptOwner = _scriptOwner();
         address vaultFactory = _coreVaultFactory();
@@ -101,11 +104,11 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         data.stockMarketTRBasisTrade = _deployStockMarketTRBasisTrade(data.accountRegistry);
         data.mM1USD = _deployMM1USD(data.accountRegistry);
 
-        _transferOwnership(data, owner);
+        _transferOwnership(data, accountRegistryOwner, factoriesOwner);
 
         _stopBroadcast();
 
-        _validateDeployment(data, owner);
+        _validateDeployment(data, accountRegistryOwner, factoriesOwner);
         _logDeployment(data);
     }
 
@@ -161,47 +164,62 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         AccountRegistry(accountRegistry).setAccountFactory(USDC, tokenToRedeem, data.factory);
     }
 
-    function _transferOwnership(LiquidLaneDeploymentData memory data, address owner) internal {
-        if (owner == _scriptOwner()) {
+    function _transferOwnership(
+        LiquidLaneDeploymentData memory data,
+        address accountRegistryOwner,
+        address factoriesOwner
+    ) internal {
+        address scriptOwner = _scriptOwner();
+
+        if (accountRegistryOwner != scriptOwner) {
+            Ownable(data.accountRegistry).transferOwnership(accountRegistryOwner);
+        }
+
+        if (factoriesOwner == scriptOwner) {
             return;
         }
 
-        Ownable(data.accountRegistry).transferOwnership(owner);
-        Ownable(data.liquidLaneAdapterFactory).transferOwnership(owner);
-        // _transferAccountFactoryOwnership(data.mGLOBAL, owner);
-        _transferAccountFactoryOwnership(data.mFONE, owner);
-        _transferAccountFactoryOwnership(data.mROX, owner);
-        _transferAccountFactoryOwnership(data.mHYPER, owner);
-        _transferAccountFactoryOwnership(data.carryTradeUSDTRY, owner);
-        _transferAccountFactoryOwnership(data.stockMarketTRBasisTrade, owner);
-        _transferAccountFactoryOwnership(data.mM1USD, owner);
+        Ownable(data.liquidLaneAdapterFactory).transferOwnership(factoriesOwner);
+        // _transferAccountFactoryOwnership(data.mGLOBAL, factoriesOwner);
+        _transferAccountFactoryOwnership(data.mFONE, factoriesOwner);
+        _transferAccountFactoryOwnership(data.mROX, factoriesOwner);
+        _transferAccountFactoryOwnership(data.mHYPER, factoriesOwner);
+        _transferAccountFactoryOwnership(data.carryTradeUSDTRY, factoriesOwner);
+        _transferAccountFactoryOwnership(data.stockMarketTRBasisTrade, factoriesOwner);
+        _transferAccountFactoryOwnership(data.mM1USD, factoriesOwner);
     }
 
     function _transferAccountFactoryOwnership(AccountDeploymentData memory data, address owner) internal {
         Ownable(data.factory).transferOwnership(owner);
     }
 
-    function _validateDeploymentParams(address owner) internal pure {
-        require(owner != address(0), "invalid owner");
+    function _validateDeploymentParams(address accountRegistryOwner, address factoriesOwner) internal pure {
+        require(accountRegistryOwner != address(0), "invalid account registry owner");
+        require(factoriesOwner != address(0), "invalid factories owner");
+        require(accountRegistryOwner != factoriesOwner, "owners must differ");
         require(COW_SWAP_SETTLEMENT != address(0), "invalid cow swap settlement");
         require(USDC != address(0), "invalid usdc");
     }
 
-    function _validateDeployment(LiquidLaneDeploymentData memory data, address owner) internal view {
-        assert(Ownable(data.accountRegistry).owner() == owner);
-        assert(Ownable(data.liquidLaneAdapterFactory).owner() == owner);
+    function _validateDeployment(
+        LiquidLaneDeploymentData memory data,
+        address accountRegistryOwner,
+        address factoriesOwner
+    ) internal view {
+        assert(Ownable(data.accountRegistry).owner() == accountRegistryOwner);
+        assert(Ownable(data.liquidLaneAdapterFactory).owner() == factoriesOwner);
         assert(IMigratableEntity(data.liquidLaneAdapterImplementation).FACTORY() == data.liquidLaneAdapterFactory);
         assert(AdapterFactory(data.liquidLaneAdapterFactory).implementation(1) == data.liquidLaneAdapterImplementation);
 
-        // _validateAccountDeployment(data.accountRegistry, MGLOBAL, data.mGLOBAL, owner);
-        _validateAccountDeployment(data.accountRegistry, MFONE, data.mFONE, owner);
-        _validateAccountDeployment(data.accountRegistry, MROX, data.mROX, owner);
-        _validateAccountDeployment(data.accountRegistry, MHYPER, data.mHYPER, owner);
-        _validateAccountDeployment(data.accountRegistry, CARRY_TRADE_USD_TRY, data.carryTradeUSDTRY, owner);
+        // _validateAccountDeployment(data.accountRegistry, MGLOBAL, data.mGLOBAL, factoriesOwner);
+        _validateAccountDeployment(data.accountRegistry, MFONE, data.mFONE, factoriesOwner);
+        _validateAccountDeployment(data.accountRegistry, MROX, data.mROX, factoriesOwner);
+        _validateAccountDeployment(data.accountRegistry, MHYPER, data.mHYPER, factoriesOwner);
+        _validateAccountDeployment(data.accountRegistry, CARRY_TRADE_USD_TRY, data.carryTradeUSDTRY, factoriesOwner);
         _validateAccountDeployment(
-            data.accountRegistry, STOCK_MARKET_TR_BASIS_TRADE, data.stockMarketTRBasisTrade, owner
+            data.accountRegistry, STOCK_MARKET_TR_BASIS_TRADE, data.stockMarketTRBasisTrade, factoriesOwner
         );
-        _validateAccountDeployment(data.accountRegistry, MM1_USD, data.mM1USD, owner);
+        _validateAccountDeployment(data.accountRegistry, MM1_USD, data.mM1USD, factoriesOwner);
     }
 
     function _validateAccountDeployment(

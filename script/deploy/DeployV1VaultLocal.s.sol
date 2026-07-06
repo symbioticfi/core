@@ -59,9 +59,7 @@ contract DeployV1VaultLocalScript is Script {
         bytes memory delegatorParams = abi.encode(
             INetworkRestakeDelegator.InitParams({
                 baseParams: IBaseDelegator.BaseParams({
-                    defaultAdminRoleHolder: owner,
-                    hook: address(0),
-                    hookSetRoleHolder: owner
+                    defaultAdminRoleHolder: owner, hook: address(0), hookSetRoleHolder: owner
                 }),
                 networkLimitSetRoleHolders: roleHolders,
                 operatorNetworkSharesSetRoleHolders: roleHolders
@@ -76,8 +74,9 @@ contract DeployV1VaultLocalScript is Script {
             })
         );
 
-        (address vault, address delegator, address slasher) = IVaultConfigurator(VAULT_CONFIGURATOR).create(
-            IVaultConfigurator.InitParams({
+        (address vault, address delegator, address slasher) = IVaultConfigurator(VAULT_CONFIGURATOR)
+            .create(
+                IVaultConfigurator.InitParams({
                 version: 1,
                 owner: owner,
                 vaultParams: vaultParams,
@@ -87,7 +86,7 @@ contract DeployV1VaultLocalScript is Script {
                 slasherIndex: 1,
                 slasherParams: slasherParams
             })
-        );
+            );
 
         vm.stopBroadcast();
 

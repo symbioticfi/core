@@ -499,6 +499,9 @@ contract MidasTokensToRedeemMainnetTest is Test {
     }
 
     function _cooldown(uint256 index, uint48 maxWithdrawalDelay) internal pure returns (uint48) {
+        if (index == 0) {
+            return 36 hours;
+        }
         if (index == 2) {
             return 12 hours;
         }
