@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 /// @dev Mainnet-fork suite: requires `ETH_RPC_URL` (skipped otherwise). Last updated for the
 ///      cutoff-based redemptions change: mGLOBAL is now a `CutoffMidasAccount` with a
-///      27th-of-month cutoff, 3-day pre-cutoff window and 12-hour cooldown. Re-run on fork
+///      26th-of-month 14:00 UTC cutoff, 5-day pre-cutoff window and 12-hour cooldown. Re-run on fork
 ///      after any change to the Midas accounts.
 import {Test} from "forge-std/Test.sol";
 
@@ -45,6 +45,7 @@ import {MigratablesFactory} from "../../../../src/contracts/common/MigratablesFa
 import {Registry} from "../../../../src/contracts/common/Registry.sol";
 import {ILiquidLaneAdapter} from "../../../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IAdapter} from "../../../../src/interfaces/adapters/IAdapter.sol";
+import {ICoWSwapSettlement} from "../../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IMidasDataFeed} from "../../../../src/interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
 import {REQUEST_STATUS_PENDING} from "../../../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
@@ -72,15 +73,16 @@ contract MidasTokensToRedeemMainnetTest is Test {
     address internal constant MIDAS_ACCESS_CONTROL_ADMIN = 0xd4195CF4df289a4748C1A7B6dDBE770e27bA1227;
     address internal constant MIDAS_GREENLIST_ADMIN = 0xb5CcD8dC8082467849eE008d4242f7b3b569EF05;
     address internal constant MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
+    address internal constant MGLOBAL_REDEMPTION_VAULT = 0x1e0fd66753198c7b8bA64edEe8d41D8628Bf20D7;
     uint48 internal constant MGLOBAL_JUNE_SUBS_OPEN = 1_781_856_000; // 2026-06-19 08:00 UTC
-    uint48 internal constant MGLOBAL_JUNE_TOKEN_CUTOFF = 1_782_579_600; // 2026-06-27 17:00 UTC
-    uint48 internal constant MGLOBAL_JUNE_FUND_CUTOFF = 1_782_590_400; // 2026-06-27 20:00 UTC
+    uint48 internal constant MGLOBAL_JUNE_TOKEN_CUTOFF = 1_782_482_400; // 2026-06-26 14:00 UTC
+    uint48 internal constant MGLOBAL_JUNE_FUND_CUTOFF = 1_782_493_200; // 2026-06-26 17:00 UTC
     uint48 internal constant MGLOBAL_JUNE_STANDARD_REDEMPTION = 1_782_734_400; // 2026-06-29 12:00 UTC
     uint48 internal constant MGLOBAL_JULY_NAV_PROPAGATED = 1_784_160_000; // 2026-07-16 00:00 UTC
-    uint48 internal constant MGLOBAL_JULY_SUBS_OPEN = 1_784_620_800; // 2026-07-21 08:00 UTC
-    uint48 internal constant MGLOBAL_JULY_TOKEN_CUTOFF = 1_785_171_600; // 2026-07-27 17:00 UTC
+    uint48 internal constant MGLOBAL_JULY_SUBS_OPEN = 1_784_642_400; // 2026-07-21 14:00 UTC
+    uint48 internal constant MGLOBAL_JULY_TOKEN_CUTOFF = 1_785_074_400; // 2026-07-26 14:00 UTC
     uint48 internal constant MGLOBAL_AUGUST_NAV_PROPAGATED = 1_786_838_400; // 2026-08-16 00:00 UTC
-    uint48 internal constant MGLOBAL_AUGUST_TOKEN_CUTOFF = 1_787_850_000; // 2026-08-27 17:00 UTC
+    uint48 internal constant MGLOBAL_AUGUST_TOKEN_CUTOFF = 1_787_752_800; // 2026-08-26 14:00 UTC
     uint48 internal constant MGLOBAL_SETTLEMENT_PROCESSED = 1_788_220_800; // 2026-09-01 00:00 UTC
     uint48 internal constant MGLOBAL_NOVEMBER_NAV_PROPAGATED = 1_794_787_200; // 2026-11-16 00:00 UTC
 
@@ -98,6 +100,26 @@ contract MidasTokensToRedeemMainnetTest is Test {
         for (uint256 i; i < length; ++i) {
             assertEq(_assetFor(i), MAINNET_USDC);
         }
+    }
+
+    function testMGlobalAccountConfigUsesConfiguredCutoff() public {
+        address dataFeed = makeAddr("dataFeed");
+        address relayer = makeAddr("relayer");
+
+        vm.mockCall(COW_SWAP_SETTLEMENT, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
+        vm.mockCall(MGLOBAL, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
+        vm.mockCall(
+            MGLOBAL_REDEMPTION_VAULT, abi.encodeCall(IMidasRedemptionVault.mTokenDataFeed, ()), abi.encode(dataFeed)
+        );
+
+        mGLOBAL_Account account =
+            new mGLOBAL_Account(address(new MigratablesFactory(address(this))), COW_SWAP_SETTLEMENT);
+
+        assertEq(account.COOLDOWN(), 12 hours);
+        assertEq(account.CUTOFF_DAY(), 26);
+        assertEq(account.CUTOFF_HOUR(), 14);
+        assertEq(account.bucketToTimestamp(1), MGLOBAL_JULY_TOKEN_CUTOFF);
+        assertEq(account.bucketToTimestamp(2), MGLOBAL_AUGUST_TOKEN_CUTOFF);
     }
 
     function testOnboardsEthereumMainnetMidasTokensToRedeem() public {
@@ -149,8 +171,8 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
         assertEq(MidasAccount(account).TOKEN_TO_REDEEM(), MGLOBAL);
         assertEq(MidasAccount(account).REDEMPTION_TOKEN(), MAINNET_USDC);
-        assertEq(CutoffMidasAccount(account).CUTOFF_DAY(), 27);
-        assertEq(CutoffMidasAccount(account).CUTOFF_HOUR(), 17);
+        assertEq(CutoffMidasAccount(account).CUTOFF_DAY(), 26);
+        assertEq(CutoffMidasAccount(account).CUTOFF_HOUR(), 14);
         assertEq(CutoffMidasAccount(account).bucketToTimestamp(1), MGLOBAL_JULY_TOKEN_CUTOFF);
         assertEq(CutoffMidasAccount(account).bucketToTimestamp(2), MGLOBAL_AUGUST_TOKEN_CUTOFF);
         assertLt(MGLOBAL_JUNE_SUBS_OPEN, MGLOBAL_JUNE_TOKEN_CUTOFF);
@@ -390,7 +412,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(IAccount(address(account)).totalAssets(), 0);
 
         if (keccak256(bytes(spec.symbol)) == keccak256("mGLOBAL")) {
-            // mGLOBAL is a CutoffMidasAccount: bucket conversion is fixed to the 27th of each month.
+            // mGLOBAL is a CutoffMidasAccount: bucket conversion is fixed to the 26th of each month.
             assertEq(
                 CutoffMidasAccount(address(account))
                     .bucketToTimestamp(CutoffMidasAccount(address(account)).timestampToBucket(1_784_505_600)),
