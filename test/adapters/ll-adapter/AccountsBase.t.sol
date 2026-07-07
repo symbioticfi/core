@@ -841,7 +841,9 @@ contract MockAsyncRedeemVault is MockERC20 {
 
     mapping(uint256 requestId => mapping(address controller => uint256 shares)) public pending;
     mapping(uint256 requestId => mapping(address controller => uint256 shares)) public claimable;
+    mapping(address controller => uint256 shares) public claimableShares;
     mapping(address controller => uint256 assets) public claimableAssets;
+    mapping(address controller => uint256 calls) public redeemCalls;
 
     struct PendingRedemption {
         uint256 shares;
@@ -921,6 +923,7 @@ contract MockAsyncRedeemVault is MockERC20 {
     function fulfill(uint256 requestId, address controller, uint256 shares) external {
         pending[requestId][controller] -= shares;
         claimable[requestId][controller] += shares;
+        claimableShares[controller] += shares;
         claimableAssets[controller] += convertToAssets(shares);
     }
 
@@ -928,13 +931,18 @@ contract MockAsyncRedeemVault is MockERC20 {
         return claimableAssets[owner];
     }
 
+    function maxRedeem(address owner) external view returns (uint256 maxShares) {
+        return claimableShares[owner];
+    }
+
     function redeem(uint256 shares, address receiver, address controller) external returns (uint256 assets) {
-        uint256 claimableShares = claimable[0][controller];
-        assets = shares == claimableShares
+        uint256 curClaimableShares = claimableShares[controller];
+        assets = shares == curClaimableShares
             ? claimableAssets[controller]
-            : claimableAssets[controller] * shares / claimableShares;
-        claimable[0][controller] -= shares;
+            : claimableAssets[controller] * shares / curClaimableShares;
+        claimableShares[controller] -= shares;
         claimableAssets[controller] -= assets;
+        ++redeemCalls[controller];
         asset.mint(receiver, assets);
     }
 

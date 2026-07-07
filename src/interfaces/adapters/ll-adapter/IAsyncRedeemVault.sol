@@ -45,6 +45,13 @@ interface IAsyncRedeemVault {
     function maxWithdraw(address owner) external view returns (uint256 maxAssets);
 
     /**
+     * @notice Returns the claimable share amount across processed redemptions.
+     * @param owner The request controller.
+     * @return maxShares The claimable share amount.
+     */
+    function maxRedeem(address owner) external view returns (uint256 maxShares);
+
+    /**
      * @notice Requests an async redemption.
      * @param shares The share amount.
      * @param controller The request controller.

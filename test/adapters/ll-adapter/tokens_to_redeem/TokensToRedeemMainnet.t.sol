@@ -269,6 +269,36 @@ contract TokensToRedeemMainnetTest is Test {
         }
     }
 
+    function testCentrifugeMainnetTokenConfigurations() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Centrifuge config");
+        _createFork();
+
+        uint256[6] memory indexes = [uint256(0), 3, 4, 8, 9, 10];
+        TokenSpec[] memory specs = _tokenSpecs();
+
+        uint256 length = indexes.length;
+        for (uint256 i; i < length; ++i) {
+            uint256 index = indexes[i];
+            TokenSpec memory spec = specs[index];
+            emit log_named_string("centrifuge config", spec.symbol);
+
+            MigratablesFactory factory = new MigratablesFactory(address(this));
+            IAccount implementation = _deployImplementation(index, address(factory));
+            address asyncRedeemVault = _asyncRedeemVault(spec.token, USDC);
+
+            assertEq(_assetFor(index, spec.token), USDC, spec.symbol);
+            assertEq(implementation.TOKEN_TO_REDEEM(), spec.token, spec.symbol);
+            assertEq(IAsyncRedeemAccount(address(implementation)).COOLDOWN(), 1 days, spec.symbol);
+            assertGt(spec.token.code.length, 0, spec.symbol);
+            assertGt(asyncRedeemVault.code.length, 0, spec.symbol);
+            assertEq(IAsyncRedeemVault(asyncRedeemVault).asset(), USDC, spec.symbol);
+            assertGt(
+                IAsyncRedeemVault(asyncRedeemVault).convertToAssets(10 ** IERC20Metadata(spec.token).decimals()), 0
+            );
+            assertNotEq(IMainnetCentrifugeShareToken(spec.token).hook(), address(0), spec.symbol);
+        }
+    }
+
     function testDigiFTBEQTYMainnetRedemptionSequence() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet DigiFT checks");
         _createFork();

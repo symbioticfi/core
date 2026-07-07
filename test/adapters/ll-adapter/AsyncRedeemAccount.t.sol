@@ -179,6 +179,30 @@ contract AsyncRedeemAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 6e6);
     }
 
+    function testAsyncRedeemAccountClaimsAllRequestsWithMaxRedeem() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
+        MockOracle oracle = new MockOracle(2e18);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
+        tokenToRedeem.setFreshRequestIds(true);
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        account.sync();
+        tokenToRedeem.mint(address(account), 2 ether);
+        account.sync();
+
+        tokenToRedeem.fulfill(0, address(account), 1 ether);
+        tokenToRedeem.fulfill(1, address(account), 2 ether);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.redeemCalls(address(account)), 1);
+        assertEq(asset.balanceOf(address(account)), 6e6);
+        assertEq(account.totalAssets(), 6e6);
+        vm.expectRevert();
+        account.requestIds(0);
+    }
+
     function testAsyncRedeemAccountValuesClaimableLegAtFulfillmentPrice() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
@@ -236,6 +260,13 @@ contract AsyncRedeemAccountTest is AccountsBase {
             new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
             DEJAAA_TOKEN_ADDRESS
         );
+
+        assertEq(new JTRSY_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new JAAA_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new ACRDX_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new deCRDX_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new deJTRSY_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
     }
 
     function testCentrifugeTokenAccountsUseCentrifugeAccountBase() public {
