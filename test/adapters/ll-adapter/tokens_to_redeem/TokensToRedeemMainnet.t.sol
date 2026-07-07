@@ -295,6 +295,8 @@ contract TokensToRedeemMainnetTest is Test {
             assertGt(
                 IAsyncRedeemVault(asyncRedeemVault).convertToAssets(10 ** IERC20Metadata(spec.token).decimals()), 0
             );
+            AsyncRedeemOracle oracle = new AsyncRedeemOracle(1, type(uint256).max, spec.token, asyncRedeemVault);
+            assertGt(oracle.getPrice(), 0, spec.symbol);
             assertNotEq(IMainnetCentrifugeShareToken(spec.token).hook(), address(0), spec.symbol);
         }
     }
@@ -668,7 +670,7 @@ contract TokensToRedeemMainnetTest is Test {
         if (index == 4) return new JTRSY_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 5) {
             return new PRIME_Account(
-                address(new AsyncRedeemOracle(1, type(uint256).max, IERC4626(PRIME).asset())),
+                address(new AsyncRedeemOracle(1, type(uint256).max, IERC4626(PRIME).asset(), IERC4626(PRIME).asset())),
                 factory,
                 PRIME,
                 COW_SWAP_SETTLEMENT
