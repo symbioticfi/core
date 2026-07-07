@@ -91,7 +91,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     }
 
     /// @inheritdoc IThreeFAdapter
-    function requestsLength() external view returns (uint256) {
+    function requestsLength() public view returns (uint256) {
         return requests.length;
     }
 
