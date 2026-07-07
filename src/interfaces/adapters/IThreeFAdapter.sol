@@ -17,14 +17,14 @@ uint256 constant MAX_REQUESTS = 50;
 interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     /* ERRORS */
 
-    /// @notice Raised when a request cannot be fully funded through the delegator.
-    error InsufficientAllocate();
+    /// @notice Raised when the request already has an active position.
+    error AlreadyRequest();
 
     /// @notice Raised when the consumed 3F offer is expired.
     error ExpiredOffer();
 
-    /// @notice Raised when the request already has an active position.
-    error AlreadyRequest();
+    /// @notice Raised when a request cannot be fully funded through the delegator.
+    error InsufficientAllocate();
 
     /// @notice Raised when the consumed 3F offer fields do not match the callback.
     error InvalidOffer();
@@ -35,11 +35,11 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     /// @notice Raised when the request principal exceeds the configured per-request maximum.
     error TooLargeRequest();
 
-    /// @notice Raised when the adapter already tracks the maximum number of active requests.
-    error TooManyRequests();
-
     /// @notice Raised when the request yield is below the configured minimum.
     error TooLowYield();
+
+    /// @notice Raised when the adapter already tracks the maximum number of active requests.
+    error TooManyRequests();
 
     /// @notice Raised when the request principal is below the configured per-request minimum.
     error TooSmallRequest();

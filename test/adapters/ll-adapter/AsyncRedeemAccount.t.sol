@@ -203,6 +203,33 @@ contract AsyncRedeemAccountTest is AccountsBase {
         account.requestIds(0);
     }
 
+    function testAsyncRedeemAccountClaimsFulfilledRequestsAndKeepsPendingRemainder() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
+        MockOracle oracle = new MockOracle(2e18);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
+        tokenToRedeem.setFreshRequestIds(true);
+
+        tokenToRedeem.mint(address(account), 3 ether);
+        account.sync();
+        tokenToRedeem.mint(address(account), 2 ether);
+        account.sync();
+
+        tokenToRedeem.fulfill(0, address(account), 1 ether);
+        tokenToRedeem.fulfill(1, address(account), 2 ether);
+        tokenToRedeem.setAssetsPerShare(4e6);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.redeemCalls(address(account)), 1);
+        assertEq(asset.balanceOf(address(account)), 6e6);
+        assertEq(account.requestIds(0), 0);
+        vm.expectRevert();
+        account.requestIds(1);
+        assertEq(tokenToRedeem.pending(0, address(account)), 2 ether);
+        assertEq(account.totalAssets(), 14e6);
+    }
+
     function testAsyncRedeemAccountValuesClaimableLegAtFulfillmentPrice() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);

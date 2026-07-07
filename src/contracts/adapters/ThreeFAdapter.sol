@@ -6,12 +6,12 @@ import {Adapter} from "./Adapter.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IThreeFAdapter, MAX_REQUESTS} from "../../interfaces/adapters/IThreeFAdapter.sol";
-import {IThreeFRequest} from "../../interfaces/adapters/3f-adapter/IThreeFRequest.sol";
 import {IThreeFRequestCallback} from "../../interfaces/adapters/3f-adapter/IThreeFRequestCallback.sol";
+import {IThreeFRequest} from "../../interfaces/adapters/3f-adapter/IThreeFRequest.sol";
 import {IThreeFWhitelist} from "../../interfaces/adapters/3f-adapter/IThreeFWhitelist.sol";
-import {Offer, YIELD_PRECISION} from "../../interfaces/adapters/3f-adapter/ThreeFTypes.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {Offer, YIELD_PRECISION} from "../../interfaces/adapters/3f-adapter/ThreeFTypes.sol";
 
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
