@@ -64,6 +64,13 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     event SetLimitsPerRequest(uint256 minYieldPerRequest, uint256 minAssetsPerRequest, uint256 maxAssetsPerRequest);
 
     /**
+     * @notice Emitted when a 3F request nonce is set for adapter-made offers.
+     * @param request Request address.
+     * @param nonce New nonce value.
+     */
+    event SetRequestNonce(address indexed request, uint256 nonce);
+
+    /**
      * @notice Emitted when a 3F request is consumed by this adapter.
      * @param request Request address.
      * @param offer Consumed 3F offer payload.
@@ -161,6 +168,15 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
         uint256 newMinAssetsPerRequest,
         uint256 newMaxAssetsPerRequest
     ) external;
+
+    /**
+     * @notice Advances this adapter's offer nonce in a whitelisted 3F request.
+     * @dev Only the owner can call this function. Signer rotation remains a coarse emergency path;
+     *      this function is for request-specific offer nonce cancellation.
+     * @param request Whitelisted 3F request using the vault asset.
+     * @param newNonce New request-local nonce for this adapter as maker.
+     */
+    function setRequestNonce(address request, uint256 newNonce) external;
 
     /**
      * @notice Finalizes a withdrawable request into adapter-held assets.

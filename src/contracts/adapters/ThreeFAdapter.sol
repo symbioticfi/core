@@ -129,6 +129,15 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
         emit SetLimitsPerRequest(newMinYieldPerRequest, newMinAssetsPerRequest, newMaxAssetsPerRequest);
     }
 
+    /// @inheritdoc IThreeFAdapter
+    function setRequestNonce(address request, uint256 newNonce) public onlyOwner {
+        _validateRequest(request);
+
+        IThreeFRequest(request).setNonce(newNonce);
+
+        emit SetRequestNonce(request, newNonce);
+    }
+
     /* PUBLIC FUNCTIONS (3F) */
 
     /// @inheritdoc IThreeFRequestCallback
@@ -136,6 +145,15 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
         public
         nonReentrant
     {
+        _validateRequest(msg.sender);
+
+        if (offer.maker != address(this) || !offer.useCallback || offer.expectedReturn == 0) {
+            revert InvalidOffer();
+        }
+        if (offer.expiration < block.timestamp) {
+            revert ExpiredOffer();
+        }
+
         if (requests.length >= MAX_REQUESTS) {
             revert TooManyRequests();
         }
@@ -152,25 +170,6 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
             revert TooLowYield();
         }
 
-        if (
-            IThreeFWhitelist(REQUEST_WHITELIST).isWhitelisted(msg.sender)
-                != IThreeFWhitelist.WhitelistStatus.Whitelisted
-        ) {
-            revert NotRequest();
-        }
-
-        address asset = IERC4626(vault).asset();
-        if (asset != IThreeFRequest(msg.sender).asset()) {
-            revert WrongAsset();
-        }
-
-        if (offer.maker != address(this) || !offer.useCallback || offer.expectedReturn == 0) {
-            revert InvalidOffer();
-        }
-        if (offer.expiration < block.timestamp) {
-            revert ExpiredOffer();
-        }
-
         if (principalAssets > 0) {
             _inConsume = true;
             if (
@@ -181,7 +180,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
             }
             _inConsume = false;
 
-            IERC20(asset).forceApprove(msg.sender, principalAssets);
+            IERC20(IERC4626(vault).asset()).forceApprove(msg.sender, principalAssets);
         }
 
         requests.push(msg.sender);
@@ -215,6 +214,19 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     }
 
     /* INTERNAL FUNCTIONS */
+
+    /// @dev Validates that a 3F request is whitelisted and uses the vault asset.
+    function _validateRequest(address request) internal view returns (address asset) {
+        if (IThreeFWhitelist(REQUEST_WHITELIST).isWhitelisted(request) != IThreeFWhitelist.WhitelistStatus.Whitelisted)
+        {
+            revert NotRequest();
+        }
+
+        asset = IERC4626(vault).asset();
+        if (asset != IThreeFRequest(request).asset()) {
+            revert WrongAsset();
+        }
+    }
 
     /// @dev Marks just-in-time assets transferred into the adapter as allocated.
     function _allocate(uint256 amount) internal override returns (uint256) {

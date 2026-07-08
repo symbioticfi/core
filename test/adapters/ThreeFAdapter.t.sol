@@ -337,6 +337,40 @@ contract ThreeFAdapterTest is Test {
         vm.stopPrank();
     }
 
+    function test_SetRequestNonceForwardsAsAdapter() public {
+        IThreeFAdapter(adapter).setRequestNonce(request, 7);
+
+        assertEq(ThreeFRequestMock(request).nonce(adapter), 7);
+    }
+
+    function test_SetRequestNonceRevertsWhenNotOwner() public {
+        vm.prank(makeAddr("notOwner"));
+        vm.expectRevert();
+        IThreeFAdapter(adapter).setRequestNonce(request, 7);
+    }
+
+    function test_SetRequestNonceRevertsWhenNotWhitelisted() public {
+        ThreeFWhitelistMock(whitelist).set(request, IThreeFWhitelist.WhitelistStatus.NotWhitelisted);
+
+        vm.expectRevert(IThreeFAdapter.NotRequest.selector);
+        IThreeFAdapter(adapter).setRequestNonce(request, 7);
+    }
+
+    function test_SetRequestNonceRevertsWhenPausedWhitelisted() public {
+        ThreeFWhitelistMock(whitelist).set(request, IThreeFWhitelist.WhitelistStatus.PausedWhitelisted);
+
+        vm.expectRevert(IThreeFAdapter.NotRequest.selector);
+        IThreeFAdapter(adapter).setRequestNonce(request, 7);
+    }
+
+    function test_SetRequestNonceRevertsOnAssetMismatch() public {
+        address wrongRequest = address(new ThreeFRequestMock(address(new ThreeFTokenMock())));
+        ThreeFWhitelistMock(whitelist).set(wrongRequest, IThreeFWhitelist.WhitelistStatus.Whitelisted);
+
+        vm.expectRevert(IThreeFAdapter.WrongAsset.selector);
+        IThreeFAdapter(adapter).setRequestNonce(wrongRequest, 7);
+    }
+
     function _newRequest() internal returns (address newRequest) {
         newRequest = address(new ThreeFRequestMock(assetToken));
         ThreeFWhitelistMock(whitelist).set(newRequest, IThreeFWhitelist.WhitelistStatus.Whitelisted);
@@ -509,9 +543,17 @@ contract ThreeFRequestMock {
 
     mapping(address account => uint256 balance) internal _ptBalances;
     mapping(address account => uint256 balance) internal _ytBalances;
+    mapping(address account => uint256 currentNonce) public nonce;
 
     constructor(address asset_) {
         asset = asset_;
+    }
+
+    function setNonce(uint256 newNonce) external {
+        if (nonce[msg.sender] >= newNonce) {
+            revert();
+        }
+        nonce[msg.sender] = newNonce;
     }
 
     function setCanWithdraw(bool status) external {
