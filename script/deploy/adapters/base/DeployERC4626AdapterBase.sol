@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {EulerAdapter} from "../../../src/contracts/adapters/EulerAdapter.sol";
+import {ERC4626Adapter} from "../../../../src/contracts/adapters/ERC4626Adapter.sol";
 import {DeployAdapterBase} from "./DeployAdapterBase.sol";
 
-contract DeployEulerAdapterBase is DeployAdapterBase {
+contract DeployERC4626AdapterBase is DeployAdapterBase {
     struct DeployParams {
         address adapterFactoryOwner;
-        address eulerLendVaultFactory;
         address cowSwapSettlement;
         address merklDistributor;
     }
@@ -20,24 +19,17 @@ contract DeployEulerAdapterBase is DeployAdapterBase {
         _startBroadcast();
         data.adapterFactory = _deployAdapterFactory();
         data.adapterImplementation = address(
-            new EulerAdapter(
-                vaultFactory,
-                data.adapterFactory,
-                params.merklDistributor,
-                params.cowSwapSettlement,
-                params.eulerLendVaultFactory
-            )
+            new ERC4626Adapter(vaultFactory, data.adapterFactory, params.merklDistributor, params.cowSwapSettlement)
         );
         _whitelistAndTransferOwnership(data, params.adapterFactoryOwner);
         _stopBroadcast();
 
         _validateAdapterDeployment(data, params.adapterFactoryOwner);
-        _logDeployment("Euler", data);
+        _logDeployment("ERC4626", data);
     }
 
     function _validateParams(DeployParams memory params) internal pure {
         _validateAdapterFactoryOwner(params.adapterFactoryOwner);
-        require(params.eulerLendVaultFactory != address(0), "invalid Euler Lend vault factory");
         require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
         require(params.merklDistributor != address(0), "invalid Merkl distributor");
     }

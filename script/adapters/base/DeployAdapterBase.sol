@@ -5,67 +5,83 @@ import {Script} from "forge-std/Script.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
-import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
+import {IAdapter} from "../../../src/interfaces/adapters/IAdapter.sol";
+import {IMigratablesFactory} from "../../../src/interfaces/common/IMigratablesFactory.sol";
 import {Logs} from "../../utils/Logs.sol";
-import {SymbioticCoreConstants} from "../../../test/integration/SymbioticCoreConstants.sol";
 
 contract DeployAdapterBase is Script {
-    struct DeploymentData {
+    struct DeployParams {
         address adapterFactory;
-        address adapterImplementation;
+        uint64 version;
+        address owner;
+        address vault;
+        bytes initData;
     }
 
-    function _deployAdapterFactory() internal returns (address adapterFactory) {
-        adapterFactory = address(new AdapterFactory(_scriptOwner()));
+    struct DeploymentData {
+        address adapter;
+        address adapterFactory;
+        uint64 version;
+        address owner;
+        address vault;
     }
 
-    function _whitelistAndTransferOwnership(DeploymentData memory data, address adapterFactoryOwner) internal {
-        AdapterFactory(data.adapterFactory).whitelist(data.adapterImplementation);
+    function runBase(DeployParams memory params) public virtual returns (DeploymentData memory data) {
+        _validateParams(params);
 
-        if (adapterFactoryOwner != _scriptOwner()) {
-            Ownable(data.adapterFactory).transferOwnership(adapterFactoryOwner);
+        bytes memory createData = abi.encode(params.vault, params.initData);
+
+        vm.startBroadcast();
+        data.adapter = IMigratablesFactory(params.adapterFactory).create(params.version, params.owner, createData);
+        vm.stopBroadcast();
+
+        data.adapterFactory = params.adapterFactory;
+        data.version = params.version;
+        data.owner = params.owner;
+        data.vault = params.vault;
+
+        _validateDeployment(data);
+        _logDeployment(data);
+    }
+
+    function _singleConverter(address converter) internal pure returns (address[] memory converters) {
+        if (converter == address(0)) {
+            return new address[](0);
         }
+
+        converters = new address[](1);
+        converters[0] = converter;
     }
 
-    function _validateAdapterDeployment(DeploymentData memory data, address adapterFactoryOwner) internal view {
-        assert(Ownable(data.adapterFactory).owner() == adapterFactoryOwner);
-        assert(IMigratableEntity(data.adapterImplementation).FACTORY() == data.adapterFactory);
-        assert(AdapterFactory(data.adapterFactory).implementation(1) == data.adapterImplementation);
+    function _validateParams(DeployParams memory params) internal pure {
+        require(params.adapterFactory != address(0), "invalid adapter factory");
+        require(params.version != 0, "invalid version");
+        require(params.owner != address(0), "invalid owner");
+        require(params.vault != address(0), "invalid vault");
     }
 
-    function _logDeployment(string memory name, DeploymentData memory data) internal {
+    function _validateDeployment(DeploymentData memory data) internal view {
+        assert(IAdapter(data.adapter).FACTORY() == data.adapterFactory);
+        assert(IAdapter(data.adapter).version() == data.version);
+        assert(Ownable(data.adapter).owner() == data.owner);
+        assert(IAdapter(data.adapter).vault() == data.vault);
+    }
+
+    function _logDeployment(DeploymentData memory data) internal {
         Logs.log(
             string.concat(
-                "Deployed ",
-                name,
-                " adapter factory",
+                "Deployed adapter",
+                "\n    adapter:",
+                vm.toString(data.adapter),
                 "\n    adapterFactory:",
                 vm.toString(data.adapterFactory),
-                "\n    adapterImplementation:",
-                vm.toString(data.adapterImplementation)
+                "\n    version:",
+                vm.toString(uint256(data.version)),
+                "\n    owner:",
+                vm.toString(data.owner),
+                "\n    vault:",
+                vm.toString(data.vault)
             )
         );
-    }
-
-    function _validateAdapterFactoryOwner(address adapterFactoryOwner) internal pure {
-        require(adapterFactoryOwner != address(0), "invalid adapter factory owner");
-    }
-
-    function _scriptOwner() internal view virtual returns (address owner_) {
-        (,, address origin) = vm.readCallers();
-        return origin == address(0) ? msg.sender : origin;
-    }
-
-    function _coreVaultFactory() internal view virtual returns (address) {
-        return address(SymbioticCoreConstants.core().vaultFactory);
-    }
-
-    function _startBroadcast() internal virtual {
-        vm.startBroadcast();
-    }
-
-    function _stopBroadcast() internal virtual {
-        vm.stopBroadcast();
     }
 }

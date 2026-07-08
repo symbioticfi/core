@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {DeployThreeFAdapterBase} from "./base/DeployThreeFAdapterBase.sol";
+import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 
 // forge script script/adapters/DeployThreeFAdapter.s.sol:DeployThreeFAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
 
-contract DeployThreeFAdapterScript is DeployThreeFAdapterBase {
-    // Configurations - UPDATE THESE BEFORE DEPLOYMENT
+contract DeployThreeFAdapterScript is DeployAdapterBase {
+    // Configurations - UPDATE THESE BEFORE DEPLOYMENT.
 
-    // Address that will own the adapter factory after deployment.
-    address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
-    // Whitelist contract used to authorize 3F requests.
-    address public constant REQUEST_WHITELIST = 0x0000000000000000000000000000000000000000;
+    address public constant ADAPTER_FACTORY = 0x0000000000000000000000000000000000000000;
+    uint64 public constant VERSION = 1;
+    address public constant OWNER = 0x0000000000000000000000000000000000000000;
+    address public constant VAULT = 0x0000000000000000000000000000000000000000;
 
-    function run() public {
-        runBase(DeployParams({adapterFactoryOwner: ADAPTER_FACTORY_OWNER, requestWhitelist: REQUEST_WHITELIST}));
+    function run() public returns (DeploymentData memory data) {
+        data = runBase(
+            DeployParams({adapterFactory: ADAPTER_FACTORY, version: VERSION, owner: OWNER, vault: VAULT, initData: ""})
+        );
     }
 }

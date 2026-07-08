@@ -1,26 +1,41 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {DeployAppAdapterBase} from "./base/DeployAppAdapterBase.sol";
+import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
+
+import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 
 // forge script script/adapters/DeployAppAdapter.s.sol:DeployAppAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
 
-contract DeployAppAdapterScript is DeployAppAdapterBase {
-    // Configurations - UPDATE THESE BEFORE DEPLOYMENT
+contract DeployAppAdapterScript is DeployAdapterBase {
+    // Configurations - UPDATE THESE BEFORE DEPLOYMENT.
 
-    // Address that will own the adapter factory after deployment.
-    address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
-    // CoW Protocol settlement used by the converter.
-    address public constant COW_SWAP_SETTLEMENT = 0x0000000000000000000000000000000000000000;
-    // Network middleware service used to authorize app slashes.
-    address public constant NETWORK_MIDDLEWARE_SERVICE = 0x0000000000000000000000000000000000000000;
+    address public constant ADAPTER_FACTORY = 0x161954842B7EA47CBd050cAb4875DAa4D6599476;
+    uint64 public constant VERSION = 1;
+    address public constant OWNER = 0x0000000000000000000000000000000000000000;
+    address public constant VAULT = 0x0000000000000000000000000000000000000000;
+    address public constant BURNER = 0x0000000000000000000000000000000000000000;
+    uint48 public constant DURATION = 0;
+    address public constant OPERATOR = 0x0000000000000000000000000000000000000000;
+    bytes32 public constant SUBNETWORK = bytes32(0);
+    address public constant CONVERTER = 0x0000000000000000000000000000000000000000;
 
-    function run() public {
-        runBase(
+    function run() public returns (DeploymentData memory data) {
+        data = runBase(
             DeployParams({
-                adapterFactoryOwner: ADAPTER_FACTORY_OWNER,
-                cowSwapSettlement: COW_SWAP_SETTLEMENT,
-                networkMiddlewareService: NETWORK_MIDDLEWARE_SERVICE
+                adapterFactory: ADAPTER_FACTORY,
+                version: VERSION,
+                owner: OWNER,
+                vault: VAULT,
+                initData: abi.encode(
+                    IAppAdapter.InitParams({
+                        burner: BURNER,
+                        duration: DURATION,
+                        operator: OPERATOR,
+                        subnetwork: SUBNETWORK,
+                        converters: _singleConverter(CONVERTER)
+                    })
+                )
             })
         );
     }

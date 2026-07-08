@@ -1,19 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {DeployLiquidLaneAdapterBase} from "./base/DeployLiquidLaneAdapterBase.sol";
+import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
+
+import {ILiquidLaneAdapter} from "../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 
 // forge script script/adapters/DeployLiquidLaneAdapter.s.sol:DeployLiquidLaneAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
 
-contract DeployLiquidLaneAdapterScript is DeployLiquidLaneAdapterBase {
-    // Configurations - UPDATE THESE BEFORE DEPLOYMENT
+contract DeployLiquidLaneAdapterScript is DeployAdapterBase {
+    // Configurations - UPDATE THESE BEFORE DEPLOYMENT.
 
-    // Address that will own the adapter factory after deployment.
-    address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
-    // Account registry mapping vault assets and redemption tokens to account factories.
-    address public constant ACCOUNT_REGISTRY = 0x0000000000000000000000000000000000000000;
+    address public constant ADAPTER_FACTORY = 0x0000000000000000000000000000000000000000;
+    uint64 public constant VERSION = 1;
+    address public constant OWNER = 0x0000000000000000000000000000000000000000;
+    address public constant VAULT = 0x0000000000000000000000000000000000000000;
+    address public constant PAUSER = 0x0000000000000000000000000000000000000000;
+    address public constant UNPAUSER = 0x0000000000000000000000000000000000000000;
 
-    function run() public {
-        runBase(DeployParams({adapterFactoryOwner: ADAPTER_FACTORY_OWNER, accountRegistry: ACCOUNT_REGISTRY}));
+    function run() public returns (DeploymentData memory data) {
+        data = runBase(
+            DeployParams({
+                adapterFactory: ADAPTER_FACTORY,
+                version: VERSION,
+                owner: OWNER,
+                vault: VAULT,
+                initData: abi.encode(ILiquidLaneAdapter.InitParams({pauser: PAUSER, unpauser: UNPAUSER}))
+            })
+        );
     }
 }

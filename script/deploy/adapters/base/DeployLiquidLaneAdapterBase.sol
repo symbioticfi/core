@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {LiquidLaneAdapter} from "../../../src/contracts/adapters/LiquidLaneAdapter.sol";
+import {LiquidLaneAdapter} from "../../../../src/contracts/adapters/LiquidLaneAdapter.sol";
 import {DeployAdapterBase} from "./DeployAdapterBase.sol";
 
 contract DeployLiquidLaneAdapterBase is DeployAdapterBase {

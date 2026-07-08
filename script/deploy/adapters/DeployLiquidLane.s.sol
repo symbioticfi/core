@@ -5,42 +5,42 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 
-import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
-import {LiquidLaneAdapter} from "../../src/contracts/adapters/LiquidLaneAdapter.sol";
-import {AccountRegistry} from "../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
+import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
+import {LiquidLaneAdapter} from "../../../src/contracts/adapters/LiquidLaneAdapter.sol";
+import {AccountRegistry} from "../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
 import {
     CarryTradeUSDTRYLeverage_Account,
     CarryTradeUSDTRYLeverage_AccountFactory
-} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/CarryTradeUSDTRYLeverage_Account.sol";
+} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/CarryTradeUSDTRYLeverage_Account.sol";
 import {
     StockMarketTRBasisTrade_Account,
     StockMarketTRBasisTrade_AccountFactory
-} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
+} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
 import {
     mFONE_Account,
     mFONE_AccountFactory
-} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mFONE_Account.sol";
+} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mFONE_Account.sol";
 // import {
 //     mGLOBAL_Account,
 //     mGLOBAL_AccountFactory
-// } from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mGLOBAL_Account.sol";
+// } from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mGLOBAL_Account.sol";
 import {
     mHYPER_Account,
     mHYPER_AccountFactory
-} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHYPER_Account.sol";
+} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHYPER_Account.sol";
 import {
     mM1USD_Account,
     mM1USD_AccountFactory
-} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mM1USD_Account.sol";
+} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mM1USD_Account.sol";
 import {
     mROX_Account,
     mROX_AccountFactory
-} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mROX_Account.sol";
-import {MigratablesFactory} from "../../src/contracts/common/MigratablesFactory.sol";
-import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
-import {Logs} from "../utils/Logs.sol";
+} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mROX_Account.sol";
+import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
+import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
+import {Logs} from "../../utils/Logs.sol";
 
-// forge script script/adapters/DeployLiquidLane.s.sol:DeployLiquidLaneScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/deploy/adapters/DeployLiquidLane.s.sol:DeployLiquidLaneScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
 
 contract DeployLiquidLaneScript is DeployAdapterBase {
     struct AccountDeploymentData {
