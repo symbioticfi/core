@@ -171,7 +171,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 368);
+        assertEq(totalMaxAverageRequests, 415);
     }
 
     function testCorrelatedMidasTokenAccountsUseCorrelatedVaultAssets() public view {
@@ -1205,11 +1205,23 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         if (keccak256(bytes(symbol)) == keccak256("mGLOBAL")) {
             return 12 hours;
         }
+        if (keccak256(bytes(symbol)) == keccak256("mHYPER")) {
+            return 6 hours;
+        }
         if (keccak256(bytes(symbol)) == keccak256("mM1USD")) {
-            return 2 days;
+            return 12 hours;
+        }
+        if (keccak256(bytes(symbol)) == keccak256("mROX")) {
+            return 6 hours;
         }
         if (keccak256(bytes(symbol)) == keccak256("mRe7YIELD")) {
             return 3 days;
+        }
+        if (keccak256(bytes(symbol)) == keccak256("CarryTradeUSDTRYLeverage")) {
+            return 12 hours;
+        }
+        if (keccak256(bytes(symbol)) == keccak256("StockMarketTRBasisTrade")) {
+            return 12 hours;
         }
 
         uint48 cooldown = maxDelay / 10;

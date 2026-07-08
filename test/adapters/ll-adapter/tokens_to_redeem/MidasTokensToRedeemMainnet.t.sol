@@ -57,7 +57,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 contract MidasTokensToRedeemMainnetTest is Test {
     struct TokenSpec {
         string symbol;
-        uint48 maxWithdrawalDelay;
+        uint48 cooldown;
     }
 
     struct MGlobalCycle {
@@ -381,8 +381,6 @@ contract MidasTokensToRedeemMainnetTest is Test {
         address redemptionToken = implementation.REDEMPTION_TOKEN();
         address redemptionVault = implementation.REDEMPTION_VAULT();
 
-        assertEq(IMidasTokenRedeemConfig(address(implementation)).MAX_WITHDRAWAL_DELAY(), spec.maxWithdrawalDelay);
-
         factory.whitelist(address(implementation));
         MidasAccount account = MidasAccount(factory.create(1, address(this), _initData(token, vault)));
 
@@ -394,7 +392,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(account.REDEMPTION_VAULT(), redemptionVault);
         assertEq(vault.asset(), _assetFor(index));
         assertEq(account.ORACLE(), implementation.ORACLE());
-        assertEq(account.COOLDOWN(), _cooldown(index, spec.maxWithdrawalDelay));
+        assertEq(account.COOLDOWN(), spec.cooldown);
         assertEq(account.converters(0), address(this));
         assertEq(account.adapter(), adapter);
         assertEq(account.vault(), address(vault));
@@ -454,29 +452,29 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
     function _ethereumMainnetSpecs() internal pure returns (TokenSpec[] memory specs) {
         specs = new TokenSpec[](23);
-        specs[0] = TokenSpec("mF-ONE", 35 days);
-        specs[1] = _ethereumCompSpec("mTBILL", 3 days);
-        specs[2] = _ethereumCompSpec("mGLOBAL", 65 days);
-        specs[3] = _ethereumCompSpec("mHYPER", 3 days);
-        specs[4] = _ethereumCompSpec("mM1-USD", 17 days);
-        specs[5] = _ethereumCompSpec("mHyperBTC", 7 days);
-        specs[6] = _ethereumCompSpec("mRe7YIELD", 24 days);
-        specs[7] = _ethereumCompSpec("mHyperETH", 7 days);
-        specs[8] = _ethereumCompSpec("mSL", 3 days);
-        specs[9] = _ethereumCompSpec("mAPOLLO", 3 days);
-        specs[10] = _ethereumCompSpec("mROX", 3 days);
-        specs[11] = _ethereumCompSpec("msyrupUSDp", 3 days);
-        specs[12] = _ethereumCompSpec("mEVUSD", 3 days);
-        specs[13] = _ethereumCompSpec("mEDGE", 3 days);
-        specs[14] = _ethereumCompSpec("mMEV", 3 days);
-        specs[15] = _ethereumCompSpec("mBASIS", 7 days);
-        specs[16] = _ethereumCompSpec("mRe7BTC", 24 days);
-        specs[17] = _ethereumCompSpec("mBTC", 7 days);
-        specs[18] = _ethereumCompSpec("mevBTC", 7 days);
-        specs[19] = _ethereumCompSpec("msyrupUSD", 7 days);
-        specs[20] = _ethereumCompSpec("mFARM", 7 days);
-        specs[21] = _ethereumCompSpec("CarryTradeUSDTRYLeverage", 2 days);
-        specs[22] = _ethereumCompSpec("StockMarketTRBasisTrade", 2 days);
+        specs[0] = TokenSpec("mF-ONE", 36 hours);
+        specs[1] = _ethereumCompSpec("mTBILL", 1 days);
+        specs[2] = _ethereumCompSpec("mGLOBAL", 12 hours);
+        specs[3] = _ethereumCompSpec("mHYPER", 6 hours);
+        specs[4] = _ethereumCompSpec("mM1-USD", 12 hours);
+        specs[5] = _ethereumCompSpec("mHyperBTC", 1 days);
+        specs[6] = _ethereumCompSpec("mRe7YIELD", 3 days);
+        specs[7] = _ethereumCompSpec("mHyperETH", 1 days);
+        specs[8] = _ethereumCompSpec("mSL", 1 days);
+        specs[9] = _ethereumCompSpec("mAPOLLO", 1 days);
+        specs[10] = _ethereumCompSpec("mROX", 6 hours);
+        specs[11] = _ethereumCompSpec("msyrupUSDp", 1 days);
+        specs[12] = _ethereumCompSpec("mEVUSD", 1 days);
+        specs[13] = _ethereumCompSpec("mEDGE", 1 days);
+        specs[14] = _ethereumCompSpec("mMEV", 1 days);
+        specs[15] = _ethereumCompSpec("mBASIS", 1 days);
+        specs[16] = _ethereumCompSpec("mRe7BTC", 2 days);
+        specs[17] = _ethereumCompSpec("mBTC", 1 days);
+        specs[18] = _ethereumCompSpec("mevBTC", 1 days);
+        specs[19] = _ethereumCompSpec("msyrupUSD", 1 days);
+        specs[20] = _ethereumCompSpec("mFARM", 1 days);
+        specs[21] = _ethereumCompSpec("CarryTradeUSDTRYLeverage", 12 hours);
+        specs[22] = _ethereumCompSpec("StockMarketTRBasisTrade", 12 hours);
     }
 
     function _deployImplementation(uint256 index, MigratablesFactory factory)
@@ -512,33 +510,8 @@ contract MidasTokensToRedeemMainnetTest is Test {
         return new StockMarketTRBasisTrade_Account(address(factory), COW_SWAP_SETTLEMENT);
     }
 
-    function _ethereumCompSpec(string memory symbol, uint48 maxWithdrawalDelay)
-        internal
-        pure
-        returns (TokenSpec memory spec)
-    {
-        spec = TokenSpec(symbol, maxWithdrawalDelay);
-    }
-
-    function _cooldown(uint256 index, uint48 maxWithdrawalDelay) internal pure returns (uint48) {
-        if (index == 0) {
-            return 36 hours;
-        }
-        if (index == 2) {
-            return 12 hours;
-        }
-        if (index == 4) {
-            return 2 days;
-        }
-        if (index == 6) {
-            return 3 days;
-        }
-
-        uint48 cooldownDays = maxWithdrawalDelay / 10 / 1 days;
-        if (cooldownDays == 0) {
-            return 1 days;
-        }
-        return cooldownDays * 1 days;
+    function _ethereumCompSpec(string memory symbol, uint48 cooldown) internal pure returns (TokenSpec memory spec) {
+        spec = TokenSpec(symbol, cooldown);
     }
 
     function _expectedOracleBounds(uint256 index) internal pure returns (uint256 minPrice, uint256 maxPrice) {
@@ -648,10 +621,6 @@ interface IMidasRedemptionVaultWithMToken is IMidasRedemptionVault {
 
 interface IMidasRedemptionVaultWithPaymentTokens is IMidasRedemptionVault {
     function getPaymentTokens() external view returns (address[] memory);
-}
-
-interface IMidasTokenRedeemConfig {
-    function MAX_WITHDRAWAL_DELAY() external view returns (uint48);
 }
 
 contract MidasTokensToRedeemAssetVault {

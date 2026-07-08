@@ -10,8 +10,7 @@ import {IMidasRedemptionVault} from "../../../../interfaces/adapters/ll-adapter/
 import {IMidasTokenAccount} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasTokenAccount.sol";
 
 contract StockMarketTRBasisTrade_Account is MidasCompAccount, IMidasTokenAccount {
-    uint48 internal constant TOKEN_COOLDOWN = 1 days;
-    uint48 public constant MAX_WITHDRAWAL_DELAY = 2 days;
+    uint48 internal constant TOKEN_COOLDOWN = 12 hours;
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant TOKEN_ADDRESS = 0x827Ce7E8e35861D9Ac7fE002755767b695A5594a;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x85A7A5FFf71EaEF79e76730F2E717A04aADea27B;

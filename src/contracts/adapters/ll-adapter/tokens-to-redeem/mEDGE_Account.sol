@@ -11,7 +11,6 @@ import {IMidasTokenAccount} from "../../../../interfaces/adapters/ll-adapter/mid
 
 contract mEDGE_Account is MidasCompAccount, IMidasTokenAccount {
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
-    uint48 public constant MAX_WITHDRAWAL_DELAY = 3 days;
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant TOKEN_ADDRESS = 0xbB51E2a15A9158EBE2b0Ceb8678511e063AB7a55;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x9B2C5E30E3B1F6369FC746A1C1E47277396aF15D;
