@@ -148,7 +148,9 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
 
     /**
      * @notice Returns the current vault/delegator capacity available to 3F requests.
-     * @dev The returned value is not capped by `maxAssetsPerRequest`; request consumption applies that cap.
+     * @dev This function calls `UniversalDelegator.sweepPending()` and can mutate vault/delegator
+     *      withdrawal state. Do not call it via `staticcall`. The returned value is not capped by
+     *      `maxAssetsPerRequest`; request consumption applies that cap.
      * @return assets Current available capacity before the per-request maximum is applied.
      */
     function getMaxAssets() external returns (uint256 assets);
