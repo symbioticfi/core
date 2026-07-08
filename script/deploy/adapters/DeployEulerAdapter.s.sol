@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {DeployEulerAdapterBase} from "./base/DeployEulerAdapterBase.sol";
 
-// forge script script/deploy/adapters/DeployEulerAdapter.s.sol:DeployEulerAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/deploy/adapters/DeployEulerAdapter.s.sol:DeployEulerAdapterScript --rpc-url=RPC --broadcast
 
 contract DeployEulerAdapterScript is DeployEulerAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT

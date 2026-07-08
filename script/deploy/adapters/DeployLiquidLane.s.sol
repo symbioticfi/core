@@ -40,7 +40,7 @@ import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFacto
 import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
 import {Logs} from "../../utils/Logs.sol";
 
-// forge script script/deploy/adapters/DeployLiquidLane.s.sol:DeployLiquidLaneScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/deploy/adapters/DeployLiquidLane.s.sol:DeployLiquidLaneScript --rpc-url=RPC --broadcast
 
 contract DeployLiquidLaneScript is DeployAdapterBase {
     struct AccountDeploymentData {

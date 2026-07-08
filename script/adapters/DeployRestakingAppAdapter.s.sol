@@ -6,7 +6,7 @@ import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 import {IRestakingAppAdapter} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
 
-// forge script script/adapters/DeployRestakingAppAdapter.s.sol:DeployRestakingAppAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/adapters/DeployRestakingAppAdapter.s.sol:DeployRestakingAppAdapterScript --rpc-url=RPC --broadcast
 
 contract DeployRestakingAppAdapterScript is DeployAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT.

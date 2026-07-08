@@ -5,7 +5,7 @@ import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
 
-// forge script script/adapters/DeployAppAdapter.s.sol:DeployAppAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/adapters/DeployAppAdapter.s.sol:DeployAppAdapterScript --rpc-url=RPC --broadcast
 
 contract DeployAppAdapterScript is DeployAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT.

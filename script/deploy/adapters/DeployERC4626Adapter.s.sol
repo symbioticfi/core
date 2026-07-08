@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {DeployERC4626AdapterBase} from "./base/DeployERC4626AdapterBase.sol";
 
-// forge script script/deploy/adapters/DeployERC4626Adapter.s.sol:DeployERC4626AdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/deploy/adapters/DeployERC4626Adapter.s.sol:DeployERC4626AdapterScript --rpc-url=RPC --broadcast
 
 contract DeployERC4626AdapterScript is DeployERC4626AdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT

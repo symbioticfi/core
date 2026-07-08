@@ -5,7 +5,7 @@ import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 
 import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 
-// forge script script/adapters/DeployMorphoVaultV2Adapter.s.sol:DeployMorphoVaultV2AdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/adapters/DeployMorphoVaultV2Adapter.s.sol:DeployMorphoVaultV2AdapterScript --rpc-url=RPC --broadcast
 
 contract DeployMorphoVaultV2AdapterScript is DeployAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT.

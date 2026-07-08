@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {DeployMorphoVaultV2AdapterBase} from "./base/DeployMorphoVaultV2AdapterBase.sol";
 
-// forge script script/deploy/adapters/DeployMorphoVaultV2Adapter.s.sol:DeployMorphoVaultV2AdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/deploy/adapters/DeployMorphoVaultV2Adapter.s.sol:DeployMorphoVaultV2AdapterScript --rpc-url=RPC --broadcast
 
 contract DeployMorphoVaultV2AdapterScript is DeployMorphoVaultV2AdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT

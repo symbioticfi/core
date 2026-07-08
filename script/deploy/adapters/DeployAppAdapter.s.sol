@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {DeployAppAdapterBase} from "./base/DeployAppAdapterBase.sol";
 
-// forge script script/deploy/adapters/DeployAppAdapter.s.sol:DeployAppAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/deploy/adapters/DeployAppAdapter.s.sol:DeployAppAdapterScript --rpc-url=RPC --broadcast
 
 contract DeployAppAdapterScript is DeployAppAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT

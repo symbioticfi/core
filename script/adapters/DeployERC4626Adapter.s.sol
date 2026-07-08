@@ -5,7 +5,7 @@ import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 
 import {IERC4626Adapter} from "../../src/interfaces/adapters/IERC4626Adapter.sol";
 
-// forge script script/adapters/DeployERC4626Adapter.s.sol:DeployERC4626AdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/adapters/DeployERC4626Adapter.s.sol:DeployERC4626AdapterScript --rpc-url=RPC --broadcast
 
 contract DeployERC4626AdapterScript is DeployAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT.

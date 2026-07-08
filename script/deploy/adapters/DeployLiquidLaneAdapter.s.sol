@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {DeployLiquidLaneAdapterBase} from "./base/DeployLiquidLaneAdapterBase.sol";
 
-// forge script script/deploy/adapters/DeployLiquidLaneAdapter.s.sol:DeployLiquidLaneAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/deploy/adapters/DeployLiquidLaneAdapter.s.sol:DeployLiquidLaneAdapterScript --rpc-url=RPC --broadcast
 
 contract DeployLiquidLaneAdapterScript is DeployLiquidLaneAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT

@@ -5,7 +5,7 @@ import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 
 import {IEulerAdapter} from "../../src/interfaces/adapters/IEulerAdapter.sol";
 
-// forge script script/adapters/DeployEulerAdapter.s.sol:DeployEulerAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/adapters/DeployEulerAdapter.s.sol:DeployEulerAdapterScript --rpc-url=RPC --broadcast
 
 contract DeployEulerAdapterScript is DeployAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT.

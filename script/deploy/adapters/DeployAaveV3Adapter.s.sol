@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {DeployAaveV3AdapterBase} from "./base/DeployAaveV3AdapterBase.sol";
 
-// forge script script/deploy/adapters/DeployAaveV3Adapter.s.sol:DeployAaveV3AdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/deploy/adapters/DeployAaveV3Adapter.s.sol:DeployAaveV3AdapterScript --rpc-url=RPC --broadcast
 
 contract DeployAaveV3AdapterScript is DeployAaveV3AdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT

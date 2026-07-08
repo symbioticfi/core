@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 
-// forge script script/adapters/DeployThreeFAdapter.s.sol:DeployThreeFAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/adapters/DeployThreeFAdapter.s.sol:DeployThreeFAdapterScript --rpc-url=RPC --broadcast
 
 contract DeployThreeFAdapterScript is DeployAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT.

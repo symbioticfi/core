@@ -5,7 +5,7 @@ import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 
 import {ILiquidLaneAdapter} from "../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 
-// forge script script/adapters/DeployLiquidLaneAdapter.s.sol:DeployLiquidLaneAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/adapters/DeployLiquidLaneAdapter.s.sol:DeployLiquidLaneAdapterScript --rpc-url=RPC --broadcast
 
 contract DeployLiquidLaneAdapterScript is DeployAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT.

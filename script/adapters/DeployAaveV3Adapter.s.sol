@@ -5,7 +5,7 @@ import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 
 import {IAaveV3Adapter} from "../../src/interfaces/adapters/IAaveV3Adapter.sol";
 
-// forge script script/adapters/DeployAaveV3Adapter.s.sol:DeployAaveV3AdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/adapters/DeployAaveV3Adapter.s.sol:DeployAaveV3AdapterScript --rpc-url=RPC --broadcast
 
 contract DeployAaveV3AdapterScript is DeployAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT.
