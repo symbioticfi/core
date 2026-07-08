@@ -20,10 +20,10 @@ import {
     mFONE_Account,
     mFONE_AccountFactory
 } from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mFONE_Account.sol";
-// import {
-//     mGLOBAL_Account,
-//     mGLOBAL_AccountFactory
-// } from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mGLOBAL_Account.sol";
+import {
+    mGLOBAL_Account,
+    mGLOBAL_AccountFactory
+} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mGLOBAL_Account.sol";
 import {
     mHYPER_Account,
     mHYPER_AccountFactory
@@ -52,7 +52,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         address accountRegistry;
         address liquidLaneAdapterFactory;
         address liquidLaneAdapterImplementation;
-        // AccountDeploymentData mGLOBAL;
+        AccountDeploymentData mGLOBAL;
         AccountDeploymentData mFONE;
         AccountDeploymentData mROX;
         AccountDeploymentData mHYPER;
@@ -71,7 +71,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
     address public constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    // address public constant MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
+    address public constant MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
     address public constant MFONE = 0x238a700eD6165261Cf8b2e544ba797BC11e466Ba;
     address public constant MROX = 0x67E1F506B148d0Fc95a4E3fFb49068ceB6855c05;
     address public constant MHYPER = 0x9b5528528656DBC094765E2abB79F293c21191B9;
@@ -96,7 +96,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
             address(new LiquidLaneAdapter(vaultFactory, data.liquidLaneAdapterFactory, data.accountRegistry));
         AdapterFactory(data.liquidLaneAdapterFactory).whitelist(data.liquidLaneAdapterImplementation);
 
-        // data.mGLOBAL = _deployMGlobal(data.accountRegistry);
+        data.mGLOBAL = _deployMGlobal(data.accountRegistry);
         data.mFONE = _deployMFONE(data.accountRegistry);
         data.mROX = _deployMROX(data.accountRegistry);
         data.mHYPER = _deployMHYPER(data.accountRegistry);
@@ -112,11 +112,11 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         _logDeployment(data);
     }
 
-    // function _deployMGlobal(address accountRegistry) internal returns (AccountDeploymentData memory data) {
-    //     data.factory = address(new mGLOBAL_AccountFactory(_scriptOwner()));
-    //     data.implementation = address(new mGLOBAL_Account(data.factory, COW_SWAP_SETTLEMENT));
-    //     _whitelistAndRegister(accountRegistry, MGLOBAL, data);
-    // }
+    function _deployMGlobal(address accountRegistry) internal returns (AccountDeploymentData memory data) {
+        data.factory = address(new mGLOBAL_AccountFactory(_scriptOwner()));
+        data.implementation = address(new mGLOBAL_Account(data.factory, COW_SWAP_SETTLEMENT));
+        _whitelistAndRegister(accountRegistry, MGLOBAL, data);
+    }
 
     function _deployMFONE(address accountRegistry) internal returns (AccountDeploymentData memory data) {
         data.factory = address(new mFONE_AccountFactory(_scriptOwner()));
@@ -180,7 +180,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         }
 
         Ownable(data.liquidLaneAdapterFactory).transferOwnership(factoriesOwner);
-        // _transferAccountFactoryOwnership(data.mGLOBAL, factoriesOwner);
+        _transferAccountFactoryOwnership(data.mGLOBAL, factoriesOwner);
         _transferAccountFactoryOwnership(data.mFONE, factoriesOwner);
         _transferAccountFactoryOwnership(data.mROX, factoriesOwner);
         _transferAccountFactoryOwnership(data.mHYPER, factoriesOwner);
@@ -211,7 +211,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         assert(IMigratableEntity(data.liquidLaneAdapterImplementation).FACTORY() == data.liquidLaneAdapterFactory);
         assert(AdapterFactory(data.liquidLaneAdapterFactory).implementation(1) == data.liquidLaneAdapterImplementation);
 
-        // _validateAccountDeployment(data.accountRegistry, MGLOBAL, data.mGLOBAL, factoriesOwner);
+        _validateAccountDeployment(data.accountRegistry, MGLOBAL, data.mGLOBAL, factoriesOwner);
         _validateAccountDeployment(data.accountRegistry, MFONE, data.mFONE, factoriesOwner);
         _validateAccountDeployment(data.accountRegistry, MROX, data.mROX, factoriesOwner);
         _validateAccountDeployment(data.accountRegistry, MHYPER, data.mHYPER, factoriesOwner);
@@ -247,7 +247,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
             )
         );
 
-        // _logAccountDeployment("mGLOBAL", data.mGLOBAL);
+        _logAccountDeployment("mGLOBAL", data.mGLOBAL);
         _logAccountDeployment("mF-ONE", data.mFONE);
         _logAccountDeployment("mROX", data.mROX);
         _logAccountDeployment("mHYPER", data.mHYPER);
