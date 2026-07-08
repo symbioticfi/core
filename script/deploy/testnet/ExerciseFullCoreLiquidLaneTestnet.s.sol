@@ -322,76 +322,76 @@ contract ExerciseFullCoreLiquidLaneTestnetScript is Script {
     }
 
     function _hoodi() internal pure returns (Deployment memory deployed) {
-        deployed.networkRegistry = 0xb2EfA49BB2Aa418ac55bA7DdaA1Cf647F7fb465f;
-        deployed.operatorRegistry = 0xca9cc351C8165d22D0Fd0831C560474b94be5CcD;
-        deployed.networkMiddlewareService = 0xf431e69aa7329CaDBc44AF07504cadA9817975F9;
-        deployed.usdc = 0x9B97F7eDAbd9Ef43cAcE2eaFDD1DE5721aE3Bdd3;
-        deployed.aUsd = 0x17Eef10B14D727fB700918687e4d1D0D323efB5D;
-        deployed.mFone = 0xA684911e92b8E4Dd27046331B849Bbd6dbca0fA2;
-        deployed.mGlobal = 0x2Ee6f1A395Bce7a7c5bF1D07bAaF9F8A0828A8d3;
-        deployed.aavePool = 0x5BFe1C93bD7271C484724C5f393bAD586Eb8c3fD;
+        deployed.networkRegistry = 0x231e9c011c9B7D4Db670c4048157c12827e609c9;
+        deployed.operatorRegistry = 0xD71a1C85741A802cc6E734091585E4Ee9C3a284b;
+        deployed.networkMiddlewareService = 0x7bD4b3B1Ffaa1D670FbF20968F88Df76D0674581;
+        deployed.usdc = 0x7CBD6c85A278a7586E9D1cF737b5BF2433AE69DD;
+        deployed.aUsd = 0x84345D59A3a8c9acc0704595E608bE38a714b4FA;
+        deployed.mFone = 0xB47e49F0e9beF4bB7d665B8385133825F7bCFbEd;
+        deployed.mGlobal = 0x931E73562091aBFC583273D0E3BCB28c43268778;
+        deployed.aavePool = 0x56c409f6b039464cfBA1D41B08017884a6979622;
         deployed.usdcMarket = Market({
             asset: deployed.usdc,
-            vault: 0x005BC9715A57f8593e4Dd826e5A16638B9870F7C,
-            delegator: 0xFE49B8bB32573984e2981402735dC88052819a0b,
-            liquidLaneAdapter: 0x788Ab0D58bC7E5537109064F95875013c886ACC8,
-            appAdapter: 0xad2Ae2C332BDEb092CE223c09baA52525a653c85,
-            aaveAdapter: 0x23643a0221e0359C536c4c86F2205EE9f4Ec82a2,
-            morphoAdapter: 0xE653D691e4eC52708C04D02CeCdAcFCC761aEd9d,
-            morphoVault: 0xAfe11A1e8009d3c0bD66E80cbf89A3c850b84A1c,
-            restakingVault: 0x3b57e1c45F83B7D1A59F0373761f8C7561DA49Ac,
-            restakingDelegator: 0xCfC66aD1edB63fb749899c2e15Be519b11a23331,
-            restakingAppAdapter: 0x1f2792Ab4F5b7F5bF364796f804170c51Dd6d1e5
+            vault: 0xEA31853a6E277C3CfE1B3022a520752dC97ECA7f,
+            delegator: 0xfD7f10a63f69c23a6661B45334D4F84950c1D807,
+            liquidLaneAdapter: 0xb793c2619BA1516CFc03E7B7ece576C4f63F3D60,
+            appAdapter: 0x76658BAb9AbBBf9a7E5f17ACC02493e615aBDEe9,
+            aaveAdapter: 0x1209a3409Ef220A4473C055ebfC0D2110c947B87,
+            morphoAdapter: 0x7dFA5DF0d721c149Dc621398B0fE29C45F18D0ed,
+            morphoVault: 0x5451d30B53E592fDa7ae2564aD13Fb863E018133,
+            restakingVault: 0xC93Bb3cdb153e1F0a755266526119334c694910d,
+            restakingDelegator: 0xCadd1C7B7b8a883f906c156A45db421135172D25,
+            restakingAppAdapter: 0x11E4096c46D73F19d5D7e5760241344c9d1066a1
         });
         deployed.aUsdMarket = Market({
             asset: deployed.aUsd,
-            vault: 0xf712E351D127E8f3524fA72C8BA66eb900bcDcEd,
-            delegator: 0xB20EA67d178bD84Fb66F31E6c34db749D44915Fe,
-            liquidLaneAdapter: 0x9292Ad3e9C3747cFA31885657B5A458002205281,
-            appAdapter: 0xe2f82636DE875cac4e9aeD2453BE10eBA7890f80,
-            aaveAdapter: 0x39470c2B20B593B51ABde7AbeBaFb894e3973Da3,
-            morphoAdapter: 0xFC4dc57fF3De7096CfA9b70f07962c18268bF456,
-            morphoVault: 0x0ef46FA00C67E0AE2265AedE1cA00Bc4d0e0673a,
-            restakingVault: 0x1975370f91D9332f8F28873f327c7174045c949A,
-            restakingDelegator: 0x0FfE0A001E243d0cFbF018CA4c946b12a5EA18e6,
-            restakingAppAdapter: 0xEeb5ef49e2095DfE510C99d1f4F0b460443E2605
+            vault: 0x7bB16960bd74e2e66D140A8B78Fc1fd3b25e2b37,
+            delegator: 0x145C2C522B6002A7A281e796cEF3571403ae2bc2,
+            liquidLaneAdapter: 0x153F41092e8Cb3397AF23D8eeAF5F5FDa81459c1,
+            appAdapter: 0x235bb217D662e8A1912e1AbFCaeCED4Eb066C185,
+            aaveAdapter: 0xcef689ED096E9d7066816B0c070FfBa18984DA16,
+            morphoAdapter: 0x2cF891aa6BA7894bA5bd20d096E10ED68F78FF4f,
+            morphoVault: 0x616D8A52B1946c14408a0a1e73Aa3C6DD393261B,
+            restakingVault: 0x86D89860bc8aF2aFf160D4C6Aa4AA798C2C1B119,
+            restakingDelegator: 0xCEf78FC3D8458bAacd9414164e421Bd707Eb3688,
+            restakingAppAdapter: 0xC41f5e7182c4468aaf0165822Ad9C31f37126003
         });
     }
 
     function _sepolia() internal pure returns (Deployment memory deployed) {
-        deployed.networkRegistry = 0x653618ea4AE1112b0Bb78E208605A3897A4fD5Dd;
-        deployed.operatorRegistry = 0x8ccf50CEC5D9A4fE992707c199ce3E5D88F4181a;
-        deployed.networkMiddlewareService = 0x4036F988198D5dEBC069bA8666c1005C27ed3dA3;
-        deployed.usdc = 0xc06ea690d3eC9a85E1e1603f366f13c50d80afD3;
-        deployed.aUsd = 0x4DB97050730c79f69716C2c8d551DD21c49ac1a5;
-        deployed.mFone = 0x5702FDa445cff75bbCA4e24c1e18f38f4A6b2176;
-        deployed.mGlobal = 0xb547DCEcfC86FCC7B2964A4d9A2d5e8CFc407593;
-        deployed.aavePool = 0x68239eA4BB513AD538d31aDD4D942219B46a954C;
+        deployed.networkRegistry = 0x563F39055db11b2a64D7b8C883F002968b5458B8;
+        deployed.operatorRegistry = 0x5579DDc08A6754e2AAbAFcd6E77555391a7887E0;
+        deployed.networkMiddlewareService = 0xf4A8dA61336e9900A1975B2a1f9bA5f338Db68fF;
+        deployed.usdc = 0x49F2Db28897860b065FfD5509BD8E75FA450fD91;
+        deployed.aUsd = 0x062bcE0Ec64D8f5a5b7dCCb7bFA3eb11bE0AcaE0;
+        deployed.mFone = 0x0E338C168597971eC7B0E77278653B6ae76Bc6A7;
+        deployed.mGlobal = 0x0a1530B52d37Cc69faE82B9D91Add40653c96ED8;
+        deployed.aavePool = 0x68c461F159655b3172F199a41c5E0A702ed1A3A4;
         deployed.usdcMarket = Market({
             asset: deployed.usdc,
-            vault: 0x0c5675268bd6CbcD99F901e11A35612E8A7BB70a,
-            delegator: 0x8476371c8CA4878d11d319CD04c3193C20b1403f,
-            liquidLaneAdapter: 0x8F38656B85fb440018c109A5118aFfDfD923721c,
-            appAdapter: 0x7b12722529041C5D69044770739B033F2D77Ac79,
-            aaveAdapter: 0xf4201dd8af805855BDC4328780a2583dc898d37a,
-            morphoAdapter: 0xDE8900997bf9d06f50F5F70c717B14EB1cfD086d,
-            morphoVault: 0xF97CfBeF4675b7A21CBd385ffDb2b4C5cd581C83,
-            restakingVault: 0x18265861301096aB32BB80B0c5292570Edb9BD14,
-            restakingDelegator: 0x6Dc363d90c0f4AFf807A6b59764b0B00f85e7b77,
-            restakingAppAdapter: 0xB65590B67AB9C27D9a5EAC24846dB97c86Ede07d
+            vault: 0x901344F68462455Beff6C828122367686d1a3228,
+            delegator: 0xF3e91325234acB1b1c0C1a86CA03Db56CeBf261C,
+            liquidLaneAdapter: 0x3517004E6930f8227D3755C0b54e75725D2E4B6A,
+            appAdapter: 0x6a4E0150674f8462EF2ff8dd7E6f762FDd8BAd71,
+            aaveAdapter: 0xBdf43Dc53b8927B58aBaA1B8B1401972430183de,
+            morphoAdapter: 0x4980E28f817dF01a563800E89Ec6dd67f0aD62c3,
+            morphoVault: 0x9747832929d2Cd53001295B0CaCbCBB37f2119f5,
+            restakingVault: 0xFa43030F06554F8B508E4D7406d41b945C6cDb67,
+            restakingDelegator: 0xB69d138949062d5235d7b80EcE7a4d575bE5bdAf,
+            restakingAppAdapter: 0x3dfae2c8478C1c15FF2A82E1B53ffB2CD19f309e
         });
         deployed.aUsdMarket = Market({
             asset: deployed.aUsd,
-            vault: 0xb7227ac48307557616f7e003aAd5Be83Eb2eA85E,
-            delegator: 0x12536a564d6676b17Ca1C179b8913b5D8047e8f4,
-            liquidLaneAdapter: 0xe4eb1E756F2d78F77B9ebE304515fA61B2451A33,
-            appAdapter: 0x4188b5D7091FaCBeB32d2CbCD7a6804D9D75be2b,
-            aaveAdapter: 0x352cA87107C77aAD830D23B578a45dCf04eC1b73,
-            morphoAdapter: 0xc646cfEDc9227f1cDEab7a0f04AebCb95d7e358a,
-            morphoVault: 0x0a774e2187a1Fc4C228178A84e0a9ED4bBabaE61,
-            restakingVault: 0x6C34202EF76095A8299D8496D831BDc3FeD96C3C,
-            restakingDelegator: 0xb76189891Fe2ce6F9eCE827722694C628E938C41,
-            restakingAppAdapter: 0xeeCa62d98BD60529b89c2cbe9a89358d138FdFc3
+            vault: 0xEB3BdBE738019c0c6dbE44Cf2E17Aa2A8eF15b6f,
+            delegator: 0x0Daa83cd0833D794bb206F951b19BF6267E28117,
+            liquidLaneAdapter: 0x012FFe59De90b4D5dAc92c373c7a6C8C1e9EcFdA,
+            appAdapter: 0x1F538fB15f23f519a063c5B4DBBc8cDF3F60aBa3,
+            aaveAdapter: 0x05005C99b04657408c7ad46447E6cAa784Da124b,
+            morphoAdapter: 0xA1c33567305e3B9A541d1ACbd7142caC7efB3A7D,
+            morphoVault: 0x6bD08Af2FA05274519472cDF69fF8De25B7Bd6F1,
+            restakingVault: 0x3d7acb7AF52Cb5Ff46257F45B6eB3a9E7Fb0525c,
+            restakingDelegator: 0x229DBd6104A3a7121150e6b953e70E3B5828f7a1,
+            restakingAppAdapter: 0x4653aD535f6AEabE069B5884dd8619b998e038B5
         });
     }
 }

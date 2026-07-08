@@ -623,56 +623,56 @@ contract DeployAndExerciseV1VaultsLatestTestnetScript is Script {
         if (block.chainid == 560_048) {
             core = Core({
                 vaultConfigurator: vm.envOr(
-                    "TESTNET_V1_VAULT_CONFIGURATOR", address(0x4624f1066390cCDFCae3F525e3C1fCA2b6EEf63a)
+                    "TESTNET_V1_VAULT_CONFIGURATOR", address(0x87d9eB1fB660e23B784bf660414297446A769F72)
                 ),
                 networkRegistry: vm.envOr(
-                    "TESTNET_V1_NETWORK_REGISTRY", address(0xb2EfA49BB2Aa418ac55bA7DdaA1Cf647F7fb465f)
+                    "TESTNET_V1_NETWORK_REGISTRY", address(0x231e9c011c9B7D4Db670c4048157c12827e609c9)
                 ),
                 networkMiddlewareService: vm.envOr(
-                    "TESTNET_V1_NETWORK_MIDDLEWARE_SERVICE", address(0xf431e69aa7329CaDBc44AF07504cadA9817975F9)
+                    "TESTNET_V1_NETWORK_MIDDLEWARE_SERVICE", address(0x7bD4b3B1Ffaa1D670FbF20968F88Df76D0674581)
                 ),
                 operatorRegistry: vm.envOr(
-                    "TESTNET_V1_OPERATOR_REGISTRY", address(0xca9cc351C8165d22D0Fd0831C560474b94be5CcD)
+                    "TESTNET_V1_OPERATOR_REGISTRY", address(0xD71a1C85741A802cc6E734091585E4Ee9C3a284b)
                 ),
                 operatorVaultOptInService: vm.envOr(
-                    "TESTNET_V1_OPERATOR_VAULT_OPT_IN_SERVICE", address(0xc2641656a17154C0a97ba5E45542546c15599276)
+                    "TESTNET_V1_OPERATOR_VAULT_OPT_IN_SERVICE", address(0x62960B7c821ECcDb753D2CD5B439454f6B933399)
                 ),
                 operatorNetworkOptInService: vm.envOr(
-                    "TESTNET_V1_OPERATOR_NETWORK_OPT_IN_SERVICE", address(0x8090EeF9fd4EFFe0864CF7451DaD68661bd95e49)
+                    "TESTNET_V1_OPERATOR_NETWORK_OPT_IN_SERVICE", address(0x593871aA6f52076f932360359371c9D5a9C91ae2)
                 )
             });
             assets = Assets({
-                usdc: vm.envOr("TESTNET_V1_USDC", address(0x9B97F7eDAbd9Ef43cAcE2eaFDD1DE5721aE3Bdd3)),
-                aUsd: vm.envOr("TESTNET_V1_AUSD", address(0x17Eef10B14D727fB700918687e4d1D0D323efB5D)),
-                mFone: vm.envOr("TESTNET_V1_MFONE", address(0xA684911e92b8E4Dd27046331B849Bbd6dbca0fA2)),
-                mGlobal: vm.envOr("TESTNET_V1_MGLOBAL", address(0x2Ee6f1A395Bce7a7c5bF1D07bAaF9F8A0828A8d3))
+                usdc: vm.envOr("TESTNET_V1_USDC", address(0x7CBD6c85A278a7586E9D1cF737b5BF2433AE69DD)),
+                aUsd: vm.envOr("TESTNET_V1_AUSD", address(0x84345D59A3a8c9acc0704595E608bE38a714b4FA)),
+                mFone: vm.envOr("TESTNET_V1_MFONE", address(0xB47e49F0e9beF4bB7d665B8385133825F7bCFbEd)),
+                mGlobal: vm.envOr("TESTNET_V1_MGLOBAL", address(0x931E73562091aBFC583273D0E3BCB28c43268778))
             });
         } else if (block.chainid == 11_155_111) {
             core = Core({
                 vaultConfigurator: vm.envOr(
-                    "TESTNET_V1_VAULT_CONFIGURATOR", address(0x0216b8363AA0682F4a1f77BC33bB15Be97689b23)
+                    "TESTNET_V1_VAULT_CONFIGURATOR", address(0x159B008Da99a6b9D1444Cade586Db2Db039a6Bb5)
                 ),
                 networkRegistry: vm.envOr(
-                    "TESTNET_V1_NETWORK_REGISTRY", address(0x653618ea4AE1112b0Bb78E208605A3897A4fD5Dd)
+                    "TESTNET_V1_NETWORK_REGISTRY", address(0x563F39055db11b2a64D7b8C883F002968b5458B8)
                 ),
                 networkMiddlewareService: vm.envOr(
-                    "TESTNET_V1_NETWORK_MIDDLEWARE_SERVICE", address(0x4036F988198D5dEBC069bA8666c1005C27ed3dA3)
+                    "TESTNET_V1_NETWORK_MIDDLEWARE_SERVICE", address(0xf4A8dA61336e9900A1975B2a1f9bA5f338Db68fF)
                 ),
                 operatorRegistry: vm.envOr(
-                    "TESTNET_V1_OPERATOR_REGISTRY", address(0x8ccf50CEC5D9A4fE992707c199ce3E5D88F4181a)
+                    "TESTNET_V1_OPERATOR_REGISTRY", address(0x5579DDc08A6754e2AAbAFcd6E77555391a7887E0)
                 ),
                 operatorVaultOptInService: vm.envOr(
-                    "TESTNET_V1_OPERATOR_VAULT_OPT_IN_SERVICE", address(0x6989A4B9F67506F47932254B414aCc4F41D4e317)
+                    "TESTNET_V1_OPERATOR_VAULT_OPT_IN_SERVICE", address(0xF1ab4e2536b59Df2A8D28474D4c6363Ee97142CF)
                 ),
                 operatorNetworkOptInService: vm.envOr(
-                    "TESTNET_V1_OPERATOR_NETWORK_OPT_IN_SERVICE", address(0xe548a3cF51EE51413D9F99dd39978CA0a4B9548E)
+                    "TESTNET_V1_OPERATOR_NETWORK_OPT_IN_SERVICE", address(0xEaD132d5A9670d4f6FF7f4B73b5ae09684603e81)
                 )
             });
             assets = Assets({
-                usdc: vm.envOr("TESTNET_V1_USDC", address(0xc06ea690d3eC9a85E1e1603f366f13c50d80afD3)),
-                aUsd: vm.envOr("TESTNET_V1_AUSD", address(0x4DB97050730c79f69716C2c8d551DD21c49ac1a5)),
-                mFone: vm.envOr("TESTNET_V1_MFONE", address(0x5702FDa445cff75bbCA4e24c1e18f38f4A6b2176)),
-                mGlobal: vm.envOr("TESTNET_V1_MGLOBAL", address(0xb547DCEcfC86FCC7B2964A4d9A2d5e8CFc407593))
+                usdc: vm.envOr("TESTNET_V1_USDC", address(0x49F2Db28897860b065FfD5509BD8E75FA450fD91)),
+                aUsd: vm.envOr("TESTNET_V1_AUSD", address(0x062bcE0Ec64D8f5a5b7dCCb7bFA3eb11bE0AcaE0)),
+                mFone: vm.envOr("TESTNET_V1_MFONE", address(0x0E338C168597971eC7B0E77278653B6ae76Bc6A7)),
+                mGlobal: vm.envOr("TESTNET_V1_MGLOBAL", address(0x0a1530B52d37Cc69faE82B9D91Add40653c96ED8))
             });
         } else {
             revert("unsupported chain");

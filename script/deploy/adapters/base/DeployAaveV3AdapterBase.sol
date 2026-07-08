@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {RestakingAppAdapter} from "../../../src/contracts/adapters/RestakingAppAdapter.sol";
+import {AaveV3Adapter} from "../../../../src/contracts/adapters/AaveV3Adapter.sol";
 import {DeployAdapterBase} from "./DeployAdapterBase.sol";
 
-contract DeployRestakingAppAdapterBase is DeployAdapterBase {
+contract DeployAaveV3AdapterBase is DeployAdapterBase {
     struct DeployParams {
         address adapterFactoryOwner;
+        address aavePool;
         address cowSwapSettlement;
-        address networkMiddlewareService;
+        address merklDistributor;
     }
 
     function runBase(DeployParams memory params) public virtual returns (DeploymentData memory data) {
@@ -19,20 +20,21 @@ contract DeployRestakingAppAdapterBase is DeployAdapterBase {
         _startBroadcast();
         data.adapterFactory = _deployAdapterFactory();
         data.adapterImplementation = address(
-            new RestakingAppAdapter(
-                vaultFactory, data.adapterFactory, params.cowSwapSettlement, params.networkMiddlewareService
+            new AaveV3Adapter(
+                params.aavePool, vaultFactory, data.adapterFactory, params.merklDistributor, params.cowSwapSettlement
             )
         );
         _whitelistAndTransferOwnership(data, params.adapterFactoryOwner);
         _stopBroadcast();
 
         _validateAdapterDeployment(data, params.adapterFactoryOwner);
-        _logDeployment("RestakingApp", data);
+        _logDeployment("AaveV3", data);
     }
 
     function _validateParams(DeployParams memory params) internal pure {
         _validateAdapterFactoryOwner(params.adapterFactoryOwner);
+        require(params.aavePool != address(0), "invalid Aave pool");
         require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
-        require(params.networkMiddlewareService != address(0), "invalid network middleware service");
+        require(params.merklDistributor != address(0), "invalid Merkl distributor");
     }
 }

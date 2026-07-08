@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
+import {MorphoVaultV2Adapter} from "../../../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
 import {DeployAdapterBase} from "./DeployAdapterBase.sol";
 
-contract DeployAppAdapterBase is DeployAdapterBase {
+contract DeployMorphoVaultV2AdapterBase is DeployAdapterBase {
     struct DeployParams {
         address adapterFactoryOwner;
+        address morphoVaultFactory;
+        address morphoAdapterRegistry;
         address cowSwapSettlement;
-        address networkMiddlewareService;
+        address merklDistributor;
     }
 
     function runBase(DeployParams memory params) public virtual returns (DeploymentData memory data) {
@@ -19,18 +21,27 @@ contract DeployAppAdapterBase is DeployAdapterBase {
         _startBroadcast();
         data.adapterFactory = _deployAdapterFactory();
         data.adapterImplementation = address(
-            new AppAdapter(vaultFactory, data.adapterFactory, params.cowSwapSettlement, params.networkMiddlewareService)
+            new MorphoVaultV2Adapter(
+                vaultFactory,
+                data.adapterFactory,
+                params.merklDistributor,
+                params.cowSwapSettlement,
+                params.morphoVaultFactory,
+                params.morphoAdapterRegistry
+            )
         );
         _whitelistAndTransferOwnership(data, params.adapterFactoryOwner);
         _stopBroadcast();
 
         _validateAdapterDeployment(data, params.adapterFactoryOwner);
-        _logDeployment("App", data);
+        _logDeployment("MorphoVaultV2", data);
     }
 
     function _validateParams(DeployParams memory params) internal pure {
         _validateAdapterFactoryOwner(params.adapterFactoryOwner);
+        require(params.morphoVaultFactory != address(0), "invalid Morpho vault factory");
+        require(params.morphoAdapterRegistry != address(0), "invalid Morpho adapter registry");
         require(params.cowSwapSettlement != address(0), "invalid CoW settlement");
-        require(params.networkMiddlewareService != address(0), "invalid network middleware service");
+        require(params.merklDistributor != address(0), "invalid Merkl distributor");
     }
 }

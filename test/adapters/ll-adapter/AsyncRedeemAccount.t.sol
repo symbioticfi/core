@@ -6,20 +6,39 @@ import "./AccountsBase.t.sol";
 import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
 import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
 contract AsyncRedeemAccountTest is AccountsBase {
     function testAsyncRedeemOracleUsesAsyncVaultConversion() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
-        AsyncRedeemOracle oracle = new AsyncRedeemOracle(1, type(uint256).max, address(tokenToRedeem));
+        AsyncRedeemOracle oracle =
+            new AsyncRedeemOracle(1, type(uint256).max, address(tokenToRedeem), address(tokenToRedeem));
 
         assertEq(oracle.ASYNC_REDEEM_VAULT(), address(tokenToRedeem));
+        assertEq(oracle.getPrice(), 2e18);
+    }
+
+    function testAsyncRedeemOracleUsesTokenDecimalsWhenVaultHasNoDecimals() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 tokenToRedeem = new MockERC20("Centrifuge Share", "CFGSHARE", 18);
+        MockAsyncRedeemVaultWithoutDecimals asyncRedeemVault =
+            new MockAsyncRedeemVaultWithoutDecimals(asset, tokenToRedeem, 2e6);
+        AsyncRedeemOracle oracle =
+            new AsyncRedeemOracle(1, type(uint256).max, address(tokenToRedeem), address(asyncRedeemVault));
+
+        (bool success,) = address(asyncRedeemVault).staticcall(abi.encodeCall(IERC20Metadata.decimals, ()));
+
+        assertFalse(success);
+        assertEq(oracle.ASYNC_REDEEM_VAULT(), address(asyncRedeemVault));
         assertEq(oracle.getPrice(), 2e18);
     }
 
     function testAsyncRedeemAccountValuesHeldSharesWithAsyncVaultConversion() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
-        AsyncRedeemOracle oracle = new AsyncRedeemOracle(1, type(uint256).max, address(tokenToRedeem));
+        AsyncRedeemOracle oracle =
+            new AsyncRedeemOracle(1, type(uint256).max, address(tokenToRedeem), address(tokenToRedeem));
         TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
 
         tokenToRedeem.mint(address(account), 1 ether);
@@ -179,6 +198,57 @@ contract AsyncRedeemAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 6e6);
     }
 
+    function testAsyncRedeemAccountClaimsAllRequestsWithMaxRedeem() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
+        MockOracle oracle = new MockOracle(2e18);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
+        tokenToRedeem.setFreshRequestIds(true);
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        account.sync();
+        tokenToRedeem.mint(address(account), 2 ether);
+        account.sync();
+
+        tokenToRedeem.fulfill(0, address(account), 1 ether);
+        tokenToRedeem.fulfill(1, address(account), 2 ether);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.redeemCalls(address(account)), 1);
+        assertEq(asset.balanceOf(address(account)), 6e6);
+        assertEq(account.totalAssets(), 6e6);
+        vm.expectRevert();
+        account.requestIds(0);
+    }
+
+    function testAsyncRedeemAccountClaimsFulfilledRequestsAndKeepsPendingRemainder() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
+        MockOracle oracle = new MockOracle(2e18);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
+        tokenToRedeem.setFreshRequestIds(true);
+
+        tokenToRedeem.mint(address(account), 3 ether);
+        account.sync();
+        tokenToRedeem.mint(address(account), 2 ether);
+        account.sync();
+
+        tokenToRedeem.fulfill(0, address(account), 1 ether);
+        tokenToRedeem.fulfill(1, address(account), 2 ether);
+        tokenToRedeem.setAssetsPerShare(4e6);
+
+        account.sync();
+
+        assertEq(tokenToRedeem.redeemCalls(address(account)), 1);
+        assertEq(asset.balanceOf(address(account)), 6e6);
+        assertEq(account.requestIds(0), 0);
+        vm.expectRevert();
+        account.requestIds(1);
+        assertEq(tokenToRedeem.pending(0, address(account)), 2 ether);
+        assertEq(account.totalAssets(), 14e6);
+    }
+
     function testAsyncRedeemAccountValuesClaimableLegAtFulfillmentPrice() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
@@ -236,6 +306,13 @@ contract AsyncRedeemAccountTest is AccountsBase {
             new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
             DEJAAA_TOKEN_ADDRESS
         );
+
+        assertEq(new JTRSY_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new JAAA_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new ACRDX_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new deCRDX_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new deJTRSY_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
     }
 
     function testCentrifugeTokenAccountsUseCentrifugeAccountBase() public {
@@ -286,5 +363,25 @@ contract AsyncRedeemAccountTest is AccountsBase {
 
     function _centrifugeAccountAddress(CentrifugeAccount account) internal pure returns (address) {
         return address(account);
+    }
+}
+
+contract MockAsyncRedeemVaultWithoutDecimals {
+    MockERC20 internal immutable _asset;
+    MockERC20 internal immutable _tokenToRedeem;
+    uint256 internal immutable _assetsPerShare;
+
+    constructor(MockERC20 asset_, MockERC20 tokenToRedeem_, uint256 assetsPerShare_) {
+        _asset = asset_;
+        _tokenToRedeem = tokenToRedeem_;
+        _assetsPerShare = assetsPerShare_;
+    }
+
+    function asset() external view returns (address) {
+        return address(_asset);
+    }
+
+    function convertToAssets(uint256 shares) external view returns (uint256) {
+        return shares * _assetsPerShare / 10 ** _tokenToRedeem.decimals();
     }
 }

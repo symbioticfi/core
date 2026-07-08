@@ -3,14 +3,14 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 
-import {DeployAaveV3AdapterBase} from "../../script/adapters/base/DeployAaveV3AdapterBase.sol";
-import {DeployAppAdapterBase} from "../../script/adapters/base/DeployAppAdapterBase.sol";
-import {DeployERC4626AdapterBase} from "../../script/adapters/base/DeployERC4626AdapterBase.sol";
-import {DeployEulerAdapterBase} from "../../script/adapters/base/DeployEulerAdapterBase.sol";
-import {DeployLiquidLaneAdapterBase} from "../../script/adapters/base/DeployLiquidLaneAdapterBase.sol";
-import {DeployMorphoVaultV2AdapterBase} from "../../script/adapters/base/DeployMorphoVaultV2AdapterBase.sol";
-import {DeployRestakingAppAdapterBase} from "../../script/adapters/base/DeployRestakingAppAdapterBase.sol";
-import {DeployThreeFAdapterBase} from "../../script/adapters/base/DeployThreeFAdapterBase.sol";
+import {DeployAaveV3AdapterBase} from "../../script/deploy/adapters/base/DeployAaveV3AdapterBase.sol";
+import {DeployAppAdapterBase} from "../../script/deploy/adapters/base/DeployAppAdapterBase.sol";
+import {DeployERC4626AdapterBase} from "../../script/deploy/adapters/base/DeployERC4626AdapterBase.sol";
+import {DeployEulerAdapterBase} from "../../script/deploy/adapters/base/DeployEulerAdapterBase.sol";
+import {DeployLiquidLaneAdapterBase} from "../../script/deploy/adapters/base/DeployLiquidLaneAdapterBase.sol";
+import {DeployMorphoVaultV2AdapterBase} from "../../script/deploy/adapters/base/DeployMorphoVaultV2AdapterBase.sol";
+import {DeployRestakingAppAdapterBase} from "../../script/deploy/adapters/base/DeployRestakingAppAdapterBase.sol";
+import {DeployThreeFAdapterBase} from "../../script/deploy/adapters/base/DeployThreeFAdapterBase.sol";
 import {DeployAaveV3AdapterBaseScript} from "../../script/deploy/base/DeployAaveV3AdapterBase.s.sol";
 import {DeployAppAdapterBaseScript} from "../../script/deploy/base/DeployAppAdapterBase.s.sol";
 import {DeployMorphoVaultV2AdapterBaseScript} from "../../script/deploy/base/DeployMorphoVaultV2AdapterBase.s.sol";

@@ -10,8 +10,7 @@ import {IMidasRedemptionVault} from "../../../../interfaces/adapters/ll-adapter/
 import {IMidasTokenAccount} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasTokenAccount.sol";
 
 contract mHYPER_Account is MidasCompAccount, IMidasTokenAccount {
-    uint48 internal constant TOKEN_COOLDOWN = 1 days;
-    uint48 public constant MAX_WITHDRAWAL_DELAY = 3 days;
+    uint48 internal constant TOKEN_COOLDOWN = 6 hours;
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant TOKEN_ADDRESS = 0x9b5528528656DBC094765E2abB79F293c21191B9;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x6Be2f55816efd0d91f52720f096006d63c366e98;
@@ -20,8 +19,8 @@ contract mHYPER_Account is MidasCompAccount, IMidasTokenAccount {
         MidasCompAccount(
             address(
                 new MidasOracle(
-                    553_267_385_000_000_000,
-                    2_213_069_540_000_000_000,
+                    277_200_000_000_000_000,
+                    3_880_300_000_000_000_000,
                     address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
                 )
             ),

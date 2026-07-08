@@ -175,7 +175,7 @@ contract MidasNonCompAccount is MidasAccount {
 
 /// @title CutoffMidasAccount
 /// @notice Midas account for cutoff-cohort redemptions: pending requests compound until the cohort
-///         pricing date, then freeze at the first vault-feed print at/after it.
+///         boundary, then use the latest valid vault-feed print before the next cohort cutoff.
 contract CutoffMidasAccount is MidasAccount, CutoffAccount {
     /* IMMUTABLES */
 
@@ -214,6 +214,9 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
         INITIAL_CUTOFF = initialCutoff;
         PRE_CUTOFF_WINDOW = preCutoffWindow;
         (INITIAL_YEAR, INITIAL_MONTH, CUTOFF_DAY, CUTOFF_HOUR,,) = DateTimeLib.timestampToDateTime(initialCutoff);
+        if (CUTOFF_DAY > 28) {
+            revert InvalidCutoff();
+        }
     }
 
     /* VIEW FUNCTIONS */
@@ -270,18 +273,25 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
     ///      skipped: Midas pays the assets and marks the request processed atomically, and the stale
     ///      cohort entry is only cleared on the next sync.
     function _pendingAssets() internal view override returns (uint256 assets) {
-        // Call getPrice() to trigger oracle validation checks.
-        IMidasOracle(ORACLE).getPrice();
-        address aggregator = IMidasDataFeed(IMidasOracle(ORACLE).DATA_FEED()).aggregator();
-        uint8 decimals = AggregatorV3Interface(aggregator).decimals();
-        (uint80 latestRoundId, int256 latestAnswer,, uint256 latestTimestamp,) =
-            AggregatorV3Interface(aggregator).latestRoundData();
+        address aggregator;
+        uint256 multiplier;
+        uint80 latestRoundId;
+        int256 latestAnswer;
+        uint256 latestTimestamp;
         uint256 length = requestIds.length;
         for (uint256 i; i < length; ++i) {
             uint64 requestId = requestIds[i];
             (,, uint8 status, uint256 amountMToken,,) =
                 IMidasRedemptionVault(REDEMPTION_VAULT).redeemRequests(requestId);
             if (status == REQUEST_STATUS_PENDING) {
+                if (aggregator == address(0)) {
+                    // Call getPrice() to trigger oracle validation checks.
+                    IMidasOracle(ORACLE).getPrice();
+                    aggregator = IMidasDataFeed(IMidasOracle(ORACLE).DATA_FEED()).aggregator();
+                    multiplier = 10 ** (18 - AggregatorV3Interface(aggregator).decimals());
+                    (latestRoundId, latestAnswer,, latestTimestamp,) =
+                        AggregatorV3Interface(aggregator).latestRoundData();
+                }
                 int256 answer = latestAnswer;
                 uint80 roundId = latestRoundId;
                 uint256 timestamp = latestTimestamp;
@@ -289,10 +299,10 @@ contract CutoffMidasAccount is MidasAccount, CutoffAccount {
                 while (timestamp >= nextBucketTimestamp) {
                     (, answer,, timestamp,) = AggregatorV3Interface(aggregator).getRoundData(--roundId);
                 }
-                if (answer <= 0) {
+                if (answer <= 0 || timestamp == 0) {
                     revert InvalidCutoffPrice();
                 }
-                assets += _tokenToRedeemToAssets(amountMToken, uint256(answer) * 10 ** (18 - decimals));
+                assets += _tokenToRedeemToAssets(amountMToken, uint256(answer) * multiplier);
             }
         }
     }

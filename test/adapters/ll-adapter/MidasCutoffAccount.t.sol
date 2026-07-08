@@ -7,9 +7,12 @@ import {CutoffMidasAccount} from "../../../src/contracts/adapters/ll-adapter/Mid
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {ICutoffAccount} from "../../../src/interfaces/adapters/ll-adapter/ICutoffAccount.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+import {DateTimeLib} from "solady/utils/DateTimeLib.sol";
 
 contract MidasCutoffAccountTest is Test {
     uint48 internal constant COOLDOWN = 6 days;
@@ -81,6 +84,22 @@ contract MidasCutoffAccountTest is Test {
         assertEq(account.totalAssets(), 95e6);
     }
 
+    function testTotalAssetsSkipsOracleWhenNoRequests() public {
+        aggregator.setRound(0, vm.getBlockTimestamp());
+
+        assertEq(account.totalAssets(), 0);
+    }
+
+    function testTotalAssetsSkipsOracleWhenOnlyStaleProcessedRequest() public {
+        mGlobal.mint(address(account), 100e18);
+        account.sync();
+
+        redemptionVault.process(0);
+        aggregator.setRound(0, vm.getBlockTimestamp());
+
+        assertEq(account.totalAssets(), 0);
+    }
+
     function testMonthlyBucketConversionUsesTwentySixthCutoff() public view {
         uint48 julyBucketIndex = account.timestampToBucket(JULY_20_2026);
 
@@ -91,6 +110,23 @@ contract MidasCutoffAccountTest is Test {
         assertEq(account.timestampToBucket(JULY_26_2026_17_PLUS_ONE), 1);
         assertEq(account.bucketToTimestamp(account.timestampToBucket(JULY_26_2026_17_PLUS_ONE)), JULY_26_2026_17);
         assertEq(account.bucketToTimestamp(2), AUGUST_26_2026_17);
+    }
+
+    function testConstructorRejectsCutoffDayAboveTwentyEight() public {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+
+        vm.expectRevert(ICutoffAccount.InvalidCutoff.selector);
+        new CutoffMidasAccount(
+            address(new MidasOracle(1, type(uint256).max, address(dataFeed))),
+            address(factory),
+            COOLDOWN,
+            uint48(DateTimeLib.dateTimeToTimestamp(2026, 1, 29, 0, 0, 0)),
+            address(mGlobal),
+            PRE_CUTOFF_WINDOW,
+            address(usdc),
+            address(redemptionVault),
+            cowSettlement
+        );
     }
 
     function testDoesNotRequestBeforePreCutoffWindow() public {
@@ -121,6 +157,16 @@ contract MidasCutoffAccountTest is Test {
         aggregator.setRound(2, 0.94e8, uint256(CUTOFF) - 1);
         aggregator.setRound(3, 0.97e8, uint256(CUTOFF) + 1);
         assertEq(account.totalAssets(), 94e6);
+    }
+
+    function testRejectsZeroTimestampHistoricalCutoffPrice() public {
+        aggregator.setRound(0, 0.94e8, 0);
+        aggregator.setRound(1, 0.97e8, uint256(CUTOFF) + 1);
+        mGlobal.mint(address(account), 100e18);
+        account.sync();
+
+        vm.expectRevert(ICutoffAccount.InvalidCutoffPrice.selector);
+        account.totalAssets();
     }
 
     function testFulfilledRequestNotDoubleCountedBeforeSync() public {

@@ -46,7 +46,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract DeployFullCoreLiquidLaneTestnetScript is Script {
-    uint48 internal constant MFONE_COOLDOWN = 3 days;
+    uint48 internal constant MFONE_COOLDOWN = 36 hours;
     uint48 internal constant MGLOBAL_COOLDOWN = 6 days;
     uint256 internal constant DEFAULT_MINT_AMOUNT = 1_000_000 ether;
     uint256 internal constant DEFAULT_LIQUID_LANE_LIMIT = type(uint128).max;

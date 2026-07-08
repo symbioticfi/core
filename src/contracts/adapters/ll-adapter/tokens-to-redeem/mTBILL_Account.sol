@@ -11,7 +11,6 @@ import {IMidasTokenAccount} from "../../../../interfaces/adapters/ll-adapter/mid
 
 contract mTBILL_Account is MidasCompAccount, IMidasTokenAccount {
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
-    uint48 public constant MAX_WITHDRAWAL_DELAY = 3 days;
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant TOKEN_ADDRESS = 0xDD629E5241CbC5919847783e6C96B2De4754e438;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0xF6e51d24F4793Ac5e71e0502213a9BBE3A6d4517;
@@ -20,8 +19,8 @@ contract mTBILL_Account is MidasCompAccount, IMidasTokenAccount {
         MidasCompAccount(
             address(
                 new MidasOracle(
-                    532_179_920_000_000_000,
-                    2_128_719_680_000_000_000,
+                    266_300_000_000_000_000,
+                    3_727_800_000_000_000_000,
                     address(IMidasRedemptionVault(REDEMPTION_VAULT_ADDRESS).mTokenDataFeed())
                 )
             ),

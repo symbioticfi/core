@@ -6,12 +6,12 @@ import {Adapter} from "./Adapter.sol";
 
 import {IAdapter} from "../../interfaces/adapters/IAdapter.sol";
 import {IThreeFAdapter, MAX_REQUESTS} from "../../interfaces/adapters/IThreeFAdapter.sol";
-import {IThreeFRequest} from "../../interfaces/adapters/3f-adapter/IThreeFRequest.sol";
 import {IThreeFRequestCallback} from "../../interfaces/adapters/3f-adapter/IThreeFRequestCallback.sol";
+import {IThreeFRequest} from "../../interfaces/adapters/3f-adapter/IThreeFRequest.sol";
 import {IThreeFWhitelist} from "../../interfaces/adapters/3f-adapter/IThreeFWhitelist.sol";
-import {Offer, YIELD_PRECISION} from "../../interfaces/adapters/3f-adapter/ThreeFTypes.sol";
 import {IUniversalDelegator} from "../../interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../interfaces/vault/IVaultV2.sol";
+import {Offer, YIELD_PRECISION} from "../../interfaces/adapters/3f-adapter/ThreeFTypes.sol";
 
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -62,9 +62,9 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
 
     /* VIEW FUNCTIONS */
 
-    /// @inheritdoc IERC1271
+    /// @inheritdoc IThreeFAdapter
     function isValidSignature(bytes32 hash, bytes calldata signature) public view returns (bytes4) {
-        return SignatureChecker.isValidSignatureNow(offerSigner, hash, signature)
+        return SignatureChecker.isValidSignatureNowCalldata(offerSigner, hash, signature)
             ? IERC1271.isValidSignature.selector
             : bytes4(0xffffffff);
     }
@@ -88,6 +88,11 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
                 assets += pendingAssets[request];
             }
         }
+    }
+
+    /// @inheritdoc IThreeFAdapter
+    function requestsLength() public view returns (uint256) {
+        return requests.length;
     }
 
     /// @inheritdoc IThreeFAdapter
@@ -124,6 +129,15 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
         emit SetLimitsPerRequest(newMinYieldPerRequest, newMinAssetsPerRequest, newMaxAssetsPerRequest);
     }
 
+    /// @inheritdoc IThreeFAdapter
+    function setRequestNonce(address request, uint256 newNonce) public onlyOwner {
+        _validateRequest(request);
+
+        IThreeFRequest(request).setNonce(newNonce);
+
+        emit SetRequestNonce(request, newNonce);
+    }
+
     /* PUBLIC FUNCTIONS (3F) */
 
     /// @inheritdoc IThreeFRequestCallback
@@ -131,6 +145,15 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
         public
         nonReentrant
     {
+        _validateRequest(msg.sender);
+
+        if (offer.maker != address(this) || !offer.useCallback || offer.expectedReturn == 0) {
+            revert InvalidOffer();
+        }
+        if (offer.expiration < block.timestamp) {
+            revert ExpiredOffer();
+        }
+
         if (requests.length >= MAX_REQUESTS) {
             revert TooManyRequests();
         }
@@ -147,18 +170,6 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
             revert TooLowYield();
         }
 
-        if (
-            IThreeFWhitelist(REQUEST_WHITELIST).isWhitelisted(msg.sender)
-                != IThreeFWhitelist.WhitelistStatus.Whitelisted
-        ) {
-            revert NotRequest();
-        }
-
-        address asset = IERC4626(vault).asset();
-        if (asset != IThreeFRequest(msg.sender).asset()) {
-            revert WrongAsset();
-        }
-
         if (principalAssets > 0) {
             _inConsume = true;
             if (
@@ -169,7 +180,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
             }
             _inConsume = false;
 
-            IERC20(asset).forceApprove(msg.sender, principalAssets);
+            IERC20(IERC4626(vault).asset()).forceApprove(msg.sender, principalAssets);
         }
 
         requests.push(msg.sender);
@@ -183,8 +194,14 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
 
     /// @inheritdoc IThreeFAdapter
     function finalizeRequest(address request) public nonReentrant {
-        address lastRequest = requests[requests.length - 1];
         uint256 index = requestIndex[request];
+        if (index == 0) {
+            revert NotRequest();
+        }
+
+        IThreeFRequest(request).burnAll(address(this), address(this));
+
+        address lastRequest = requests[requests.length - 1];
         requests.pop();
         requestIndex[request] = 0;
         pendingAssets[request] = 0;
@@ -193,12 +210,23 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
             requestIndex[lastRequest] = index;
         }
 
-        IThreeFRequest(request).burnAll(address(this), address(this));
-
         emit FinalizeRequest(request);
     }
 
     /* INTERNAL FUNCTIONS */
+
+    /// @dev Validates that a 3F request is whitelisted and uses the vault asset.
+    function _validateRequest(address request) internal view returns (address asset) {
+        if (IThreeFWhitelist(REQUEST_WHITELIST).isWhitelisted(request) != IThreeFWhitelist.WhitelistStatus.Whitelisted)
+        {
+            revert NotRequest();
+        }
+
+        asset = IERC4626(vault).asset();
+        if (asset != IThreeFRequest(request).asset()) {
+            revert WrongAsset();
+        }
+    }
 
     /// @dev Marks just-in-time assets transferred into the adapter as allocated.
     function _allocate(uint256 amount) internal override returns (uint256) {

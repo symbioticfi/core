@@ -1,26 +1,46 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {DeployRestakingAppAdapterBase} from "./base/DeployRestakingAppAdapterBase.sol";
+import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 
-// forge script script/adapters/DeployRestakingAppAdapter.s.sol:DeployRestakingAppAdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
+import {IRestakingAppAdapter} from "../../src/interfaces/adapters/IRestakingAppAdapter.sol";
 
-contract DeployRestakingAppAdapterScript is DeployRestakingAppAdapterBase {
-    // Configurations - UPDATE THESE BEFORE DEPLOYMENT
+// forge script script/adapters/DeployRestakingAppAdapter.s.sol:DeployRestakingAppAdapterScript --rpc-url=RPC --broadcast
 
-    // Address that will own the adapter factory after deployment.
-    address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
-    // CoW Protocol settlement used by the converter.
-    address public constant COW_SWAP_SETTLEMENT = 0x0000000000000000000000000000000000000000;
-    // Network middleware service used to authorize app slashes.
-    address public constant NETWORK_MIDDLEWARE_SERVICE = 0x0000000000000000000000000000000000000000;
+contract DeployRestakingAppAdapterScript is DeployAdapterBase {
+    // Configurations - UPDATE THESE BEFORE DEPLOYMENT.
 
-    function run() public {
-        runBase(
+    address public constant ADAPTER_FACTORY = 0xe1986078E2A2cE0f8609410B33Fca1C1CbCCbb4E;
+    uint64 public constant VERSION = 1;
+    address public constant OWNER = 0x0000000000000000000000000000000000000000;
+    address public constant VAULT = 0x0000000000000000000000000000000000000000;
+    address public constant ASSET = 0x0000000000000000000000000000000000000000;
+    address public constant BURNER = 0x0000000000000000000000000000000000000000;
+    uint48 public constant DURATION = 0;
+    address public constant OPERATOR = 0x0000000000000000000000000000000000000000;
+    bytes32 public constant SUBNETWORK = bytes32(0);
+    address public constant CONVERTER = 0x0000000000000000000000000000000000000000;
+
+    function run() public returns (DeploymentData memory data) {
+        data = runBase(
             DeployParams({
-                adapterFactoryOwner: ADAPTER_FACTORY_OWNER,
-                cowSwapSettlement: COW_SWAP_SETTLEMENT,
-                networkMiddlewareService: NETWORK_MIDDLEWARE_SERVICE
+                adapterFactory: ADAPTER_FACTORY,
+                version: VERSION,
+                owner: OWNER,
+                vault: VAULT,
+                initData: abi.encode(
+                    IRestakingAppAdapter.RestakingInitParams({
+                        asset: ASSET,
+                        initParams: IAppAdapter.InitParams({
+                            burner: BURNER,
+                            duration: DURATION,
+                            operator: OPERATOR,
+                            subnetwork: SUBNETWORK,
+                            converters: _singleConverter(CONVERTER)
+                        })
+                    })
+                )
             })
         );
     }

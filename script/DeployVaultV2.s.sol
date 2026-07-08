@@ -3,7 +3,7 @@ pragma solidity ^0.8.25;
 
 import "./base/DeployVaultV2Base.sol";
 
-// forge script script/DeployVaultV2.s.sol:DeployVaultV2Script --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+// forge script script/DeployVaultV2.s.sol:DeployVaultV2Script --rpc-url=RPC --broadcast
 
 contract DeployVaultV2Script is DeployVaultV2Base {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT

@@ -17,11 +17,17 @@ uint256 constant MAX_REQUESTS = 50;
 interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     /* ERRORS */
 
+    /// @notice Raised when the request already has an active position.
+    error AlreadyRequest();
+
+    /// @notice Raised when the consumed 3F offer is expired.
+    error ExpiredOffer();
+
     /// @notice Raised when a request cannot be fully funded through the delegator.
     error InsufficientAllocate();
 
-    /// @notice Raised when the request already has an active position.
-    error AlreadyRequest();
+    /// @notice Raised when the consumed 3F offer fields do not match the callback.
+    error InvalidOffer();
 
     /// @notice Raised when the callback caller is not an active whitelisted 3F request.
     error NotRequest();
@@ -29,11 +35,11 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     /// @notice Raised when the request principal exceeds the configured per-request maximum.
     error TooLargeRequest();
 
-    /// @notice Raised when the adapter already tracks the maximum number of active requests.
-    error TooManyRequests();
-
     /// @notice Raised when the request yield is below the configured minimum.
     error TooLowYield();
+
+    /// @notice Raised when the adapter already tracks the maximum number of active requests.
+    error TooManyRequests();
 
     /// @notice Raised when the request principal is below the configured per-request minimum.
     error TooSmallRequest();
@@ -56,6 +62,13 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
      * @param maxAssetsPerRequest Maximum principal assets per request.
      */
     event SetLimitsPerRequest(uint256 minYieldPerRequest, uint256 minAssetsPerRequest, uint256 maxAssetsPerRequest);
+
+    /**
+     * @notice Emitted when a 3F request nonce is set for adapter-made offers.
+     * @param request Request address.
+     * @param nonce New nonce value.
+     */
+    event SetRequestNonce(address indexed request, uint256 nonce);
 
     /**
      * @notice Emitted when a 3F request is consumed by this adapter.
@@ -100,6 +113,8 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
 
     /**
      * @notice Returns the signer accepted by EIP-1271 offer validation.
+     * @dev If the signer is an EOA, offer signatures must use standard 65-byte ECDSA encoding;
+     *      compact ERC-2098 64-byte signatures are not supported by this adapter.
      * @return signer Offer signer.
      */
     function offerSigner() external view returns (address signer);
@@ -126,13 +141,36 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     function pendingAssets(address request) external view returns (uint256 assets);
 
     /**
-     * @notice Returns the maximum principal assets that can currently be funded into a new request.
-     * @return assets Maximum assets available for the next request.
+     * @notice Returns the number of active requests currently tracked.
+     * @return length Active request count.
+     */
+    function requestsLength() external view returns (uint256 length);
+
+    /**
+     * @notice Returns the current vault/delegator capacity available to 3F requests.
+     * @dev This function calls `UniversalDelegator.sweepPending()` and can mutate vault/delegator
+     *      withdrawal state. Do not call it via `staticcall`. The returned value is not capped by
+     *      `maxAssetsPerRequest`; request consumption applies that cap.
+     * @return assets Current available capacity before the per-request maximum is applied.
      */
     function getMaxAssets() external returns (uint256 assets);
 
     /**
+     * @notice Returns whether a signature is valid for the configured offer signer.
+     * @dev If the signer is an EOA, offer signatures must use standard 65-byte ECDSA encoding;
+     *      compact ERC-2098 64-byte signatures are not supported by this adapter.
+     * @param hash Signed offer digest.
+     * @param signature Offer signature.
+     * @return magicValue ERC-1271 magic value when valid, or `0xffffffff` when invalid.
+     */
+    function isValidSignature(bytes32 hash, bytes calldata signature) external view override returns (bytes4 magicValue);
+
+    /**
      * @notice Sets the signer accepted by EIP-1271 offer validation.
+     * @dev If the signer is an EOA, offer signatures must use standard 65-byte ECDSA encoding;
+     *      compact ERC-2098 64-byte signatures are not supported by this adapter. The change takes
+     *      effect immediately and invalidates unconsumed offers signed by the previous signer; clear
+     *      or coordinate pending offers before rotation.
      * @param signer Offer signer.
      */
     function setOfferSigner(address signer) external;
@@ -148,6 +186,15 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
         uint256 newMinAssetsPerRequest,
         uint256 newMaxAssetsPerRequest
     ) external;
+
+    /**
+     * @notice Advances this adapter's offer nonce in a whitelisted 3F request.
+     * @dev Only the owner can call this function. Signer rotation remains a coarse emergency path;
+     *      this function is for request-specific offer nonce cancellation.
+     * @param request Whitelisted 3F request using the vault asset.
+     * @param newNonce New request-local nonce for this adapter as maker.
+     */
+    function setRequestNonce(address request, uint256 newNonce) external;
 
     /**
      * @notice Finalizes a withdrawable request into adapter-held assets.

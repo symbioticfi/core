@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 /// @dev Mainnet-fork suite: requires `ETH_RPC_URL` (skipped otherwise). Last updated for the
 ///      cutoff-based redemptions change: mGLOBAL is now a `CutoffMidasAccount` with a
-///      26th-of-month cutoff, 3-day pre-cutoff window and 36-hour cooldown. Re-run on fork
+///      26th-of-month 14:00 UTC cutoff, 5-day pre-cutoff window and 12-hour cooldown. Re-run on fork
 ///      after any change to the Midas accounts.
 import {Test} from "forge-std/Test.sol";
 
@@ -45,6 +45,7 @@ import {MigratablesFactory} from "../../../../src/contracts/common/MigratablesFa
 import {Registry} from "../../../../src/contracts/common/Registry.sol";
 import {ILiquidLaneAdapter} from "../../../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IAdapter} from "../../../../src/interfaces/adapters/IAdapter.sol";
+import {ICoWSwapSettlement} from "../../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IMidasDataFeed} from "../../../../src/interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
 import {REQUEST_STATUS_PENDING} from "../../../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
@@ -56,7 +57,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 contract MidasTokensToRedeemMainnetTest is Test {
     struct TokenSpec {
         string symbol;
-        uint48 maxWithdrawalDelay;
+        uint48 cooldown;
     }
 
     struct MGlobalCycle {
@@ -72,15 +73,16 @@ contract MidasTokensToRedeemMainnetTest is Test {
     address internal constant MIDAS_ACCESS_CONTROL_ADMIN = 0xd4195CF4df289a4748C1A7B6dDBE770e27bA1227;
     address internal constant MIDAS_GREENLIST_ADMIN = 0xb5CcD8dC8082467849eE008d4242f7b3b569EF05;
     address internal constant MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
+    address internal constant MGLOBAL_REDEMPTION_VAULT = 0x1e0fd66753198c7b8bA64edEe8d41D8628Bf20D7;
     uint48 internal constant MGLOBAL_JUNE_SUBS_OPEN = 1_781_856_000; // 2026-06-19 08:00 UTC
-    uint48 internal constant MGLOBAL_JUNE_TOKEN_CUTOFF = 1_782_493_200; // 2026-06-26 17:00 UTC
-    uint48 internal constant MGLOBAL_JUNE_FUND_CUTOFF = 1_782_590_400; // 2026-06-27 20:00 UTC
+    uint48 internal constant MGLOBAL_JUNE_TOKEN_CUTOFF = 1_782_482_400; // 2026-06-26 14:00 UTC
+    uint48 internal constant MGLOBAL_JUNE_FUND_CUTOFF = 1_782_493_200; // 2026-06-26 17:00 UTC
     uint48 internal constant MGLOBAL_JUNE_STANDARD_REDEMPTION = 1_782_734_400; // 2026-06-29 12:00 UTC
     uint48 internal constant MGLOBAL_JULY_NAV_PROPAGATED = 1_784_160_000; // 2026-07-16 00:00 UTC
-    uint48 internal constant MGLOBAL_JULY_SUBS_OPEN = 1_784_620_800; // 2026-07-21 08:00 UTC
-    uint48 internal constant MGLOBAL_JULY_TOKEN_CUTOFF = 1_785_085_200; // 2026-07-26 17:00 UTC
+    uint48 internal constant MGLOBAL_JULY_SUBS_OPEN = 1_784_642_400; // 2026-07-21 14:00 UTC
+    uint48 internal constant MGLOBAL_JULY_TOKEN_CUTOFF = 1_785_074_400; // 2026-07-26 14:00 UTC
     uint48 internal constant MGLOBAL_AUGUST_NAV_PROPAGATED = 1_786_838_400; // 2026-08-16 00:00 UTC
-    uint48 internal constant MGLOBAL_AUGUST_TOKEN_CUTOFF = 1_787_763_600; // 2026-08-26 17:00 UTC
+    uint48 internal constant MGLOBAL_AUGUST_TOKEN_CUTOFF = 1_787_752_800; // 2026-08-26 14:00 UTC
     uint48 internal constant MGLOBAL_SETTLEMENT_PROCESSED = 1_788_220_800; // 2026-09-01 00:00 UTC
     uint48 internal constant MGLOBAL_NOVEMBER_NAV_PROPAGATED = 1_794_787_200; // 2026-11-16 00:00 UTC
 
@@ -98,6 +100,26 @@ contract MidasTokensToRedeemMainnetTest is Test {
         for (uint256 i; i < length; ++i) {
             assertEq(_assetFor(i), MAINNET_USDC);
         }
+    }
+
+    function testMGlobalAccountConfigUsesConfiguredCutoff() public {
+        address dataFeed = makeAddr("dataFeed");
+        address relayer = makeAddr("relayer");
+
+        vm.mockCall(COW_SWAP_SETTLEMENT, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
+        vm.mockCall(MGLOBAL, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
+        vm.mockCall(
+            MGLOBAL_REDEMPTION_VAULT, abi.encodeCall(IMidasRedemptionVault.mTokenDataFeed, ()), abi.encode(dataFeed)
+        );
+
+        mGLOBAL_Account account =
+            new mGLOBAL_Account(address(new MigratablesFactory(address(this))), COW_SWAP_SETTLEMENT);
+
+        assertEq(account.COOLDOWN(), 12 hours);
+        assertEq(account.CUTOFF_DAY(), 26);
+        assertEq(account.CUTOFF_HOUR(), 14);
+        assertEq(account.bucketToTimestamp(1), MGLOBAL_JULY_TOKEN_CUTOFF);
+        assertEq(account.bucketToTimestamp(2), MGLOBAL_AUGUST_TOKEN_CUTOFF);
     }
 
     function testOnboardsEthereumMainnetMidasTokensToRedeem() public {
@@ -150,7 +172,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(MidasAccount(account).TOKEN_TO_REDEEM(), MGLOBAL);
         assertEq(MidasAccount(account).REDEMPTION_TOKEN(), MAINNET_USDC);
         assertEq(CutoffMidasAccount(account).CUTOFF_DAY(), 26);
-        assertEq(CutoffMidasAccount(account).CUTOFF_HOUR(), 17);
+        assertEq(CutoffMidasAccount(account).CUTOFF_HOUR(), 14);
         assertEq(CutoffMidasAccount(account).bucketToTimestamp(1), MGLOBAL_JULY_TOKEN_CUTOFF);
         assertEq(CutoffMidasAccount(account).bucketToTimestamp(2), MGLOBAL_AUGUST_TOKEN_CUTOFF);
         assertLt(MGLOBAL_JUNE_SUBS_OPEN, MGLOBAL_JUNE_TOKEN_CUTOFF);
@@ -359,8 +381,6 @@ contract MidasTokensToRedeemMainnetTest is Test {
         address redemptionToken = implementation.REDEMPTION_TOKEN();
         address redemptionVault = implementation.REDEMPTION_VAULT();
 
-        assertEq(IMidasTokenRedeemConfig(address(implementation)).MAX_WITHDRAWAL_DELAY(), spec.maxWithdrawalDelay);
-
         factory.whitelist(address(implementation));
         MidasAccount account = MidasAccount(factory.create(1, address(this), _initData(token, vault)));
 
@@ -372,13 +392,18 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(account.REDEMPTION_VAULT(), redemptionVault);
         assertEq(vault.asset(), _assetFor(index));
         assertEq(account.ORACLE(), implementation.ORACLE());
-        assertEq(account.COOLDOWN(), _cooldown(index, spec.maxWithdrawalDelay));
+        assertEq(account.COOLDOWN(), spec.cooldown);
         assertEq(account.converters(0), address(this));
         assertEq(account.adapter(), adapter);
         assertEq(account.vault(), address(vault));
         assertEq(
             MidasOracle(account.ORACLE()).DATA_FEED(), address(IMidasRedemptionVault(redemptionVault).mTokenDataFeed())
         );
+        (uint256 minPrice, uint256 maxPrice) = _expectedOracleBounds(index);
+        if (minPrice != 0) {
+            assertEq(MidasOracle(account.ORACLE()).MIN_PRICE(), minPrice, spec.symbol);
+            assertEq(MidasOracle(account.ORACLE()).MAX_PRICE(), maxPrice, spec.symbol);
+        }
         _stabilizeMidasDataFeed(MidasOracle(account.ORACLE()).DATA_FEED());
         assertGt(MidasOracle(account.ORACLE()).getPrice(), 0);
         assertEq(IERC20(token).allowance(address(account), redemptionVault), type(uint256).max);
@@ -427,29 +452,29 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
     function _ethereumMainnetSpecs() internal pure returns (TokenSpec[] memory specs) {
         specs = new TokenSpec[](23);
-        specs[0] = TokenSpec("mF-ONE", 35 days);
-        specs[1] = _ethereumCompSpec("mTBILL", 3 days);
-        specs[2] = _ethereumCompSpec("mGLOBAL", 65 days);
-        specs[3] = _ethereumCompSpec("mHYPER", 3 days);
-        specs[4] = _ethereumCompSpec("mM1-USD", 17 days);
-        specs[5] = _ethereumCompSpec("mHyperBTC", 7 days);
-        specs[6] = _ethereumCompSpec("mRe7YIELD", 24 days);
-        specs[7] = _ethereumCompSpec("mHyperETH", 7 days);
-        specs[8] = _ethereumCompSpec("mSL", 3 days);
-        specs[9] = _ethereumCompSpec("mAPOLLO", 3 days);
-        specs[10] = _ethereumCompSpec("mROX", 3 days);
-        specs[11] = _ethereumCompSpec("msyrupUSDp", 3 days);
-        specs[12] = _ethereumCompSpec("mEVUSD", 3 days);
-        specs[13] = _ethereumCompSpec("mEDGE", 3 days);
-        specs[14] = _ethereumCompSpec("mMEV", 3 days);
-        specs[15] = _ethereumCompSpec("mBASIS", 7 days);
-        specs[16] = _ethereumCompSpec("mRe7BTC", 24 days);
-        specs[17] = _ethereumCompSpec("mBTC", 7 days);
-        specs[18] = _ethereumCompSpec("mevBTC", 7 days);
-        specs[19] = _ethereumCompSpec("msyrupUSD", 7 days);
-        specs[20] = _ethereumCompSpec("mFARM", 7 days);
-        specs[21] = _ethereumCompSpec("CarryTradeUSDTRYLeverage", 2 days);
-        specs[22] = _ethereumCompSpec("StockMarketTRBasisTrade", 2 days);
+        specs[0] = TokenSpec("mF-ONE", 36 hours);
+        specs[1] = _ethereumCompSpec("mTBILL", 1 days);
+        specs[2] = _ethereumCompSpec("mGLOBAL", 12 hours);
+        specs[3] = _ethereumCompSpec("mHYPER", 6 hours);
+        specs[4] = _ethereumCompSpec("mM1-USD", 1 days);
+        specs[5] = _ethereumCompSpec("mHyperBTC", 1 days);
+        specs[6] = _ethereumCompSpec("mRe7YIELD", 3 days);
+        specs[7] = _ethereumCompSpec("mHyperETH", 1 days);
+        specs[8] = _ethereumCompSpec("mSL", 1 days);
+        specs[9] = _ethereumCompSpec("mAPOLLO", 1 days);
+        specs[10] = _ethereumCompSpec("mROX", 6 hours);
+        specs[11] = _ethereumCompSpec("msyrupUSDp", 1 days);
+        specs[12] = _ethereumCompSpec("mEVUSD", 1 days);
+        specs[13] = _ethereumCompSpec("mEDGE", 1 days);
+        specs[14] = _ethereumCompSpec("mMEV", 1 days);
+        specs[15] = _ethereumCompSpec("mBASIS", 1 days);
+        specs[16] = _ethereumCompSpec("mRe7BTC", 2 days);
+        specs[17] = _ethereumCompSpec("mBTC", 1 days);
+        specs[18] = _ethereumCompSpec("mevBTC", 1 days);
+        specs[19] = _ethereumCompSpec("msyrupUSD", 1 days);
+        specs[20] = _ethereumCompSpec("mFARM", 1 days);
+        specs[21] = _ethereumCompSpec("CarryTradeUSDTRYLeverage", 12 hours);
+        specs[22] = _ethereumCompSpec("StockMarketTRBasisTrade", 12 hours);
     }
 
     function _deployImplementation(uint256 index, MigratablesFactory factory)
@@ -485,24 +510,25 @@ contract MidasTokensToRedeemMainnetTest is Test {
         return new StockMarketTRBasisTrade_Account(address(factory), COW_SWAP_SETTLEMENT);
     }
 
-    function _ethereumCompSpec(string memory symbol, uint48 maxWithdrawalDelay)
-        internal
-        pure
-        returns (TokenSpec memory spec)
-    {
-        spec = TokenSpec(symbol, maxWithdrawalDelay);
+    function _ethereumCompSpec(string memory symbol, uint48 cooldown) internal pure returns (TokenSpec memory spec) {
+        spec = TokenSpec(symbol, cooldown);
     }
 
-    function _cooldown(uint256 index, uint48 maxWithdrawalDelay) internal pure returns (uint48) {
-        if (index == 2) {
-            return 36 hours;
-        }
-
-        uint48 cooldownDays = maxWithdrawalDelay / 10 / 1 days;
-        if (cooldownDays == 0) {
-            return 1 days;
-        }
-        return cooldownDays * 1 days;
+    function _expectedOracleBounds(uint256 index) internal pure returns (uint256 minPrice, uint256 maxPrice) {
+        if (index == 0) return (275_900_000_000_000_000, 3_862_200_000_000_000_000);
+        if (index == 1) return (266_300_000_000_000_000, 3_727_800_000_000_000_000);
+        if (index == 2) return (251_400_000_000_000_000, 3_520_200_000_000_000_000);
+        if (index == 3) return (277_200_000_000_000_000, 3_880_300_000_000_000_000);
+        if (index == 4) return (253_500_000_000_000_000, 3_548_800_000_000_000_000);
+        if (index == 6) return (266_900_000_000_000_000, 3_736_600_000_000_000_000);
+        if (index == 9) return (275_000_000_000_000_000, 3_850_500_000_000_000_000);
+        if (index == 10) return (282_900_000_000_000_000, 3_961_200_000_000_000_000);
+        if (index == 11) return (264_400_000_000_000_000, 3_701_100_000_000_000_000);
+        if (index == 13) return (280_800_000_000_000_000, 3_931_300_000_000_000_000);
+        if (index == 14) return (282_900_000_000_000_000, 3_961_200_000_000_000_000);
+        if (index == 15) return (298_900_000_000_000_000, 4_184_700_000_000_000_000);
+        if (index == 21) return (261_000_000_000_000_000, 3_653_400_000_000_000_000);
+        if (index == 22) return (253_000_000_000_000_000, 3_541_400_000_000_000_000);
     }
 
     function _configureMidasRequestPath(address account, address llAdapter) internal {
@@ -595,10 +621,6 @@ interface IMidasRedemptionVaultWithMToken is IMidasRedemptionVault {
 
 interface IMidasRedemptionVaultWithPaymentTokens is IMidasRedemptionVault {
     function getPaymentTokens() external view returns (address[] memory);
-}
-
-interface IMidasTokenRedeemConfig {
-    function MAX_WITHDRAWAL_DELAY() external view returns (uint48);
 }
 
 contract MidasTokensToRedeemAssetVault {

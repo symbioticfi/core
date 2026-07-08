@@ -1,32 +1,34 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {DeployMorphoVaultV2AdapterBase} from "./base/DeployMorphoVaultV2AdapterBase.sol";
+import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 
-// forge script script/adapters/DeployMorphoVaultV2Adapter.s.sol:DeployMorphoVaultV2AdapterScript --rpc-url=RPC --account=ACCOUNT --sender=SENDER --broadcast
+import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 
-contract DeployMorphoVaultV2AdapterScript is DeployMorphoVaultV2AdapterBase {
-    // Configurations - UPDATE THESE BEFORE DEPLOYMENT
+// forge script script/adapters/DeployMorphoVaultV2Adapter.s.sol:DeployMorphoVaultV2AdapterScript --rpc-url=RPC --broadcast
 
-    // Address that will own the adapter factory after deployment.
-    address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
-    // Morpho Vault V2 factory used to validate target Morpho vaults.
-    address public constant MORPHO_VAULT_FACTORY = 0x0000000000000000000000000000000000000000;
-    // Morpho adapter registry expected by target Morpho vaults.
-    address public constant MORPHO_ADAPTER_REGISTRY = 0x0000000000000000000000000000000000000000;
-    // CoW Protocol settlement used by the converter.
-    address public constant COW_SWAP_SETTLEMENT = 0x0000000000000000000000000000000000000000;
-    // Merkl Distributor used by the reward claimer.
-    address public constant MERKL_DISTRIBUTOR = 0x0000000000000000000000000000000000000000;
+contract DeployMorphoVaultV2AdapterScript is DeployAdapterBase {
+    // Configurations - UPDATE THESE BEFORE DEPLOYMENT.
 
-    function run() public {
-        runBase(
+    address public constant ADAPTER_FACTORY = 0x70bc72b19a554436459a2C6a9E88892AeD18685b;
+    uint64 public constant VERSION = 1;
+    address public constant OWNER = 0x0000000000000000000000000000000000000000;
+    address public constant VAULT = 0x0000000000000000000000000000000000000000;
+    address public constant MORPHO_VAULT = 0x0000000000000000000000000000000000000000;
+    address public constant CONVERTER = 0x0000000000000000000000000000000000000000;
+
+    function run() public returns (DeploymentData memory data) {
+        data = runBase(
             DeployParams({
-                adapterFactoryOwner: ADAPTER_FACTORY_OWNER,
-                morphoVaultFactory: MORPHO_VAULT_FACTORY,
-                morphoAdapterRegistry: MORPHO_ADAPTER_REGISTRY,
-                cowSwapSettlement: COW_SWAP_SETTLEMENT,
-                merklDistributor: MERKL_DISTRIBUTOR
+                adapterFactory: ADAPTER_FACTORY,
+                version: VERSION,
+                owner: OWNER,
+                vault: VAULT,
+                initData: abi.encode(
+                    IMorphoVaultV2Adapter.InitParams({
+                        morphoVault: MORPHO_VAULT, converters: _singleConverter(CONVERTER)
+                    })
+                )
             })
         );
     }

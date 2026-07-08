@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {ThreeFAdapter} from "../../../src/contracts/adapters/ThreeFAdapter.sol";
+import {ThreeFAdapter} from "../../../../src/contracts/adapters/ThreeFAdapter.sol";
 import {DeployAdapterBase} from "./DeployAdapterBase.sol";
 
 contract DeployThreeFAdapterBase is DeployAdapterBase {

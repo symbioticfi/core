@@ -13,4 +13,10 @@ interface IThreeFRequest is IThreeFVaultController {
      * @return asset Request asset.
      */
     function asset() external view returns (address asset);
+
+    /**
+     * @notice Advances the caller's offer nonce.
+     * @param newNonce New nonce value.
+     */
+    function setNonce(uint256 newNonce) external;
 }
