@@ -113,6 +113,8 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
 
     /**
      * @notice Returns the signer accepted by EIP-1271 offer validation.
+     * @dev If the signer is an EOA, offer signatures must use standard 65-byte ECDSA encoding;
+     *      compact ERC-2098 64-byte signatures are not supported by this adapter.
      * @return signer Offer signer.
      */
     function offerSigner() external view returns (address signer);
@@ -153,6 +155,8 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
 
     /**
      * @notice Sets the signer accepted by EIP-1271 offer validation.
+     * @dev If the signer is an EOA, offer signatures must use standard 65-byte ECDSA encoding;
+     *      compact ERC-2098 64-byte signatures are not supported by this adapter.
      * @param signer Offer signer.
      */
     function setOfferSigner(address signer) external;
