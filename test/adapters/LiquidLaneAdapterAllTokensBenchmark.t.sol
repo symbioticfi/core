@@ -171,7 +171,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 415);
+        assertEq(totalMaxAverageRequests, 398);
     }
 
     function testCorrelatedMidasTokenAccountsUseCorrelatedVaultAssets() public view {
@@ -1209,7 +1209,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             return 6 hours;
         }
         if (keccak256(bytes(symbol)) == keccak256("mM1USD")) {
-            return 12 hours;
+            return 1 days;
         }
         if (keccak256(bytes(symbol)) == keccak256("mROX")) {
             return 6 hours;

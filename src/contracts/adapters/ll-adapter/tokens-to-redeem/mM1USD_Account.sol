@@ -10,7 +10,7 @@ import {IMidasRedemptionVault} from "../../../../interfaces/adapters/ll-adapter/
 import {IMidasTokenAccount} from "../../../../interfaces/adapters/ll-adapter/midas/IMidasTokenAccount.sol";
 
 contract mM1USD_Account is MidasCompAccount, IMidasTokenAccount {
-    uint48 internal constant TOKEN_COOLDOWN = 12 hours;
+    uint48 internal constant TOKEN_COOLDOWN = 1 days;
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant TOKEN_ADDRESS = 0xCc5C22C7A6BCC25e66726AeF011dDE74289ED203;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x70Ba3211f2584Bf1C8a2aCdF0a00dba559CE1Ffa;
