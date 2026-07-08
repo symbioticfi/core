@@ -62,9 +62,7 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
 
     /* VIEW FUNCTIONS */
 
-    /// @inheritdoc IERC1271
-    /// @dev EOA offer-signer signatures must use standard 65-byte ECDSA encoding. Compact ERC-2098
-    ///      64-byte signatures are not supported by this adapter.
+    /// @inheritdoc IThreeFAdapter
     function isValidSignature(bytes32 hash, bytes calldata signature) public view returns (bytes4) {
         return SignatureChecker.isValidSignatureNowCalldata(offerSigner, hash, signature)
             ? IERC1271.isValidSignature.selector

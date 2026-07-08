@@ -154,9 +154,21 @@ interface IThreeFAdapter is IAdapter, IThreeFRequestCallback, IERC1271 {
     function getMaxAssets() external returns (uint256 assets);
 
     /**
-     * @notice Sets the signer accepted by EIP-1271 offer validation.
+     * @notice Returns whether a signature is valid for the configured offer signer.
      * @dev If the signer is an EOA, offer signatures must use standard 65-byte ECDSA encoding;
      *      compact ERC-2098 64-byte signatures are not supported by this adapter.
+     * @param hash Signed offer digest.
+     * @param signature Offer signature.
+     * @return magicValue ERC-1271 magic value when valid, or `0xffffffff` when invalid.
+     */
+    function isValidSignature(bytes32 hash, bytes calldata signature) external view override returns (bytes4 magicValue);
+
+    /**
+     * @notice Sets the signer accepted by EIP-1271 offer validation.
+     * @dev If the signer is an EOA, offer signatures must use standard 65-byte ECDSA encoding;
+     *      compact ERC-2098 64-byte signatures are not supported by this adapter. The change takes
+     *      effect immediately and invalidates unconsumed offers signed by the previous signer; clear
+     *      or coordinate pending offers before rotation.
      * @param signer Offer signer.
      */
     function setOfferSigner(address signer) external;
