@@ -216,14 +216,13 @@ contract ThreeFAdapter is Adapter, IThreeFAdapter {
     /* INTERNAL FUNCTIONS */
 
     /// @dev Validates that a 3F request is whitelisted and uses the vault asset.
-    function _validateRequest(address request) internal view returns (address asset) {
+    function _validateRequest(address request) internal view {
         if (IThreeFWhitelist(REQUEST_WHITELIST).isWhitelisted(request) != IThreeFWhitelist.WhitelistStatus.Whitelisted)
         {
             revert NotRequest();
         }
 
-        asset = IERC4626(vault).asset();
-        if (asset != IThreeFRequest(request).asset()) {
+        if (IERC4626(vault).asset() != IThreeFRequest(request).asset()) {
             revert WrongAsset();
         }
     }
