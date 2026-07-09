@@ -73,6 +73,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
     address internal constant MIDAS_ACCESS_CONTROL_ADMIN = 0xd4195CF4df289a4748C1A7B6dDBE770e27bA1227;
     address internal constant MIDAS_GREENLIST_ADMIN = 0xb5CcD8dC8082467849eE008d4242f7b3b569EF05;
     address internal constant MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
+    address internal constant MGLOBAL_ORACLE_DATA_FEED = 0x66Aa9fcD63DF74e1f67A9452E6E59Fbc67f75E38;
     address internal constant MGLOBAL_REDEMPTION_VAULT = 0x1e0fd66753198c7b8bA64edEe8d41D8628Bf20D7;
     uint48 internal constant MGLOBAL_JUNE_SUBS_OPEN = 1_781_856_000; // 2026-06-19 08:00 UTC
     uint48 internal constant MGLOBAL_JUNE_TOKEN_CUTOFF = 1_782_482_400; // 2026-06-26 14:00 UTC
@@ -103,14 +104,10 @@ contract MidasTokensToRedeemMainnetTest is Test {
     }
 
     function testMGlobalAccountConfigUsesConfiguredCutoff() public {
-        address dataFeed = makeAddr("dataFeed");
         address relayer = makeAddr("relayer");
 
         vm.mockCall(COW_SWAP_SETTLEMENT, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
         vm.mockCall(MGLOBAL, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
-        vm.mockCall(
-            MGLOBAL_REDEMPTION_VAULT, abi.encodeCall(IMidasRedemptionVault.mTokenDataFeed, ()), abi.encode(dataFeed)
-        );
 
         mGLOBAL_Account account =
             new mGLOBAL_Account(address(new MigratablesFactory(address(this))), COW_SWAP_SETTLEMENT);
@@ -118,6 +115,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(account.COOLDOWN(), 12 hours);
         assertEq(account.CUTOFF_DAY(), 26);
         assertEq(account.CUTOFF_HOUR(), 14);
+        assertEq(MidasOracle(account.ORACLE()).DATA_FEED(), MGLOBAL_ORACLE_DATA_FEED);
         assertEq(account.bucketToTimestamp(1), MGLOBAL_JULY_TOKEN_CUTOFF);
         assertEq(account.bucketToTimestamp(2), MGLOBAL_AUGUST_TOKEN_CUTOFF);
     }
