@@ -63,6 +63,19 @@ contract AsyncRedeemAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 2e6);
     }
 
+    function testAsyncRedeemAccountValuesPendingRequestsAtOraclePrice() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
+        MockOracle oracle = new MockOracle(3e18);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        account.sync();
+
+        assertEq(tokenToRedeem.convertToAssets(1 ether), 2e6);
+        assertEq(account.totalAssets(), 3e6);
+    }
+
     function testAsyncRedeemAccountDoesNotExposeTotalRequests() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
@@ -268,7 +281,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         vm.expectRevert();
         account.requestIds(1);
         assertEq(tokenToRedeem.pending(0, address(account)), 2 ether);
-        assertEq(account.totalAssets(), 14e6);
+        assertEq(account.totalAssets(), 10e6);
     }
 
     function testAsyncRedeemAccountValuesClaimableLegAtFulfillmentPrice() public {
@@ -287,10 +300,11 @@ contract AsyncRedeemAccountTest is AccountsBase {
         // request 0 is fulfilled at 2e6 assets per share, request 1 stays pending
         tokenToRedeem.fulfill(0, address(account), 1 ether);
 
-        // live price doubles after fulfillment
+        // Oracle and vault prices double after fulfillment.
+        oracle.setPrice(4e18);
         tokenToRedeem.setAssetsPerShare(4e6);
 
-        // claimable leg stays frozen at the fulfillment price (2e6), pending leg follows the live price (4e6)
+        // Claimable stays frozen at 2e6 while the pending request follows the 4e18 oracle price.
         assertEq(account.totalAssets(), 6e6);
     }
 

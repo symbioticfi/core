@@ -7,6 +7,7 @@ import {CooldownAccount} from "./CooldownAccount.sol";
 import {IAsyncRedeemAccount} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
 import {IAsyncRedeemVault} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
 import {IERC7575Share} from "../../../../interfaces/adapters/ll-adapter/IERC7575Share.sol";
+import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -31,10 +32,11 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
     function _totalAssets() internal view virtual override returns (uint256 assets) {
         address asyncRedeemVault = _asyncRedeemVault();
         uint256 length = requestIds.length;
+        uint256 amount;
         for (uint256 i; i < length; ++i) {
-            assets += IAsyncRedeemVault(asyncRedeemVault)
-                .convertToAssets(IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestIds[i], address(this)));
+            amount += IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestIds[i], address(this));
         }
+        assets = _tokenToRedeemToAssets(amount, IOracle(ORACLE).getPrice());
         assets += IAsyncRedeemVault(asyncRedeemVault).maxWithdraw(address(this));
     }
 
