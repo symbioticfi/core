@@ -51,14 +51,17 @@ contract OpenEdenAccount is CooldownAccount, IOpenEdenAccount {
             uint256 length = IOpenEdenExpress(EXPRESS).getRedeemQueueLength();
             if (length < MAX_REDEEM_QUEUE_LENGTH) {
                 uint256 redemptionTokenAmount;
-                for (uint256 i; i < length; ++i) {
-                    (, address receiver,,, uint256 redeemAssetAmt, uint256 feeAssetAmt,,) =
+                for (uint256 i; redeemAmount > 0; ++i) {
+                    (, address receiver, uint256 curRedeemAmount,, uint256 redeemAssetAmt, uint256 feeAssetAmt,,) =
                         IOpenEdenExpress(EXPRESS).getRedeemQueueInfo(i);
                     if (receiver == address(this)) {
+                        redeemAmount -= curRedeemAmount;
                         redemptionTokenAmount += redeemAssetAmt - feeAssetAmt;
                     }
                 }
-                assets += _redemptionTokenToAssets(REDEMPTION_TOKEN, redemptionTokenAmount);
+                assets += REDEMPTION_TOKEN == _asset
+                    ? redemptionTokenAmount
+                    : _redemptionTokenToAssets(REDEMPTION_TOKEN, redemptionTokenAmount);
             } else {
                 amount += redeemAmount;
             }
