@@ -222,6 +222,28 @@ contract AsyncRedeemAccountTest is AccountsBase {
         account.requestIds(0);
     }
 
+    function testAsyncRedeemAccountClaimsRedemptionThatBecomesClaimableAfterRequestIsRemoved() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);
+        MockOracle oracle = new MockOracle(2e18);
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(tokenToRedeem, asset, oracle);
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        account.sync();
+
+        tokenToRedeem.process(0, address(account), 1 ether);
+        account.sync();
+
+        vm.expectRevert();
+        account.requestIds(0);
+
+        tokenToRedeem.makeClaimable(0, address(account), 1 ether);
+        account.sync();
+
+        assertEq(tokenToRedeem.redeemCalls(address(account)), 1);
+        assertEq(asset.balanceOf(address(account)), 2e6);
+    }
+
     function testAsyncRedeemAccountClaimsFulfilledRequestsAndKeepsPendingRemainder() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);

@@ -930,6 +930,16 @@ contract MockAsyncRedeemVault is MockERC20 {
         claimableAssets[controller] += convertToAssets(shares);
     }
 
+    function process(uint256 requestId, address controller, uint256 shares) external {
+        pending[requestId][controller] -= shares;
+    }
+
+    function makeClaimable(uint256 requestId, address controller, uint256 shares) external {
+        claimable[requestId][controller] += shares;
+        claimableShares[controller] += shares;
+        claimableAssets[controller] += convertToAssets(shares);
+    }
+
     function maxWithdraw(address owner) external view returns (uint256 maxAssets) {
         return claimableAssets[owner];
     }

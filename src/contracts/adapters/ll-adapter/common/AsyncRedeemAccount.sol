@@ -41,16 +41,13 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
     /// @dev Claims processed requests and clears finished request ids.
     function _finalizeRequests() internal virtual override {
         address asyncRedeemVault = _asyncRedeemVault();
-        uint256 length = requestIds.length;
-        if (length == 0) {
-            return;
-        }
 
         uint256 maxRedeem = IAsyncRedeemVault(asyncRedeemVault).maxRedeem(address(this));
         if (maxRedeem > 0) {
             IAsyncRedeemVault(asyncRedeemVault).redeem(maxRedeem, address(this), address(this));
         }
 
+        uint256 length = requestIds.length;
         for (uint256 i = length; i > 0;) {
             if (IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestIds[--i], address(this)) == 0) {
                 requestIds[i] = requestIds[--length];
