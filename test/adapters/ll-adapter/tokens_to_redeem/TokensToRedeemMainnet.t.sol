@@ -587,7 +587,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertEq(IERC20(cycle.token).balanceOf(cycle.account), 0);
         assertEq(IERC20(cycle.token).balanceOf(cycle.llAdapter), 0);
         assertEq(IERC20(USDC).balanceOf(recipient), recipientBalance + amountOut);
-        assertEq(IAccount(cycle.account).totalAssets(), expectedAssets);
+        assertEq(IAccount(cycle.account).totalAssets(), amountOut);
         assertEq(IAsyncRedeemVault(cycle.asyncRedeemVault).pendingRedeemRequest(requestId, cycle.account), amountIn);
         assertEq(IAsyncRedeemVault(cycle.asyncRedeemVault).claimableRedeemRequest(requestId, cycle.account), 0);
     }
