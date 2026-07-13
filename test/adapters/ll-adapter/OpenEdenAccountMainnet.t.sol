@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 
 import {OpenEdenAccount} from "../../../src/contracts/adapters/ll-adapter/OpenEdenAccount.sol";
+import {OpenEdenOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/OpenEdenOracle.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IOpenEdenAccount} from "../../../src/interfaces/adapters/ll-adapter/openeden/IOpenEdenAccount.sol";
@@ -16,7 +17,6 @@ contract OpenEdenAccountMainnetTest is Test {
     address internal constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address internal constant HYBOND = 0x1204371AC0e5176f4B8c5B2F16C2Bec551b6FC1a;
     address internal constant HYBOND_EXPRESS = 0xD84C2571E05a59108Ead1c600D16133f0710E569;
-    address internal constant HYBOND_PRICE_ORACLE = 0x74995e6133062Aee330653c618E39F34016D6F39;
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
@@ -33,7 +33,6 @@ contract OpenEdenAccountMainnetTest is Test {
 
         assertGt(HYBOND.code.length, 0);
         assertGt(HYBOND_EXPRESS.code.length, 0);
-        assertGt(HYBOND_PRICE_ORACLE.code.length, 0);
         assertEq(IERC20Metadata(HYBOND).symbol(), "HYBOND");
         assertEq(IERC20Metadata(HYBOND).decimals(), 18);
         assertEq(IOpenEdenExpress(HYBOND_EXPRESS).redeemAsset(), USDC);
@@ -53,9 +52,10 @@ contract OpenEdenAccountMainnetTest is Test {
         _forkMainnet();
 
         address factory = address(new MigratablesFactory(address(this)));
+        OpenEdenOracle openEdenOracle = new OpenEdenOracle(1, type(uint256).max, HYBOND, HYBOND_EXPRESS);
         address implementation = address(
             new OpenEdenAccount(
-                HYBOND_PRICE_ORACLE, factory, TOKEN_COOLDOWN, HYBOND, HYBOND_EXPRESS, COW_SWAP_SETTLEMENT
+                address(openEdenOracle), factory, TOKEN_COOLDOWN, HYBOND, HYBOND_EXPRESS, COW_SWAP_SETTLEMENT
             )
         );
 
@@ -63,7 +63,12 @@ contract OpenEdenAccountMainnetTest is Test {
         address account = MigratablesFactory(factory)
             .create(1, address(this), abi.encode(address(new OpenEdenMainnetVault()), adapter));
 
-        assertEq(IAccount(account).ORACLE(), HYBOND_PRICE_ORACLE);
+        assertEq(IAccount(account).ORACLE(), address(openEdenOracle));
+        (,, uint256 netAssetsPerToken) =
+            IOpenEdenExpress(HYBOND_EXPRESS).previewRedeem(10 ** IERC20Metadata(HYBOND).decimals());
+        uint256 expectedOraclePrice =
+            netAssetsPerToken * 1e18 / 10 ** IERC20Metadata(IOpenEdenExpress(HYBOND_EXPRESS).redeemAsset()).decimals();
+        assertEq(openEdenOracle.getPrice(), expectedOraclePrice);
         assertEq(IAccount(account).TOKEN_TO_REDEEM(), HYBOND);
         assertEq(IOpenEdenAccount(account).EXPRESS(), HYBOND_EXPRESS);
         assertEq(IERC20(HYBOND).allowance(account, HYBOND_EXPRESS), type(uint256).max);
@@ -88,15 +93,18 @@ contract OpenEdenAccountMainnetTest is Test {
         _forkMainnet();
 
         address factory = address(new MigratablesFactory(address(this)));
+        OpenEdenOracle openEdenOracle = new OpenEdenOracle(1, type(uint256).max, HYBOND, HYBOND_EXPRESS);
         address implementation = address(
             new OpenEdenAccount(
-                HYBOND_PRICE_ORACLE, factory, TOKEN_COOLDOWN, HYBOND, HYBOND_EXPRESS, COW_SWAP_SETTLEMENT
+                address(openEdenOracle), factory, TOKEN_COOLDOWN, HYBOND, HYBOND_EXPRESS, COW_SWAP_SETTLEMENT
             )
         );
 
         MigratablesFactory(factory).whitelist(implementation);
         address account = MigratablesFactory(factory)
             .create(1, address(this), abi.encode(address(new OpenEdenMainnetVault()), adapter));
+
+        assertEq(IAccount(account).ORACLE(), address(openEdenOracle));
 
         uint256 amount = 1 ether;
         deal(HYBOND, account, amount);

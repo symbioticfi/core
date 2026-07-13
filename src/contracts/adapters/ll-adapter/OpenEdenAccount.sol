@@ -19,6 +19,8 @@ contract OpenEdenAccount is CooldownAccount, IOpenEdenAccount {
 
     /// @inheritdoc IOpenEdenAccount
     address public immutable EXPRESS;
+    /// @dev Asset received after HYBOND redemption.
+    address internal immutable REDEMPTION_TOKEN;
 
     /* CONSTRUCTOR */
 
@@ -32,22 +34,19 @@ contract OpenEdenAccount is CooldownAccount, IOpenEdenAccount {
         address cowSwapSettlement
     ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
         EXPRESS = express;
+        REDEMPTION_TOKEN = IOpenEdenExpress(express).redeemAsset();
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Values HYBOND through the HYBONDExpress redemption preview.
-    function _tokenToRedeemToAssets(uint256 amount) internal view override returns (uint256 assets) {
-        (,, assets) = IOpenEdenExpress(EXPRESS).previewRedeem(amount);
-    }
-
-    /// @dev Returns pending and final queued HYBOND redemption value in vault assets.
+    /// @dev Returns pending, final queued, and settled HYBOND redemption value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
-        uint256 tokenAmount = IOpenEdenExpress(EXPRESS).pendingRedeemInfo(address(this))
-            + IOpenEdenExpress(EXPRESS).redeemInfo(address(this));
-
-        if (tokenAmount > 0) {
-            assets = _tokenToRedeemToAssets(tokenAmount);
+        assets = _tokenToRedeemToAssets(
+            IOpenEdenExpress(EXPRESS).pendingRedeemInfo(address(this))
+                + IOpenEdenExpress(EXPRESS).redeemInfo(address(this))
+        );
+        if (REDEMPTION_TOKEN != _asset) {
+            assets += _redemptionTokenToAssets(REDEMPTION_TOKEN, IERC20(REDEMPTION_TOKEN).balanceOf(address(this)));
         }
     }
 
@@ -65,9 +64,6 @@ contract OpenEdenAccount is CooldownAccount, IOpenEdenAccount {
     /// @dev Initializes the account for an adapter and vault.
     function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
         super._initialize(initialVersion, initOwner, data);
-        if (IOpenEdenExpress(EXPRESS).redeemAsset() != _asset) {
-            revert InvalidAsset();
-        }
         IERC20(TOKEN_TO_REDEEM).forceApprove(EXPRESS, type(uint256).max);
     }
 }

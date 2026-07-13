@@ -26,7 +26,10 @@ import {UniversalDelegatorFactory} from "../../src/contracts/UniversalDelegatorF
 import {DUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
 import {JAAA_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JAAA_Account.sol";
 import {JTRSY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JTRSY_Account.sol";
+import {AUTO_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/AUTO_Account.sol";
 import {PRIME_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PRIME_Account.sol";
+import {FigureSubAccount} from "../../src/contracts/adapters/ll-adapter/FigureAccount.sol";
+import {FigureOracle} from "../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
 import {
     StockMarketTRBasisTrade_Account
 } from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
@@ -105,6 +108,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     address internal constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
 
     address internal constant PRIME_TOKEN = 0x19ebb35279A16207Ec4ba82799CC64715065F7F6;
+    address internal constant AUTO_TOKEN = 0x997E2Efbce91D170B00EA402e35a66C887EE1da9;
     address internal constant EETH = 0x35fA164735182de50811E8e2E824cFb9B6118ac2;
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
@@ -159,7 +163,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     function testCalculatesAllTokenCooldownsAndRequestCounts() public pure {
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
 
-        assertEq(specs.length, 43);
+        assertEq(specs.length, 44);
         assertLe(specs.length, MAX_TOKENS_TO_REDEEM);
 
         uint256 totalMaxAverageRequests;
@@ -171,7 +175,25 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 398);
+        assertEq(totalMaxAverageRequests, 399);
+    }
+
+    function testAUTOAccountBenchmarkConfiguration() public {
+        string memory rpcUrl = vm.envOr("ETH_RPC_URL", string(""));
+        _skipWithoutRpc(rpcUrl, "ETH_RPC_URL is required for AUTO benchmark configuration");
+        _createFork(rpcUrl);
+
+        MigratablesFactory factory = new MigratablesFactory(curator);
+        IAccount implementation = _deployImplementation(43, address(factory));
+        FigureOracle oracle = FigureOracle(implementation.ORACLE());
+        address asyncRedeemVault = IERC4626(AUTO_TOKEN).asset();
+
+        assertEq(implementation.TOKEN_TO_REDEEM(), AUTO_TOKEN);
+        assertEq(ICooldownAccount(address(implementation)).COOLDOWN(), 1 days);
+        assertEq(_assetFor(43, AUTO_TOKEN), MAINNET_USDC);
+        assertEq(oracle.TOKEN_TO_REDEEM(), AUTO_TOKEN);
+        assertEq(oracle.ASYNC_REDEEM_VAULT(), asyncRedeemVault);
+        assertGt(oracle.getPrice(), 0);
     }
 
     function testCorrelatedMidasTokenAccountsUseCorrelatedVaultAssets() public view {
@@ -340,7 +362,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         ) {
             return MAINNET_USDC;
         }
-        if (index == 5) {
+        if (_isFigure(index)) {
             return IERC4626(IERC4626(token).asset()).asset();
         }
         if (index == 35 || index == 36) {
@@ -373,6 +395,10 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
 
     function _isInfiniFi(uint256 index) internal pure returns (bool) {
         return index == 41 || index == 42;
+    }
+
+    function _isFigure(uint256 index) internal pure returns (bool) {
+        return index == 5 || index == 43;
     }
 
     function _mockVaultAsset(address asset) internal {
@@ -806,7 +832,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         }
 
         uint256 unit = 10 ** IERC20Metadata(token).decimals();
-        if (_isMidas(index) || _isCentrifuge(index) || index == 2 || index == 5 || index == 37 || index == 39) {
+        if (_isMidas(index) || _isCentrifuge(index) || index == 2 || _isFigure(index) || index == 37 || index == 39) {
             return 100 * unit;
         }
 
@@ -820,7 +846,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         if (_isCentrifuge(index)) {
             return _asyncRequestIdsLength(account);
         }
-        if (index == 5) {
+        if (_isFigure(index)) {
             return _figureSubAccountsLength(account);
         }
         if (index == 2) {
@@ -985,7 +1011,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
     }
 
     function _tokenBenchSpecs() internal pure returns (TokenBenchSpec[] memory specs) {
-        specs = new TokenBenchSpec[](43);
+        specs = new TokenBenchSpec[](44);
         specs[0] = _spec("ACRDX", 1 days);
         specs[1] = _spec("CarryTradeUSDTRYLeverage", 2 days);
         specs[2] = _spec("DUSD", 12 hours);
@@ -1033,6 +1059,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         // wall clock and 13w is 98 days, plus a small margin for withdrawal processing.
         specs[41] = _spec("liUSD-4w", 36 days);
         specs[42] = _spec("liUSD-13w", 100 days);
+        specs[43] = _spec("AUTO", 1 days);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
@@ -1051,8 +1078,21 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         if (index == 4) {
             return IAccount(address(new JTRSY_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
-        if (index == 5) {
-            return IAccount(address(new PRIME_Account(_oracle(), factory, PRIME_TOKEN, COW_SWAP_SETTLEMENT)));
+        if (_isFigure(index)) {
+            address token = index == 5 ? PRIME_TOKEN : AUTO_TOKEN;
+            address asyncRedeemVault = IERC4626(token).asset();
+            address subAccountImplementation =
+                address(new FigureSubAccount(asyncRedeemVault, IERC4626(asyncRedeemVault).asset()));
+            address oracle = address(new FigureOracle(1, type(uint256).max, token));
+            if (index == 5) {
+                return IAccount(
+                    address(new PRIME_Account(oracle, factory, token, subAccountImplementation, COW_SWAP_SETTLEMENT))
+                );
+            }
+            return
+                IAccount(
+                    address(new AUTO_Account(oracle, factory, token, subAccountImplementation, COW_SWAP_SETTLEMENT))
+                );
         }
         if (index == 6) {
             return IAccount(address(new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT)));

@@ -8,6 +8,12 @@ import {DeployAdapterBase} from "./base/DeployAdapterBase.sol";
 import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../../src/contracts/adapters/LiquidLaneAdapter.sol";
 import {AccountRegistry} from "../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
+import {FigureSubAccount} from "../../../src/contracts/adapters/ll-adapter/FigureAccount.sol";
+import {FigureOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
+import {
+    AUTO_Account,
+    AUTO_AccountFactory
+} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/AUTO_Account.sol";
 import {
     CarryTradeUSDTRYLeverage_Account,
     CarryTradeUSDTRYLeverage_AccountFactory
@@ -37,8 +43,14 @@ import {
     mROX_AccountFactory
 } from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mROX_Account.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
+import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
+import {IFigureYieldVault} from "../../../src/interfaces/adapters/ll-adapter/figure/IFigureYieldVault.sol";
 import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
 import {Logs} from "../../utils/Logs.sol";
+
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // forge script script/deploy/adapters/DeployLiquidLane.s.sol:DeployLiquidLaneScript --rpc-url=RPC --broadcast
 
@@ -59,6 +71,9 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         AccountDeploymentData carryTradeUSDTRY;
         AccountDeploymentData stockMarketTRBasisTrade;
         AccountDeploymentData mM1USD;
+        AccountDeploymentData autoAccount;
+        address autoOracle;
+        address autoSubAccountImplementation;
     }
 
     // Configurations - UPDATE ACCOUNT_REGISTRY_OWNER BEFORE DEPLOYMENT.
@@ -70,6 +85,10 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
 
     address public constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address public constant AUTO = 0x997E2Efbce91D170B00EA402e35a66C887EE1da9;
+    address public constant WYLDS = 0x6aD038cA6C04e885630851278ca0a856Ad9a66Cc;
+    uint256 public constant AUTO_MIN_PRICE = 0.5e18;
+    uint256 public constant AUTO_MAX_PRICE = 2e18;
 
     address public constant MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
     address public constant MFONE = 0x238a700eD6165261Cf8b2e544ba797BC11e466Ba;
@@ -103,6 +122,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         data.carryTradeUSDTRY = _deployCarryTradeUSDTRY(data.accountRegistry);
         data.stockMarketTRBasisTrade = _deployStockMarketTRBasisTrade(data.accountRegistry);
         data.mM1USD = _deployMM1USD(data.accountRegistry);
+        (data.autoAccount, data.autoOracle, data.autoSubAccountImplementation) = _deployAUTO(data.accountRegistry);
 
         _transferOwnership(data, accountRegistryOwner, factoriesOwner);
 
@@ -157,6 +177,18 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         _whitelistAndRegister(accountRegistry, MM1_USD, data);
     }
 
+    function _deployAUTO(address accountRegistry)
+        internal
+        returns (AccountDeploymentData memory data, address oracle, address subAccountImplementation)
+    {
+        data.factory = address(new AUTO_AccountFactory(_scriptOwner()));
+        oracle = address(new FigureOracle(AUTO_MIN_PRICE, AUTO_MAX_PRICE, AUTO));
+        subAccountImplementation = address(new FigureSubAccount(WYLDS, USDC));
+        data.implementation =
+            address(new AUTO_Account(oracle, data.factory, AUTO, subAccountImplementation, COW_SWAP_SETTLEMENT));
+        _whitelistAndRegister(accountRegistry, AUTO, data);
+    }
+
     function _whitelistAndRegister(address accountRegistry, address tokenToRedeem, AccountDeploymentData memory data)
         internal
     {
@@ -187,6 +219,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         _transferAccountFactoryOwnership(data.carryTradeUSDTRY, factoriesOwner);
         _transferAccountFactoryOwnership(data.stockMarketTRBasisTrade, factoriesOwner);
         _transferAccountFactoryOwnership(data.mM1USD, factoriesOwner);
+        _transferAccountFactoryOwnership(data.autoAccount, factoriesOwner);
     }
 
     function _transferAccountFactoryOwnership(AccountDeploymentData memory data, address owner) internal {
@@ -199,6 +232,8 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         require(accountRegistryOwner != factoriesOwner, "owners must differ");
         require(COW_SWAP_SETTLEMENT != address(0), "invalid cow swap settlement");
         require(USDC != address(0), "invalid usdc");
+        require(AUTO != address(0), "invalid auto");
+        require(WYLDS != address(0), "invalid wylds");
     }
 
     function _validateDeployment(
@@ -220,6 +255,34 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
             data.accountRegistry, STOCK_MARKET_TR_BASIS_TRADE, data.stockMarketTRBasisTrade, factoriesOwner
         );
         _validateAccountDeployment(data.accountRegistry, MM1_USD, data.mM1USD, factoriesOwner);
+        _validateAccountDeployment(data.accountRegistry, AUTO, data.autoAccount, factoriesOwner);
+        _validateAUTODeployment(data.autoAccount, data.autoOracle, data.autoSubAccountImplementation);
+    }
+
+    function _validateAUTODeployment(
+        AccountDeploymentData memory data,
+        address oracleAddress,
+        address subAccountImplementation
+    ) internal view {
+        IAccount implementation = IAccount(data.implementation);
+        FigureOracle oracle = FigureOracle(oracleAddress);
+
+        assert(implementation.TOKEN_TO_REDEEM() == AUTO);
+        assert(implementation.ORACLE() == oracleAddress);
+        assert(oracleAddress.code.length > 0);
+        assert(subAccountImplementation.code.length > 0);
+        assert(IERC4626(AUTO).asset() == WYLDS);
+        assert(IFigureYieldVault(WYLDS).asset() == USDC);
+        assert(oracle.TOKEN_TO_REDEEM() == AUTO);
+        assert(oracle.ASYNC_REDEEM_VAULT() == WYLDS);
+        assert(oracle.MIN_PRICE() == AUTO_MIN_PRICE);
+        assert(oracle.MAX_PRICE() == AUTO_MAX_PRICE);
+
+        uint256 tokenUnit = 10 ** IERC20Metadata(AUTO).decimals();
+        uint256 nestedShares = IERC4626(AUTO).convertToAssets(tokenUnit);
+        uint256 redemptionAssets = IFigureYieldVault(WYLDS).convertToAssets(nestedShares);
+        uint256 expectedPrice = Math.mulDiv(redemptionAssets, 1e18, 10 ** IERC20Metadata(USDC).decimals());
+        assert(oracle.getPrice() == expectedPrice);
     }
 
     function _validateAccountDeployment(
@@ -254,6 +317,25 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         _logAccountDeployment("CarryTradeUSDTRY", data.carryTradeUSDTRY);
         _logAccountDeployment("StockMarketTRBasisTrade", data.stockMarketTRBasisTrade);
         _logAccountDeployment("mM1-USD", data.mM1USD);
+        _logAUTODeployment(data.autoAccount, data.autoOracle, data.autoSubAccountImplementation);
+    }
+
+    function _logAUTODeployment(AccountDeploymentData memory data, address oracle, address subAccountImplementation)
+        internal
+    {
+        Logs.log(
+            string.concat(
+                "Deployed AUTO account",
+                "\n    accountFactory:",
+                vm.toString(data.factory),
+                "\n    accountImplementation:",
+                vm.toString(data.implementation),
+                "\n    oracle:",
+                vm.toString(oracle),
+                "\n    subAccountImplementation:",
+                vm.toString(subAccountImplementation)
+            )
+        );
     }
 
     function _logAccountDeployment(string memory name, AccountDeploymentData memory data) internal {

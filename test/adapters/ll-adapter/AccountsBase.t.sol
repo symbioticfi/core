@@ -10,6 +10,7 @@ import {DUSD_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to
 import {GaibAccount} from "../../../src/contracts/adapters/ll-adapter/GaibAccount.sol";
 import {MakinaAccount} from "../../../src/contracts/adapters/ll-adapter/MakinaAccount.sol";
 import {PRIME_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PRIME_Account.sol";
+import {FigureSubAccount} from "../../../src/contracts/adapters/ll-adapter/FigureAccount.sol";
 import {sAID_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sAID_Account.sol";
 import {deCRDX_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deCRDX_Account.sol";
 import {deJAAA_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJAAA_Account.sol";
@@ -36,10 +37,6 @@ import {Vm} from "forge-std/Vm.sol";
 
 interface ILegacyRequestRedeem {
     function requestRedeem() external;
-}
-
-interface ILegacyFinalizeRedeem {
-    function finalizeRedeem() external;
 }
 
 interface ILegacySubAccounts {
@@ -181,7 +178,13 @@ abstract contract AccountsBase is Test {
         returns (PRIME_Account account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        PRIME_Account implementation = new PRIME_Account(oracle, address(factory), address(prime), cowSwapSettlement);
+        PRIME_Account implementation = new PRIME_Account(
+            oracle,
+            address(factory),
+            address(prime),
+            address(new FigureSubAccount(prime.asset(), address(MockAsyncRedeemVault(prime.asset()).asset()))),
+            cowSwapSettlement
+        );
         factory.whitelist(address(implementation));
         account = PRIME_Account(factory.create(1, address(this), _initData(address(asset), address(prime))));
     }

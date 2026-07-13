@@ -5,7 +5,7 @@ pragma solidity ^0.8.28;
 import {FigureAccount} from "../FigureAccount.sol";
 import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 
-contract PRIME_Account is FigureAccount {
+contract AUTO_Account is FigureAccount {
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
 
     constructor(
@@ -17,6 +17,6 @@ contract PRIME_Account is FigureAccount {
     ) FigureAccount(oracle, factory, TOKEN_COOLDOWN, tokenToRedeem, subAccountImplementation, cowSwapSettlement) {}
 }
 
-contract PRIME_AccountFactory is MigratablesFactory {
+contract AUTO_AccountFactory is MigratablesFactory {
     constructor(address newOwner) MigratablesFactory(newOwner) {}
 }

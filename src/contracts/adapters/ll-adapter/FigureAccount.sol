@@ -5,16 +5,18 @@ pragma solidity ^0.8.28;
 import {CooldownAccount} from "./common/CooldownAccount.sol";
 
 import {IFigureAccount} from "../../../interfaces/adapters/ll-adapter/figure/IFigureAccount.sol";
-import {IFigureSubAccount} from "../../../interfaces/adapters/ll-adapter/figure/IFigureSubAccount.sol";
 import {IFigureYieldVault} from "../../../interfaces/adapters/ll-adapter/figure/IFigureYieldVault.sol";
 
+import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /// @title FigureAccount
-/// @notice Account for Figure/Hastra PRIME redemptions through wYLDS.
+/// @notice Account for Figure/Hastra token-to-redeem redemptions through wYLDS.
 contract FigureAccount is CooldownAccount, IFigureAccount {
+    using Clones for address;
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
@@ -23,6 +25,8 @@ contract FigureAccount is CooldownAccount, IFigureAccount {
     address internal immutable ASYNC_REDEEM_VAULT;
     /// @dev Asset received after wYLDS redemption.
     address internal immutable REDEMPTION_TOKEN;
+    /// @dev Shared logic for Figure request-holder subaccounts.
+    address internal immutable SUB_ACCOUNT_IMPLEMENTATION;
 
     /* STATE VARIABLES */
 
@@ -32,82 +36,72 @@ contract FigureAccount is CooldownAccount, IFigureAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Figure account implementation.
-    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
-        CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
-    {
-        ASYNC_REDEEM_VAULT = IERC4626(TOKEN_TO_REDEEM).asset();
+    constructor(
+        address oracle,
+        address factory,
+        uint48 cooldown,
+        address tokenToRedeem,
+        address subAccountImplementation,
+        address cowSwapSettlement
+    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
+        ASYNC_REDEEM_VAULT = IERC4626(tokenToRedeem).asset();
         REDEMPTION_TOKEN = IFigureYieldVault(ASYNC_REDEEM_VAULT).asset();
+        SUB_ACCOUNT_IMPLEMENTATION = subAccountImplementation;
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Values held PRIME by converting it to wYLDS before valuing wYLDS.
-    function _tokenToRedeemToAssets(uint256 amount) internal view override returns (uint256) {
-        amount = IERC4626(TOKEN_TO_REDEEM).convertToAssets(amount);
-        return _asset == ASYNC_REDEEM_VAULT
-            ? amount
-            : _redemptionTokenToAssets(REDEMPTION_TOKEN, IFigureYieldVault(ASYNC_REDEEM_VAULT).convertToAssets(amount));
-    }
-
     /// @dev Returns held wYLDS value plus pending async redemption request value in vault assets.
     function _totalAssets() internal view override returns (uint256) {
-        if (_asset == ASYNC_REDEEM_VAULT) {
-            return 0;
-        }
-
-        uint256 assets;
-        uint256 length = subAccounts.length;
-        for (uint256 i; i < length; ++i) {
-            (, uint256 pendingAssets,) = IFigureYieldVault(ASYNC_REDEEM_VAULT).pendingRedemptions(subAccounts[i]);
-            assets += _redemptionTokenToAssets(
-                REDEMPTION_TOKEN, pendingAssets + IERC20(REDEMPTION_TOKEN).balanceOf(subAccounts[i])
-            );
-        }
+        uint256 amount;
 
         uint256 balance = IERC20(ASYNC_REDEEM_VAULT).balanceOf(address(this));
         if (balance > 0) {
-            assets += _redemptionTokenToAssets(
-                REDEMPTION_TOKEN, IFigureYieldVault(ASYNC_REDEEM_VAULT).convertToAssets(balance)
-            );
+            amount += IFigureYieldVault(ASYNC_REDEEM_VAULT).convertToAssets(balance);
         }
 
-        return assets;
+        uint256 length = subAccounts.length;
+        for (uint256 i; i < length; ++i) {
+            (, uint256 pendingAssets,) = IFigureYieldVault(ASYNC_REDEEM_VAULT).pendingRedemptions(subAccounts[i]);
+            amount += pendingAssets + IERC20(REDEMPTION_TOKEN).balanceOf(subAccounts[i]);
+        }
+
+        return REDEMPTION_TOKEN == _asset
+            ? amount
+            : _redemptionTokenToAssets(REDEMPTION_TOKEN, amount + IERC20(REDEMPTION_TOKEN).balanceOf(address(this)));
     }
 
     /// @dev Figure redemptions are finalized offchain by the yield vault admin.
     function _finalizeRequests() internal override {
         uint256 length = subAccounts.length;
-        for (uint256 i = length; i > 0; --i) {
-            uint256 index = i - 1;
-            address subAccount = subAccounts[index];
-
+        for (uint256 i = length; i > 0;) {
+            address subAccount = subAccounts[--i];
             (uint256 pendingShares,,) = IFigureYieldVault(ASYNC_REDEEM_VAULT).pendingRedemptions(subAccount);
             if (pendingShares == 0) {
-                IFigureSubAccount(subAccount).finalizeRedeem();
-                --length;
-                subAccounts[index] = subAccounts[length];
+                uint256 balance = IERC20(REDEMPTION_TOKEN).balanceOf(subAccount);
+                if (balance > 0) {
+                    IERC20(REDEMPTION_TOKEN).safeTransferFrom(subAccount, address(this), balance);
+                }
+                subAccounts[i] = subAccounts[--length];
                 subAccounts.pop();
             }
         }
     }
 
-    /// @dev Submits held PRIME or wYLDS to the Figure yield vault redemption flow.
+    /// @dev Submits held token-to-redeem or wYLDS to the Figure yield vault redemption flow.
     function _requestRedeem() internal override returns (bool) {
-        uint256 primeBalance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (primeBalance > 0) {
-            IERC4626(TOKEN_TO_REDEEM).redeem(primeBalance, address(this), address(this));
-        }
-        if (_asset == ASYNC_REDEEM_VAULT) {
-            return false;
+        uint256 tokenToRedeemBalance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        if (tokenToRedeemBalance > 0) {
+            IERC4626(TOKEN_TO_REDEEM).redeem(tokenToRedeemBalance, address(this), address(this));
         }
 
         uint256 balance = IERC20(ASYNC_REDEEM_VAULT).balanceOf(address(this));
         if (balance > 0) {
-            address subAccount = address(new FigureSubAccount(ASYNC_REDEEM_VAULT, address(this), REDEMPTION_TOKEN));
+            address subAccount = SUB_ACCOUNT_IMPLEMENTATION.clone();
+            IERC20(ASYNC_REDEEM_VAULT).safeTransfer(subAccount, balance);
+            FigureSubAccount(subAccount).initialize();
 
             subAccounts.push(subAccount);
-            IERC20(ASYNC_REDEEM_VAULT).safeTransfer(subAccount, balance);
-            IFigureSubAccount(subAccount).requestRedeem();
             return true;
         }
         return false;
@@ -116,47 +110,28 @@ contract FigureAccount is CooldownAccount, IFigureAccount {
 
 /// @title FigureSubAccount
 /// @notice Request-holder subaccount for one Figure wYLDS redemption request.
-contract FigureSubAccount is IFigureSubAccount {
+contract FigureSubAccount is Initializable {
     using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
 
     /// @dev Figure wYLDS async redeem vault.
     address internal immutable ASYNC_REDEEM_VAULT;
-    /// @dev Parent account that owns this subaccount.
-    address internal immutable ACCOUNT;
     /// @dev Redemption asset received after queue processing.
-    address internal immutable ASSET;
+    address internal immutable REDEMPTION_TOKEN;
 
     /* CONSTRUCTOR */
 
     /// @notice Creates the Figure request-holder subaccount.
-    constructor(address asyncRedeemVault, address account, address redemptionToken) {
+    constructor(address asyncRedeemVault, address redemptionToken) {
         ASYNC_REDEEM_VAULT = asyncRedeemVault;
-        ACCOUNT = account;
-        ASSET = redemptionToken;
+        REDEMPTION_TOKEN = redemptionToken;
     }
 
     /* PUBLIC FUNCTIONS */
 
-    /// @inheritdoc IFigureSubAccount
-    function requestRedeem() external {
-        if (ACCOUNT != msg.sender) {
-            revert NotAccount();
-        }
-
+    function initialize() external initializer {
+        IERC20(REDEMPTION_TOKEN).forceApprove(msg.sender, type(uint256).max);
         IFigureYieldVault(ASYNC_REDEEM_VAULT).requestRedeem(IERC20(ASYNC_REDEEM_VAULT).balanceOf(address(this)));
-    }
-
-    /// @inheritdoc IFigureSubAccount
-    function finalizeRedeem() external {
-        if (ACCOUNT != msg.sender) {
-            revert NotAccount();
-        }
-
-        uint256 assets = IERC20(ASSET).balanceOf(address(this));
-        if (assets > 0) {
-            IERC20(ASSET).safeTransfer(ACCOUNT, assets);
-        }
     }
 }

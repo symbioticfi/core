@@ -23,6 +23,18 @@ interface IOpenEdenExpress {
     function redeemInfo(address account) external view returns (uint256 amount);
 
     /**
+     * @notice Returns the Chainlink-compatible HYBOND price oracle.
+     * @return oracle The price oracle address.
+     */
+    function priceOracle() external view returns (address oracle);
+
+    /**
+     * @notice Returns the maximum permitted age of the HYBOND price used for redemption.
+     * @return period The maximum staleness period in seconds.
+     */
+    function maxStalePeriod() external view returns (uint256 period);
+
+    /**
      * @notice Previews a HYBOND redemption in the current redeem asset.
      * @param tokenAmount The HYBOND amount.
      * @return feeAmt The fee amount in redeem asset units.

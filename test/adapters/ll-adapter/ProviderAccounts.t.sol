@@ -7,6 +7,7 @@ import {AssetoAccount} from "../../../src/contracts/adapters/ll-adapter/AssetoAc
 import {AssetoOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/AssetoOracle.sol";
 import {NoonAccount} from "../../../src/contracts/adapters/ll-adapter/NoonAccount.sol";
 import {OpenEdenAccount} from "../../../src/contracts/adapters/ll-adapter/OpenEdenAccount.sol";
+import {OpenEdenOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/OpenEdenOracle.sol";
 import {ParetoAccount} from "../../../src/contracts/adapters/ll-adapter/ParetoAccount.sol";
 import {
     AcredSecuritizeAccount,
@@ -171,44 +172,56 @@ contract ProviderAccountsTest is AccountsBase {
     function testOpenEdenRequestsAndValuesQueuedRedeems() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockERC20 hybond = new MockERC20("HYBOND", "HYBOND", 18);
-        MockOracle oracle = new MockOracle(12e17);
-        MockOpenEdenExpress express = new MockOpenEdenExpress(hybond, usdc, oracle);
-        OpenEdenAccount account = _deployOpenEden(hybond, usdc, oracle, express);
+        MockOracle previewOracle = new MockOracle(12_006e14);
+        MockOpenEdenExpress express = new MockOpenEdenExpress(hybond, usdc, previewOracle);
+        OpenEdenOracle oracle = new OpenEdenOracle(1, type(uint256).max, address(hybond), address(express));
+        OpenEdenAccount account = _deployOpenEden(hybond, usdc, address(oracle), express);
 
         hybond.mint(address(account), 2 ether);
 
-        assertEq(account.totalAssets(), 2_397_600);
+        (,, uint256 directPreviewAssets) = express.previewRedeem(2 ether);
+        uint256 oracleScaledAssets = account.totalAssets();
+        assertEq(directPreviewAssets, 2_398_799);
+        assertEq(oracleScaledAssets, 2_398_800);
+        assertEq(oracleScaledAssets - directPreviewAssets, 1);
+        assertLe(oracleScaledAssets - directPreviewAssets, 1);
 
         account.sync();
 
         assertEq(hybond.balanceOf(address(account)), 0);
         assertEq(hybond.balanceOf(address(express)), 2 ether);
         assertEq(express.pendingRedeemInfo(address(account)), 2 ether);
-        assertEq(account.totalAssets(), 2_397_600);
+        assertEq(account.totalAssets(), oracleScaledAssets);
 
         express.processPending(address(account), 1 ether);
-        assertEq(account.totalAssets(), 2_397_600);
+        assertEq(account.totalAssets(), oracleScaledAssets);
 
         express.processRedeem(address(account), 1 ether);
-        assertEq(usdc.balanceOf(address(account)), 1_198_800);
-        assertEq(account.totalAssets(), 2_397_600);
+        assertEq(usdc.balanceOf(address(account)), 1_199_400);
+        assertEq(account.totalAssets(), 2_398_800);
     }
 
-    function testOpenEdenRejectsUnexpectedRedeemAsset() public {
-        MockERC20 dai = new MockERC20("Dai Stablecoin", "DAI", 18);
+    function testOpenEdenSupportsDifferentStableAssetAndCountsSettledRedemptionToken() public {
+        MockERC20 usdt = new MockERC20("Tether USD", "USDT", 6);
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockERC20 hybond = new MockERC20("HYBOND", "HYBOND", 18);
-        MockOracle oracle = new MockOracle(12e17);
-        MockOpenEdenExpress express = new MockOpenEdenExpress(hybond, usdc, oracle);
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        OpenEdenAccount implementation = new OpenEdenAccount(
-            address(oracle), address(factory), TOKEN_COOLDOWN, address(hybond), address(express), cowSwapSettlement
-        );
-        factory.whitelist(address(implementation));
+        MockOracle previewOracle = new MockOracle(12_006e14);
+        MockOpenEdenExpress express = new MockOpenEdenExpress(hybond, usdc, previewOracle);
+        OpenEdenOracle oracle = new OpenEdenOracle(1, type(uint256).max, address(hybond), address(express));
+        OpenEdenAccount account = _deployOpenEden(hybond, usdt, address(oracle), express);
 
-        bytes memory data = _initData(address(dai), address(hybond));
-        vm.expectRevert(IOpenEdenAccount.InvalidAsset.selector);
-        factory.create(1, address(this), data);
+        hybond.mint(address(account), 2 ether);
+        assertEq(account.totalAssets(), 2_398_800);
+
+        account.sync();
+        assertEq(account.totalAssets(), 2_398_800);
+
+        express.processPending(address(account), 1 ether);
+        express.processRedeem(address(account), 1 ether);
+
+        assertEq(usdc.balanceOf(address(account)), 1_199_400);
+        assertEq(usdt.balanceOf(address(account)), 0);
+        assertEq(account.totalAssets(), 2_398_800);
     }
 
     function testSuperstateBurnsRequestsFreezeAndSweepsSettlement() public {
@@ -653,13 +666,13 @@ contract ProviderAccountsTest is AccountsBase {
         account = ParetoAccount(factory.create(1, address(this), _initData(address(asset), address(tranche))));
     }
 
-    function _deployOpenEden(MockERC20 hybond, MockERC20 asset, MockOracle oracle, MockOpenEdenExpress express)
+    function _deployOpenEden(MockERC20 hybond, MockERC20 asset, address oracle, MockOpenEdenExpress express)
         internal
         returns (OpenEdenAccount account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         OpenEdenAccount implementation = new OpenEdenAccount(
-            address(oracle), address(factory), TOKEN_COOLDOWN, address(hybond), address(express), cowSwapSettlement
+            oracle, address(factory), TOKEN_COOLDOWN, address(hybond), address(express), cowSwapSettlement
         );
         factory.whitelist(address(implementation));
         account = OpenEdenAccount(factory.create(1, address(this), _initData(address(asset), address(hybond))));
