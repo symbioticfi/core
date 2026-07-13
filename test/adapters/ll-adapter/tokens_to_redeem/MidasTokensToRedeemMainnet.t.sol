@@ -258,6 +258,7 @@ contract MidasTokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         internal
     {
         vm.mockCall(dataFeed, abi.encodeCall(IMidasDataFeed.getDataInBase18, ()), abi.encode(uint256(answer) * 1e10));
+        vm.mockCall(dataFeed, abi.encodeCall(IMidasDataFeed.aggregator, ()), abi.encode(aggregator));
         vm.mockCall(aggregator, abi.encodeCall(IChainlinkAggregatorV3.decimals, ()), abi.encode(uint8(8)));
         vm.mockCall(
             aggregator,

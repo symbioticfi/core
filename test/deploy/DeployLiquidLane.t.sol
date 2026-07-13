@@ -4,9 +4,8 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 
 import {DeployLiquidLaneScript} from "../../script/deploy/adapters/DeployLiquidLane.s.sol";
+import {AccountRegistry} from "../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
 import {MidasOracle} from "../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
-import {IAccount} from "../../src/interfaces/adapters/ll-adapter/IAccount.sol";
-import {IMidasDataFeed, IMidasOracle} from "../../src/interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
 
 contract DeploymentMarketAggregatorMock {
     uint8 public immutable decimals;
@@ -69,8 +68,6 @@ contract DeployLiquidLaneScriptHarness is DeployLiquidLaneScript {
 }
 
 contract DeployLiquidLaneTest is Test {
-    address internal constant MGLOBAL_MARKET_AGGREGATOR = 0x66Aa9fcD63DF74e1f67A9452E6E59Fbc67f75E38;
-
     DeployLiquidLaneScriptHarness internal harness;
 
     function setUp() public {
@@ -134,11 +131,13 @@ contract DeployLiquidLaneTest is Test {
         harness.validateOraclePrice(oracle);
     }
 
-    function testRunValidatesAllSevenMainnetOraclePrices() public {
+    function testRunOmitsMGlobalAndValidatesRemainingMainnetOraclePrices() public {
         string memory rpcUrl = vm.envOr("ETH_RPC_URL", string(""));
-        address mGlobalDataFeed = vm.envOr("MGLOBAL_DATA_FEED", address(0));
-        if (bytes(rpcUrl).length == 0 || mGlobalDataFeed == address(0)) {
-            vm.skip(true, "ETH_RPC_URL and MGLOBAL_DATA_FEED are required for the production deployment check");
+        if (bytes(rpcUrl).length == 0) {
+            vm.skip(true, "ETH_RPC_URL is required for the production deployment check");
+        }
+        if (harness.ACCOUNT_REGISTRY_OWNER() == address(0) || harness.FACTORIES_OWNER() == address(0)) {
+            vm.skip(true, "deployment owners must be configured for the production deployment check");
         }
 
         uint256 forkBlock = vm.envOr("MAINNET_FORK_BLOCK", uint256(0));
@@ -149,12 +148,14 @@ contract DeployLiquidLaneTest is Test {
         }
 
         DeployLiquidLaneScriptHarness forkHarness = new DeployLiquidLaneScriptHarness(makeAddr("forkVaultFactory"));
-        DeployLiquidLaneScript.LiquidLaneDeploymentData memory data = forkHarness.run(mGlobalDataFeed);
+        DeployLiquidLaneScript.LiquidLaneDeploymentData memory data = forkHarness.run();
 
-        address mGlobalOracle = IAccount(data.mGLOBAL.implementation).ORACLE();
-        assertEq(IMidasOracle(mGlobalOracle).DATA_FEED(), mGlobalDataFeed);
-        assertEq(IMidasDataFeed(mGlobalDataFeed).aggregator(), MGLOBAL_MARKET_AGGREGATOR);
-        assertGt(MidasOracle(mGlobalOracle).getPrice(), 0);
+        assertEq(data.mGLOBAL.factory, address(0));
+        assertEq(data.mGLOBAL.implementation, address(0));
+        assertEq(
+            AccountRegistry(data.accountRegistry).accountFactories(forkHarness.USDC(), forkHarness.MGLOBAL()),
+            address(0)
+        );
     }
 
     function _oracle(uint256 price, address aggregator) internal returns (address) {
