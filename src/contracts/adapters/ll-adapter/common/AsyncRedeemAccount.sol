@@ -47,7 +47,7 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
         for (uint256 i; i < length; ++i) {
             amount += IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestIds[i], address(this));
         }
-        assets = _tokenToRedeemToAssets(amount, IOracle(ORACLE).getPrice());
+        assets = _tokenToRedeemToAssets(amount);
 
         amount = IAsyncRedeemVault(asyncRedeemVault).maxWithdraw(address(this));
         assets += REDEMPTION_TOKEN == _asset

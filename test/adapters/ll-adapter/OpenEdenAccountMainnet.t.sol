@@ -46,6 +46,13 @@ contract OpenEdenAccountMainnetTest is Test {
         assertEq(grossAssets - fee, netAssets);
         assertEq(IOpenEdenExpress(HYBOND_EXPRESS).pendingRedeemInfo(address(this)), 0);
         assertEq(IOpenEdenExpress(HYBOND_EXPRESS).redeemInfo(address(this)), 0);
+
+        uint256 queueLength = IOpenEdenExpress(HYBOND_EXPRESS).getRedeemQueueLength();
+        if (queueLength > 0) {
+            (,,,, uint256 queuedGrossAssets, uint256 queuedFee,,) =
+                IOpenEdenExpress(HYBOND_EXPRESS).getRedeemQueueInfo(0);
+            assertGe(queuedGrossAssets, queuedFee);
+        }
     }
 
     function testOpenEdenAccountUsesRealMainnetHYBONDExpress() public {

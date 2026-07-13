@@ -16,7 +16,10 @@ import {
 import {SuperstateAccount} from "../../../src/contracts/adapters/ll-adapter/SuperstateAccount.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {IAssetoAccount} from "../../../src/interfaces/adapters/ll-adapter/asseto/IAssetoAccount.sol";
-import {IOpenEdenAccount} from "../../../src/interfaces/adapters/ll-adapter/openeden/IOpenEdenAccount.sol";
+import {
+    IOpenEdenAccount,
+    MAX_REDEEM_QUEUE_LENGTH
+} from "../../../src/interfaces/adapters/ll-adapter/openeden/IOpenEdenAccount.sol";
 import {ISettlementAccount} from "../../../src/interfaces/adapters/ll-adapter/ISettlementAccount.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -222,6 +225,112 @@ contract ProviderAccountsTest is AccountsBase {
         assertEq(usdc.balanceOf(address(account)), 1_199_400);
         assertEq(usdt.balanceOf(address(account)), 0);
         assertEq(account.totalAssets(), 2_398_800);
+    }
+
+    function testOpenEdenUsesLockedFinalQueueValueBelowLimit() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 hybond = new MockERC20("HYBOND", "HYBOND", 18);
+        MockOracle previewOracle = new MockOracle(12_006e14);
+        MockOpenEdenExpress express = new MockOpenEdenExpress(hybond, usdc, previewOracle);
+        OpenEdenOracle oracle = new OpenEdenOracle(1, type(uint256).max, address(hybond), address(express));
+        OpenEdenAccount account = _deployOpenEden(hybond, usdc, address(oracle), express);
+
+        hybond.mint(address(account), 2 ether);
+        account.sync();
+        express.processPending(address(account), 2 ether);
+
+        previewOracle.setPrice(15e17);
+
+        assertEq(account.totalAssets(), 2_398_799);
+    }
+
+    function testOpenEdenReadsOnlyAccountEntriesBelowQueueLimit() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 hybond = new MockERC20("HYBOND", "HYBOND", 18);
+        MockOracle previewOracle = new MockOracle(12_006e14);
+        MockOpenEdenExpress express = new MockOpenEdenExpress(hybond, usdc, previewOracle);
+        OpenEdenOracle oracle = new OpenEdenOracle(1, type(uint256).max, address(hybond), address(express));
+        OpenEdenAccount account = _deployOpenEden(hybond, usdc, address(oracle), express);
+
+        for (uint256 i; i < MAX_REDEEM_QUEUE_LENGTH - 2; ++i) {
+            express.addRedeemQueueEntry(makeAddr(string.concat("receiver", vm.toString(i))), 1 ether, 1e6, 1e3);
+        }
+        hybond.mint(address(account), 2 ether);
+        account.sync();
+        express.processPending(address(account), 2 ether);
+        previewOracle.setPrice(15e17);
+
+        assertEq(express.getRedeemQueueLength(), MAX_REDEEM_QUEUE_LENGTH - 1);
+        assertEq(account.totalAssets(), 2_398_799);
+    }
+
+    function testOpenEdenFallsBackToRedeemInfoAtQueueLimit() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 hybond = new MockERC20("HYBOND", "HYBOND", 18);
+        MockOracle previewOracle = new MockOracle(12_006e14);
+        MockOpenEdenExpress express = new MockOpenEdenExpress(hybond, usdc, previewOracle);
+        OpenEdenOracle oracle = new OpenEdenOracle(1, type(uint256).max, address(hybond), address(express));
+        OpenEdenAccount account = _deployOpenEden(hybond, usdc, address(oracle), express);
+
+        for (uint256 i; i < MAX_REDEEM_QUEUE_LENGTH - 1; ++i) {
+            express.addRedeemQueueEntry(makeAddr(string.concat("receiver", vm.toString(i))), 1 ether, 1e6, 1e3);
+        }
+        hybond.mint(address(account), 2 ether);
+        account.sync();
+        express.processPending(address(account), 2 ether);
+        previewOracle.setPrice(15e17);
+
+        assertEq(express.getRedeemQueueLength(), MAX_REDEEM_QUEUE_LENGTH);
+        assertEq(account.totalAssets(), 2_997_000);
+    }
+
+    function testOpenEdenUsesOneOracleCallForPendingAndFallbackRedeems() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 hybond = new MockERC20("HYBOND", "HYBOND", 18);
+        MockOracle previewOracle = new MockOracle(12_006e14);
+        MockOpenEdenExpress express = new MockOpenEdenExpress(hybond, usdc, previewOracle);
+        OpenEdenOracle oracle = new OpenEdenOracle(1, type(uint256).max, address(hybond), address(express));
+        OpenEdenAccount account = _deployOpenEden(hybond, usdc, address(oracle), express);
+
+        for (uint256 i; i < MAX_REDEEM_QUEUE_LENGTH - 1; ++i) {
+            express.addRedeemQueueEntry(makeAddr(string.concat("receiver", vm.toString(i))), 1 ether, 1e6, 1e3);
+        }
+        hybond.mint(address(account), 2 ether);
+        account.sync();
+        express.processPending(address(account), 1 ether);
+        previewOracle.setPrice(15e17);
+
+        vm.expectCall(address(oracle), abi.encodeWithSignature("getPrice()"), 1);
+        assertEq(account.totalAssets(), 2_997_000);
+    }
+
+    function testOpenEdenPermissionlessRequestsRespectCooldown() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 hybond = new MockERC20("HYBOND", "HYBOND", 18);
+        MockOracle previewOracle = new MockOracle(12_006e14);
+        MockOpenEdenExpress express = new MockOpenEdenExpress(hybond, usdc, previewOracle);
+        OpenEdenOracle oracle = new OpenEdenOracle(1, type(uint256).max, address(hybond), address(express));
+        OpenEdenAccount account = _deployOpenEden(hybond, usdc, address(oracle), express);
+        address caller = makeAddr("caller");
+
+        hybond.mint(address(account), 1 ether);
+        vm.prank(caller);
+        account.sync();
+
+        hybond.mint(address(account), 1 ether);
+        vm.warp(vm.getBlockTimestamp() + TOKEN_COOLDOWN - 1);
+        vm.prank(caller);
+        account.sync();
+
+        assertEq(express.pendingRedeemInfo(address(account)), 1 ether);
+        assertEq(hybond.balanceOf(address(account)), 1 ether);
+
+        vm.warp(vm.getBlockTimestamp() + 1);
+        vm.prank(caller);
+        account.sync();
+
+        assertEq(express.pendingRedeemInfo(address(account)), 2 ether);
+        assertEq(hybond.balanceOf(address(account)), 0);
     }
 
     function testSuperstateBurnsRequestsFreezeAndSweepsSettlement() public {
@@ -932,12 +1041,24 @@ contract MockParetoCreditVault is MockERC20 {
 }
 
 contract MockOpenEdenExpress {
+    struct RedeemQueueEntry {
+        address sender;
+        address receiver;
+        uint256 tokenAmount;
+        uint256 shareAmount;
+        uint256 redeemAssetAmt;
+        uint256 feeAssetAmt;
+        uint256 requestTimestamp;
+        bytes32 id;
+    }
+
     address public immutable token;
     address public immutable redeemAsset;
     address public immutable priceOracle;
 
     mapping(address account => uint256 amount) public pendingRedeemInfo;
     mapping(address account => uint256 amount) public redeemInfo;
+    RedeemQueueEntry[] internal redeemQueue;
 
     constructor(MockERC20 token_, MockERC20 redeemAsset_, MockOracle priceOracle_) {
         token = address(token_);
@@ -963,12 +1084,79 @@ contract MockOpenEdenExpress {
     function processPending(address account, uint256 tokenAmount) external {
         pendingRedeemInfo[account] -= tokenAmount;
         redeemInfo[account] += tokenAmount;
+        (uint256 feeAmt, uint256 redeemAssetAmt,) = this.previewRedeem(tokenAmount);
+        redeemQueue.push(
+            RedeemQueueEntry({
+                sender: account,
+                receiver: account,
+                tokenAmount: tokenAmount,
+                shareAmount: 0,
+                redeemAssetAmt: redeemAssetAmt,
+                feeAssetAmt: feeAmt,
+                requestTimestamp: block.timestamp,
+                id: bytes32(redeemQueue.length)
+            })
+        );
     }
 
     function processRedeem(address account, uint256 tokenAmount) external {
-        (,, uint256 assets) = this.previewRedeem(tokenAmount);
+        RedeemQueueEntry memory request = redeemQueue[0];
+        require(request.receiver == account && request.tokenAmount == tokenAmount);
+        for (uint256 i; i + 1 < redeemQueue.length; ++i) {
+            redeemQueue[i] = redeemQueue[i + 1];
+        }
+        redeemQueue.pop();
         redeemInfo[account] -= tokenAmount;
-        MockERC20(redeemAsset).mint(account, assets);
+        MockERC20(redeemAsset).mint(account, request.redeemAssetAmt - request.feeAssetAmt);
+    }
+
+    function addRedeemQueueEntry(address receiver, uint256 tokenAmount, uint256 redeemAssetAmt, uint256 feeAssetAmt)
+        external
+    {
+        redeemInfo[receiver] += tokenAmount;
+        redeemQueue.push(
+            RedeemQueueEntry({
+                sender: receiver,
+                receiver: receiver,
+                tokenAmount: tokenAmount,
+                shareAmount: 0,
+                redeemAssetAmt: redeemAssetAmt,
+                feeAssetAmt: feeAssetAmt,
+                requestTimestamp: block.timestamp,
+                id: bytes32(redeemQueue.length)
+            })
+        );
+    }
+
+    function getRedeemQueueLength() external view returns (uint256) {
+        return redeemQueue.length;
+    }
+
+    function getRedeemQueueInfo(uint256 index)
+        external
+        view
+        returns (
+            address sender,
+            address receiver,
+            uint256 tokenAmount,
+            uint256 shareAmount,
+            uint256 redeemAssetAmt,
+            uint256 feeAssetAmt,
+            uint256 requestTimestamp,
+            bytes32 id
+        )
+    {
+        RedeemQueueEntry memory request = redeemQueue[index];
+        return (
+            request.sender,
+            request.receiver,
+            request.tokenAmount,
+            request.shareAmount,
+            request.redeemAssetAmt,
+            request.feeAssetAmt,
+            request.requestTimestamp,
+            request.id
+        );
     }
 }
 

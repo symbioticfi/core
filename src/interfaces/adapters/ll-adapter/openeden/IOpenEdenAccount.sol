@@ -3,6 +3,9 @@ pragma solidity ^0.8.0;
 
 import {ICooldownAccount} from "../ICooldownAccount.sol";
 
+/// @dev Maximum final redeem queue length inspected for locked redemption values.
+uint256 constant MAX_REDEEM_QUEUE_LENGTH = 50;
+
 /**
  * @title IOpenEdenAccount
  * @notice Interface for OpenEden liquidity lane accounts.
