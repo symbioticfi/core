@@ -601,7 +601,11 @@ contract DeployFullCoreChaosScript is Script {
             abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()),
             abi.encode(CHAOS_COW_VAULT_RELAYER)
         );
-        mGLOBAL_Account implementation = new mGLOBAL_Account(factory, CHAOS_COW_SETTLEMENT);
+        mGLOBAL_Account implementation = new mGLOBAL_Account(
+            factory,
+            CHAOS_COW_SETTLEMENT,
+            ChaosMidasRedemptionVaultMock(CHAOS_MGLOBAL_REDEMPTION_VAULT).mTokenDataFeed()
+        );
         vm.prank(owner);
         mGLOBAL_AccountFactory(factory).whitelist(address(implementation));
     }

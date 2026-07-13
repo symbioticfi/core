@@ -11,6 +11,12 @@ interface IAsyncRedeemAccount is ICooldownAccount {
     /* FUNCTIONS */
 
     /**
+     * @notice Returns the token received from async redemptions.
+     * @return redemptionToken The redemption token address.
+     */
+    function REDEMPTION_TOKEN() external view returns (address redemptionToken);
+
+    /**
      * @notice Returns an ERC-7540 redemption request id by index.
      * @param index The request index.
      * @return requestId The redemption request id.

@@ -5,11 +5,13 @@ import {Test} from "forge-std/Test.sol";
 
 import {ACRDX_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
 import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
+import {AsyncRedeemAccount} from "../../../src/contracts/adapters/ll-adapter/common/AsyncRedeemAccount.sol";
 import {DigiFTAccount} from "../../../src/contracts/adapters/ll-adapter/DigiFTAccount.sol";
 import {DUSD_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
 import {GaibAccount} from "../../../src/contracts/adapters/ll-adapter/GaibAccount.sol";
 import {MakinaAccount} from "../../../src/contracts/adapters/ll-adapter/MakinaAccount.sol";
 import {PRIME_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PRIME_Account.sol";
+import {FigureSubAccount} from "../../../src/contracts/adapters/ll-adapter/FigureAccount.sol";
 import {sAID_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sAID_Account.sol";
 import {deCRDX_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deCRDX_Account.sol";
 import {deJAAA_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJAAA_Account.sol";
@@ -36,10 +38,6 @@ import {Vm} from "forge-std/Vm.sol";
 
 interface ILegacyRequestRedeem {
     function requestRedeem() external;
-}
-
-interface ILegacyFinalizeRedeem {
-    function finalizeRedeem() external;
 }
 
 interface ILegacySubAccounts {
@@ -156,8 +154,9 @@ abstract contract AccountsBase is Test {
         returns (TestAsyncRedeemAccount account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        TestAsyncRedeemAccount implementation =
-            new TestAsyncRedeemAccount(oracle, address(factory), cooldown, tokenToRedeem, cowSwapSettlement);
+        TestAsyncRedeemAccount implementation = new TestAsyncRedeemAccount(
+            oracle, address(factory), cooldown, tokenToRedeem, address(asset), cowSwapSettlement
+        );
         factory.whitelist(address(implementation));
         account = TestAsyncRedeemAccount(factory.create(1, address(this), _initData(address(asset), tokenToRedeem)));
     }
@@ -181,7 +180,9 @@ abstract contract AccountsBase is Test {
         returns (PRIME_Account account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        PRIME_Account implementation = new PRIME_Account(oracle, address(factory), address(prime), cowSwapSettlement);
+        PRIME_Account implementation = new PRIME_Account(
+            oracle, address(factory), address(prime), address(new FigureSubAccount(address(prime))), cowSwapSettlement
+        );
         factory.whitelist(address(implementation));
         account = PRIME_Account(factory.create(1, address(this), _initData(address(asset), address(prime))));
     }
@@ -927,6 +928,16 @@ contract MockAsyncRedeemVault is MockERC20 {
         claimableAssets[controller] += convertToAssets(shares);
     }
 
+    function process(uint256 requestId, address controller, uint256 shares) external {
+        pending[requestId][controller] -= shares;
+    }
+
+    function makeClaimable(uint256 requestId, address controller, uint256 shares) external {
+        claimable[requestId][controller] += shares;
+        claimableShares[controller] += shares;
+        claimableAssets[controller] += convertToAssets(shares);
+    }
+
     function maxWithdraw(address owner) external view returns (uint256 maxAssets) {
         return claimableAssets[owner];
     }
@@ -1194,7 +1205,30 @@ contract AccountsCoWSwapSettlementMock {
 }
 
 contract TestAsyncRedeemAccount is CentrifugeAccount {
-    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
-        CentrifugeAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
-    {}
+    constructor(
+        address oracle,
+        address factory,
+        uint48 cooldown,
+        address tokenToRedeem,
+        address redemptionToken,
+        address cowSwapSettlement
+    ) CentrifugeAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, cowSwapSettlement) {}
+
+    function asyncRedeemVault() external view returns (address) {
+        return _asyncRedeemVault();
+    }
+}
+
+contract TestBaseAsyncRedeemAccount is AsyncRedeemAccount {
+    constructor(
+        address oracle,
+        address factory,
+        address tokenToRedeem,
+        address redemptionToken,
+        address cowSwapSettlement
+    ) AsyncRedeemAccount(oracle, factory, 0, tokenToRedeem, redemptionToken, cowSwapSettlement) {}
+
+    function asyncRedeemVault() external view returns (address) {
+        return _asyncRedeemVault();
+    }
 }

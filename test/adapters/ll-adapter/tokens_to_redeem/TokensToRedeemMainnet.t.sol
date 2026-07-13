@@ -8,7 +8,7 @@ pragma solidity ^0.8.28;
 ///      CutoffAccount, mGLOBAL on CutoffMidasAccount): oracles passed to those accounts must
 ///      expose `getPriceData()`, and ACRED's notice is an ERC-20 transfer to the Securitize
 ///      redemption wallet. Re-run on fork after any change to those accounts.
-import {Test} from "forge-std/Test.sol";
+import {MGlobalDataFeedHelper} from "../../../helpers/MGlobalDataFeedHelper.sol";
 
 import {ACRDX_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
 import {ACRED_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRED_Account.sol";
@@ -21,7 +21,9 @@ import {
 import {DUSD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
 import {JAAA_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JAAA_Account.sol";
 import {JTRSY_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JTRSY_Account.sol";
+import {AUTO_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/AUTO_Account.sol";
 import {PRIME_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PRIME_Account.sol";
+import {FigureSubAccount} from "../../../../src/contracts/adapters/ll-adapter/FigureAccount.sol";
 import {
     StockMarketTRBasisTrade_Account
 } from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
@@ -62,6 +64,7 @@ import {USCC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens
 import {weETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {AsyncRedeemOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/AsyncRedeemOracle.sol";
+import {FigureOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
 import {AdapterFactory} from "../../../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../../../src/contracts/adapters/LiquidLaneAdapter.sol";
 import {AccountRegistry} from "../../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
@@ -118,7 +121,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-contract TokensToRedeemMainnetTest is Test {
+contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     struct TokenSpec {
         string symbol;
         address token;
@@ -136,6 +139,7 @@ contract TokensToRedeemMainnetTest is Test {
     address internal constant ACRDX = 0x9477724Bb54AD5417de8Baff29e59DF3fB4DA74f;
     address internal constant ACRED = 0x17418038ecF73BA4026c4f428547BF099706F27B;
     address internal constant AA_FALCONX = 0xC26A6Fa2C37b38E549a4a1807543801Db684f99C;
+    address internal constant AUTO = 0x997E2Efbce91D170B00EA402e35a66C887EE1da9;
     address internal constant BEQTY = 0xEaFD6D38f41f882BCFd5fEaABccCc714B983b701;
     address internal constant CARRY_TRADE_USD_TRY_LEVERAGE = 0x2bf11d2E04Bc40daa95c24B8b90EC4F5c57Dd326;
     address internal constant CENTRIFUGE_ASYNC_MANAGER = 0xF48256AbDDf96EcDDc4B3DbD23E8C1921f9761Ae;
@@ -212,12 +216,80 @@ contract TokensToRedeemMainnetTest is Test {
         _assertMidasUsdcAsset(29, MEVBTC);
     }
 
+    function testFigureMainnetOraclesUseTwoLegConversion() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Figure oracle checks");
+        _createFork();
+
+        uint256[2] memory indexes = [uint256(5), 43];
+        TokenSpec[] memory specs = _tokenSpecs();
+        for (uint256 i; i < indexes.length; ++i) {
+            _assertFigureMainnetOracle(indexes[i], specs[indexes[i]]);
+        }
+    }
+
+    function _assertFigureMainnetOracle(uint256 index, TokenSpec memory spec) internal {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        IAccount implementation = _deployImplementation(index, address(factory));
+        FigureOracle figureOracle = FigureOracle(implementation.ORACLE());
+        uint256 tokenUnit = 10 ** IERC20Metadata(spec.token).decimals();
+        address asyncRedeemVault = IERC4626(spec.token).asset();
+        address redemptionToken = IFigureYieldVault(asyncRedeemVault).asset();
+        uint256 nestedShares = IERC4626(spec.token).convertToAssets(tokenUnit);
+        uint256 redemptionAssets = IFigureYieldVault(asyncRedeemVault).convertToAssets(nestedShares);
+        uint256 expectedOraclePrice = redemptionAssets * 1e18 / 10 ** IERC20Metadata(redemptionToken).decimals();
+
+        factory.whitelist(address(implementation));
+        IAccount account = IAccount(
+            factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(redemptionToken)), adapter))
+        );
+
+        assertEq(implementation.ORACLE(), address(figureOracle), spec.symbol);
+        assertEq(account.ORACLE(), address(figureOracle), spec.symbol);
+        assertEq(figureOracle.TOKEN_TO_REDEEM(), spec.token, spec.symbol);
+        assertEq(figureOracle.ASYNC_REDEEM_VAULT(), asyncRedeemVault, spec.symbol);
+        assertEq(figureOracle.getPrice(), expectedOraclePrice, spec.symbol);
+    }
+
+    function testAUTOMainnetRedemptionCreatesWyldsRequest() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet AUTO redemption checks");
+        _createFork();
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        IAccount implementation = _deployImplementation(43, address(factory));
+        address asyncRedeemVault = IERC4626(AUTO).asset();
+        uint256 amount = 10 ** IERC20Metadata(AUTO).decimals();
+        uint256 expectedShares = IERC4626(AUTO).convertToAssets(amount);
+
+        factory.whitelist(address(implementation));
+        IAccount account =
+            IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(USDC)), adapter)));
+        deal(AUTO, address(account), amount);
+
+        account.sync();
+
+        address subAccount = IFigureAccount(address(account)).subAccounts(0);
+        (uint256 pendingShares,,) = IFigureYieldVault(asyncRedeemVault).pendingRedemptions(subAccount);
+        assertEq(IERC20(AUTO).balanceOf(address(account)), 0);
+        assertGt(subAccount.code.length, 0);
+        assertEq(pendingShares, expectedShares);
+
+        vm.warp(vm.getBlockTimestamp() + 1);
+        deal(AUTO, address(account), amount);
+        account.sync();
+
+        address secondSubAccount = IFigureAccount(address(account)).subAccounts(1);
+        (uint256 secondPendingShares,,) = IFigureYieldVault(asyncRedeemVault).pendingRedemptions(secondSubAccount);
+        assertNotEq(secondSubAccount, subAccount);
+        assertGt(secondSubAccount.code.length, 0);
+        assertEq(secondPendingShares, expectedShares);
+    }
+
     function testAllTokenAccountsUseRealMainnetTokens() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet token account checks");
         _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 43);
+        assertEq(specs.length, 44);
 
         uint256 length = specs.length;
         for (uint256 i; i < length; ++i) {
@@ -230,7 +302,7 @@ contract TokensToRedeemMainnetTest is Test {
         _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 43);
+        assertEq(specs.length, 44);
 
         uint256 length = specs.length;
         for (uint256 i; i < length; ++i) {
@@ -243,7 +315,7 @@ contract TokensToRedeemMainnetTest is Test {
         _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 43);
+        assertEq(specs.length, 44);
 
         uint256 length = specs.length;
         for (uint256 i; i < length; ++i) {
@@ -515,7 +587,7 @@ contract TokensToRedeemMainnetTest is Test {
         assertEq(IERC20(cycle.token).balanceOf(cycle.account), 0);
         assertEq(IERC20(cycle.token).balanceOf(cycle.llAdapter), 0);
         assertEq(IERC20(USDC).balanceOf(recipient), recipientBalance + amountOut);
-        assertEq(IAccount(cycle.account).totalAssets(), expectedAssets);
+        assertEq(IAccount(cycle.account).totalAssets(), amountOut);
         assertEq(IAsyncRedeemVault(cycle.asyncRedeemVault).pendingRedeemRequest(requestId, cycle.account), amountIn);
         assertEq(IAsyncRedeemVault(cycle.asyncRedeemVault).claimableRedeemRequest(requestId, cycle.account), 0);
     }
@@ -616,7 +688,7 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _tokenSpecs() internal pure returns (TokenSpec[] memory specs) {
-        specs = new TokenSpec[](43);
+        specs = new TokenSpec[](44);
         specs[0] = TokenSpec("ACRDX", ACRDX);
         specs[1] = TokenSpec("CarryTradeUSDTRYLeverage", CARRY_TRADE_USD_TRY_LEVERAGE);
         specs[2] = TokenSpec("DUSD", DUSD);
@@ -660,32 +732,40 @@ contract TokensToRedeemMainnetTest is Test {
         specs[40] = TokenSpec("USCC", USCC);
         specs[41] = TokenSpec("liUSD-4w", LIUSD4W);
         specs[42] = TokenSpec("liUSD-13w", LIUSD13W);
+        specs[43] = TokenSpec("AUTO", AUTO);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
-        if (index == 0) return new ACRDX_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+        if (index == 0) {
+            return new ACRDX_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+        }
         if (index == 1) return new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 2) return new DUSD_Account(factory, COW_SWAP_SETTLEMENT);
-        if (index == 3) return new JAAA_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
-        if (index == 4) return new JTRSY_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
-        if (index == 5) {
-            return new PRIME_Account(
-                address(new AsyncRedeemOracle(1, type(uint256).max, IERC4626(PRIME).asset(), IERC4626(PRIME).asset())),
-                factory,
-                PRIME,
-                COW_SWAP_SETTLEMENT
-            );
+        if (index == 3) {
+            return new JAAA_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+        }
+        if (index == 4) {
+            return new JTRSY_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+        }
+        if (_isFigure(index)) {
+            address token = _figureToken(index);
+            address subAccountImplementation = address(new FigureSubAccount(token));
+            address oracle = address(new FigureOracle(1, type(uint256).max, token));
+            if (index == 5) {
+                return new PRIME_Account(oracle, factory, token, subAccountImplementation, COW_SWAP_SETTLEMENT);
+            }
+            return new AUTO_Account(oracle, factory, token, subAccountImplementation, COW_SWAP_SETTLEMENT);
         }
         if (index == 6) return new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 7) return new bEQTY_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 8) {
-            return new deCRDX_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+            return new deCRDX_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
         }
         if (index == 9) {
-            return new deJAAA_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+            return new deJAAA_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
         }
         if (index == 10) {
-            return new deJTRSY_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+            return new deJTRSY_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
         }
         if (index == 11) return new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 12) return new mBASIS_Account(factory, COW_SWAP_SETTLEMENT);
@@ -694,7 +774,7 @@ contract TokensToRedeemMainnetTest is Test {
         if (index == 15) return new mEVUSD_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 16) return new mFARM_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 17) return new mFONE_Account(factory, COW_SWAP_SETTLEMENT);
-        if (index == 18) return new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT);
+        if (index == 18) return new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT, MGLOBAL_DATA_FEED);
         if (index == 19) return new mHYPER_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 20) return new mHyperBTC_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 21) return new mHyperETH_Account(factory, COW_SWAP_SETTLEMENT);
@@ -763,7 +843,7 @@ contract TokensToRedeemMainnetTest is Test {
         ) {
             return USDC;
         }
-        if (index == 5) {
+        if (_isFigure(index)) {
             return IERC4626(IERC4626(token).asset()).asset();
         }
         if (index == 39) {
@@ -814,12 +894,20 @@ contract TokensToRedeemMainnetTest is Test {
         return index == 41 || index == 42;
     }
 
+    function _isFigure(uint256 index) internal pure returns (bool) {
+        return index == 5 || index == 43;
+    }
+
+    function _figureToken(uint256 index) internal pure returns (address) {
+        return index == 5 ? PRIME : AUTO;
+    }
+
     function _isSecuritize(uint256 index) internal pure returns (bool) {
         return index == 38;
     }
 
     function _isKnownMainnetSyncRestricted(uint256 index) internal pure returns (bool) {
-        return _isCentrifuge(index) || _isMidas(index) || index == 2 || index == 5 || index == 37
+        return _isCentrifuge(index) || _isMidas(index) || index == 2 || _isFigure(index) || index == 37
             || _isSecuritize(index) || index == 39 || index == 40;
     }
 
@@ -878,7 +966,7 @@ contract TokensToRedeemMainnetTest is Test {
             );
             return;
         }
-        if (index == 5) {
+        if (_isFigure(index)) {
             vm.expectCall(token, abi.encodeCall(IERC4626.redeem, (amount, address(account), address(account))));
             return;
         }
@@ -988,7 +1076,7 @@ contract TokensToRedeemMainnetTest is Test {
             _assertMakinaRedemption(account, amount, symbol);
             return;
         }
-        if (index == 5) {
+        if (_isFigure(index)) {
             _assertFigureRedemption(account, token, symbol);
             return;
         }
@@ -1062,7 +1150,7 @@ contract TokensToRedeemMainnetTest is Test {
             assertGt(account.totalAssets(), 0, symbol);
             return;
         }
-        if (index == 5) {
+        if (_isFigure(index)) {
             address firstSubAccount = IFigureAccount(address(account)).subAccounts(0);
             address secondSubAccount = IFigureAccount(address(account)).subAccounts(1);
             assertNotEq(secondSubAccount, firstSubAccount, symbol);
@@ -1343,6 +1431,7 @@ contract TokensToRedeemMainnetTest is Test {
         } else {
             vm.createSelectFork(mainnetRpcUrl, forkBlock);
         }
+        _mockMGlobalDataFeed();
     }
 }
 

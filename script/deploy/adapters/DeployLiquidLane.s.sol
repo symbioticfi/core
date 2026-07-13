@@ -37,10 +37,23 @@ import {
     mROX_AccountFactory
 } from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mROX_Account.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
+import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
+import {IOracle} from "../../../src/interfaces/adapters/ll-adapter/IOracle.sol";
+import {IMidasDataFeed, IMidasOracle} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
 import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
 import {Logs} from "../../utils/Logs.sol";
 
 // forge script script/deploy/adapters/DeployLiquidLane.s.sol:DeployLiquidLaneScript --rpc-url=RPC --broadcast
+
+interface ILiquidLaneMarketAggregator {
+    function decimals() external view returns (uint8);
+
+    function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80);
+}
+
+interface ILiquidLaneAdjustedAggregator {
+    function underlyingFeed() external view returns (address);
+}
 
 contract DeployLiquidLaneScript is DeployAdapterBase {
     struct AccountDeploymentData {
@@ -96,7 +109,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
             address(new LiquidLaneAdapter(vaultFactory, data.liquidLaneAdapterFactory, data.accountRegistry));
         AdapterFactory(data.liquidLaneAdapterFactory).whitelist(data.liquidLaneAdapterImplementation);
 
-        data.mGLOBAL = _deployMGlobal(data.accountRegistry);
+        // data.mGLOBAL = _deployMGlobal(data.accountRegistry, MGLOBAL_DATA_FEED);
         data.mFONE = _deployMFONE(data.accountRegistry);
         data.mROX = _deployMROX(data.accountRegistry);
         data.mHYPER = _deployMHYPER(data.accountRegistry);
@@ -112,9 +125,12 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         _logDeployment(data);
     }
 
-    function _deployMGlobal(address accountRegistry) internal returns (AccountDeploymentData memory data) {
+    function _deployMGlobal(address accountRegistry, address dataFeed)
+        internal
+        returns (AccountDeploymentData memory data)
+    {
         data.factory = address(new mGLOBAL_AccountFactory(_scriptOwner()));
-        data.implementation = address(new mGLOBAL_Account(data.factory, COW_SWAP_SETTLEMENT));
+        data.implementation = address(new mGLOBAL_Account(data.factory, COW_SWAP_SETTLEMENT, dataFeed));
         _whitelistAndRegister(accountRegistry, MGLOBAL, data);
     }
 
@@ -180,7 +196,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         }
 
         Ownable(data.liquidLaneAdapterFactory).transferOwnership(factoriesOwner);
-        _transferAccountFactoryOwnership(data.mGLOBAL, factoriesOwner);
+        // _transferAccountFactoryOwnership(data.mGLOBAL, factoriesOwner);
         _transferAccountFactoryOwnership(data.mFONE, factoriesOwner);
         _transferAccountFactoryOwnership(data.mROX, factoriesOwner);
         _transferAccountFactoryOwnership(data.mHYPER, factoriesOwner);
@@ -211,7 +227,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         assert(IMigratableEntity(data.liquidLaneAdapterImplementation).FACTORY() == data.liquidLaneAdapterFactory);
         assert(AdapterFactory(data.liquidLaneAdapterFactory).implementation(1) == data.liquidLaneAdapterImplementation);
 
-        _validateAccountDeployment(data.accountRegistry, MGLOBAL, data.mGLOBAL, factoriesOwner);
+        // _validateAccountDeployment(data.accountRegistry, MGLOBAL, data.mGLOBAL, factoriesOwner);
         _validateAccountDeployment(data.accountRegistry, MFONE, data.mFONE, factoriesOwner);
         _validateAccountDeployment(data.accountRegistry, MROX, data.mROX, factoriesOwner);
         _validateAccountDeployment(data.accountRegistry, MHYPER, data.mHYPER, factoriesOwner);
@@ -232,6 +248,46 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         assert(IMigratableEntity(data.implementation).FACTORY() == data.factory);
         assert(MigratablesFactory(data.factory).implementation(1) == data.implementation);
         assert(AccountRegistry(accountRegistry).accountFactories(USDC, tokenToRedeem) == data.factory);
+        _validateOraclePrice(IAccount(data.implementation).ORACLE());
+    }
+
+    function _validateOraclePrice(address oracle) internal view {
+        uint256 oraclePrice = IOracle(oracle).getPrice();
+        address dataFeed = IMidasOracle(oracle).DATA_FEED();
+        address aggregator = IMidasDataFeed(dataFeed).aggregator();
+        address marketSource = _marketPriceSource(aggregator);
+
+        uint8 marketDecimals = ILiquidLaneMarketAggregator(marketSource).decimals();
+        (, int256 marketAnswer,,,) = ILiquidLaneMarketAggregator(marketSource).latestRoundData();
+        require(marketAnswer > 0, "invalid market price");
+
+        uint256 marketPrice = _normalizeMarketPrice(uint256(marketAnswer), marketDecimals);
+        require(marketPrice > 0, "invalid market price");
+
+        uint256 difference = oraclePrice > marketPrice ? oraclePrice - marketPrice : marketPrice - oraclePrice;
+        require(difference <= marketPrice / 200, "oracle price exceeds 0.5% market deviation");
+    }
+
+    function _marketPriceSource(address aggregator) internal view returns (address marketSource) {
+        marketSource = aggregator;
+        (bool success, bytes memory returnData) =
+            aggregator.staticcall(abi.encodeWithSelector(ILiquidLaneAdjustedAggregator.underlyingFeed.selector));
+        if (success && returnData.length == 32) {
+            address underlyingFeed = abi.decode(returnData, (address));
+            if (underlyingFeed != address(0)) {
+                marketSource = underlyingFeed;
+            }
+        }
+    }
+
+    function _normalizeMarketPrice(uint256 answer, uint8 decimals) internal pure returns (uint256) {
+        if (decimals < 18) {
+            return answer * 10 ** uint256(18 - decimals);
+        }
+        if (decimals > 18) {
+            return answer / 10 ** uint256(decimals - 18);
+        }
+        return answer;
     }
 
     function _logDeployment(LiquidLaneDeploymentData memory data) internal {
@@ -247,7 +303,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
             )
         );
 
-        _logAccountDeployment("mGLOBAL", data.mGLOBAL);
+        // _logAccountDeployment("mGLOBAL", data.mGLOBAL);
         _logAccountDeployment("mF-ONE", data.mFONE);
         _logAccountDeployment("mROX", data.mROX);
         _logAccountDeployment("mHYPER", data.mHYPER);

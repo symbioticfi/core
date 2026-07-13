@@ -10,7 +10,7 @@ import {ILiquidLaneAdapter} from "../../src/interfaces/adapters/ILiquidLaneAdapt
 contract DeployLiquidLaneAdapterScript is DeployAdapterBase {
     // Configurations - UPDATE THESE BEFORE DEPLOYMENT.
 
-    address public constant ADAPTER_FACTORY = 0xDDD48b4e40819780AE286FF1909E51cF1BF5f0f5;
+    address public constant ADAPTER_FACTORY = 0x3275aE068F4951e2e4d3Dca107a54E4c219b02e7;
     uint64 public constant VERSION = 1;
     address public constant OWNER = 0x0000000000000000000000000000000000000000;
     address public constant VAULT = 0x0000000000000000000000000000000000000000;

@@ -3,6 +3,7 @@
 pragma solidity ^0.8.28;
 
 import {AsyncRedeemAccount} from "./common/AsyncRedeemAccount.sol";
+import {IERC7575Share} from "../../../interfaces/adapters/ll-adapter/IERC7575Share.sol";
 
 /// @title CentrifugeAccount
 /// @notice Base account for Centrifuge ERC-7575 async redeem integrations.
@@ -10,7 +11,19 @@ abstract contract CentrifugeAccount is AsyncRedeemAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Centrifuge account implementation.
-    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
-        AsyncRedeemAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
-    {}
+    constructor(
+        address oracle,
+        address factory,
+        uint48 cooldown,
+        address tokenToRedeem,
+        address redemptionToken,
+        address cowSwapSettlement
+    ) AsyncRedeemAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, cowSwapSettlement) {}
+
+    /* INTERNAL FUNCTIONS */
+
+    /// @dev Returns the Centrifuge ERC-7575 vault for the configured asset.
+    function _asyncRedeemVault() internal view virtual override returns (address) {
+        return IERC7575Share(TOKEN_TO_REDEEM).vault(_asset);
+    }
 }

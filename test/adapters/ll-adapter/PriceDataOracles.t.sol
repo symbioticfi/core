@@ -4,7 +4,9 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 
 import {ChainlinkOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ChainlinkOracle.sol";
+import {FigureOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
+import {OpenEdenOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/OpenEdenOracle.sol";
 import {Oracle} from "../../../src/contracts/adapters/ll-adapter/oracles/Oracle.sol";
 import {IOracle} from "../../../src/interfaces/adapters/ll-adapter/IOracle.sol";
 
@@ -62,6 +64,58 @@ contract MockMidasDataFeed {
     }
 }
 
+contract MockPriceOracleToken {
+    uint8 public immutable decimals;
+
+    constructor(uint8 decimals_) {
+        decimals = decimals_;
+    }
+}
+
+contract MockPriceOracleVault is MockPriceOracleToken {
+    address public immutable asset;
+    uint256 public conversionNumerator;
+    uint256 public conversionDenominator;
+
+    constructor(uint8 decimals_, address asset_) MockPriceOracleToken(decimals_) {
+        asset = asset_;
+    }
+
+    function setConversionRatio(uint256 numerator, uint256 denominator) external {
+        conversionNumerator = numerator;
+        conversionDenominator = denominator;
+    }
+
+    function convertToAssets(uint256 shares) external view returns (uint256) {
+        return shares * conversionNumerator / conversionDenominator;
+    }
+}
+
+contract MockPriceOracleOpenEdenExpress {
+    address public immutable redeemAsset;
+    uint256 public feeNumerator;
+    uint256 public grossNumerator;
+    uint256 public netNumerator;
+    uint256 public previewDenominator;
+
+    constructor(address redeemAsset_) {
+        redeemAsset = redeemAsset_;
+    }
+
+    function setPreviewRatio(uint256 fee, uint256 gross, uint256 net, uint256 denominator) external {
+        feeNumerator = fee;
+        grossNumerator = gross;
+        netNumerator = net;
+        previewDenominator = denominator;
+    }
+
+    function previewRedeem(uint256 tokenAmount) external view returns (uint256 fee, uint256 gross, uint256 net) {
+        fee = tokenAmount * feeNumerator / previewDenominator;
+        gross = tokenAmount * grossNumerator / previewDenominator;
+        net = tokenAmount * netNumerator / previewDenominator;
+    }
+}
+
 contract PriceDataOraclesTest is Test {
     function testOracleRevertsWhenMinPriceIsZero() public {
         vm.expectRevert(IOracle.InvalidPriceRange.selector);
@@ -108,6 +162,58 @@ contract PriceDataOraclesTest is Test {
 
         MidasOracle oracle = new MidasOracle(1, type(uint256).max, address(dataFeed));
         assertEq(oracle.getPrice(), 0.93e18);
+    }
+
+    function testFigureOraclePricesBothRedemptionLegsAndNormalizesDecimals() public {
+        MockPriceOracleToken redemptionToken = new MockPriceOracleToken(6);
+        MockPriceOracleVault asyncRedeemVault = new MockPriceOracleVault(6, address(redemptionToken));
+        MockPriceOracleVault token = new MockPriceOracleVault(18, address(asyncRedeemVault));
+        token.setConversionRatio(1_250_000, 1e18);
+        asyncRedeemVault.setConversionRatio(1_500_000, 1_250_000);
+
+        FigureOracle oracle = new FigureOracle(1, type(uint256).max, address(token));
+
+        assertEq(oracle.TOKEN_TO_REDEEM(), address(token));
+        assertEq(oracle.ASYNC_REDEEM_VAULT(), address(asyncRedeemVault));
+        assertEq(oracle.getPrice(), 1.5e18);
+    }
+
+    function testFigureOracleRejectsOutOfRangeComputedPrice() public {
+        MockPriceOracleToken redemptionToken = new MockPriceOracleToken(6);
+        MockPriceOracleVault asyncRedeemVault = new MockPriceOracleVault(6, address(redemptionToken));
+        MockPriceOracleVault token = new MockPriceOracleVault(18, address(asyncRedeemVault));
+        token.setConversionRatio(1_250_000, 1e18);
+        asyncRedeemVault.setConversionRatio(1_500_000, 1_250_000);
+
+        FigureOracle oracle = new FigureOracle(1.5e18 + 1, type(uint256).max, address(token));
+
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPrice();
+    }
+
+    function testOpenEdenOracleUsesNetPreviewAndNormalizesDecimals() public {
+        MockPriceOracleToken redemptionToken = new MockPriceOracleToken(6);
+        MockPriceOracleToken hybond = new MockPriceOracleToken(18);
+        MockPriceOracleOpenEdenExpress express = new MockPriceOracleOpenEdenExpress(address(redemptionToken));
+        express.setPreviewRatio(17_500, 1_750_000, 1_732_500, 1e18);
+
+        OpenEdenOracle oracle = new OpenEdenOracle(1, type(uint256).max, address(hybond), address(express));
+
+        assertEq(oracle.TOKEN_TO_REDEEM(), address(hybond));
+        assertEq(oracle.EXPRESS(), address(express));
+        assertEq(oracle.getPrice(), 1.7325e18);
+    }
+
+    function testOpenEdenOracleRejectsOutOfRangeComputedPrice() public {
+        MockPriceOracleToken redemptionToken = new MockPriceOracleToken(6);
+        MockPriceOracleToken hybond = new MockPriceOracleToken(18);
+        MockPriceOracleOpenEdenExpress express = new MockPriceOracleOpenEdenExpress(address(redemptionToken));
+        express.setPreviewRatio(17_500, 1_750_000, 1_732_500, 1e18);
+
+        OpenEdenOracle oracle = new OpenEdenOracle(1, 1.7325e18 - 1, address(hybond), address(express));
+
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPrice();
     }
 
     function testChainlinkOracleReturnsOldestUpdatedAtOfTwoAggregators() public {

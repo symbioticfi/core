@@ -4,7 +4,10 @@ pragma solidity ^0.8.28;
 
 import {CooldownAccount} from "./common/CooldownAccount.sol";
 
-import {IOpenEdenAccount} from "../../../interfaces/adapters/ll-adapter/openeden/IOpenEdenAccount.sol";
+import {
+    IOpenEdenAccount,
+    MAX_REDEEM_QUEUE_LENGTH
+} from "../../../interfaces/adapters/ll-adapter/openeden/IOpenEdenAccount.sol";
 import {IOpenEdenExpress} from "../../../interfaces/adapters/ll-adapter/openeden/IOpenEdenExpress.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -19,6 +22,8 @@ contract OpenEdenAccount is CooldownAccount, IOpenEdenAccount {
 
     /// @inheritdoc IOpenEdenAccount
     address public immutable EXPRESS;
+    /// @dev Asset received after HYBOND redemption.
+    address internal immutable REDEMPTION_TOKEN;
 
     /* CONSTRUCTOR */
 
@@ -32,22 +37,39 @@ contract OpenEdenAccount is CooldownAccount, IOpenEdenAccount {
         address cowSwapSettlement
     ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
         EXPRESS = express;
+        REDEMPTION_TOKEN = IOpenEdenExpress(express).redeemAsset();
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Values HYBOND through the HYBONDExpress redemption preview.
-    function _tokenToRedeemToAssets(uint256 amount) internal view override returns (uint256 assets) {
-        (,, assets) = IOpenEdenExpress(EXPRESS).previewRedeem(amount);
-    }
-
-    /// @dev Returns pending and final queued HYBOND redemption value in vault assets.
+    /// @dev Returns pending, final queued, and settled HYBOND redemption value in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
-        uint256 tokenAmount = IOpenEdenExpress(EXPRESS).pendingRedeemInfo(address(this))
-            + IOpenEdenExpress(EXPRESS).redeemInfo(address(this));
+        uint256 amount = IOpenEdenExpress(EXPRESS).pendingRedeemInfo(address(this));
 
-        if (tokenAmount > 0) {
-            assets = _tokenToRedeemToAssets(tokenAmount);
+        uint256 redeemAmount = IOpenEdenExpress(EXPRESS).redeemInfo(address(this));
+        if (redeemAmount > 0) {
+            uint256 length = IOpenEdenExpress(EXPRESS).getRedeemQueueLength();
+            if (length < MAX_REDEEM_QUEUE_LENGTH) {
+                uint256 redemptionTokenAmount;
+                for (uint256 i; redeemAmount > 0; ++i) {
+                    (, address receiver, uint256 curRedeemAmount,, uint256 redeemAssetAmt, uint256 feeAssetAmt,,) =
+                        IOpenEdenExpress(EXPRESS).getRedeemQueueInfo(i);
+                    if (receiver == address(this)) {
+                        redeemAmount -= curRedeemAmount;
+                        redemptionTokenAmount += redeemAssetAmt - feeAssetAmt;
+                    }
+                }
+                assets += REDEMPTION_TOKEN == _asset
+                    ? redemptionTokenAmount
+                    : _redemptionTokenToAssets(REDEMPTION_TOKEN, redemptionTokenAmount);
+            } else {
+                amount += redeemAmount;
+            }
+        }
+        assets += _tokenToRedeemToAssets(amount);
+
+        if (REDEMPTION_TOKEN != _asset) {
+            assets += _redemptionTokenToAssets(REDEMPTION_TOKEN, IERC20(REDEMPTION_TOKEN).balanceOf(address(this)));
         }
     }
 
@@ -65,9 +87,6 @@ contract OpenEdenAccount is CooldownAccount, IOpenEdenAccount {
     /// @dev Initializes the account for an adapter and vault.
     function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
         super._initialize(initialVersion, initOwner, data);
-        if (IOpenEdenExpress(EXPRESS).redeemAsset() != _asset) {
-            revert InvalidAsset();
-        }
         IERC20(TOKEN_TO_REDEEM).forceApprove(EXPRESS, type(uint256).max);
     }
 }

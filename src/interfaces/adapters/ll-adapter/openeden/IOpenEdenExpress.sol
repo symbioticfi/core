@@ -23,6 +23,50 @@ interface IOpenEdenExpress {
     function redeemInfo(address account) external view returns (uint256 amount);
 
     /**
+     * @notice Returns the final redeem queue length.
+     * @return length The number of final redeem queue entries.
+     */
+    function getRedeemQueueLength() external view returns (uint256 length);
+
+    /**
+     * @notice Returns a final redeem queue entry.
+     * @param index The queue index.
+     * @return sender The redemption requester.
+     * @return receiver The redemption receiver.
+     * @return tokenAmount The queued HYBOND amount.
+     * @return shareAmount The queued share amount.
+     * @return redeemAssetAmt The locked gross redeem asset amount.
+     * @return feeAssetAmt The locked redeem fee amount.
+     * @return requestTimestamp The request timestamp.
+     * @return id The request identifier.
+     */
+    function getRedeemQueueInfo(uint256 index)
+        external
+        view
+        returns (
+            address sender,
+            address receiver,
+            uint256 tokenAmount,
+            uint256 shareAmount,
+            uint256 redeemAssetAmt,
+            uint256 feeAssetAmt,
+            uint256 requestTimestamp,
+            bytes32 id
+        );
+
+    /**
+     * @notice Returns the Chainlink-compatible HYBOND price oracle.
+     * @return oracle The price oracle address.
+     */
+    function priceOracle() external view returns (address oracle);
+
+    /**
+     * @notice Returns the maximum permitted age of the HYBOND price used for redemption.
+     * @return period The maximum staleness period in seconds.
+     */
+    function maxStalePeriod() external view returns (uint256 period);
+
+    /**
      * @notice Previews a HYBOND redemption in the current redeem asset.
      * @param tokenAmount The HYBOND amount.
      * @return feeAmt The fee amount in redeem asset units.

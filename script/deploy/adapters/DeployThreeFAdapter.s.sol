@@ -11,7 +11,7 @@ contract DeployThreeFAdapterScript is DeployThreeFAdapterBase {
     // Address that will own the adapter factory after deployment.
     address public constant ADAPTER_FACTORY_OWNER = 0x0000000000000000000000000000000000000000;
     // Whitelist contract used to authorize 3F requests.
-    address public constant REQUEST_WHITELIST = 0x0000000000000000000000000000000000000000;
+    address public constant REQUEST_WHITELIST = 0x3FcD87948cBF46605D6ded0ed56d3daCcd9daf9e;
 
     function run() public {
         runBase(DeployParams({adapterFactoryOwner: ADAPTER_FACTORY_OWNER, requestWhitelist: REQUEST_WHITELIST}));

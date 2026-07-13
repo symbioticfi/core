@@ -6,13 +6,18 @@ import {CooldownAccount} from "./CooldownAccount.sol";
 
 import {IAsyncRedeemAccount} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
 import {IAsyncRedeemVault} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
-import {IERC7575Share} from "../../../../interfaces/adapters/ll-adapter/IERC7575Share.sol";
+import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title AsyncRedeemAccount
 /// @notice Base account for ERC-7540 async redeem integrations.
 abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
+    /* IMMUTABLES */
+
+    /// @inheritdoc IAsyncRedeemAccount
+    address public immutable REDEMPTION_TOKEN;
+
     /* STATE VARIABLES */
 
     /// @inheritdoc IAsyncRedeemAccount
@@ -21,9 +26,16 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the async redeem account implementation.
-    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
-        CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
-    {}
+    constructor(
+        address oracle,
+        address factory,
+        uint48 cooldown,
+        address tokenToRedeem,
+        address redemptionToken,
+        address cowSwapSettlement
+    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
+        REDEMPTION_TOKEN = redemptionToken;
+    }
 
     /* INTERNAL FUNCTIONS */
 
@@ -31,26 +43,28 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
     function _totalAssets() internal view virtual override returns (uint256 assets) {
         address asyncRedeemVault = _asyncRedeemVault();
         uint256 length = requestIds.length;
+        uint256 amount;
         for (uint256 i; i < length; ++i) {
-            assets += IAsyncRedeemVault(asyncRedeemVault)
-                .convertToAssets(IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestIds[i], address(this)));
+            amount += IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestIds[i], address(this));
         }
-        assets += IAsyncRedeemVault(asyncRedeemVault).maxWithdraw(address(this));
+        assets = _tokenToRedeemToAssets(amount);
+
+        amount = IAsyncRedeemVault(asyncRedeemVault).maxWithdraw(address(this));
+        assets += REDEMPTION_TOKEN == _asset
+            ? amount
+            : _redemptionTokenToAssets(REDEMPTION_TOKEN, amount + IERC20(REDEMPTION_TOKEN).balanceOf(address(this)));
     }
 
     /// @dev Claims processed requests and clears finished request ids.
     function _finalizeRequests() internal virtual override {
         address asyncRedeemVault = _asyncRedeemVault();
-        uint256 length = requestIds.length;
-        if (length == 0) {
-            return;
-        }
 
         uint256 maxRedeem = IAsyncRedeemVault(asyncRedeemVault).maxRedeem(address(this));
         if (maxRedeem > 0) {
             IAsyncRedeemVault(asyncRedeemVault).redeem(maxRedeem, address(this), address(this));
         }
 
+        uint256 length = requestIds.length;
         for (uint256 i = length; i > 0;) {
             if (IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestIds[--i], address(this)) == 0) {
                 requestIds[i] = requestIds[--length];
@@ -77,7 +91,7 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
 
     /// @dev Returns the ERC-7540 async redeem vault.
     function _asyncRedeemVault() internal view virtual returns (address) {
-        return IERC7575Share(TOKEN_TO_REDEEM).vault(_asset);
+        return TOKEN_TO_REDEEM;
     }
 
     /* STORAGE GAP */
