@@ -154,8 +154,9 @@ abstract contract AccountsBase is Test {
         returns (TestAsyncRedeemAccount account)
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        TestAsyncRedeemAccount implementation =
-            new TestAsyncRedeemAccount(oracle, address(factory), cooldown, tokenToRedeem, cowSwapSettlement);
+        TestAsyncRedeemAccount implementation = new TestAsyncRedeemAccount(
+            oracle, address(factory), cooldown, tokenToRedeem, address(asset), cowSwapSettlement
+        );
         factory.whitelist(address(implementation));
         account = TestAsyncRedeemAccount(factory.create(1, address(this), _initData(address(asset), tokenToRedeem)));
     }
@@ -1204,9 +1205,14 @@ contract AccountsCoWSwapSettlementMock {
 }
 
 contract TestAsyncRedeemAccount is CentrifugeAccount {
-    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
-        CentrifugeAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
-    {}
+    constructor(
+        address oracle,
+        address factory,
+        uint48 cooldown,
+        address tokenToRedeem,
+        address redemptionToken,
+        address cowSwapSettlement
+    ) CentrifugeAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, cowSwapSettlement) {}
 
     function asyncRedeemVault() external view returns (address) {
         return _asyncRedeemVault();
@@ -1214,9 +1220,13 @@ contract TestAsyncRedeemAccount is CentrifugeAccount {
 }
 
 contract TestBaseAsyncRedeemAccount is AsyncRedeemAccount {
-    constructor(address oracle, address factory, address tokenToRedeem, address cowSwapSettlement)
-        AsyncRedeemAccount(oracle, factory, 0, tokenToRedeem, cowSwapSettlement)
-    {}
+    constructor(
+        address oracle,
+        address factory,
+        address tokenToRedeem,
+        address redemptionToken,
+        address cowSwapSettlement
+    ) AsyncRedeemAccount(oracle, factory, 0, tokenToRedeem, redemptionToken, cowSwapSettlement) {}
 
     function asyncRedeemVault() external view returns (address) {
         return _asyncRedeemVault();

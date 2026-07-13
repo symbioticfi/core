@@ -13,6 +13,11 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /// @title AsyncRedeemAccount
 /// @notice Base account for ERC-7540 async redeem integrations.
 abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
+    /* IMMUTABLES */
+
+    /// @inheritdoc IAsyncRedeemAccount
+    address public immutable REDEMPTION_TOKEN;
+
     /* STATE VARIABLES */
 
     /// @inheritdoc IAsyncRedeemAccount
@@ -21,9 +26,16 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
     /* CONSTRUCTOR */
 
     /// @notice Creates the async redeem account implementation.
-    constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
-        CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
-    {}
+    constructor(
+        address oracle,
+        address factory,
+        uint48 cooldown,
+        address tokenToRedeem,
+        address redemptionToken,
+        address cowSwapSettlement
+    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
+        REDEMPTION_TOKEN = redemptionToken;
+    }
 
     /* INTERNAL FUNCTIONS */
 
@@ -36,7 +48,11 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
             amount += IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestIds[i], address(this));
         }
         assets = _tokenToRedeemToAssets(amount, IOracle(ORACLE).getPrice());
-        assets += IAsyncRedeemVault(asyncRedeemVault).maxWithdraw(address(this));
+
+        amount = IAsyncRedeemVault(asyncRedeemVault).maxWithdraw(address(this));
+        assets += REDEMPTION_TOKEN == _asset
+            ? amount
+            : _redemptionTokenToAssets(REDEMPTION_TOKEN, amount + IERC20(REDEMPTION_TOKEN).balanceOf(address(this)));
     }
 
     /// @dev Claims processed requests and clears finished request ids.

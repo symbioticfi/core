@@ -736,11 +736,17 @@ contract TokensToRedeemMainnetTest is Test {
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
-        if (index == 0) return new ACRDX_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+        if (index == 0) {
+            return new ACRDX_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+        }
         if (index == 1) return new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 2) return new DUSD_Account(factory, COW_SWAP_SETTLEMENT);
-        if (index == 3) return new JAAA_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
-        if (index == 4) return new JTRSY_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+        if (index == 3) {
+            return new JAAA_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+        }
+        if (index == 4) {
+            return new JTRSY_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+        }
         if (_isFigure(index)) {
             address token = _figureToken(index);
             address subAccountImplementation = address(new FigureSubAccount(token));
@@ -753,13 +759,13 @@ contract TokensToRedeemMainnetTest is Test {
         if (index == 6) return new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 7) return new bEQTY_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 8) {
-            return new deCRDX_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+            return new deCRDX_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
         }
         if (index == 9) {
-            return new deJAAA_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+            return new deJAAA_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
         }
         if (index == 10) {
-            return new deJTRSY_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+            return new deJTRSY_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
         }
         if (index == 11) return new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 12) return new mBASIS_Account(factory, COW_SWAP_SETTLEMENT);

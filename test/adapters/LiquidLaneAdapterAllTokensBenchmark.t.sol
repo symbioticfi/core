@@ -1064,7 +1064,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
         if (index == 0) {
-            return IAccount(address(new ACRDX_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new ACRDX_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
         }
         if (index == 1) {
             return IAccount(address(new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT)));
@@ -1073,10 +1073,10 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             return IAccount(address(new DUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 3) {
-            return IAccount(address(new JAAA_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new JAAA_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
         }
         if (index == 4) {
-            return IAccount(address(new JTRSY_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new JTRSY_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
         }
         if (_isFigure(index)) {
             address token = index == 5 ? PRIME_TOKEN : AUTO_TOKEN;
@@ -1099,13 +1099,13 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             return IAccount(address(new bEQTY_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 8) {
-            return IAccount(address(new deCRDX_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new deCRDX_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
         }
         if (index == 9) {
-            return IAccount(address(new deJAAA_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new deJAAA_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
         }
         if (index == 10) {
-            return IAccount(address(new deJTRSY_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new deJTRSY_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
         }
         if (index == 11) {
             return IAccount(address(new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT)));

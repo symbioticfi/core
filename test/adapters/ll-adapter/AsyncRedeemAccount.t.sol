@@ -15,7 +15,7 @@ contract AsyncRedeemAccountTest is AccountsBase {
         MockOracle oracle = new MockOracle(1e18);
         MigratablesFactory factory = new MigratablesFactory(address(this));
         TestBaseAsyncRedeemAccount account = new TestBaseAsyncRedeemAccount(
-            address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement
+            address(oracle), address(factory), address(tokenToRedeem), address(tokenToRedeem), cowSwapSettlement
         );
 
         assertEq(account.asyncRedeemVault(), address(tokenToRedeem));
@@ -97,6 +97,36 @@ contract AsyncRedeemAccountTest is AccountsBase {
 
         assertEq(tokenToRedeem.convertToAssets(1 ether), 2e6);
         assertEq(account.totalAssets(), 3e6);
+    }
+
+    function testBaseAsyncRedeemAccountSupportsDifferentRedemptionAndAccountAssets() public {
+        MockERC20 accountAsset = new MockERC20("Tether USD", "USDT", 6);
+        MockERC20 redemptionToken = new MockERC20("Dai Stablecoin", "DAI", 18);
+        MockAsyncRedeemVault tokenToRedeem =
+            new MockAsyncRedeemVault("Async Vault", "ASYNC", 18, redemptionToken, 2 ether);
+        MockOracle oracle = new MockOracle(2e18);
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        TestBaseAsyncRedeemAccount implementation = new TestBaseAsyncRedeemAccount(
+            address(oracle), address(factory), address(tokenToRedeem), address(redemptionToken), cowSwapSettlement
+        );
+        factory.whitelist(address(implementation));
+        TestBaseAsyncRedeemAccount account = TestBaseAsyncRedeemAccount(
+            factory.create(1, address(this), _initData(address(accountAsset), address(tokenToRedeem)))
+        );
+
+        assertEq(account.REDEMPTION_TOKEN(), address(redemptionToken));
+
+        tokenToRedeem.mint(address(account), 1 ether);
+        account.sync();
+        tokenToRedeem.fulfill(0, address(account), 1 ether);
+
+        assertEq(account.totalAssets(), 2e6);
+
+        account.sync();
+
+        assertEq(redemptionToken.balanceOf(address(account)), 2 ether);
+        assertEq(accountAsset.balanceOf(address(account)), 0);
+        assertEq(account.totalAssets(), 2e6);
     }
 
     function testAsyncRedeemAccountDoesNotExposeTotalRequests() public {
@@ -343,35 +373,42 @@ contract AsyncRedeemAccountTest is AccountsBase {
         _mockDecimals(DEJAAA_TOKEN_ADDRESS, 18);
 
         assertEq(
-            new JTRSY_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            new JTRSY_Account(address(oracle), address(factory), address(1), cowSwapSettlement).TOKEN_TO_REDEEM(),
             JTRSY_TOKEN_ADDRESS
         );
         assertEq(
-            new JAAA_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(), JAAA_TOKEN_ADDRESS
+            new JAAA_Account(address(oracle), address(factory), address(1), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            JAAA_TOKEN_ADDRESS
         );
         assertEq(
-            new ACRDX_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            new ACRDX_Account(address(oracle), address(factory), address(1), cowSwapSettlement).TOKEN_TO_REDEEM(),
             ACRDX_TOKEN_ADDRESS
         );
         assertEq(
-            new deCRDX_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            new deCRDX_Account(address(oracle), address(factory), address(1), cowSwapSettlement).TOKEN_TO_REDEEM(),
             DECRDX_TOKEN_ADDRESS
         );
         assertEq(
-            new deJTRSY_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            new deJTRSY_Account(address(oracle), address(factory), address(1), cowSwapSettlement).TOKEN_TO_REDEEM(),
             DEJTRSY_TOKEN_ADDRESS
         );
         assertEq(
-            new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement).TOKEN_TO_REDEEM(),
+            new deJAAA_Account(address(oracle), address(factory), address(1), cowSwapSettlement).TOKEN_TO_REDEEM(),
             DEJAAA_TOKEN_ADDRESS
         );
 
-        assertEq(new JTRSY_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
-        assertEq(new JAAA_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
-        assertEq(new ACRDX_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
-        assertEq(new deCRDX_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
-        assertEq(new deJTRSY_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
-        assertEq(new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new JTRSY_Account(address(oracle), address(factory), address(1), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new JAAA_Account(address(oracle), address(factory), address(1), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(new ACRDX_Account(address(oracle), address(factory), address(1), cowSwapSettlement).COOLDOWN(), 1 days);
+        assertEq(
+            new deCRDX_Account(address(oracle), address(factory), address(1), cowSwapSettlement).COOLDOWN(), 1 days
+        );
+        assertEq(
+            new deJTRSY_Account(address(oracle), address(factory), address(1), cowSwapSettlement).COOLDOWN(), 1 days
+        );
+        assertEq(
+            new deJAAA_Account(address(oracle), address(factory), address(1), cowSwapSettlement).COOLDOWN(), 1 days
+        );
     }
 
     function testCentrifugeTokenAccountsUseCentrifugeAccountBase() public {
@@ -386,35 +423,50 @@ contract AsyncRedeemAccountTest is AccountsBase {
         _mockDecimals(DEJAAA_TOKEN_ADDRESS, 18);
 
         assertEq(
-            IAccount(_centrifugeAccountAddress(new JTRSY_Account(address(oracle), address(factory), cowSwapSettlement)))
-                .TOKEN_TO_REDEEM(),
+            IAccount(
+                    _centrifugeAccountAddress(
+                        new JTRSY_Account(address(oracle), address(factory), address(1), cowSwapSettlement)
+                    )
+                ).TOKEN_TO_REDEEM(),
             JTRSY_TOKEN_ADDRESS
         );
         assertEq(
-            IAccount(_centrifugeAccountAddress(new JAAA_Account(address(oracle), address(factory), cowSwapSettlement)))
-                .TOKEN_TO_REDEEM(),
+            IAccount(
+                    _centrifugeAccountAddress(
+                        new JAAA_Account(address(oracle), address(factory), address(1), cowSwapSettlement)
+                    )
+                ).TOKEN_TO_REDEEM(),
             JAAA_TOKEN_ADDRESS
         );
         assertEq(
-            IAccount(_centrifugeAccountAddress(new ACRDX_Account(address(oracle), address(factory), cowSwapSettlement)))
-                .TOKEN_TO_REDEEM(),
+            IAccount(
+                    _centrifugeAccountAddress(
+                        new ACRDX_Account(address(oracle), address(factory), address(1), cowSwapSettlement)
+                    )
+                ).TOKEN_TO_REDEEM(),
             ACRDX_TOKEN_ADDRESS
         );
         assertEq(
             IAccount(
-                    _centrifugeAccountAddress(new deCRDX_Account(address(oracle), address(factory), cowSwapSettlement))
+                    _centrifugeAccountAddress(
+                        new deCRDX_Account(address(oracle), address(factory), address(1), cowSwapSettlement)
+                    )
                 ).TOKEN_TO_REDEEM(),
             DECRDX_TOKEN_ADDRESS
         );
         assertEq(
             IAccount(
-                    _centrifugeAccountAddress(new deJTRSY_Account(address(oracle), address(factory), cowSwapSettlement))
+                    _centrifugeAccountAddress(
+                        new deJTRSY_Account(address(oracle), address(factory), address(1), cowSwapSettlement)
+                    )
                 ).TOKEN_TO_REDEEM(),
             DEJTRSY_TOKEN_ADDRESS
         );
         assertEq(
             IAccount(
-                    _centrifugeAccountAddress(new deJAAA_Account(address(oracle), address(factory), cowSwapSettlement))
+                    _centrifugeAccountAddress(
+                        new deJAAA_Account(address(oracle), address(factory), address(1), cowSwapSettlement)
+                    )
                 ).TOKEN_TO_REDEEM(),
             DEJAAA_TOKEN_ADDRESS
         );
