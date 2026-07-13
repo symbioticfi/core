@@ -97,7 +97,7 @@ contract OpenEdenAccountMainnetBenchmarkTest is Test {
         _benchmark(10, expectedAssets);
         expectedAssets += _addFinalRequests(15);
         _benchmark(25, expectedAssets);
-        expectedAssets += _addFinalRequests(24);
+        expectedAssets += _addFinalRequests(MAX_REDEEM_QUEUE_LENGTH - 1 - EXPRESS.getRedeemQueueLength());
         _benchmark(MAX_REDEEM_QUEUE_LENGTH - 1, expectedAssets);
         _addFinalRequests(1);
         expectedAssets = Math.mulDiv(EXPRESS.redeemInfo(account), OpenEdenOracle(oracle).getPrice(), 1e30);

@@ -172,6 +172,10 @@ contract ProviderAccountsTest is AccountsBase {
         assertEq(account.totalAssets(), 22e5);
     }
 
+    function testOpenEdenRedeemQueueLimitIsThirty() public pure {
+        assertEq(MAX_REDEEM_QUEUE_LENGTH, 30);
+    }
+
     function testOpenEdenRequestsAndValuesQueuedRedeems() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockERC20 hybond = new MockERC20("HYBOND", "HYBOND", 18);
