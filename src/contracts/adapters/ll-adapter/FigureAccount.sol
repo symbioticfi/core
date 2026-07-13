@@ -123,9 +123,9 @@ contract FigureSubAccount is Initializable {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Figure request-holder subaccount.
-    constructor(address asyncRedeemVault, address redemptionToken) {
-        ASYNC_REDEEM_VAULT = asyncRedeemVault;
-        REDEMPTION_TOKEN = redemptionToken;
+    constructor(address tokenToRedeem) {
+        ASYNC_REDEEM_VAULT = IERC4626(tokenToRedeem).asset();
+        REDEMPTION_TOKEN = IFigureYieldVault(ASYNC_REDEEM_VAULT).asset();
     }
 
     /* PUBLIC FUNCTIONS */

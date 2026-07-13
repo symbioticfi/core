@@ -180,11 +180,7 @@ abstract contract AccountsBase is Test {
     {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         PRIME_Account implementation = new PRIME_Account(
-            oracle,
-            address(factory),
-            address(prime),
-            address(new FigureSubAccount(prime.asset(), address(MockAsyncRedeemVault(prime.asset()).asset()))),
-            cowSwapSettlement
+            oracle, address(factory), address(prime), address(new FigureSubAccount(address(prime))), cowSwapSettlement
         );
         factory.whitelist(address(implementation));
         account = PRIME_Account(factory.create(1, address(this), _initData(address(asset), address(prime))));

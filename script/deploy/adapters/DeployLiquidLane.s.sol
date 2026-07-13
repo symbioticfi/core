@@ -183,7 +183,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
     {
         data.factory = address(new AUTO_AccountFactory(_scriptOwner()));
         oracle = address(new FigureOracle(AUTO_MIN_PRICE, AUTO_MAX_PRICE, AUTO));
-        subAccountImplementation = address(new FigureSubAccount(WYLDS, USDC));
+        subAccountImplementation = address(new FigureSubAccount(AUTO));
         data.implementation =
             address(new AUTO_Account(oracle, data.factory, AUTO, subAccountImplementation, COW_SWAP_SETTLEMENT));
         _whitelistAndRegister(accountRegistry, AUTO, data);

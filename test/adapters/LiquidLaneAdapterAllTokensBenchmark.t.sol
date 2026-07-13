@@ -1080,9 +1080,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         }
         if (_isFigure(index)) {
             address token = index == 5 ? PRIME_TOKEN : AUTO_TOKEN;
-            address asyncRedeemVault = IERC4626(token).asset();
-            address subAccountImplementation =
-                address(new FigureSubAccount(asyncRedeemVault, IERC4626(asyncRedeemVault).asset()));
+            address subAccountImplementation = address(new FigureSubAccount(token));
             address oracle = address(new FigureOracle(1, type(uint256).max, token));
             if (index == 5) {
                 return IAccount(

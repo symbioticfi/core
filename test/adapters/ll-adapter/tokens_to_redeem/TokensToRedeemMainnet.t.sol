@@ -743,9 +743,7 @@ contract TokensToRedeemMainnetTest is Test {
         if (index == 4) return new JTRSY_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (_isFigure(index)) {
             address token = _figureToken(index);
-            address asyncRedeemVault = IERC4626(token).asset();
-            address subAccountImplementation =
-                address(new FigureSubAccount(asyncRedeemVault, IFigureYieldVault(asyncRedeemVault).asset()));
+            address subAccountImplementation = address(new FigureSubAccount(token));
             address oracle = address(new FigureOracle(1, type(uint256).max, token));
             if (index == 5) {
                 return new PRIME_Account(oracle, factory, token, subAccountImplementation, COW_SWAP_SETTLEMENT);

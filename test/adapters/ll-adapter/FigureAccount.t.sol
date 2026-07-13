@@ -28,7 +28,7 @@ contract FigureAccountTest is AccountsBase {
         MockPrimeToken autoToken = new MockPrimeToken(wylds, 125e4);
         FigureOracle oracle = new FigureOracle(1, type(uint256).max, address(autoToken));
         AUTO_AccountFactory factory = new AUTO_AccountFactory(address(this));
-        FigureSubAccount subAccountImplementation = new FigureSubAccount(address(wylds), address(asset));
+        FigureSubAccount subAccountImplementation = new FigureSubAccount(address(autoToken));
         AUTO_Account implementation = new AUTO_Account(
             address(oracle), address(factory), address(autoToken), address(subAccountImplementation), cowSwapSettlement
         );
@@ -80,7 +80,7 @@ contract FigureAccountTest is AccountsBase {
         MockPrimeToken prime = new MockPrimeToken(wylds, 125e4);
         FigureOracle oracle = new FigureOracle(1, type(uint256).max, address(prime));
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        FigureSubAccount subAccountImplementation = new FigureSubAccount(address(wylds), address(asset));
+        FigureSubAccount subAccountImplementation = new FigureSubAccount(address(prime));
         PRIME_Account implementation = new PRIME_Account(
             address(oracle), address(factory), address(prime), address(subAccountImplementation), cowSwapSettlement
         );
@@ -112,7 +112,8 @@ contract FigureAccountTest is AccountsBase {
     function testFigureSubAccountImplementationCanBeInitializedOnce() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);
-        FigureSubAccount implementation = new FigureSubAccount(address(wylds), address(asset));
+        MockPrimeToken prime = new MockPrimeToken(wylds, 125e4);
+        FigureSubAccount implementation = new FigureSubAccount(address(prime));
 
         implementation.initialize();
         assertEq(asset.allowance(address(implementation), address(this)), type(uint256).max);
