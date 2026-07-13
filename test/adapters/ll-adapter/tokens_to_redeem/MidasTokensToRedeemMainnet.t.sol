@@ -5,8 +5,6 @@ pragma solidity ^0.8.28;
 ///      cutoff-based redemptions change: mGLOBAL is now a `CutoffMidasAccount` with a
 ///      26th-of-month 14:00 UTC cutoff, 5-day pre-cutoff window and 12-hour cooldown. Re-run on fork
 ///      after any change to the Midas accounts.
-import {Test} from "forge-std/Test.sol";
-
 import {CutoffMidasAccount, MidasAccount} from "../../../../src/contracts/adapters/ll-adapter/MidasAccount.sol";
 import {MidasOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {
@@ -50,11 +48,12 @@ import {IAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAccount.
 import {IMidasDataFeed} from "../../../../src/interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
 import {REQUEST_STATUS_PENDING} from "../../../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
 import {IMidasRedemptionVault} from "../../../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
+import {MGlobalDataFeedHelper} from "../../../helpers/MGlobalDataFeedHelper.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
-contract MidasTokensToRedeemMainnetTest is Test {
+contract MidasTokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     struct TokenSpec {
         string symbol;
         uint48 cooldown;
@@ -73,7 +72,6 @@ contract MidasTokensToRedeemMainnetTest is Test {
     address internal constant MIDAS_ACCESS_CONTROL_ADMIN = 0xd4195CF4df289a4748C1A7B6dDBE770e27bA1227;
     address internal constant MIDAS_GREENLIST_ADMIN = 0xb5CcD8dC8082467849eE008d4242f7b3b569EF05;
     address internal constant MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
-    address internal constant MGLOBAL_ORACLE_DATA_FEED = 0x66Aa9fcD63DF74e1f67A9452E6E59Fbc67f75E38;
     address internal constant MGLOBAL_REDEMPTION_VAULT = 0x1e0fd66753198c7b8bA64edEe8d41D8628Bf20D7;
     uint48 internal constant MGLOBAL_JUNE_SUBS_OPEN = 1_781_856_000; // 2026-06-19 08:00 UTC
     uint48 internal constant MGLOBAL_JUNE_TOKEN_CUTOFF = 1_782_482_400; // 2026-06-26 14:00 UTC
@@ -105,17 +103,19 @@ contract MidasTokensToRedeemMainnetTest is Test {
 
     function testMGlobalAccountConfigUsesConfiguredCutoff() public {
         address relayer = makeAddr("relayer");
+        address configuredDataFeed = makeAddr("mGlobalDataFeed");
 
         vm.mockCall(COW_SWAP_SETTLEMENT, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(relayer));
         vm.mockCall(MGLOBAL, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
 
-        mGLOBAL_Account account =
-            new mGLOBAL_Account(address(new MigratablesFactory(address(this))), COW_SWAP_SETTLEMENT);
+        mGLOBAL_Account account = new mGLOBAL_Account(
+            address(new MigratablesFactory(address(this))), COW_SWAP_SETTLEMENT, configuredDataFeed
+        );
 
         assertEq(account.COOLDOWN(), 12 hours);
         assertEq(account.CUTOFF_DAY(), 26);
         assertEq(account.CUTOFF_HOUR(), 14);
-        assertEq(MidasOracle(account.ORACLE()).DATA_FEED(), MGLOBAL_ORACLE_DATA_FEED);
+        assertEq(MidasOracle(account.ORACLE()).DATA_FEED(), configuredDataFeed);
         assertEq(account.bucketToTimestamp(1), MGLOBAL_JULY_TOKEN_CUTOFF);
         assertEq(account.bucketToTimestamp(2), MGLOBAL_AUGUST_TOKEN_CUTOFF);
     }
@@ -219,7 +219,8 @@ contract MidasTokensToRedeemMainnetTest is Test {
         MidasMainnetLiquidLaneVault(cycle.vault).setDelegator(cycle.delegator);
 
         address adapterImplementation = address(new LiquidLaneAdapter(vaultFactory, adapterFactory, accountRegistry));
-        address accountImplementation = address(new mGLOBAL_Account(accountFactory, COW_SWAP_SETTLEMENT));
+        address accountImplementation =
+            address(new mGLOBAL_Account(accountFactory, COW_SWAP_SETTLEMENT, MGLOBAL_DATA_FEED));
 
         AdapterFactory(adapterFactory).whitelist(adapterImplementation);
         MigratablesFactory(accountFactory).whitelist(accountImplementation);
@@ -240,7 +241,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
     function _deployDirectMGlobalAccount() internal returns (address account) {
         MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(MAINNET_USDC);
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        mGLOBAL_Account implementation = new mGLOBAL_Account(address(factory), COW_SWAP_SETTLEMENT);
+        mGLOBAL_Account implementation = new mGLOBAL_Account(address(factory), COW_SWAP_SETTLEMENT, MGLOBAL_DATA_FEED);
         factory.whitelist(address(implementation));
         account = factory.create(1, address(this), _initData(MGLOBAL, vault));
         _configureMidasRequestPath(account, adapter);
@@ -394,15 +395,19 @@ contract MidasTokensToRedeemMainnetTest is Test {
         assertEq(account.converters(0), address(this));
         assertEq(account.adapter(), adapter);
         assertEq(account.vault(), address(vault));
-        assertEq(
-            MidasOracle(account.ORACLE()).DATA_FEED(), address(IMidasRedemptionVault(redemptionVault).mTokenDataFeed())
-        );
+        address oracleDataFeed = MidasOracle(account.ORACLE()).DATA_FEED();
+        if (index == 2) {
+            assertEq(oracleDataFeed, MGLOBAL_DATA_FEED);
+            assertEq(IMidasDataFeed(oracleDataFeed).aggregator(), MGLOBAL_MARKET_AGGREGATOR);
+        } else {
+            assertEq(oracleDataFeed, address(IMidasRedemptionVault(redemptionVault).mTokenDataFeed()));
+        }
         (uint256 minPrice, uint256 maxPrice) = _expectedOracleBounds(index);
         if (minPrice != 0) {
             assertEq(MidasOracle(account.ORACLE()).MIN_PRICE(), minPrice, spec.symbol);
             assertEq(MidasOracle(account.ORACLE()).MAX_PRICE(), maxPrice, spec.symbol);
         }
-        _stabilizeMidasDataFeed(MidasOracle(account.ORACLE()).DATA_FEED());
+        _stabilizeMidasDataFeed(oracleDataFeed);
         assertGt(MidasOracle(account.ORACLE()).getPrice(), 0);
         assertEq(IERC20(token).allowance(address(account), redemptionVault), type(uint256).max);
         assertEq(IAccount(address(account)).totalAssets(), 0);
@@ -483,7 +488,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
             return new mFONE_Account(address(factory), COW_SWAP_SETTLEMENT);
         }
         if (index == 1) return new mTBILL_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 2) return new mGLOBAL_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 2) return new mGLOBAL_Account(address(factory), COW_SWAP_SETTLEMENT, MGLOBAL_DATA_FEED);
         if (index == 3) return new mHYPER_Account(address(factory), COW_SWAP_SETTLEMENT);
         if (index == 4) return new mM1USD_Account(address(factory), COW_SWAP_SETTLEMENT);
         if (index == 5) return new mHyperBTC_Account(address(factory), COW_SWAP_SETTLEMENT);
@@ -610,6 +615,7 @@ contract MidasTokensToRedeemMainnetTest is Test {
         } else {
             vm.createSelectFork(mainnetRpcUrl, forkBlock);
         }
+        _mockMGlobalDataFeed();
     }
 }
 

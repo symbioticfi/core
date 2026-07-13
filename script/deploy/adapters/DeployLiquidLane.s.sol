@@ -37,10 +37,24 @@ import {
     mROX_AccountFactory
 } from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mROX_Account.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
+import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
+import {IOracle} from "../../../src/interfaces/adapters/ll-adapter/IOracle.sol";
+import {IMidasDataFeed, IMidasOracle} from "../../../src/interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
 import {IMigratableEntity} from "../../../src/interfaces/common/IMigratableEntity.sol";
 import {Logs} from "../../utils/Logs.sol";
 
-// forge script script/deploy/adapters/DeployLiquidLane.s.sol:DeployLiquidLaneScript --rpc-url=RPC --broadcast
+// forge script script/deploy/adapters/DeployLiquidLane.s.sol:DeployLiquidLaneScript \
+//     --sig "run(address)" MGLOBAL_DATA_FEED --rpc-url=RPC --broadcast
+
+interface ILiquidLaneMarketAggregator {
+    function decimals() external view returns (uint8);
+
+    function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80);
+}
+
+interface ILiquidLaneAdjustedAggregator {
+    function underlyingFeed() external view returns (address);
+}
 
 contract DeployLiquidLaneScript is DeployAdapterBase {
     struct AccountDeploymentData {
@@ -79,10 +93,10 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
     address public constant STOCK_MARKET_TR_BASIS_TRADE = 0x827Ce7E8e35861D9Ac7fE002755767b695A5594a;
     address public constant MM1_USD = 0xCc5C22C7A6BCC25e66726AeF011dDE74289ED203;
 
-    function run() public returns (LiquidLaneDeploymentData memory data) {
+    function run(address mGlobalDataFeed) public returns (LiquidLaneDeploymentData memory data) {
         address accountRegistryOwner = ACCOUNT_REGISTRY_OWNER;
         address factoriesOwner = FACTORIES_OWNER;
-        _validateDeploymentParams(accountRegistryOwner, factoriesOwner);
+        _validateDeploymentParams(accountRegistryOwner, factoriesOwner, mGlobalDataFeed);
 
         address scriptOwner = _scriptOwner();
         address vaultFactory = _coreVaultFactory();
@@ -96,7 +110,7 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
             address(new LiquidLaneAdapter(vaultFactory, data.liquidLaneAdapterFactory, data.accountRegistry));
         AdapterFactory(data.liquidLaneAdapterFactory).whitelist(data.liquidLaneAdapterImplementation);
 
-        data.mGLOBAL = _deployMGlobal(data.accountRegistry);
+        data.mGLOBAL = _deployMGlobal(data.accountRegistry, mGlobalDataFeed);
         data.mFONE = _deployMFONE(data.accountRegistry);
         data.mROX = _deployMROX(data.accountRegistry);
         data.mHYPER = _deployMHYPER(data.accountRegistry);
@@ -112,9 +126,12 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         _logDeployment(data);
     }
 
-    function _deployMGlobal(address accountRegistry) internal returns (AccountDeploymentData memory data) {
+    function _deployMGlobal(address accountRegistry, address dataFeed)
+        internal
+        returns (AccountDeploymentData memory data)
+    {
         data.factory = address(new mGLOBAL_AccountFactory(_scriptOwner()));
-        data.implementation = address(new mGLOBAL_Account(data.factory, COW_SWAP_SETTLEMENT));
+        data.implementation = address(new mGLOBAL_Account(data.factory, COW_SWAP_SETTLEMENT, dataFeed));
         _whitelistAndRegister(accountRegistry, MGLOBAL, data);
     }
 
@@ -193,10 +210,14 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         Ownable(data.factory).transferOwnership(owner);
     }
 
-    function _validateDeploymentParams(address accountRegistryOwner, address factoriesOwner) internal pure {
+    function _validateDeploymentParams(address accountRegistryOwner, address factoriesOwner, address mGlobalDataFeed)
+        internal
+        view
+    {
         require(accountRegistryOwner != address(0), "invalid account registry owner");
         require(factoriesOwner != address(0), "invalid factories owner");
         require(accountRegistryOwner != factoriesOwner, "owners must differ");
+        require(mGlobalDataFeed.code.length > 0, "invalid mGLOBAL data feed");
         require(COW_SWAP_SETTLEMENT != address(0), "invalid cow swap settlement");
         require(USDC != address(0), "invalid usdc");
     }
@@ -232,6 +253,46 @@ contract DeployLiquidLaneScript is DeployAdapterBase {
         assert(IMigratableEntity(data.implementation).FACTORY() == data.factory);
         assert(MigratablesFactory(data.factory).implementation(1) == data.implementation);
         assert(AccountRegistry(accountRegistry).accountFactories(USDC, tokenToRedeem) == data.factory);
+        _validateOraclePrice(IAccount(data.implementation).ORACLE());
+    }
+
+    function _validateOraclePrice(address oracle) internal view {
+        uint256 oraclePrice = IOracle(oracle).getPrice();
+        address dataFeed = IMidasOracle(oracle).DATA_FEED();
+        address aggregator = IMidasDataFeed(dataFeed).aggregator();
+        address marketSource = _marketPriceSource(aggregator);
+
+        uint8 marketDecimals = ILiquidLaneMarketAggregator(marketSource).decimals();
+        (, int256 marketAnswer,,,) = ILiquidLaneMarketAggregator(marketSource).latestRoundData();
+        require(marketAnswer > 0, "invalid market price");
+
+        uint256 marketPrice = _normalizeMarketPrice(uint256(marketAnswer), marketDecimals);
+        require(marketPrice > 0, "invalid market price");
+
+        uint256 difference = oraclePrice > marketPrice ? oraclePrice - marketPrice : marketPrice - oraclePrice;
+        require(difference <= marketPrice / 200, "oracle price exceeds 0.5% market deviation");
+    }
+
+    function _marketPriceSource(address aggregator) internal view returns (address marketSource) {
+        marketSource = aggregator;
+        (bool success, bytes memory returnData) =
+            aggregator.staticcall(abi.encodeWithSelector(ILiquidLaneAdjustedAggregator.underlyingFeed.selector));
+        if (success && returnData.length == 32) {
+            address underlyingFeed = abi.decode(returnData, (address));
+            if (underlyingFeed != address(0)) {
+                marketSource = underlyingFeed;
+            }
+        }
+    }
+
+    function _normalizeMarketPrice(uint256 answer, uint8 decimals) internal pure returns (uint256) {
+        if (decimals < 18) {
+            return answer * 10 ** uint256(18 - decimals);
+        }
+        if (decimals > 18) {
+            return answer / 10 ** uint256(decimals - 18);
+        }
+        return answer;
     }
 
     function _logDeployment(LiquidLaneDeploymentData memory data) internal {

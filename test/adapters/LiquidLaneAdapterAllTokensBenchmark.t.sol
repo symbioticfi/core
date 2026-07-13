@@ -9,7 +9,7 @@ pragma solidity ^0.8.28;
 ///      now exposes `getPriceData()` (required by the ACRED/USCC/bEQTY settlement accounts), and
 ///      the bEQTY/mGLOBAL/ACRED wait durations model the new cohort/settlement timelines.
 ///      Re-run on fork after any change to those accounts.
-import {Test} from "forge-std/Test.sol";
+import {MGlobalDataFeedHelper} from "../helpers/MGlobalDataFeedHelper.sol";
 
 import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../src/contracts/adapters/LiquidLaneAdapter.sol";
@@ -100,7 +100,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
+contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     using Math for uint256;
 
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -1129,7 +1129,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
             return IAccount(address(new mFONE_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 18) {
-            return IAccount(address(new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT, MGLOBAL_DATA_FEED)));
         }
         if (index == 19) {
             return IAccount(address(new mHYPER_Account(factory, COW_SWAP_SETTLEMENT)));
@@ -1303,6 +1303,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is Test {
         } else {
             vm.createSelectFork(rpcUrl, forkBlock);
         }
+        _mockMGlobalDataFeed();
     }
 }
 

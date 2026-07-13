@@ -8,7 +8,7 @@ pragma solidity ^0.8.28;
 ///      CutoffAccount, mGLOBAL on CutoffMidasAccount): oracles passed to those accounts must
 ///      expose `getPriceData()`, and ACRED's notice is an ERC-20 transfer to the Securitize
 ///      redemption wallet. Re-run on fork after any change to those accounts.
-import {Test} from "forge-std/Test.sol";
+import {MGlobalDataFeedHelper} from "../../../helpers/MGlobalDataFeedHelper.sol";
 
 import {ACRDX_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
 import {ACRED_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRED_Account.sol";
@@ -121,7 +121,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-contract TokensToRedeemMainnetTest is Test {
+contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     struct TokenSpec {
         string symbol;
         address token;
@@ -774,7 +774,7 @@ contract TokensToRedeemMainnetTest is Test {
         if (index == 15) return new mEVUSD_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 16) return new mFARM_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 17) return new mFONE_Account(factory, COW_SWAP_SETTLEMENT);
-        if (index == 18) return new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT);
+        if (index == 18) return new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT, MGLOBAL_DATA_FEED);
         if (index == 19) return new mHYPER_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 20) return new mHyperBTC_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 21) return new mHyperETH_Account(factory, COW_SWAP_SETTLEMENT);
@@ -1431,6 +1431,7 @@ contract TokensToRedeemMainnetTest is Test {
         } else {
             vm.createSelectFork(mainnetRpcUrl, forkBlock);
         }
+        _mockMGlobalDataFeed();
     }
 }
 
