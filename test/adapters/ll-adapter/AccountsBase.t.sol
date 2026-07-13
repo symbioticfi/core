@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {ACRDX_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
 import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
+import {AsyncRedeemAccount} from "../../../src/contracts/adapters/ll-adapter/common/AsyncRedeemAccount.sol";
 import {DigiFTAccount} from "../../../src/contracts/adapters/ll-adapter/DigiFTAccount.sol";
 import {DUSD_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
 import {GaibAccount} from "../../../src/contracts/adapters/ll-adapter/GaibAccount.sol";
@@ -1210,4 +1211,18 @@ contract TestAsyncRedeemAccount is CentrifugeAccount {
     constructor(address oracle, address factory, uint48 cooldown, address tokenToRedeem, address cowSwapSettlement)
         CentrifugeAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement)
     {}
+
+    function asyncRedeemVault() external view returns (address) {
+        return _asyncRedeemVault();
+    }
+}
+
+contract TestBaseAsyncRedeemAccount is AsyncRedeemAccount {
+    constructor(address oracle, address factory, address tokenToRedeem, address cowSwapSettlement)
+        AsyncRedeemAccount(oracle, factory, 0, tokenToRedeem, cowSwapSettlement)
+    {}
+
+    function asyncRedeemVault() external view returns (address) {
+        return _asyncRedeemVault();
+    }
 }

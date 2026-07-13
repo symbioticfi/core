@@ -5,10 +5,33 @@ import "./AccountsBase.t.sol";
 
 import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
 import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
+import {IERC7575Share} from "../../../src/interfaces/adapters/ll-adapter/IERC7575Share.sol";
 
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract AsyncRedeemAccountTest is AccountsBase {
+    function testBaseAsyncRedeemAccountUsesTokenAsVault() public {
+        MockERC20 tokenToRedeem = new MockERC20("Async Vault", "ASYNC", 18);
+        MockOracle oracle = new MockOracle(1e18);
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        TestBaseAsyncRedeemAccount account = new TestBaseAsyncRedeemAccount(
+            address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement
+        );
+
+        assertEq(account.asyncRedeemVault(), address(tokenToRedeem));
+    }
+
+    function testCentrifugeAccountUsesAssetSpecificERC7575Vault() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 share = new MockERC20("Centrifuge Share", "CFGSHARE", 18);
+        MockAsyncRedeemVault vault = new MockAsyncRedeemVault("Centrifuge Vault", "CFGV", 18, asset, 2e6);
+        MockOracle oracle = new MockOracle(2e18);
+        vm.mockCall(address(share), abi.encodeCall(IERC7575Share.vault, (address(asset))), abi.encode(address(vault)));
+        TestAsyncRedeemAccount account = _deployAsyncRedeem(address(share), asset, oracle, 0);
+
+        assertEq(account.asyncRedeemVault(), address(vault));
+    }
+
     function testAsyncRedeemOracleUsesAsyncVaultConversion() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault tokenToRedeem = new MockAsyncRedeemVault("Centrifuge Share", "CFGSHARE", 18, asset, 2e6);

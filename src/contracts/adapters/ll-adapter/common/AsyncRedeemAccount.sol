@@ -6,7 +6,6 @@ import {CooldownAccount} from "./CooldownAccount.sol";
 
 import {IAsyncRedeemAccount} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
 import {IAsyncRedeemVault} from "../../../../interfaces/adapters/ll-adapter/IAsyncRedeemVault.sol";
-import {IERC7575Share} from "../../../../interfaces/adapters/ll-adapter/IERC7575Share.sol";
 import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -76,7 +75,7 @@ abstract contract AsyncRedeemAccount is CooldownAccount, IAsyncRedeemAccount {
 
     /// @dev Returns the ERC-7540 async redeem vault.
     function _asyncRedeemVault() internal view virtual returns (address) {
-        return IERC7575Share(TOKEN_TO_REDEEM).vault(_asset);
+        return TOKEN_TO_REDEEM;
     }
 
     /* STORAGE GAP */
