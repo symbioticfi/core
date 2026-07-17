@@ -72,6 +72,7 @@ import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegat
 import {ILiquidLaneAdapter, MAX_TOKENS_TO_REDEEM} from "../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IAccount} from "../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IAsyncRedeemAccount} from "../../src/interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
+import {IERC7575Share} from "../../src/interfaces/adapters/ll-adapter/IERC7575Share.sol";
 import {ICooldownAccount} from "../../src/interfaces/adapters/ll-adapter/ICooldownAccount.sol";
 import {IDigiFTAccount} from "../../src/interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol";
 import {IEtherFiAccount} from "../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
@@ -106,6 +107,12 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address internal constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
+    address internal constant ACRDX_TOKEN = 0x9477724Bb54AD5417de8Baff29e59DF3fB4DA74f;
+    address internal constant JAAA_TOKEN = 0x5a0F93D040De44e78F251b03c43be9CF317Dcf64;
+    address internal constant JTRSY_TOKEN = 0x8c213ee79581Ff4984583C6a801e5263418C4b86;
+    address internal constant DECRDX_TOKEN = 0x9E2679eABFF131b8b1b48fF7566140794E0eEdc4;
+    address internal constant DEJAAA_TOKEN = 0xAAA0008C8CF3A7Dca931adaF04336A5D808C82Cc;
+    address internal constant DEJTRSY_TOKEN = 0xA6233014B9b7aaa74f38fa1977ffC7A89642dC72;
 
     address internal constant PRIME_TOKEN = 0x19ebb35279A16207Ec4ba82799CC64715065F7F6;
     address internal constant AUTO_TOKEN = 0x997E2Efbce91D170B00EA402e35a66C887EE1da9;
@@ -1064,7 +1071,17 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
         if (index == 0) {
-            return IAccount(address(new ACRDX_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new ACRDX_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(ACRDX_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 1) {
             return IAccount(address(new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT)));
@@ -1073,10 +1090,30 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return IAccount(address(new DUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 3) {
-            return IAccount(address(new JAAA_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new JAAA_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(JAAA_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 4) {
-            return IAccount(address(new JTRSY_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new JTRSY_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(JTRSY_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (_isFigure(index)) {
             address token = index == 5 ? PRIME_TOKEN : AUTO_TOKEN;
@@ -1099,13 +1136,43 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return IAccount(address(new bEQTY_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 8) {
-            return IAccount(address(new deCRDX_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new deCRDX_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(DECRDX_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 9) {
-            return IAccount(address(new deJAAA_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new deJAAA_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(DEJAAA_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 10) {
-            return IAccount(address(new deJTRSY_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new deJTRSY_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(DEJTRSY_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 11) {
             return IAccount(address(new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT)));

@@ -64,6 +64,7 @@ import {USCC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens
 import {weETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {AsyncRedeemOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/AsyncRedeemOracle.sol";
+import {CentrifugeAccount} from "../../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
 import {FigureOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
 import {AdapterFactory} from "../../../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../../../src/contracts/adapters/LiquidLaneAdapter.sol";
@@ -341,6 +342,73 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         }
     }
 
+    function testCentrifugeMainnetZeroCooldownSequentialRequests() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Centrifuge cycle");
+        _createFork();
+
+        uint256[6] memory indexes = [uint256(0), 3, 4, 8, 9, 10];
+        TokenSpec[] memory specs = _tokenSpecs();
+
+        uint256 length = indexes.length;
+        for (uint256 i; i < length; ++i) {
+            TokenSpec memory spec = specs[indexes[i]];
+            emit log_named_string("centrifuge sequential cycle", spec.symbol);
+
+            CentrifugeCycle memory cycle = _setUpCentrifugeCycle(indexes[i], spec.token);
+            address marketMaker = makeAddr(string.concat("centrifugeMarketMaker", spec.symbol));
+            address recipient = makeAddr(string.concat("centrifugeRecipient", spec.symbol));
+            LiquidLaneAdapter(cycle.llAdapter).setMarketMaker(marketMaker, false);
+
+            uint256 amountIn = 10 ** IERC20Metadata(cycle.token).decimals();
+            uint256 amountOut = LiquidLaneAdapter(cycle.llAdapter).getAmountOut(cycle.token, amountIn);
+            uint256 fulfilledAssets = IAsyncRedeemVault(cycle.asyncRedeemVault).convertToAssets(amountIn);
+
+            _swapCentrifuge(cycle, marketMaker, recipient, amountIn, amountOut);
+            _swapCentrifuge(cycle, marketMaker, recipient, amountIn, amountOut);
+
+            IAsyncRedeemAccount account = IAsyncRedeemAccount(cycle.account);
+            IAsyncRedeemVault asyncRedeemVault = IAsyncRedeemVault(cycle.asyncRedeemVault);
+            assertEq(account.requestIds(0), 0, spec.symbol);
+            vm.expectRevert();
+            account.requestIds(1);
+            assertEq(asyncRedeemVault.pendingRedeemRequest(0, cycle.account), amountIn * 2, spec.symbol);
+            assertEq(asyncRedeemVault.pendingRedeemRequest(type(uint256).max, cycle.account), amountIn * 2, spec.symbol);
+
+            _fulfillCentrifugeRedeemPart(cycle.account, cycle.asyncRedeemVault, amountIn, fulfilledAssets);
+
+            assertEq(asyncRedeemVault.pendingRedeemRequest(0, cycle.account), amountIn, spec.symbol);
+            uint256 claimableShares = asyncRedeemVault.claimableRedeemRequest(0, cycle.account);
+            assertGt(claimableShares, 0, spec.symbol);
+            assertEq(
+                asyncRedeemVault.claimableRedeemRequest(type(uint256).max, cycle.account), claimableShares, spec.symbol
+            );
+            assertEq(asyncRedeemVault.maxWithdraw(cycle.account), fulfilledAssets, spec.symbol);
+
+            IAccount(cycle.account).sync();
+
+            assertEq(IERC20(USDC).balanceOf(cycle.account), fulfilledAssets, spec.symbol);
+            assertEq(asyncRedeemVault.pendingRedeemRequest(0, cycle.account), amountIn, spec.symbol);
+            assertEq(account.requestIds(0), 0, spec.symbol);
+            vm.expectRevert();
+            account.requestIds(1);
+
+            _fulfillCentrifugeRedeemPart(cycle.account, cycle.asyncRedeemVault, amountIn, fulfilledAssets);
+            IAccount(cycle.account).sync();
+
+            assertEq(asyncRedeemVault.pendingRedeemRequest(0, cycle.account), 0, spec.symbol);
+            assertEq(IERC20(USDC).balanceOf(cycle.account), fulfilledAssets * 2, spec.symbol);
+            vm.expectRevert();
+            account.requestIds(0);
+
+            _swapCentrifuge(cycle, marketMaker, recipient, amountIn, amountOut);
+
+            assertEq(account.requestIds(0), 0, spec.symbol);
+            vm.expectRevert();
+            account.requestIds(1);
+            assertEq(asyncRedeemVault.pendingRedeemRequest(0, cycle.account), amountIn, spec.symbol);
+        }
+    }
+
     function testCentrifugeMainnetTokenConfigurations() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Centrifuge config");
         _createFork();
@@ -360,7 +428,8 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
 
             assertEq(_assetFor(index, spec.token), USDC, spec.symbol);
             assertEq(implementation.TOKEN_TO_REDEEM(), spec.token, spec.symbol);
-            assertEq(IAsyncRedeemAccount(address(implementation)).COOLDOWN(), 1 days, spec.symbol);
+            assertEq(IAsyncRedeemAccount(address(implementation)).COOLDOWN(), 0, spec.symbol);
+            assertEq(CentrifugeAccount(address(implementation)).ASYNC_REDEEM_VAULT(), asyncRedeemVault, spec.symbol);
             assertGt(spec.token.code.length, 0, spec.symbol);
             assertGt(asyncRedeemVault.code.length, 0, spec.symbol);
             assertEq(IAsyncRedeemVault(asyncRedeemVault).asset(), USDC, spec.symbol);
@@ -560,7 +629,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         LiquidLaneAdapter(cycle.llAdapter).setLimit(token, type(uint256).max);
 
         cycle.account = LiquidLaneAdapter(cycle.llAdapter).accounts(token);
-        cycle.asyncRedeemVault = _asyncRedeemVault(token, USDC);
+        cycle.asyncRedeemVault = CentrifugeAccount(cycle.account).ASYNC_REDEEM_VAULT();
 
         _permissionCentrifugeMember(token, cycle.llAdapter);
         _permissionCentrifugeMember(token, cycle.account);
@@ -590,6 +659,32 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertEq(IAccount(cycle.account).totalAssets(), amountOut);
         assertEq(IAsyncRedeemVault(cycle.asyncRedeemVault).pendingRedeemRequest(requestId, cycle.account), amountIn);
         assertEq(IAsyncRedeemVault(cycle.asyncRedeemVault).claimableRedeemRequest(requestId, cycle.account), 0);
+    }
+
+    function _swapCentrifuge(
+        CentrifugeCycle memory cycle,
+        address caller,
+        address recipient,
+        uint256 amountIn,
+        uint256 amountOut
+    ) internal {
+        _dealCentrifugeShare(cycle.token, cycle.llAdapter, amountIn);
+        deal(USDC, cycle.vault, amountOut);
+
+        vm.prank(caller);
+        LiquidLaneAdapter(cycle.llAdapter).swap(ILiquidLaneAdapter.Swap(recipient, cycle.token, amountIn, amountOut));
+    }
+
+    function _fulfillCentrifugeRedeemPart(address account, address asyncRedeemVault, uint256 shares, uint256 assets)
+        internal
+    {
+        uint64 poolId = IMainnetCentrifugeVault(asyncRedeemVault).poolId();
+        bytes16 scId = IMainnetCentrifugeVault(asyncRedeemVault).scId();
+        uint128 assetId = IMainnetCentrifugeSpoke(CENTRIFUGE_SPOKE).assetToId(USDC, 0);
+
+        _fundCentrifugeEscrow(poolId, scId, assets);
+        _callbackCentrifugeRevoked(poolId, scId, assetId, shares, assets);
+        _callbackCentrifugeFulfilled(poolId, scId, assetId, account, shares, assets);
     }
 
     function _fulfillCentrifugeRedeem(address account, address asyncRedeemVault, uint256 shares, uint256 assets)
@@ -737,15 +832,21 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
         if (index == 0) {
-            return new ACRDX_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+            return new ACRDX_Account(
+                address(new MainnetConstantOracle()), factory, USDC, _asyncRedeemVault(ACRDX, USDC), COW_SWAP_SETTLEMENT
+            );
         }
         if (index == 1) return new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 2) return new DUSD_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 3) {
-            return new JAAA_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+            return new JAAA_Account(
+                address(new MainnetConstantOracle()), factory, USDC, _asyncRedeemVault(JAAA, USDC), COW_SWAP_SETTLEMENT
+            );
         }
         if (index == 4) {
-            return new JTRSY_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+            return new JTRSY_Account(
+                address(new MainnetConstantOracle()), factory, USDC, _asyncRedeemVault(JTRSY, USDC), COW_SWAP_SETTLEMENT
+            );
         }
         if (_isFigure(index)) {
             address token = _figureToken(index);
@@ -759,13 +860,31 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         if (index == 6) return new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 7) return new bEQTY_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 8) {
-            return new deCRDX_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+            return new deCRDX_Account(
+                address(new MainnetConstantOracle()),
+                factory,
+                USDC,
+                _asyncRedeemVault(DECRDX, USDC),
+                COW_SWAP_SETTLEMENT
+            );
         }
         if (index == 9) {
-            return new deJAAA_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+            return new deJAAA_Account(
+                address(new MainnetConstantOracle()),
+                factory,
+                USDC,
+                _asyncRedeemVault(DEJAAA, USDC),
+                COW_SWAP_SETTLEMENT
+            );
         }
         if (index == 10) {
-            return new deJTRSY_Account(address(new MainnetConstantOracle()), factory, USDC, COW_SWAP_SETTLEMENT);
+            return new deJTRSY_Account(
+                address(new MainnetConstantOracle()),
+                factory,
+                USDC,
+                _asyncRedeemVault(DEJTRSY, USDC),
+                COW_SWAP_SETTLEMENT
+            );
         }
         if (index == 11) return new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 12) return new mBASIS_Account(factory, COW_SWAP_SETTLEMENT);
@@ -954,7 +1073,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         }
         if (_isCentrifuge(index)) {
             vm.expectCall(
-                _asyncRedeemVault(token, asset),
+                CentrifugeAccount(address(account)).ASYNC_REDEEM_VAULT(),
                 abi.encodeCall(IAsyncRedeemVault.requestRedeem, (amount, address(account), address(account)))
             );
             return;
@@ -1069,7 +1188,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             return;
         }
         if (_isCentrifuge(index)) {
-            _assertAsyncRedemption(account, token, amount, symbol);
+            _assertAsyncRedemption(account, amount, symbol);
             return;
         }
         if (index == 2) {
@@ -1138,7 +1257,9 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         if (_isCentrifuge(index)) {
             uint256 requestId = IAsyncRedeemAccount(address(account)).requestIds(0);
             assertEq(
-                IAsyncRedeemVault(_asyncRedeemVault(token, USDC)).pendingRedeemRequest(requestId, address(account)),
+                IAsyncRedeemVault(CentrifugeAccount(address(account)).ASYNC_REDEEM_VAULT()).pendingRedeemRequest(
+                    requestId, address(account)
+                ),
                 2 * amount,
                 symbol
             );
@@ -1238,11 +1359,8 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertGt(account.totalAssets(), 0, symbol);
     }
 
-    function _assertAsyncRedemption(IAccount account, address token, uint256 amount, string memory symbol)
-        internal
-        view
-    {
-        address asyncRedeemVault = _asyncRedeemVault(token, USDC);
+    function _assertAsyncRedemption(IAccount account, uint256 amount, string memory symbol) internal view {
+        address asyncRedeemVault = CentrifugeAccount(address(account)).ASYNC_REDEEM_VAULT();
         uint256 requestId = IAsyncRedeemAccount(address(account)).requestIds(0);
         assertGt(IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestId, address(account)), 0, symbol);
         assertLe(IAsyncRedeemVault(asyncRedeemVault).pendingRedeemRequest(requestId, address(account)), amount, symbol);

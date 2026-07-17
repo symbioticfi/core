@@ -7,10 +7,18 @@ import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 
 contract deJTRSY_Account is CentrifugeAccount {
     address internal constant TOKEN_ADDRESS = 0xA6233014B9b7aaa74f38fa1977ffC7A89642dC72;
-    uint48 internal constant TOKEN_COOLDOWN = 1 days;
+    uint48 internal constant TOKEN_COOLDOWN = 0;
 
-    constructor(address oracle, address factory, address redemptionToken, address cowSwapSettlement)
-        CentrifugeAccount(oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, redemptionToken, cowSwapSettlement)
+    constructor(
+        address oracle,
+        address factory,
+        address redemptionToken,
+        address asyncRedeemVault,
+        address cowSwapSettlement
+    )
+        CentrifugeAccount(
+            oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, redemptionToken, asyncRedeemVault, cowSwapSettlement
+        )
     {}
 }
 

@@ -153,9 +153,19 @@ abstract contract AccountsBase is Test {
         internal
         returns (TestAsyncRedeemAccount account)
     {
+        return _deployAsyncRedeem(tokenToRedeem, asset, oracle, cooldown, tokenToRedeem);
+    }
+
+    function _deployAsyncRedeem(
+        address tokenToRedeem,
+        MockERC20 asset,
+        address oracle,
+        uint48 cooldown,
+        address asyncRedeemVault
+    ) internal returns (TestAsyncRedeemAccount account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         TestAsyncRedeemAccount implementation = new TestAsyncRedeemAccount(
-            oracle, address(factory), cooldown, tokenToRedeem, address(asset), cowSwapSettlement
+            oracle, address(factory), cooldown, tokenToRedeem, address(asset), asyncRedeemVault, cowSwapSettlement
         );
         factory.whitelist(address(implementation));
         account = TestAsyncRedeemAccount(factory.create(1, address(this), _initData(address(asset), tokenToRedeem)));
@@ -1211,8 +1221,13 @@ contract TestAsyncRedeemAccount is CentrifugeAccount {
         uint48 cooldown,
         address tokenToRedeem,
         address redemptionToken,
+        address asyncRedeemVault,
         address cowSwapSettlement
-    ) CentrifugeAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, cowSwapSettlement) {}
+    )
+        CentrifugeAccount(
+            oracle, factory, cooldown, tokenToRedeem, redemptionToken, asyncRedeemVault, cowSwapSettlement
+        )
+    {}
 
     function asyncRedeemVault() external view returns (address) {
         return _asyncRedeemVault();
