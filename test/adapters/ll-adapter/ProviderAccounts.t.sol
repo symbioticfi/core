@@ -8,7 +8,6 @@ import {AssetoOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/A
 import {NoonAccount} from "../../../src/contracts/adapters/ll-adapter/NoonAccount.sol";
 import {OpenEdenAccount} from "../../../src/contracts/adapters/ll-adapter/OpenEdenAccount.sol";
 import {OpenEdenOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/OpenEdenOracle.sol";
-import {ParetoAccount} from "../../../src/contracts/adapters/ll-adapter/ParetoAccount.sol";
 import {
     AcredSecuritizeAccount,
     SecuritizeAccount
@@ -147,29 +146,6 @@ contract ProviderAccountsTest is AccountsBase {
         assertEq(account.totalAssets(), 12 ether);
         vm.expectRevert();
         account.requestIds(0);
-    }
-
-    function testParetoRequestsAndClaimsWithdrawalReceipts() public {
-        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockParetoTranche tranche = new MockParetoTranche();
-        MockParetoCreditVault creditVault = new MockParetoCreditVault();
-        MockParetoCDO idleCdo = new MockParetoCDO(usdc, tranche, creditVault, 11e5);
-        ParetoAccount account = _deployPareto(tranche, usdc, idleCdo);
-
-        tranche.mint(address(account), 2 ether);
-
-        account.sync();
-
-        assertEq(tranche.balanceOf(address(account)), 0);
-        assertEq(creditVault.balanceOf(address(account)), 22e5);
-        assertEq(account.totalAssets(), 22e5);
-
-        idleCdo.setEpochNumber(1);
-        account.sync();
-
-        assertEq(usdc.balanceOf(address(account)), 22e5);
-        assertEq(creditVault.balanceOf(address(account)), 0);
-        assertEq(account.totalAssets(), 22e5);
     }
 
     function testOpenEdenRedeemQueueLimitIsThirty() public pure {
@@ -762,23 +738,6 @@ contract ProviderAccountsTest is AccountsBase {
         account = NoonAccount(factory.create(1, address(this), _initData(address(asset), address(susn))));
     }
 
-    function _deployPareto(MockParetoTranche tranche, MockERC20 asset, MockParetoCDO idleCdo)
-        internal
-        returns (ParetoAccount account)
-    {
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        ParetoAccount implementation = new ParetoAccount(
-            address(new MockOracle(1e18)),
-            address(factory),
-            TOKEN_COOLDOWN,
-            address(tranche),
-            address(idleCdo),
-            cowSwapSettlement
-        );
-        factory.whitelist(address(implementation));
-        account = ParetoAccount(factory.create(1, address(this), _initData(address(asset), address(tranche))));
-    }
-
     function _deployOpenEden(MockERC20 hybond, MockERC20 asset, address oracle, MockOpenEdenExpress express)
         internal
         returns (OpenEdenAccount account)
@@ -1032,18 +991,6 @@ contract MockNoonWithdrawalHandler {
     }
 }
 
-contract MockParetoTranche is MockERC20 {
-    constructor() MockERC20("Pareto AA Tranche", "AA_FalconXUSDC", 18) {}
-}
-
-contract MockParetoCreditVault is MockERC20 {
-    constructor() MockERC20("Pareto Credit Vault", "cvUSDC", 6) {}
-
-    function burn(address account, uint256 amount) external {
-        _burn(account, amount);
-    }
-}
-
 contract MockOpenEdenExpress {
     struct RedeemQueueEntry {
         address sender;
@@ -1161,44 +1108,6 @@ contract MockOpenEdenExpress {
             request.requestTimestamp,
             request.id
         );
-    }
-}
-
-contract MockParetoCDO {
-    MockERC20 public immutable token;
-    MockParetoTranche public immutable tranche;
-    MockParetoCreditVault public immutable strategy;
-    uint256 public epochNumber;
-    uint256 public virtualPrice;
-
-    mapping(address account => uint256 epoch) public lastWithdrawRequest;
-
-    constructor(MockERC20 token_, MockParetoTranche tranche_, MockParetoCreditVault strategy_, uint256 virtualPrice_) {
-        token = token_;
-        tranche = tranche_;
-        strategy = strategy_;
-        virtualPrice = virtualPrice_;
-    }
-
-    function setEpochNumber(uint256 epochNumber_) external {
-        epochNumber = epochNumber_;
-    }
-
-    function requestWithdraw(uint256 amount, address curTranche) external returns (uint256 assets) {
-        require(curTranche == address(tranche));
-
-        assets = amount * virtualPrice / 1e18;
-        IERC20(curTranche).transferFrom(msg.sender, address(this), amount);
-        strategy.mint(msg.sender, assets);
-        lastWithdrawRequest[msg.sender] = epochNumber;
-    }
-
-    function claimWithdrawRequest() external {
-        require(epochNumber > lastWithdrawRequest[msg.sender]);
-
-        uint256 assets = strategy.balanceOf(msg.sender);
-        strategy.burn(msg.sender, assets);
-        token.mint(msg.sender, assets);
     }
 }
 

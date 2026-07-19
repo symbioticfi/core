@@ -6,12 +6,11 @@ import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 import {ParetoAccount} from "../ParetoAccount.sol";
 
 contract AA_FalconX_Account is ParetoAccount {
-    address internal constant IDLE_CDO_ADDRESS = 0x433D5B175148dA32Ffe1e1A37a939E1b7e79be4d;
     address internal constant TOKEN_ADDRESS = 0xC26A6Fa2C37b38E549a4a1807543801Db684f99C;
-    uint48 internal constant TOKEN_COOLDOWN = 3 days;
+    address internal constant WITHDRAWAL_QUEUE_ADDRESS = 0x5cC24f44cCAa80DD2c079156753fc1e908F495DC;
 
     constructor(address oracle, address factory, address cowSwapSettlement)
-        ParetoAccount(oracle, factory, TOKEN_COOLDOWN, TOKEN_ADDRESS, IDLE_CDO_ADDRESS, cowSwapSettlement)
+        ParetoAccount(oracle, factory, TOKEN_ADDRESS, WITHDRAWAL_QUEUE_ADDRESS, cowSwapSettlement)
     {}
 }
 

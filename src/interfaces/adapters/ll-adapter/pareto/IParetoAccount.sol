@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {ICooldownAccount} from "../ICooldownAccount.sol";
+import {IAccount} from "../IAccount.sol";
 
 /**
  * @title IParetoAccount
- * @notice Interface for Pareto liquidity lane accounts.
+ * @notice Interface for Pareto queue-based liquidity lane accounts.
  */
-interface IParetoAccount is ICooldownAccount {
+interface IParetoAccount is IAccount {
     /* ERRORS */
 
     /**
@@ -18,14 +18,15 @@ interface IParetoAccount is ICooldownAccount {
     /* FUNCTIONS */
 
     /**
-     * @notice Returns the Pareto credit vault.
-     * @return idleCdo The Pareto credit vault address.
+     * @notice Returns the Pareto epoch withdrawal queue.
+     * @return withdrawalQueue The queue address.
      */
-    function IDLE_CDO() external view returns (address idleCdo);
+    function WITHDRAWAL_QUEUE() external view returns (address withdrawalQueue);
 
     /**
-     * @notice Returns the Pareto withdrawal receipt token.
-     * @return receiptToken The receipt token address.
+     * @notice Returns a tracked queue processing epoch.
+     * @param index The tracked-epoch index.
+     * @return epoch The queue processing epoch.
      */
-    function RECEIPT_TOKEN() external view returns (address receiptToken);
+    function queueEpochs(uint256 index) external view returns (uint256 epoch);
 }

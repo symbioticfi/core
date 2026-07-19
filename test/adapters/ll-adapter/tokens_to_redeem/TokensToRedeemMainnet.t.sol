@@ -66,6 +66,7 @@ import {wstETH_Account} from "../../../../src/contracts/adapters/ll-adapter/toke
 import {AsyncRedeemOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/AsyncRedeemOracle.sol";
 import {CentrifugeAccount} from "../../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
 import {FigureOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
+import {ParetoOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/ParetoOracle.sol";
 import {AdapterFactory} from "../../../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../../../src/contracts/adapters/LiquidLaneAdapter.sol";
 import {AccountRegistry} from "../../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
@@ -113,6 +114,8 @@ import {INoonAccount} from "../../../../src/interfaces/adapters/ll-adapter/noon/
 import {INoonWithdrawalHandler} from "../../../../src/interfaces/adapters/ll-adapter/noon/INoonWithdrawalHandler.sol";
 import {IParetoAccount} from "../../../../src/interfaces/adapters/ll-adapter/pareto/IParetoAccount.sol";
 import {IParetoCDO} from "../../../../src/interfaces/adapters/ll-adapter/pareto/IParetoCDO.sol";
+import {IParetoCreditVault} from "../../../../src/interfaces/adapters/ll-adapter/pareto/IParetoCreditVault.sol";
+import {IParetoWithdrawalQueue} from "../../../../src/interfaces/adapters/ll-adapter/pareto/IParetoWithdrawalQueue.sol";
 import {ISecuritizeAccount} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeAccount.sol";
 import {ISuperstateAccount} from "../../../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol";
 import {ISthUSD} from "../../../../src/interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
@@ -527,6 +530,10 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         IAccount account =
             IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(asset)), adapter)));
 
+        if (index == 37) {
+            _permissionParetoAccount(address(account));
+        }
+
         assertEq(account.TOKEN_TO_REDEEM(), spec.token, spec.symbol);
         assertEq(account.adapter(), adapter, spec.symbol);
         assertEq(account.converters(0), address(this), spec.symbol);
@@ -546,6 +553,10 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         factory.whitelist(address(implementation));
         IAccount account =
             IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(asset)), adapter)));
+
+        if (index == 37) {
+            _permissionParetoAccount(address(account));
+        }
 
         _warpToRedemptionWindow(index, account);
         if (index == 7) {
@@ -574,6 +585,10 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         factory.whitelist(address(implementation));
         IAccount account =
             IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(asset)), adapter)));
+
+        if (index == 37) {
+            _permissionParetoAccount(address(account));
+        }
 
         _warpToRedemptionWindow(index, account);
         if (_isCentrifuge(index)) {
@@ -935,7 +950,9 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             );
         }
         if (index == 37) {
-            return new AA_FalconX_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+            return new AA_FalconX_Account(
+                address(new ParetoOracle(0.9e18, 1.5e18, AA_FALCONX, PARETO_FALCONX_CDO)), factory, COW_SWAP_SETTLEMENT
+            );
         }
         if (index == 38) return new ACRED_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 39) return new sUSN_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
@@ -1026,8 +1043,8 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     }
 
     function _isKnownMainnetSyncRestricted(uint256 index) internal pure returns (bool) {
-        return _isCentrifuge(index) || _isMidas(index) || index == 2 || _isFigure(index) || index == 37
-            || _isSecuritize(index) || index == 39 || index == 40;
+        return _isCentrifuge(index) || _isMidas(index) || index == 2 || _isFigure(index) || _isSecuritize(index)
+            || index == 39 || index == 40;
     }
 
     function _assertKnownMainnetSyncRestriction(
@@ -1114,7 +1131,8 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         }
         if (index == 37) {
             vm.expectCall(
-                IParetoAccount(address(account)).IDLE_CDO(), abi.encodeCall(IParetoCDO.requestWithdraw, (amount, token))
+                IParetoAccount(address(account)).WITHDRAWAL_QUEUE(),
+                abi.encodeCall(IParetoWithdrawalQueue.requestWithdraw, (amount))
             );
             return;
         }
@@ -1257,9 +1275,8 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         if (_isCentrifuge(index)) {
             uint256 requestId = IAsyncRedeemAccount(address(account)).requestIds(0);
             assertEq(
-                IAsyncRedeemVault(CentrifugeAccount(address(account)).ASYNC_REDEEM_VAULT()).pendingRedeemRequest(
-                    requestId, address(account)
-                ),
+                IAsyncRedeemVault(CentrifugeAccount(address(account)).ASYNC_REDEEM_VAULT())
+                    .pendingRedeemRequest(requestId, address(account)),
                 2 * amount,
                 symbol
             );
@@ -1316,7 +1333,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             return;
         }
         if (index == 37) {
-            assertGt(IERC20(IParetoAccount(address(account)).RECEIPT_TOKEN()).balanceOf(address(account)), 0, symbol);
+            _assertParetoQueued(account, 2 * amount, symbol);
             assertGt(account.totalAssets(), 0, symbol);
             return;
         }
@@ -1483,8 +1500,20 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     }
 
     function _assertParetoRedemption(IAccount account, string memory symbol) internal view {
-        assertGt(IERC20(IParetoAccount(address(account)).RECEIPT_TOKEN()).balanceOf(address(account)), 0, symbol);
+        _assertParetoQueued(account, 10 ** IERC20Metadata(account.TOKEN_TO_REDEEM()).decimals(), symbol);
         assertGt(account.totalAssets(), 0, symbol);
+    }
+
+    function _assertParetoQueued(IAccount account, uint256 amount, string memory symbol) internal view {
+        address queue = IParetoAccount(address(account)).WITHDRAWAL_QUEUE();
+        uint256 epoch = IParetoCreditVault(IParetoWithdrawalQueue(queue).strategy()).epochNumber() + 1;
+        assertEq(IParetoWithdrawalQueue(queue).userWithdrawalsEpochs(address(account), epoch), amount, symbol);
+        assertEq(IParetoAccount(address(account)).queueEpochs(0), epoch, symbol);
+    }
+
+    function _permissionParetoAccount(address account) internal {
+        vm.mockCall(PARETO_FALCONX_CDO, abi.encodeCall(IParetoCDO.isEpochRunning, ()), abi.encode(true));
+        vm.mockCall(PARETO_FALCONX_CDO, abi.encodeCall(IParetoCDO.isWalletAllowed, (account)), abi.encode(true));
     }
 
     function _assertSecuritizeRedemption(IAccount account, string memory symbol) internal view {

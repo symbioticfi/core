@@ -30,6 +30,7 @@ import {AUTO_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-re
 import {PRIME_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PRIME_Account.sol";
 import {FigureSubAccount} from "../../src/contracts/adapters/ll-adapter/FigureAccount.sol";
 import {FigureOracle} from "../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
+import {ParetoOracle} from "../../src/contracts/adapters/ll-adapter/oracles/ParetoOracle.sol";
 import {
     StockMarketTRBasisTrade_Account
 } from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
@@ -85,6 +86,7 @@ import {IMidasAccount} from "../../src/interfaces/adapters/ll-adapter/midas/IMid
 import {IMidasRedemptionVault} from "../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 import {INoonAccount} from "../../src/interfaces/adapters/ll-adapter/noon/INoonAccount.sol";
 import {IParetoAccount} from "../../src/interfaces/adapters/ll-adapter/pareto/IParetoAccount.sol";
+import {IParetoCDO} from "../../src/interfaces/adapters/ll-adapter/pareto/IParetoCDO.sol";
 import {ISecuritizeAccount} from "../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeAccount.sol";
 import {ISuperstateAccount} from "../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol";
 import {ISthUSD} from "../../src/interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
@@ -113,6 +115,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     address internal constant DECRDX_TOKEN = 0x9E2679eABFF131b8b1b48fF7566140794E0eEdc4;
     address internal constant DEJAAA_TOKEN = 0xAAA0008C8CF3A7Dca931adaF04336A5D808C82Cc;
     address internal constant DEJTRSY_TOKEN = 0xA6233014B9b7aaa74f38fa1977ffC7A89642dC72;
+    address internal constant AA_FALCONX_TOKEN = 0xC26A6Fa2C37b38E549a4a1807543801Db684f99C;
+    address internal constant PARETO_FALCONX_CDO = 0x433D5B175148dA32Ffe1e1A37a939E1b7e79be4d;
 
     address internal constant PRIME_TOKEN = 0x19ebb35279A16207Ec4ba82799CC64715065F7F6;
     address internal constant AUTO_TOKEN = 0x997E2Efbce91D170B00EA402e35a66C887EE1da9;
@@ -568,7 +572,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             _permissionDigiFTTransfer(token, account);
         }
         if (index == 37) {
-            deal(IParetoAccount(account).RECEIPT_TOKEN(), account, amount);
+            _permissionParetoAccount(account);
+            deal(token, account, amount);
             return;
         }
         if (index == 38) {
@@ -880,7 +885,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return _lidoRequestIdsLength(account);
         }
         if (index == 37) {
-            return IERC20(IParetoAccount(account).RECEIPT_TOKEN()).balanceOf(account) > 0 ? 1 : 0;
+            return _paretoQueueEpochsLength(account);
         }
         if (index == 38) {
             return _securitizePendingCutoffsLength(account);
@@ -900,6 +905,16 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     function _midasRequestIdsLength(address account) internal view returns (uint256 length) {
         while (true) {
             try IMidasAccount(account).requestIds(length) returns (uint64) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _paretoQueueEpochsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try IParetoAccount(account).queueEpochs(length) returns (uint256) {
                 ++length;
             } catch {
                 return length;
@@ -1057,7 +1072,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         specs[34] = _spec("sthUSD", 7 days);
         specs[35] = _spec("weETH", 14 days);
         specs[36] = _spec("wstETH", 5 days);
-        specs[37] = _spec("AA_FalconXUSDC", 30 days);
+        // A request arriving just after NETTING can wait through the current and next full epoch.
+        specs[37] = _spec("AA_FalconXUSDC", 66 days);
         // ACRED cohort worst case: 91-day wait to cutoff + 30-day post-cutoff window.
         specs[38] = _spec("ACRED", 121 days);
         specs[39] = _spec("sUSN", 7 days);
@@ -1273,7 +1289,15 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             );
         }
         if (index == 37) {
-            return IAccount(address(new AA_FalconX_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new AA_FalconX_Account(
+                        address(new ParetoOracle(0.9e18, 1.5e18, AA_FALCONX_TOKEN, PARETO_FALCONX_CDO)),
+                        factory,
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 38) {
             return IAccount(address(new ACRED_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
@@ -1339,6 +1363,11 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
 
     function _oracle() internal returns (address) {
         return address(new BenchmarkConstantOracle());
+    }
+
+    function _permissionParetoAccount(address account) internal {
+        vm.mockCall(PARETO_FALCONX_CDO, abi.encodeCall(IParetoCDO.isEpochRunning, ()), abi.encode(true));
+        vm.mockCall(PARETO_FALCONX_CDO, abi.encodeCall(IParetoCDO.isWalletAllowed, (account)), abi.encode(true));
     }
 
     function _logBench(TokenBenchSpec[] memory specs, uint256 onboardingGas) internal {
