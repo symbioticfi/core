@@ -65,8 +65,10 @@ import {weETH_Account} from "../../../../src/contracts/adapters/ll-adapter/token
 import {wstETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {AsyncRedeemOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/AsyncRedeemOracle.sol";
 import {CentrifugeAccount} from "../../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
+import {ThreeJaneAccount} from "../../../../src/contracts/adapters/ll-adapter/ThreeJaneAccount.sol";
 import {FigureOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
 import {ParetoOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/ParetoOracle.sol";
+import {ThreeJaneOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/ThreeJaneOracle.sol";
 import {AdapterFactory} from "../../../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../../../src/contracts/adapters/LiquidLaneAdapter.sol";
 import {AccountRegistry} from "../../../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
@@ -197,6 +199,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     address internal constant STHUSD = 0xA808Bc9775cb41c52C7842f8b50427fE7A770326;
     address internal constant S_USN = 0xE24a3DC889621612422A64E6388927901608B91D;
     address internal constant SUSD3 = 0xf689555121e529Ff0463e191F9Bd9d1E496164a7;
+    address internal constant USD3 = 0x056B269Eb1f75477a8666ae8C7fE01b64dD55eCc;
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant USCC = 0x14d60E7FDC0D71d8611742720E4C50E7a974020c;
     address internal constant WEETH = 0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee;
@@ -252,6 +255,97 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertEq(figureOracle.TOKEN_TO_REDEEM(), spec.token, spec.symbol);
         assertEq(figureOracle.ASYNC_REDEEM_VAULT(), asyncRedeemVault, spec.symbol);
         assertEq(figureOracle.getPrice(), expectedOraclePrice, spec.symbol);
+    }
+
+    function testThreeJaneMainnetOracleUsesTwoHopConversion() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane oracle checks");
+        _createFork();
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        IAccount implementation = _deployImplementation(33, address(factory));
+        ThreeJaneOracle oracle = ThreeJaneOracle(implementation.ORACLE());
+        uint256 tokenUnit = 10 ** IERC20Metadata(SUSD3).decimals();
+        address usd3 = IERC4626(SUSD3).asset();
+        address usdc = IERC4626(usd3).asset();
+        uint256 expectedAssets = IERC4626(usd3).convertToAssets(IERC4626(SUSD3).convertToAssets(tokenUnit));
+        uint256 expectedOraclePrice = expectedAssets * 1e18 / 10 ** IERC20Metadata(usdc).decimals();
+
+        factory.whitelist(address(implementation));
+        IAccount account =
+            IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(usdc)), adapter)));
+
+        assertEq(implementation.TOKEN_TO_REDEEM(), SUSD3, "sUSD3 implementation token");
+        assertEq(implementation.ORACLE(), address(oracle), "sUSD3 implementation oracle");
+        assertEq(ThreeJaneAccount(address(implementation)).USD3(), USD3, "sUSD3 implementation USD3");
+        assertEq(ThreeJaneAccount(address(implementation)).REDEMPTION_TOKEN(), USDC, "sUSD3 implementation USDC");
+        assertEq(account.ORACLE(), address(oracle), "sUSD3 account oracle");
+        assertEq(ThreeJaneAccount(address(account)).USD3(), USD3, "sUSD3 account USD3");
+        assertEq(ThreeJaneAccount(address(account)).REDEMPTION_TOKEN(), USDC, "sUSD3 account USDC");
+        assertEq(oracle.TOKEN_TO_REDEEM(), SUSD3, "sUSD3 oracle token");
+        assertEq(oracle.USD3(), usd3, "sUSD3 oracle USD3");
+        assertEq(usd3, USD3, "sUSD3 USD3 topology");
+        assertEq(usdc, USDC, "sUSD3 USDC topology");
+        assertEq(oracle.getPrice(), expectedOraclePrice, "sUSD3 oracle price");
+    }
+
+    function testThreeJaneMainnetValuesHeldSUSD3InUSD3() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane valuation checks");
+        _createFork();
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        IAccount implementation = _deployImplementation(33, address(factory));
+        factory.whitelist(address(implementation));
+        IAccount account =
+            IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(USD3)), adapter)));
+
+        uint256 amount = _redemptionAmount(33, SUSD3);
+        deal(SUSD3, address(account), amount);
+        uint256 expectedAssets = IERC4626(USD3).convertToAssets(IERC4626(SUSD3).convertToAssets(amount));
+
+        assertEq(account.totalAssets(), expectedAssets, "sUSD3 value in USD3");
+        account.sync();
+        assertEq(IERC20(SUSD3).balanceOf(address(account)), amount, "sUSD3 cooldown balance");
+        assertEq(account.totalAssets(), expectedAssets, "sUSD3 cooldown value in USD3");
+
+        (uint256 cooldownEnd,,) = IThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
+        assertGt(cooldownEnd, block.timestamp, "sUSD3 cooldown end");
+        vm.warp(cooldownEnd);
+        expectedAssets = account.totalAssets();
+        uint256 balanceBefore = IERC20(SUSD3).balanceOf(address(account));
+        assertGt(IERC4626(SUSD3).maxWithdraw(address(account)), 0, "sUSD3 matured withdrawal");
+        account.sync();
+        assertLt(IERC20(SUSD3).balanceOf(address(account)), balanceBefore, "sUSD3 matured balance");
+        assertApproxEqAbs(account.totalAssets(), expectedAssets, 2, "sUSD3 matured value in USD3");
+    }
+
+    function testThreeJaneMainnetAdapterUsesStablecoinOracleForUSD3Vault() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane quote checks");
+        _createFork();
+
+        TokensMainnetVaultRegistry vaultRegistry = new TokensMainnetVaultRegistry();
+        TokensMainnetLiquidLaneVault vault = new TokensMainnetLiquidLaneVault(USD3);
+        AdapterFactory adapterFactory = new AdapterFactory(address(this));
+        MigratablesFactory accountFactory = new MigratablesFactory(address(this));
+        AccountRegistry accountRegistry = new AccountRegistry(address(this));
+
+        vaultRegistry.add(address(vault));
+        LiquidLaneAdapter adapterImplementation =
+            new LiquidLaneAdapter(address(vaultRegistry), address(adapterFactory), address(accountRegistry));
+        IAccount accountImplementation = _deployImplementation(33, address(accountFactory));
+        adapterFactory.whitelist(address(adapterImplementation));
+        accountFactory.whitelist(address(accountImplementation));
+        accountRegistry.setAccountFactory(USD3, SUSD3, address(accountFactory));
+
+        ILiquidLaneAdapter.InitParams memory params =
+            ILiquidLaneAdapter.InitParams({pauser: address(this), unpauser: address(this)});
+        LiquidLaneAdapter llAdapter =
+            LiquidLaneAdapter(adapterFactory.create(1, address(this), abi.encode(address(vault), abi.encode(params))));
+        llAdapter.addTokenToRedeem(SUSD3);
+
+        uint256 amount = _redemptionAmount(33, SUSD3);
+        uint256 expectedAssets = IERC4626(USD3).convertToAssets(IERC4626(SUSD3).convertToAssets(amount));
+        assertEq(llAdapter.getAmountOut(SUSD3, amount), expectedAssets);
+        assertEq(llAdapter.getMaxRate(SUSD3), expectedAssets * 1e18 / 10 ** IERC20Metadata(USD3).decimals());
     }
 
     function testAUTOMainnetRedemptionCreatesWyldsRequest() public {
@@ -487,17 +581,20 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
 
         uint256 amount = _redemptionAmount(33, SUSD3);
         deal(SUSD3, address(account), amount);
+        uint256 totalAssetsBefore = account.totalAssets();
 
         account.sync();
 
-        (uint48 cooldownEnd,, uint256 shares) = IThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
+        (uint256 cooldownEnd,, uint256 shares) = IThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
         assertEq(shares, amount, "sUSD3");
         assertGt(cooldownEnd, block.timestamp, "sUSD3");
+        assertEq(IERC20(SUSD3).balanceOf(address(account)), amount, "sUSD3 cooldown balance");
+        assertEq(account.totalAssets(), totalAssetsBefore, "sUSD3 cooldown valuation");
 
         vm.warp(cooldownEnd);
 
         uint256 assetBalanceBefore = IERC20(asset).balanceOf(address(account));
-        uint256 withdrawable = IThreeJaneSUSD3(SUSD3).availableWithdrawLimit(address(account));
+        uint256 withdrawable = IERC4626(SUSD3).maxWithdraw(address(account));
         account.sync();
 
         (,, uint256 sharesAfter) = IThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
@@ -923,7 +1020,12 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         if (index == 30) return new msyrupUSD_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 31) return new msyrupUSDp_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 32) return new sAID_Account(factory, COW_SWAP_SETTLEMENT);
-        if (index == 33) return new sUSD3_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+        if (index == 33) {
+            return
+                new sUSD3_Account(
+                    address(new ThreeJaneOracle(1, type(uint256).max, SUSD3)), factory, COW_SWAP_SETTLEMENT
+                );
+        }
         if (index == 34) return new sthUSD_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 35) {
             return new weETH_Account(
@@ -974,8 +1076,8 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
 
     function _assetFor(uint256 index, address token) internal view returns (address) {
         if (
-            _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 37 || _isSecuritize(index)
-                || index == 40 || _isInfiniFi(index)
+            _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 33 || index == 37
+                || _isSecuritize(index) || index == 40 || _isInfiniFi(index)
         ) {
             return USDC;
         }

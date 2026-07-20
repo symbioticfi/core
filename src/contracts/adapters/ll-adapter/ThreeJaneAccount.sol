@@ -4,7 +4,6 @@ pragma solidity ^0.8.28;
 
 import {Account} from "./common/Account.sol";
 
-import {IThreeJaneAccount} from "../../../interfaces/adapters/ll-adapter/threejane/IThreeJaneAccount.sol";
 import {IThreeJaneSUSD3} from "../../../interfaces/adapters/ll-adapter/threejane/IThreeJaneSUSD3.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -12,75 +11,64 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 /// @title ThreeJaneAccount
 /// @notice Account for 3Jane sUSD3 cooldown redemptions.
-contract ThreeJaneAccount is Account, IThreeJaneAccount {
+contract ThreeJaneAccount is Account {
+    /* IMMUTABLES */
+
+    /// @notice USD3 token redeemed from sUSD3.
+    address public immutable USD3;
+    /// @notice Native redemption token redeemed from USD3.
+    address public immutable REDEMPTION_TOKEN;
+
     /* CONSTRUCTOR */
 
     /// @notice Creates the 3Jane account implementation.
     constructor(address oracle, address factory, address tokenToRedeem, address cowSwapSettlement)
         Account(oracle, factory, tokenToRedeem, cowSwapSettlement)
-    {}
+    {
+        USD3 = IERC4626(tokenToRedeem).asset();
+        REDEMPTION_TOKEN = IERC4626(USD3).asset();
+    }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns no additional assets because cooldown shares remain held by this account.
-    function _totalAssets() internal pure override returns (uint256) {
-        return 0;
+    /// @dev Returns held USD3 and USDC value not already counted as the vault asset.
+    function _totalAssets() internal view override returns (uint256) {
+        if (_asset == USD3) {
+            uint256 redemptionTokenBalance = IERC20(REDEMPTION_TOKEN).balanceOf(address(this));
+            return _redemptionTokenToAssets(REDEMPTION_TOKEN, redemptionTokenBalance);
+        }
+
+        uint256 usd3Balance = IERC20(USD3).balanceOf(address(this));
+        uint256 assets = usd3Balance == 0 ? 0 : IERC4626(USD3).convertToAssets(usd3Balance);
+        return _asset == REDEMPTION_TOKEN
+            ? assets
+            : _redemptionTokenToAssets(REDEMPTION_TOKEN, assets + IERC20(REDEMPTION_TOKEN).balanceOf(address(this)));
     }
 
-    /// @dev Starts cooldowns and withdraws matured sUSD3 into USD3 during the withdrawal window.
+    /// @dev Starts or executes the sUSD3 cooldown, then natively withdraws available USD3 into USDC.
     function _sync() internal override {
-        (uint48 cooldownEnd, uint48 windowEnd, uint256 shares) =
-            IThreeJaneSUSD3(TOKEN_TO_REDEEM).getCooldownStatus(address(this));
-
-        if (shares > 0) {
-            if (block.timestamp < cooldownEnd) {
-                return;
+        uint256 balance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        uint256 assets;
+        if (balance > 0) {
+            assets = IERC4626(TOKEN_TO_REDEEM).maxWithdraw(address(this));
+            if (assets > 0) {
+                balance -= IERC4626(TOKEN_TO_REDEEM).withdraw(assets, address(this), address(this));
             }
 
-            if (block.timestamp <= windowEnd) {
-                uint256 assets = IThreeJaneSUSD3(TOKEN_TO_REDEEM).convertToAssets(shares);
-                uint256 availableAssets = IThreeJaneSUSD3(TOKEN_TO_REDEEM).availableWithdrawLimit(address(this));
-                if (availableAssets < assets) {
-                    assets = availableAssets;
+            if (balance > 0) {
+                (, uint256 windowEnd,) = IThreeJaneSUSD3(TOKEN_TO_REDEEM).getCooldownStatus(address(this));
+                if (block.timestamp > windowEnd) {
+                    IThreeJaneSUSD3(TOKEN_TO_REDEEM).startCooldown(balance);
                 }
-                if (assets > 0) {
-                    IThreeJaneSUSD3(TOKEN_TO_REDEEM).withdraw(assets, address(this), address(this));
-                }
-                address redeemAsset = IThreeJaneSUSD3(TOKEN_TO_REDEEM).asset();
-                if (redeemAsset != _asset) {
-                    uint256 balance = IERC20(redeemAsset).balanceOf(address(this));
-                    if (balance > 0) {
-                        IERC4626(redeemAsset).redeem(balance, address(this), address(this));
-                    }
-                }
-                return;
             }
         }
 
-        if (block.timestamp < IThreeJaneSUSD3(TOKEN_TO_REDEEM).lockedUntil(address(this))) {
+        if (IERC20(USD3).balanceOf(address(this)) == 0) {
             return;
         }
-
-        shares = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (shares > 0) {
-            IThreeJaneSUSD3(TOKEN_TO_REDEEM).startCooldown(shares);
-        }
-    }
-
-    /* INITIALIZATION */
-
-    /// @dev Initializes the account for an adapter and vault.
-    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
-        super._initialize(initialVersion, initOwner, data);
-        address redeemAsset = IThreeJaneSUSD3(TOKEN_TO_REDEEM).asset();
-        if (redeemAsset != _asset) {
-            try IERC4626(redeemAsset).asset() returns (address asset) {
-                if (asset != _asset) {
-                    revert InvalidAsset();
-                }
-            } catch {
-                revert InvalidAsset();
-            }
+        assets = IERC4626(USD3).maxWithdraw(address(this));
+        if (assets > 0) {
+            IERC4626(USD3).withdraw(assets, address(this), address(this));
         }
     }
 }
