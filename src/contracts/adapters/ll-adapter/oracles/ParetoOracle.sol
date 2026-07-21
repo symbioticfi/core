@@ -42,6 +42,6 @@ contract ParetoOracle is Oracle, IParetoOracle {
 
     /// @inheritdoc Oracle
     function _getPrice() internal view override returns (uint256) {
-        return IParetoCDO(IDLE_CDO).virtualPrice(TOKEN_TO_REDEEM).mulDiv(1e18, UNDERLYING_UNIT);
+        return IParetoCDO(IDLE_CDO).virtualPrice(TOKEN_TO_REDEEM) * 1e18 / UNDERLYING_UNIT;
     }
 }
