@@ -8,13 +8,6 @@ import {IAccount} from "../IAccount.sol";
  * @notice Interface for Pareto queue-based liquidity lane accounts.
  */
 interface IParetoAccount is IAccount {
-    /* ERRORS */
-
-    /**
-     * @notice Raised when the Pareto underlying token is not the vault asset.
-     */
-    error InvalidAsset();
-
     /* FUNCTIONS */
 
     /**
@@ -22,6 +15,12 @@ interface IParetoAccount is IAccount {
      * @return withdrawalQueue The queue address.
      */
     function WITHDRAWAL_QUEUE() external view returns (address withdrawalQueue);
+
+    /**
+     * @notice Returns the token paid out by Pareto redemptions (the queue underlying).
+     * @return redemptionToken The redemption-token address.
+     */
+    function REDEMPTION_TOKEN() external view returns (address redemptionToken);
 
     /**
      * @notice Returns a tracked queue processing epoch.

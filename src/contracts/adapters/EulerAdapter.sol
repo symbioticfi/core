@@ -66,24 +66,15 @@ contract EulerAdapter is Adapter, CoWSwapConverter, MerklClaimer, IEulerAdapter 
         super.convert(tokenIn, amountIn, tokenOut, data);
     }
 
-    /* PUBLIC FUNCTIONS (INTERNAL) */
-
-    /// @dev Deposits asset from the calling vault into the configured Euler Lend vault.
-    function deposit(uint256 amount) public returns (uint256 shares) {
-        if (address(this) != msg.sender) {
-            revert NotSelf();
-        }
-        shares = IERC4626(lendVault).deposit(amount, address(this));
-        if (shares == 0) {
-            revert InsufficientAmount();
-        }
-    }
-
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Supplies asset from the calling vault into the configured Euler Lend vault.
+    /// @dev Supplies asset from the calling vault into the configured Euler Lend vault. Skips deposits
+    ///      that would mint no shares, which would otherwise strand the transferred assets.
     function _allocate(uint256 amount) internal override returns (uint256) {
-        try this.deposit(amount) returns (uint256 shares) {
+        if (IERC4626(lendVault).previewDeposit(amount) == 0) {
+            return 0;
+        }
+        try IERC4626(lendVault).deposit(amount, address(this)) returns (uint256 shares) {
             totalShares += shares;
             return amount;
         } catch {}
@@ -92,10 +83,11 @@ contract EulerAdapter is Adapter, CoWSwapConverter, MerklClaimer, IEulerAdapter 
 
     /// @dev Withdraws asset for the calling vault from the configured Euler Lend vault when liquidity is available.
     function _deallocate(uint256 amount) internal override returns (uint256) {
-        amount = Math.min(
-            amount,
-            Math.min(IERC4626(lendVault).previewRedeem(totalShares), IERC4626(lendVault).maxWithdraw(address(this)))
-        );
+        amount = Math.min(amount, IERC4626(lendVault).previewRedeem(totalShares));
+        if (amount == 0) {
+            return 0;
+        }
+        amount = Math.min(amount, IERC4626(lendVault).maxWithdraw(address(this)));
         if (amount == 0) {
             return 0;
         }

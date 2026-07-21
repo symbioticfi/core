@@ -10,6 +10,7 @@ import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
 import {IAdapterRegistry} from "../../src/interfaces/IAdapterRegistry.sol";
 import {IAaveV3Adapter} from "../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAppAdapter} from "../../src/interfaces/adapters/IAppAdapter.sol";
+import {IEulerAdapter} from "../../src/interfaces/adapters/IEulerAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IMerklClaimer} from "../../src/interfaces/adapters/common/IMerklClaimer.sol";
 import {IUniversalDelegator, MAX_SHARE} from "../../src/interfaces/delegator/IUniversalDelegator.sol";
@@ -17,6 +18,7 @@ import {
     MockAaveAToken,
     MockAavePool,
     MockAavePoolDataProvider,
+    MockEulerLendVaultFactory,
     MockMorphoAdapterRegistry,
     MockMorphoVaultFactory
 } from "../mocks/HoodiScenarioProtocolMocks.sol";
@@ -146,45 +148,68 @@ contract DeployFullAdapterOverlayTestnetTest is Test {
         assertEq(IMerklClaimer(deployed.usdcMorphoAdapter).MERKL_DISTRIBUTOR(), deployed.merklDistributor);
         assertEq(IMerklClaimer(deployed.aUsdMorphoAdapter).MERKL_DISTRIBUTOR(), deployed.merklDistributor);
 
+        assertTrue(
+            MockEulerLendVaultFactory(deployed.mockEulerLendVaultFactory).isProxy(deployed.mockEulerLendVaultUsdc)
+        );
+        assertTrue(
+            MockEulerLendVaultFactory(deployed.mockEulerLendVaultFactory).isProxy(deployed.mockEulerLendVaultAusd)
+        );
+        assertEq(IEulerAdapter(deployed.usdcEulerAdapter).lendVault(), deployed.mockEulerLendVaultUsdc);
+        assertEq(IEulerAdapter(deployed.aUsdEulerAdapter).lendVault(), deployed.mockEulerLendVaultAusd);
+        assertEq(IMerklClaimer(deployed.usdcEulerAdapter).MERKL_DISTRIBUTOR(), deployed.merklDistributor);
+        assertEq(IMerklClaimer(deployed.aUsdEulerAdapter).MERKL_DISTRIBUTOR(), deployed.merklDistributor);
+
         _assertDelegatorOverlay(
-            address(baseData.v2.adapterRegistry),
-            baseData.liquidLane.usdcVault,
-            baseData.liquidLane.usdcDelegator,
-            deployed.usdcAppAdapter,
-            deployed.usdcAaveAdapter,
-            deployed.usdcMorphoAdapter,
-            initialUsdcAdapters
+            DelegatorOverlayAssertion({
+                adapterRegistry: address(baseData.v2.adapterRegistry),
+                vault: baseData.liquidLane.usdcVault,
+                delegator: baseData.liquidLane.usdcDelegator,
+                appAdapter: deployed.usdcAppAdapter,
+                aaveAdapter: deployed.usdcAaveAdapter,
+                morphoAdapter: deployed.usdcMorphoAdapter,
+                eulerAdapter: deployed.usdcEulerAdapter,
+                initialAdapters: initialUsdcAdapters
+            })
         );
         _assertDelegatorOverlay(
-            address(baseData.v2.adapterRegistry),
-            baseData.liquidLane.aUsdVault,
-            baseData.liquidLane.aUsdDelegator,
-            deployed.aUsdAppAdapter,
-            deployed.aUsdAaveAdapter,
-            deployed.aUsdMorphoAdapter,
-            initialAUsdAdapters
+            DelegatorOverlayAssertion({
+                adapterRegistry: address(baseData.v2.adapterRegistry),
+                vault: baseData.liquidLane.aUsdVault,
+                delegator: baseData.liquidLane.aUsdDelegator,
+                appAdapter: deployed.aUsdAppAdapter,
+                aaveAdapter: deployed.aUsdAaveAdapter,
+                morphoAdapter: deployed.aUsdMorphoAdapter,
+                eulerAdapter: deployed.aUsdEulerAdapter,
+                initialAdapters: initialAUsdAdapters
+            })
         );
     }
 
-    function _assertDelegatorOverlay(
-        address adapterRegistry,
-        address vault,
-        address delegator,
-        address appAdapter,
-        address aaveAdapter,
-        address morphoAdapter,
-        uint256 initialAdapters
-    ) internal view {
-        assertEq(IUniversalDelegator(delegator).getAdaptersLength(), initialAdapters + 3);
-        assertEq(IUniversalDelegator(delegator).adapters(initialAdapters), appAdapter);
-        assertEq(IUniversalDelegator(delegator).adapters(initialAdapters + 1), aaveAdapter);
-        assertEq(IUniversalDelegator(delegator).adapters(initialAdapters + 2), morphoAdapter);
-        assertTrue(IAdapterRegistry(adapterRegistry).isWhitelisted(vault, appAdapter));
-        assertTrue(IAdapterRegistry(adapterRegistry).isWhitelisted(vault, aaveAdapter));
-        assertTrue(IAdapterRegistry(adapterRegistry).isWhitelisted(vault, morphoAdapter));
-        _assertLimits(delegator, appAdapter);
-        _assertLimits(delegator, aaveAdapter);
-        _assertLimits(delegator, morphoAdapter);
+    struct DelegatorOverlayAssertion {
+        address adapterRegistry;
+        address vault;
+        address delegator;
+        address appAdapter;
+        address aaveAdapter;
+        address morphoAdapter;
+        address eulerAdapter;
+        uint256 initialAdapters;
+    }
+
+    function _assertDelegatorOverlay(DelegatorOverlayAssertion memory a) internal view {
+        assertEq(IUniversalDelegator(a.delegator).getAdaptersLength(), a.initialAdapters + 4);
+        assertEq(IUniversalDelegator(a.delegator).adapters(a.initialAdapters), a.appAdapter);
+        assertEq(IUniversalDelegator(a.delegator).adapters(a.initialAdapters + 1), a.aaveAdapter);
+        assertEq(IUniversalDelegator(a.delegator).adapters(a.initialAdapters + 2), a.morphoAdapter);
+        assertEq(IUniversalDelegator(a.delegator).adapters(a.initialAdapters + 3), a.eulerAdapter);
+        assertTrue(IAdapterRegistry(a.adapterRegistry).isWhitelisted(a.vault, a.appAdapter));
+        assertTrue(IAdapterRegistry(a.adapterRegistry).isWhitelisted(a.vault, a.aaveAdapter));
+        assertTrue(IAdapterRegistry(a.adapterRegistry).isWhitelisted(a.vault, a.morphoAdapter));
+        assertTrue(IAdapterRegistry(a.adapterRegistry).isWhitelisted(a.vault, a.eulerAdapter));
+        _assertLimits(a.delegator, a.appAdapter);
+        _assertLimits(a.delegator, a.aaveAdapter);
+        _assertLimits(a.delegator, a.morphoAdapter);
+        _assertLimits(a.delegator, a.eulerAdapter);
     }
 
     function _assertLimits(address delegator, address adapter) internal view {

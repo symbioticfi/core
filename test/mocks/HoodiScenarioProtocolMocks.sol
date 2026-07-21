@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {MockMorphoVault} from "./MockMorphoVault.sol";
 
 import {IRewards} from "../../src/interfaces/vault/IRewards.sol";
-import {MockMorphoVault} from "./MockMorphoVault.sol";
+
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 interface IVaultDonateHoodiScenario {
     function donate(uint256 amount) external;
@@ -161,15 +164,12 @@ contract MockMorphoVaultHarness is MockMorphoVault {
     }
 }
 
-contract MockMorphoVaultHarnessUpgradeable is Initializable {
-    IERC20 public asset;
+contract MockMorphoVaultHarnessUpgradeable is Initializable, ERC4626Upgradeable {
     address public adapterRegistry;
 
-    uint256 public totalShares;
-    mapping(address account => uint256 shares) public sharesOf;
-
     function initialize(address asset_, address adapterRegistry_) external initializer {
-        asset = IERC20(asset_);
+        __ERC20_init("Mock Morpho Vault", "mMV");
+        __ERC4626_init(IERC20(asset_));
         adapterRegistry = adapterRegistry_;
     }
 
@@ -181,74 +181,19 @@ contract MockMorphoVaultHarnessUpgradeable is Initializable {
         return true;
     }
 
-    function maxWithdraw(address owner) external view returns (uint256) {
-        if (totalShares == 0) {
-            return 0;
-        }
-        return sharesOf[owner] * asset.balanceOf(address(this)) / totalShares;
-    }
-
-    function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
-        uint256 totalAssetsBefore = asset.balanceOf(address(this));
-        asset.transferFrom(msg.sender, address(this), assets);
-
-        if (totalShares == 0 || totalAssetsBefore == 0) {
-            shares = assets;
-        } else {
-            shares = assets * totalShares / totalAssetsBefore;
-        }
-
-        sharesOf[receiver] += shares;
-        totalShares += shares;
-        return shares;
-    }
-
-    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
-        uint256 totalAssets = asset.balanceOf(address(this));
-        if (totalAssets == 0 || totalShares == 0) {
-            return 0;
-        }
-        shares = assets * totalShares / totalAssets;
-        if (shares > sharesOf[owner]) {
-            shares = sharesOf[owner];
-            assets = shares * totalAssets / totalShares;
-        }
-
-        sharesOf[owner] -= shares;
-        totalShares -= shares;
-        asset.transfer(receiver, assets);
-        return shares;
-    }
-
-    function balanceOf(address account) external view virtual returns (uint256) {
-        return sharesOf[account];
-    }
-
-    function previewRedeem(uint256 shares) external view virtual returns (uint256) {
-        if (totalShares == 0) {
-            return 0;
-        }
-        return shares * asset.balanceOf(address(this)) / totalShares;
-    }
-
     function donateYield(uint256 amount) external {
-        asset.transferFrom(msg.sender, address(this), amount);
+        IERC20(asset()).transferFrom(msg.sender, address(this), amount);
     }
 }
 
-contract MockMorphoVaultConfigurable {
-    IERC20 public immutable asset;
+contract MockMorphoVaultConfigurable is ERC4626 {
     address public immutable adapterRegistry;
     address public liquidityAdapter;
-
-    uint256 public totalShares;
-    mapping(address account => uint256 shares) public sharesOf;
 
     bool public revertOnDeposit;
     bool public revertOnWithdraw;
 
-    constructor(address asset_, address adapterRegistry_) {
-        asset = IERC20(asset_);
+    constructor(address asset_, address adapterRegistry_) ERC20("Mock Morpho Vault", "mMV") ERC4626(IERC20(asset_)) {
         adapterRegistry = adapterRegistry_;
     }
 
@@ -260,59 +205,22 @@ contract MockMorphoVaultConfigurable {
         revertOnWithdraw = value;
     }
 
-    function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver) public override returns (uint256) {
         if (revertOnDeposit) {
             revert("deposit failed");
         }
-
-        uint256 totalAssetsBefore = asset.balanceOf(address(this));
-        asset.transferFrom(msg.sender, address(this), assets);
-
-        if (totalShares == 0 || totalAssetsBefore == 0) {
-            shares = assets;
-        } else {
-            shares = assets * totalShares / totalAssetsBefore;
-        }
-
-        sharesOf[receiver] += shares;
-        totalShares += shares;
+        return super.deposit(assets, receiver);
     }
 
-    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
         if (revertOnWithdraw) {
             revert("withdraw failed");
         }
-
-        uint256 totalAssets = asset.balanceOf(address(this));
-        if (totalAssets == 0 || totalShares == 0) {
-            return 0;
-        }
-
-        shares = assets * totalShares / totalAssets;
-        if (shares > sharesOf[owner]) {
-            shares = sharesOf[owner];
-            assets = shares * totalAssets / totalShares;
-        }
-
-        sharesOf[owner] -= shares;
-        totalShares -= shares;
-        asset.transfer(receiver, assets);
-    }
-
-    function balanceOf(address account) external view returns (uint256) {
-        return sharesOf[account];
-    }
-
-    function previewRedeem(uint256 shares) external view returns (uint256) {
-        if (totalShares == 0) {
-            return 0;
-        }
-
-        return shares * asset.balanceOf(address(this)) / totalShares;
+        return super.withdraw(assets, receiver, owner);
     }
 
     function donateYield(uint256 amount) external {
-        asset.transferFrom(msg.sender, address(this), amount);
+        IERC20(asset()).transferFrom(msg.sender, address(this), amount);
     }
 
     function abdicated(bytes4) external pure returns (bool) {
@@ -615,5 +523,101 @@ contract MockAavePoolUpgradeable is Initializable, OwnableUpgradeable {
         require(address(aToken) != address(0), "invalid asset");
         IERC20(asset_).transferFrom(msg.sender, address(aToken), amount);
         aToken.mint(account, amount);
+    }
+}
+
+/// @notice Canonical ERC-4626 stand-in for an Euler EVK lend vault. `withdrawableCap` models the
+///         vault's liquid cash (real EVK lends deposits out, so maxWithdraw can be below the owner's
+///         share value); EulerAdapter._deallocate caps withdrawals by maxWithdraw.
+contract MockEulerLendVault is ERC4626, Ownable {
+    uint256 public withdrawableCap = type(uint256).max;
+
+    constructor(address asset_, address owner_)
+        ERC20("Mock Euler Lend Vault", "meVault")
+        ERC4626(IERC20(asset_))
+        Ownable(owner_)
+    {}
+
+    function setWithdrawableCap(uint256 cap) external onlyOwner {
+        withdrawableCap = cap;
+    }
+
+    function maxWithdraw(address owner) public view override returns (uint256 assets) {
+        assets = super.maxWithdraw(owner);
+        if (assets > withdrawableCap) {
+            assets = withdrawableCap;
+        }
+    }
+
+    function donateYield(uint256 amount) external {
+        IERC20(asset()).transferFrom(msg.sender, address(this), amount);
+    }
+}
+
+contract MockEulerLendVaultFactory is Ownable {
+    mapping(address proxy => bool status) public isProxy;
+
+    constructor(address owner_) Ownable(owner_) {}
+
+    function registerProxy(address proxy, bool status) external onlyOwner {
+        isProxy[proxy] = status;
+    }
+
+    function createVault(address asset_) external onlyOwner returns (address vault) {
+        vault = address(new MockEulerLendVault(asset_, owner()));
+        isProxy[vault] = true;
+    }
+}
+
+contract MockEulerLendVaultUpgradeable is Initializable, ERC4626Upgradeable, OwnableUpgradeable {
+    uint256 public withdrawableCap;
+
+    function initialize(address asset_, address owner_) external initializer {
+        __ERC20_init("Mock Euler Lend Vault", "meVault");
+        __ERC4626_init(IERC20(asset_));
+        __Ownable_init(owner_);
+        withdrawableCap = type(uint256).max;
+    }
+
+    function setWithdrawableCap(uint256 cap) external onlyOwner {
+        withdrawableCap = cap;
+    }
+
+    function maxWithdraw(address owner) public view override returns (uint256 assets) {
+        assets = super.maxWithdraw(owner);
+        if (assets > withdrawableCap) {
+            assets = withdrawableCap;
+        }
+    }
+
+    function donateYield(uint256 amount) external {
+        IERC20(asset()).transferFrom(msg.sender, address(this), amount);
+    }
+}
+
+contract MockEulerLendVaultFactoryUpgradeable is Initializable, OwnableUpgradeable {
+    mapping(address proxy => bool status) public isProxy;
+
+    address public proxyOwner;
+
+    function initialize(address proxyOwner_) external initializer {
+        __Ownable_init(proxyOwner_);
+        proxyOwner = proxyOwner_;
+    }
+
+    function registerProxy(address proxy, bool status) external onlyOwner {
+        isProxy[proxy] = status;
+    }
+
+    function createVault(address asset_) external onlyOwner returns (address implementation, address vault) {
+        implementation = address(new MockEulerLendVaultUpgradeable());
+        vault = address(
+            new TransparentUpgradeableProxy(
+                implementation,
+                proxyOwner,
+                abi.encodeCall(MockEulerLendVaultUpgradeable.initialize, (asset_, proxyOwner))
+            )
+        );
+        isProxy[vault] = true;
     }
 }

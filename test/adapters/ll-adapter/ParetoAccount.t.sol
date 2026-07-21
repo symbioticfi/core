@@ -173,19 +173,65 @@ contract ParetoAccountTest is AccountsBase {
         account.queueEpochs(0);
     }
 
+    function test_Sync_ClaimsDuringEpochBufferButDefersQueuingWhenEpochNotRunning() public {
+        // Queue an epoch while the epoch is running, then settle it during the inter-epoch buffer.
+        tranche.mint(address(account), TRANCHE_UNIT);
+        account.sync();
+        creditVault.setEpochNumber(13);
+        withdrawalQueue.processEpoch(13, 1_050_000);
+        withdrawalQueue.settleEpoch(13);
+
+        // During the buffer the real queue reverts requestWithdraw with EpochNotRunning; a sync holding
+        // fresh tranche tokens must still claim the matured epoch and simply defer the new request.
+        creditVault.setEpochRunning(false);
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+        account.sync();
+
+        assertEq(usdc.balanceOf(address(account)), 1_050_000, "matured epoch claimed during buffer");
+        assertEq(tranche.balanceOf(address(account)), 2 * TRANCHE_UNIT, "fresh tranche held, not queued");
+        assertEq(withdrawalQueue.requestCalls(), 1, "no requestWithdraw during buffer");
+        vm.expectRevert();
+        account.queueEpochs(0);
+
+        // Once the epoch runs again, the held tranche is queued.
+        creditVault.setEpochRunning(true);
+        account.sync();
+        assertEq(withdrawalQueue.requestCalls(), 2, "queued after epoch resumes");
+        assertEq(account.queueEpochs(0), 14);
+    }
+
     function test_Initialize_ApprovesOfficialQueue() public view {
         assertEq(tranche.allowance(address(account), address(withdrawalQueue)), type(uint256).max);
     }
 
-    function test_Initialize_RevertsWhenVaultAssetDoesNotMatchQueueUnderlying() public {
+    function test_Initialize_SupportsVaultAssetDifferentFromQueueUnderlying() public {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         ParetoAccount implementation = _newImplementation(address(tranche), address(withdrawalQueue), address(factory));
         factory.whitelist(address(implementation));
-        MockERC20 otherAsset = new MockERC20("Other", "OTHER", 6);
-        bytes memory data = _initData(address(otherAsset), address(tranche));
+        // A USDT vault redeeming Pareto's USDC underlying is supported; the mismatch is settled via CoWSwap.
+        MockERC20 usdt = new MockERC20("Tether USD", "USDT", 6);
+        ParetoAccount usdtAccount =
+            ParetoAccount(factory.create(1, address(this), _initData(address(usdt), address(tranche))));
 
-        vm.expectRevert(IParetoAccount.InvalidAsset.selector);
-        factory.create(1, address(this), data);
+        assertEq(usdtAccount.REDEMPTION_TOKEN(), address(usdc));
+
+        // Unprocessed tranche inventory is valued through the oracle in the vault asset.
+        oracle.setPrice(1_050_000e12);
+        tranche.mint(address(usdtAccount), 2 * TRANCHE_UNIT);
+        assertEq(usdtAccount.totalAssets(), 2_100_000);
+        usdtAccount.sync();
+
+        // A processed, settled epoch is valued in USDC (1:1 with USDT) whether still claimable...
+        creditVault.setEpochNumber(13);
+        withdrawalQueue.processEpoch(13, 1_050_000);
+        withdrawalQueue.settleEpoch(13);
+        assertEq(usdtAccount.totalAssets(), 2_100_000);
+
+        // ...or already claimed into the account's held USDC balance (which the base does not count as
+        // the vault asset, so ParetoAccount adds it back).
+        usdtAccount.sync();
+        assertEq(usdc.balanceOf(address(usdtAccount)), 2_100_000);
+        assertEq(usdtAccount.totalAssets(), 2_100_000);
     }
 
     function _deployPareto() internal returns (ParetoAccount deployedAccount) {
@@ -205,9 +251,14 @@ contract ParetoAccountTest is AccountsBase {
 
 contract ParetoTestCreditVault {
     uint256 public epochNumber = 12;
+    bool public isEpochRunning = true;
 
     function setEpochNumber(uint256 epochNumber_) external {
         epochNumber = epochNumber_;
+    }
+
+    function setEpochRunning(bool running) external {
+        isEpochRunning = running;
     }
 }
 
@@ -234,6 +285,10 @@ contract ParetoTestWithdrawalQueue {
         strategy = strategy_;
         underlying = underlying_;
         tranche = tranche_;
+    }
+
+    function idleCDOEpoch() external view returns (address) {
+        return address(strategy);
     }
 
     function setFailClaim(bool failClaim_) external {

@@ -5,6 +5,7 @@ pragma solidity ^0.8.28;
 import {Account} from "./common/Account.sol";
 
 import {IParetoAccount} from "../../../interfaces/adapters/ll-adapter/pareto/IParetoAccount.sol";
+import {IParetoCDO} from "../../../interfaces/adapters/ll-adapter/pareto/IParetoCDO.sol";
 import {IParetoCreditVault} from "../../../interfaces/adapters/ll-adapter/pareto/IParetoCreditVault.sol";
 import {IParetoWithdrawalQueue} from "../../../interfaces/adapters/ll-adapter/pareto/IParetoWithdrawalQueue.sol";
 
@@ -23,6 +24,14 @@ contract ParetoAccount is Account, IParetoAccount {
     /// @inheritdoc IParetoAccount
     address public immutable WITHDRAWAL_QUEUE;
 
+    /// @inheritdoc IParetoAccount
+    address public immutable REDEMPTION_TOKEN;
+
+    /// @dev CDO that gates the queue's epoch state; fixed at queue initialization.
+    address internal immutable IDLE_CDO;
+    /// @dev Credit vault holding the epoch counter; fixed at queue initialization.
+    address internal immutable STRATEGY;
+
     /* STATE VARIABLES */
 
     /// @inheritdoc IParetoAccount
@@ -39,14 +48,18 @@ contract ParetoAccount is Account, IParetoAccount {
         address cowSwapSettlement
     ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement) {
         WITHDRAWAL_QUEUE = withdrawalQueue;
+        REDEMPTION_TOKEN = IParetoWithdrawalQueue(withdrawalQueue).underlying();
+        IDLE_CDO = IParetoWithdrawalQueue(withdrawalQueue).idleCDOEpoch();
+        STRATEGY = IParetoWithdrawalQueue(withdrawalQueue).strategy();
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns the value of outstanding Pareto queue epochs in vault assets.
+    /// @dev Returns outstanding Pareto queue-epoch value and any held redemption token, in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
         uint256 length = queueEpochs.length;
         uint256 unprocessedAmount;
+        uint256 redemptionTokenAmount;
         for (uint256 i; i < length; ++i) {
             uint256 epoch = queueEpochs[i];
             uint256 amount = IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).userWithdrawalsEpochs(address(this), epoch);
@@ -54,10 +67,16 @@ contract ParetoAccount is Account, IParetoAccount {
             if (price == 0) {
                 unprocessedAmount += amount;
             } else {
-                assets += amount.mulDiv(price, 1e18);
+                redemptionTokenAmount += amount.mulDiv(price, 1e18);
             }
         }
-        assets += _tokenToRedeemToAssets(unprocessedAmount);
+
+        assets = _tokenToRedeemToAssets(unprocessedAmount);
+        assets += REDEMPTION_TOKEN == _asset
+            ? redemptionTokenAmount
+            : _redemptionTokenToAssets(
+                REDEMPTION_TOKEN, redemptionTokenAmount + IERC20(REDEMPTION_TOKEN).balanceOf(address(this))
+            );
     }
 
     /// @dev Claims ready epochs, then queues all held Pareto tranche tokens.
@@ -65,10 +84,10 @@ contract ParetoAccount is Account, IParetoAccount {
         uint256 length = queueEpochs.length;
         for (uint256 i = length; i > 0;) {
             uint256 epoch = queueEpochs[--i];
-            if (IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).userWithdrawalsEpochs(address(this), epoch) != 0) {
+            if (IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).userWithdrawalsEpochs(address(this), epoch) > 0) {
                 if (
                     IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).epochWithdrawPrice(epoch) == 0
-                        || IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).epochPendingClaims(epoch) != 0
+                        || IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).epochPendingClaims(epoch) > 0
                 ) {
                     continue;
                 }
@@ -80,25 +99,22 @@ contract ParetoAccount is Account, IParetoAccount {
         }
 
         uint256 balance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (balance == 0) {
-            return;
+        if (balance > 0 && IParetoCDO(IDLE_CDO).isEpochRunning()) {
+            uint256 nextEpoch = IParetoCreditVault(STRATEGY).epochNumber() + 1;
+            if (IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).userWithdrawalsEpochs(address(this), nextEpoch) == 0) {
+                queueEpochs.push(nextEpoch);
+            }
+            IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).requestWithdraw(balance);
         }
-
-        uint256 nextEpoch = IParetoCreditVault(IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).strategy()).epochNumber() + 1;
-        if (IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).userWithdrawalsEpochs(address(this), nextEpoch) == 0) {
-            queueEpochs.push(nextEpoch);
-        }
-        IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).requestWithdraw(balance);
     }
 
     /* INITIALIZATION */
 
-    /// @dev Initializes the account for an adapter and vault.
+    /// @dev Initializes the account for an adapter and vault. The vault asset may differ from the Pareto
+    ///      redemption token (e.g. a USDT vault redeeming Pareto's USDC underlying); the difference is
+    ///      settled through the CoW converter, mirroring the async-redeem and Midas accounts.
     function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
         super._initialize(initialVersion, initOwner, data);
-        if (IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).underlying() != _asset) {
-            revert InvalidAsset();
-        }
         IERC20(TOKEN_TO_REDEEM).forceApprove(WITHDRAWAL_QUEUE, type(uint256).max);
     }
 }

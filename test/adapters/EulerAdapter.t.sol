@@ -193,10 +193,7 @@ contract EulerAdapterTest is Test {
         assertEq(adapter.deallocate(100), 0);
     }
 
-    function test_LendHelperAndOnlyDelegatorGuards() public {
-        vm.expectRevert(IEulerAdapter.NotSelf.selector);
-        EulerAdapter(address(adapter)).deposit(1);
-
+    function test_OnlyDelegatorGuardsAllocationEntrypoints() public {
         vm.expectRevert(IAdapter.NotVault.selector);
         adapter.allocate(1);
 
@@ -207,12 +204,18 @@ contract EulerAdapterTest is Test {
         adapter.requestDeallocate(1);
     }
 
-    function test_MulticallBubblesLendReverts() public {
-        bytes[] memory calls = new bytes[](1);
-        calls[0] = abi.encodeCall(EulerAdapter.deposit, (1));
+    function test_AllocateSkipsDepositThatPreviewsZeroSharesWithoutTransferring() public {
+        assetToken.transfer(address(adapter), 100);
+        lendVault.setZeroSharesOnDeposit(true);
+        // previewDeposit returns 0, so allocate must not call deposit or move any assets.
+        lendVault.setRevertOnDeposit(true);
 
-        vm.expectRevert(IEulerAdapter.NotSelf.selector);
-        adapter.multicall(calls);
+        vm.prank(delegator);
+        assertEq(adapter.allocate(50), 0);
+
+        assertEq(assetToken.balanceOf(address(adapter)), 100);
+        assertEq(lendVault.balanceOf(address(adapter)), 0);
+        assertEq(adapter.totalShares(), 0);
     }
 
     function _createAdapter(address targetLendVault) internal returns (IEulerAdapter) {
@@ -295,6 +298,14 @@ contract EulerLendVaultMock is ERC20 {
 
         shares = totalSupply() == 0 || totalAssetsBefore == 0 ? assets : assets * totalSupply() / totalAssetsBefore;
         _mint(receiver, shares);
+    }
+
+    function previewDeposit(uint256 assets) public view returns (uint256) {
+        if (zeroSharesOnDeposit) {
+            return 0;
+        }
+        uint256 totalAssetsBefore = IERC20(asset).balanceOf(address(this));
+        return totalSupply() == 0 || totalAssetsBefore == 0 ? assets : assets * totalSupply() / totalAssetsBefore;
     }
 
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {

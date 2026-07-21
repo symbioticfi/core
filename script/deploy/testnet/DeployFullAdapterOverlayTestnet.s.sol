@@ -6,11 +6,13 @@ import {Script} from "forge-std/Script.sol";
 import {AaveV3Adapter} from "../../../src/contracts/adapters/AaveV3Adapter.sol";
 import {AdapterFactory} from "../../../src/contracts/adapters/AdapterFactory.sol";
 import {AppAdapter} from "../../../src/contracts/adapters/AppAdapter.sol";
+import {EulerAdapter} from "../../../src/contracts/adapters/EulerAdapter.sol";
 import {MorphoVaultV2Adapter} from "../../../src/contracts/adapters/MorphoVaultV2Adapter.sol";
 
 import {IAdapterRegistry} from "../../../src/interfaces/IAdapterRegistry.sol";
 import {IAaveV3Adapter} from "../../../src/interfaces/adapters/IAaveV3Adapter.sol";
 import {IAppAdapter} from "../../../src/interfaces/adapters/IAppAdapter.sol";
+import {IEulerAdapter} from "../../../src/interfaces/adapters/IEulerAdapter.sol";
 import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IUniversalDelegator, MAX_SHARE} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
@@ -20,6 +22,7 @@ import {
     MockAavePool,
     MockAavePoolAddressesProvider,
     MockAavePoolDataProvider,
+    MockEulerLendVaultFactory,
     MockMorphoAdapterRegistry,
     MockMorphoVaultFactory
 } from "../../../test/mocks/HoodiScenarioProtocolMocks.sol";
@@ -85,6 +88,13 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
         address mockMorphoVaultAusd;
         address usdcMorphoAdapter;
         address aUsdMorphoAdapter;
+        address eulerAdapterFactory;
+        address eulerAdapterImplementation;
+        address mockEulerLendVaultFactory;
+        address mockEulerLendVaultUsdc;
+        address mockEulerLendVaultAusd;
+        address usdcEulerAdapter;
+        address aUsdEulerAdapter;
     }
 
     function run() public returns (OverlayDeployments memory overlay) {
@@ -100,6 +110,7 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
         _deployAppStack(params, overlay);
         _deployAaveStack(params, overlay);
         _deployMorphoStack(params, overlay);
+        _deployEulerStack(params, overlay);
         _stopBroadcast();
 
         _logOverlay(overlay);
@@ -261,6 +272,35 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
         _attachAdapter(params, params.aUsdVault, params.aUsdDelegator, overlay.aUsdMorphoAdapter);
     }
 
+    function _deployEulerStack(DeployParams memory params, OverlayDeployments memory overlay) internal {
+        overlay.mockEulerLendVaultFactory = address(new MockEulerLendVaultFactory(params.owner));
+        overlay.mockEulerLendVaultUsdc =
+            MockEulerLendVaultFactory(overlay.mockEulerLendVaultFactory).createVault(params.usdc);
+        overlay.mockEulerLendVaultAusd =
+            MockEulerLendVaultFactory(overlay.mockEulerLendVaultFactory).createVault(params.aUsd);
+
+        overlay.eulerAdapterFactory = address(new AdapterFactory(params.owner));
+        overlay.eulerAdapterImplementation = address(
+            new EulerAdapter(
+                params.vaultFactory,
+                overlay.eulerAdapterFactory,
+                overlay.merklDistributor,
+                overlay.cowSwapSettlement,
+                overlay.mockEulerLendVaultFactory
+            )
+        );
+        AdapterFactory(overlay.eulerAdapterFactory).whitelist(overlay.eulerAdapterImplementation);
+
+        overlay.usdcEulerAdapter = _createEulerAdapter(
+            overlay.eulerAdapterFactory, params.owner, params.usdcVault, overlay.mockEulerLendVaultUsdc
+        );
+        _attachAdapter(params, params.usdcVault, params.usdcDelegator, overlay.usdcEulerAdapter);
+        overlay.aUsdEulerAdapter = _createEulerAdapter(
+            overlay.eulerAdapterFactory, params.owner, params.aUsdVault, overlay.mockEulerLendVaultAusd
+        );
+        _attachAdapter(params, params.aUsdVault, params.aUsdDelegator, overlay.aUsdEulerAdapter);
+    }
+
     function _createBurner(address burnerRouterFactory, address owner, address collateral, address globalReceiver)
         internal
         returns (address)
@@ -331,6 +371,19 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
             );
     }
 
+    function _createEulerAdapter(address factory, address owner, address vault, address lendVault)
+        internal
+        returns (address)
+    {
+        address[] memory converters = new address[](0);
+        return AdapterFactory(factory)
+            .create(
+                1,
+                owner,
+                abi.encode(vault, abi.encode(IEulerAdapter.InitParams({lendVault: lendVault, converters: converters})))
+            );
+    }
+
     function _attachAdapter(DeployParams memory params, address vault, address delegator, address adapter) internal {
         IAdapterRegistry(params.adapterRegistry).setWhitelistedStatus(vault, adapter, true);
         IUniversalDelegator(delegator).addAdapter(adapter);
@@ -381,6 +434,13 @@ contract DeployFullAdapterOverlayTestnetScript is Script {
         _log("Mock Morpho aUSD vault", overlay.mockMorphoVaultAusd);
         _log("USDC MorphoVaultV2 adapter", overlay.usdcMorphoAdapter);
         _log("aUSD MorphoVaultV2 adapter", overlay.aUsdMorphoAdapter);
+        _log("Euler adapter factory", overlay.eulerAdapterFactory);
+        _log("Euler adapter implementation", overlay.eulerAdapterImplementation);
+        _log("Mock Euler lend vault factory", overlay.mockEulerLendVaultFactory);
+        _log("Mock Euler USDC lend vault", overlay.mockEulerLendVaultUsdc);
+        _log("Mock Euler aUSD lend vault", overlay.mockEulerLendVaultAusd);
+        _log("USDC Euler adapter", overlay.usdcEulerAdapter);
+        _log("aUSD Euler adapter", overlay.aUsdEulerAdapter);
     }
 
     function _log(string memory label, address value) internal view {

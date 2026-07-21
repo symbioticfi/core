@@ -11,19 +11,9 @@ interface IEulerAdapter is IAdapter {
     /* ERRORS */
 
     /**
-     * @notice Raised when the provided amount is insufficient for the requested operation.
-     */
-    error InsufficientAmount();
-
-    /**
      * @notice Raised when the provided Euler Lend vault does not match the vault asset.
      */
     error InvalidEulerLendVault();
-
-    /**
-     * @notice Raised when the lend helper is called directly instead of through the adapter self-call.
-     */
-    error NotSelf();
 
     /* STRUCTS */
 

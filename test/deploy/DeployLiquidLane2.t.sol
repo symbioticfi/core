@@ -86,6 +86,58 @@ contract DeployLiquidLane2Test is Test {
                 abi.encode(1e6)
             );
         }
+
+        _stubOpenEden();
+        _stubFigure();
+        _stubMGlobal();
+    }
+
+    /// @dev Stubs the OpenEden HYBOND surface the deploy + validation reads (no proxy is created, so
+    ///      only constructor getters and oracle `getPrice` are exercised).
+    function _stubOpenEden() internal {
+        vm.mockCall(harness.HYBOND(), abi.encodeWithSelector(IERC20Metadata.decimals.selector), abi.encode(uint8(18)));
+        vm.mockCall(harness.HYBOND_EXPRESS(), abi.encodeWithSignature("redeemAsset()"), abi.encode(harness.USDC()));
+        // previewRedeem(tokenAmount) -> (fee, gross, net); net drives the 1e18-scaled oracle price.
+        vm.mockCall(
+            harness.HYBOND_EXPRESS(),
+            abi.encodeWithSignature("previewRedeem(uint256)"),
+            abi.encode(uint256(0), uint256(1_734_344), uint256(1_734_344))
+        );
+    }
+
+    /// @dev Stubs the Figure PRIME/AUTO surface through the shared wYLDS yield vault.
+    function _stubFigure() internal {
+        address wylds = makeAddr("wYLDS");
+        vm.mockCall(wylds, abi.encodeWithSignature("asset()"), abi.encode(harness.USDC()));
+        vm.mockCall(wylds, abi.encodeWithSignature("convertToAssets(uint256)"), abi.encode(uint256(1e6)));
+
+        address[2] memory figureTokens = [harness.PRIME(), harness.AUTO()];
+        for (uint256 i; i < figureTokens.length; ++i) {
+            vm.mockCall(figureTokens[i], abi.encodeWithSelector(IERC20Metadata.decimals.selector), abi.encode(uint8(6)));
+            vm.mockCall(figureTokens[i], abi.encodeWithSignature("asset()"), abi.encode(wylds));
+            vm.mockCall(figureTokens[i], abi.encodeWithSignature("convertToAssets(uint256)"), abi.encode(uint256(1e6)));
+        }
+    }
+
+    /// @dev Stubs the Midas mGLOBAL surface the account constructor + validation reads.
+    function _stubMGlobal() internal {
+        vm.mockCall(harness.MGLOBAL(), abi.encodeWithSelector(IERC20Metadata.decimals.selector), abi.encode(uint8(18)));
+        vm.mockCall(
+            harness.MGLOBAL_REDEMPTION_VAULT(),
+            abi.encodeWithSignature("mTokenDataFeed()"),
+            abi.encode(harness.MGLOBAL_DATA_FEED())
+        );
+        address aggregator = makeAddr("mGlobalAggregator");
+        vm.mockCall(harness.MGLOBAL_DATA_FEED(), abi.encodeWithSignature("aggregator()"), abi.encode(aggregator));
+        vm.mockCall(
+            aggregator, abi.encodeWithSignature("underlyingFeed()"), abi.encode(harness.MGLOBAL_MARKET_AGGREGATOR())
+        );
+        // getDataInBase18 must sit inside the mGLOBAL MidasOracle bounds (0.2514e18 .. 3.5202e18).
+        vm.mockCall(
+            harness.MGLOBAL_DATA_FEED(),
+            abi.encodeWithSignature("getDataInBase18()"),
+            abi.encode(uint256(935_361_270_000_000_000))
+        );
     }
 
     function testRunDeploysAndWhitelistsAllCentrifugeAccountsWithoutRegisteringFactories() public {
@@ -104,6 +156,13 @@ contract DeployLiquidLane2Test is Test {
             _assertDeployment(deployments[i], i);
         }
 
+        // The OpenEden (HYBOND), Figure (PRIME/AUTO) and Midas (mGLOBAL) accounts are deployed and
+        // whitelisted but not registered, exactly like the Centrifuge ones.
+        _assertNonCentrifugeDeployment(data.hybond, harness.HYBOND());
+        _assertNonCentrifugeDeployment(data.prime, harness.PRIME());
+        _assertNonCentrifugeDeployment(data.autoToken, harness.AUTO());
+        _assertNonCentrifugeDeployment(data.mGlobal, harness.MGLOBAL());
+
         bytes32 whitelistTopic = keccak256("Whitelist(address)");
         bytes32 setAccountFactoryTopic = keccak256("SetAccountFactory(address,address,address)");
         uint256 whitelistEvents;
@@ -113,7 +172,22 @@ contract DeployLiquidLane2Test is Test {
             }
             assertNotEq(logs[i].topics[0], setAccountFactoryTopic);
         }
-        assertEq(whitelistEvents, deployments.length);
+        // 6 Centrifuge + HYBOND + PRIME + AUTO + mGLOBAL.
+        assertEq(whitelistEvents, deployments.length + 4);
+    }
+
+    function _assertNonCentrifugeDeployment(DeployLiquidLane2Script.AccountDeploymentData memory data, address token)
+        internal
+        view
+    {
+        assertNotEq(data.oracle, address(0));
+        assertNotEq(data.factory, address(0));
+        assertNotEq(data.implementation, address(0));
+        assertEq(Ownable(data.factory).owner(), harness.FACTORIES_OWNER());
+        assertEq(MigratablesFactory(data.factory).implementation(1), data.implementation);
+        assertEq(IMigratableEntity(data.implementation).FACTORY(), data.factory);
+        assertEq(IAccount(data.implementation).ORACLE(), data.oracle);
+        assertEq(IAccount(data.implementation).TOKEN_TO_REDEEM(), token);
     }
 
     function _assertDeployment(DeployLiquidLane2Script.AccountDeploymentData memory data, uint256 index) internal view {
