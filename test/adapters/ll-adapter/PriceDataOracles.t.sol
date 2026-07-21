@@ -8,6 +8,7 @@ import {FigureOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/F
 import {MidasOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MidasOracle.sol";
 import {OpenEdenOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/OpenEdenOracle.sol";
 import {Oracle} from "../../../src/contracts/adapters/ll-adapter/oracles/Oracle.sol";
+import {SThreeJaneOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/SThreeJaneOracle.sol";
 import {ThreeJaneOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ThreeJaneOracle.sol";
 import {IOracle} from "../../../src/interfaces/adapters/ll-adapter/IOracle.sol";
 
@@ -192,28 +193,50 @@ contract PriceDataOraclesTest is Test {
         oracle.getPrice();
     }
 
-    function testThreeJaneOraclePricesSUSD3InUSDCThroughBothVaults() public {
+    function testSThreeJaneOraclePricesSUSD3InUSDCThroughBothVaults() public {
         MockPriceOracleToken usdc = new MockPriceOracleToken(6);
         MockPriceOracleVault usd3 = new MockPriceOracleVault(18, address(usdc));
         MockPriceOracleVault sUSD3 = new MockPriceOracleVault(18, address(usd3));
         sUSD3.setConversionRatio(1.25e18, 1e18);
         usd3.setConversionRatio(1.5e6, 1.25e18);
 
-        ThreeJaneOracle oracle = new ThreeJaneOracle(1, type(uint256).max, address(sUSD3));
+        SThreeJaneOracle oracle = new SThreeJaneOracle(1, type(uint256).max, address(sUSD3));
 
         assertEq(oracle.TOKEN_TO_REDEEM(), address(sUSD3));
         assertEq(oracle.USD3(), address(usd3));
         assertEq(oracle.getPrice(), 1.5e18);
     }
 
-    function testThreeJaneOracleRejectsOutOfRangeComputedPrice() public {
+    function testSThreeJaneOracleRejectsOutOfRangeComputedPrice() public {
         MockPriceOracleToken usdc = new MockPriceOracleToken(6);
         MockPriceOracleVault usd3 = new MockPriceOracleVault(18, address(usdc));
         MockPriceOracleVault sUSD3 = new MockPriceOracleVault(18, address(usd3));
         sUSD3.setConversionRatio(1.25e18, 1e18);
         usd3.setConversionRatio(1.5e6, 1.25e18);
 
-        ThreeJaneOracle oracle = new ThreeJaneOracle(1.5e18 + 1, type(uint256).max, address(sUSD3));
+        SThreeJaneOracle oracle = new SThreeJaneOracle(1.5e18 + 1, type(uint256).max, address(sUSD3));
+
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPrice();
+    }
+
+    function testThreeJaneOraclePricesUSD3InUSDCThroughVault() public {
+        MockPriceOracleToken usdc = new MockPriceOracleToken(6);
+        MockPriceOracleVault usd3 = new MockPriceOracleVault(18, address(usdc));
+        usd3.setConversionRatio(1.2e6, 1e18);
+
+        ThreeJaneOracle oracle = new ThreeJaneOracle(1, type(uint256).max, address(usd3));
+
+        assertEq(oracle.TOKEN_TO_REDEEM(), address(usd3));
+        assertEq(oracle.getPrice(), 1.2e18);
+    }
+
+    function testThreeJaneOracleRejectsOutOfRangeComputedPrice() public {
+        MockPriceOracleToken usdc = new MockPriceOracleToken(6);
+        MockPriceOracleVault usd3 = new MockPriceOracleVault(18, address(usdc));
+        usd3.setConversionRatio(1.2e6, 1e18);
+
+        ThreeJaneOracle oracle = new ThreeJaneOracle(1.2e18 + 1, type(uint256).max, address(usd3));
 
         vm.expectRevert(IOracle.InvalidPrice.selector);
         oracle.getPrice();

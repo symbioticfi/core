@@ -59,15 +59,18 @@ import {
 import {sAID_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sAID_Account.sol";
 import {sUSN_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSN_Account.sol";
 import {sUSD3_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSD3_Account.sol";
+import {USD3_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USD3_Account.sol";
 import {sthUSD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sthUSD_Account.sol";
 import {USCC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USCC_Account.sol";
 import {weETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {AsyncRedeemOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/AsyncRedeemOracle.sol";
 import {CentrifugeAccount} from "../../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
-import {ThreeJaneAccount} from "../../../../src/contracts/adapters/ll-adapter/ThreeJaneAccount.sol";
+import {SThreeJaneAccount} from "../../../../src/contracts/adapters/ll-adapter/SThreeJaneAccount.sol";
 import {FigureOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
 import {ParetoOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/ParetoOracle.sol";
+import {SThreeJaneOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/SThreeJaneOracle.sol";
+import {ThreeJaneAccount} from "../../../../src/contracts/adapters/ll-adapter/ThreeJaneAccount.sol";
 import {ThreeJaneOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/ThreeJaneOracle.sol";
 import {AdapterFactory} from "../../../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../../../src/contracts/adapters/LiquidLaneAdapter.sol";
@@ -121,7 +124,7 @@ import {IParetoWithdrawalQueue} from "../../../../src/interfaces/adapters/ll-ada
 import {ISecuritizeAccount} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeAccount.sol";
 import {ISuperstateAccount} from "../../../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol";
 import {ISthUSD} from "../../../../src/interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
-import {IThreeJaneSUSD3} from "../../../../src/interfaces/adapters/ll-adapter/threejane/IThreeJaneSUSD3.sol";
+import {ISThreeJaneSUSD3} from "../../../../src/interfaces/adapters/ll-adapter/sthreejane/ISThreeJaneSUSD3.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -257,13 +260,13 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertEq(figureOracle.getPrice(), expectedOraclePrice, spec.symbol);
     }
 
-    function testThreeJaneMainnetOracleUsesTwoHopConversion() public {
+    function testSThreeJaneMainnetOracleUsesTwoHopConversion() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane oracle checks");
         _createFork();
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         IAccount implementation = _deployImplementation(33, address(factory));
-        ThreeJaneOracle oracle = ThreeJaneOracle(implementation.ORACLE());
+        SThreeJaneOracle oracle = SThreeJaneOracle(implementation.ORACLE());
         uint256 tokenUnit = 10 ** IERC20Metadata(SUSD3).decimals();
         address usd3 = IERC4626(SUSD3).asset();
         address usdc = IERC4626(usd3).asset();
@@ -276,11 +279,11 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
 
         assertEq(implementation.TOKEN_TO_REDEEM(), SUSD3, "sUSD3 implementation token");
         assertEq(implementation.ORACLE(), address(oracle), "sUSD3 implementation oracle");
-        assertEq(ThreeJaneAccount(address(implementation)).USD3(), USD3, "sUSD3 implementation USD3");
-        assertEq(ThreeJaneAccount(address(implementation)).REDEMPTION_TOKEN(), USDC, "sUSD3 implementation USDC");
+        assertEq(SThreeJaneAccount(address(implementation)).USD3(), USD3, "sUSD3 implementation USD3");
+        assertEq(SThreeJaneAccount(address(implementation)).REDEMPTION_TOKEN(), USDC, "sUSD3 implementation USDC");
         assertEq(account.ORACLE(), address(oracle), "sUSD3 account oracle");
-        assertEq(ThreeJaneAccount(address(account)).USD3(), USD3, "sUSD3 account USD3");
-        assertEq(ThreeJaneAccount(address(account)).REDEMPTION_TOKEN(), USDC, "sUSD3 account USDC");
+        assertEq(SThreeJaneAccount(address(account)).USD3(), USD3, "sUSD3 account USD3");
+        assertEq(SThreeJaneAccount(address(account)).REDEMPTION_TOKEN(), USDC, "sUSD3 account USDC");
         assertEq(oracle.TOKEN_TO_REDEEM(), SUSD3, "sUSD3 oracle token");
         assertEq(oracle.USD3(), usd3, "sUSD3 oracle USD3");
         assertEq(usd3, USD3, "sUSD3 USD3 topology");
@@ -288,7 +291,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertEq(oracle.getPrice(), expectedOraclePrice, "sUSD3 oracle price");
     }
 
-    function testThreeJaneMainnetValuesHeldSUSD3InUSD3() public {
+    function testSThreeJaneMainnetValuesHeldSUSD3InUSD3() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane valuation checks");
         _createFork();
 
@@ -307,7 +310,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertEq(IERC20(SUSD3).balanceOf(address(account)), amount, "sUSD3 cooldown balance");
         assertEq(account.totalAssets(), expectedAssets, "sUSD3 cooldown value in USD3");
 
-        (uint256 cooldownEnd,,) = IThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
+        (uint256 cooldownEnd,,) = ISThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
         assertGt(cooldownEnd, block.timestamp, "sUSD3 cooldown end");
         vm.warp(cooldownEnd);
         expectedAssets = account.totalAssets();
@@ -318,7 +321,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertApproxEqAbs(account.totalAssets(), expectedAssets, 2, "sUSD3 matured value in USD3");
     }
 
-    function testThreeJaneMainnetAdapterUsesStablecoinOracleForUSD3Vault() public {
+    function testSThreeJaneMainnetAdapterUsesStablecoinOracleForUSD3Vault() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane quote checks");
         _createFork();
 
@@ -346,6 +349,76 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         uint256 expectedAssets = IERC4626(USD3).convertToAssets(IERC4626(SUSD3).convertToAssets(amount));
         assertEq(llAdapter.getAmountOut(SUSD3, amount), expectedAssets);
         assertEq(llAdapter.getMaxRate(SUSD3), expectedAssets * 1e18 / 10 ** IERC20Metadata(USD3).decimals());
+    }
+
+    function testThreeJaneMainnetOracleUsesOneHopConversion() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane oracle checks");
+        _createFork();
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        IAccount implementation = _deployImplementation(44, address(factory));
+        ThreeJaneOracle oracle = ThreeJaneOracle(implementation.ORACLE());
+        uint256 tokenUnit = 10 ** IERC20Metadata(USD3).decimals();
+        address usdc = IERC4626(USD3).asset();
+        uint256 expectedOraclePrice =
+            IERC4626(USD3).convertToAssets(tokenUnit) * 1e18 / 10 ** IERC20Metadata(usdc).decimals();
+
+        factory.whitelist(address(implementation));
+        IAccount account =
+            IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(usdc)), adapter)));
+
+        assertEq(implementation.TOKEN_TO_REDEEM(), USD3, "USD3 implementation token");
+        assertEq(implementation.ORACLE(), address(oracle), "USD3 implementation oracle");
+        assertEq(ThreeJaneAccount(address(implementation)).REDEMPTION_TOKEN(), USDC, "USD3 implementation USDC");
+        assertEq(account.ORACLE(), address(oracle), "USD3 account oracle");
+        assertEq(ThreeJaneAccount(address(account)).REDEMPTION_TOKEN(), USDC, "USD3 account USDC");
+        assertEq(oracle.TOKEN_TO_REDEEM(), USD3, "USD3 oracle token");
+        assertEq(usdc, USDC, "USD3 USDC topology");
+        assertEq(oracle.getPrice(), expectedOraclePrice, "USD3 oracle price");
+    }
+
+    function testThreeJaneMainnetValuesHeldUSD3InUSDC() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane valuation checks");
+        _createFork();
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        IAccount implementation = _deployImplementation(44, address(factory));
+        factory.whitelist(address(implementation));
+        IAccount account =
+            IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(USDC)), adapter)));
+
+        uint256 amount = _redemptionAmount(44, USD3);
+        deal(USD3, address(account), amount);
+        uint256 expectedAssets = IERC4626(USD3).convertToAssets(amount);
+
+        assertEq(account.totalAssets(), expectedAssets, "USD3 value in USDC");
+        account.sync();
+        assertLe(IERC20(USD3).balanceOf(address(account)), 1, "USD3 redeemed balance");
+        assertEq(IERC20(USDC).balanceOf(address(account)), expectedAssets, "USD3 redeemed USDC");
+        assertApproxEqAbs(account.totalAssets(), expectedAssets, 2, "USD3 value after sync");
+    }
+
+    function testThreeJaneUSD3MainnetLiquidityLimitedSync() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
+        _createFork();
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        IAccount implementation = _deployImplementation(44, address(factory));
+        factory.whitelist(address(implementation));
+        IAccount account =
+            IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(USDC)), adapter)));
+
+        deal(USD3, address(account), IERC20(USD3).totalSupply());
+        uint256 balance = IERC20(USD3).balanceOf(address(account));
+        uint256 withdrawable = IERC4626(USD3).maxWithdraw(address(account));
+        assertGt(withdrawable, 0, "USD3 liquidity");
+        assertLt(withdrawable, IERC4626(USD3).convertToAssets(balance), "USD3 limited liquidity");
+
+        account.sync();
+
+        assertGt(IERC20(USD3).balanceOf(address(account)), 0, "USD3 remaining balance");
+        assertEq(IERC20(USDC).balanceOf(address(account)), withdrawable, "USD3 partial USDC");
+        assertLe(IERC4626(USD3).maxWithdraw(address(account)), 1, "USD3 drained liquidity");
     }
 
     function testAUTOMainnetRedemptionCreatesWyldsRequest() public {
@@ -387,7 +460,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 44);
+        assertEq(specs.length, 45);
 
         uint256 length = specs.length;
         for (uint256 i; i < length; ++i) {
@@ -400,7 +473,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 44);
+        assertEq(specs.length, 45);
 
         uint256 length = specs.length;
         for (uint256 i; i < length; ++i) {
@@ -413,7 +486,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 44);
+        assertEq(specs.length, 45);
 
         uint256 length = specs.length;
         for (uint256 i; i < length; ++i) {
@@ -553,21 +626,35 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         _assertCloseRedemptionSequence(7, TokenSpec("bEQTY", BEQTY));
     }
 
-    function testThreeJaneSUSD3MainnetCooldownSequence() public {
+    function testSThreeJaneSUSD3MainnetCooldownSequence() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
         _createFork();
 
         _assertRedemptionSequence(33, TokenSpec("sUSD3", SUSD3));
     }
 
-    function testThreeJaneSUSD3MainnetCloseCooldownSequence() public {
+    function testSThreeJaneSUSD3MainnetCloseCooldownSequence() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
         _createFork();
 
         _assertCloseRedemptionSequence(33, TokenSpec("sUSD3", SUSD3));
     }
 
-    function testThreeJaneSUSD3MainnetMaturedCooldownSync() public {
+    function testThreeJaneUSD3MainnetRedemptionSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
+        _createFork();
+
+        _assertRedemptionSequence(44, TokenSpec("USD3", USD3));
+    }
+
+    function testThreeJaneUSD3MainnetCloseRedemptionSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
+        _createFork();
+
+        _assertCloseRedemptionSequence(44, TokenSpec("USD3", USD3));
+    }
+
+    function testSThreeJaneSUSD3MainnetMaturedCooldownSync() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
         _createFork();
 
@@ -585,7 +672,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
 
         account.sync();
 
-        (uint256 cooldownEnd,, uint256 shares) = IThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
+        (uint256 cooldownEnd,, uint256 shares) = ISThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
         assertEq(shares, amount, "sUSD3");
         assertGt(cooldownEnd, block.timestamp, "sUSD3");
         assertEq(IERC20(SUSD3).balanceOf(address(account)), amount, "sUSD3 cooldown balance");
@@ -597,7 +684,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         uint256 withdrawable = IERC4626(SUSD3).maxWithdraw(address(account));
         account.sync();
 
-        (,, uint256 sharesAfter) = IThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
+        (,, uint256 sharesAfter) = ISThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
         if (withdrawable == 0) {
             assertEq(sharesAfter, shares, "sUSD3");
             assertEq(IERC20(asset).balanceOf(address(account)), assetBalanceBefore, "sUSD3");
@@ -895,7 +982,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     }
 
     function _tokenSpecs() internal pure returns (TokenSpec[] memory specs) {
-        specs = new TokenSpec[](44);
+        specs = new TokenSpec[](45);
         specs[0] = TokenSpec("ACRDX", ACRDX);
         specs[1] = TokenSpec("CarryTradeUSDTRYLeverage", CARRY_TRADE_USD_TRY_LEVERAGE);
         specs[2] = TokenSpec("DUSD", DUSD);
@@ -940,6 +1027,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         specs[41] = TokenSpec("liUSD-4w", LIUSD4W);
         specs[42] = TokenSpec("liUSD-13w", LIUSD13W);
         specs[43] = TokenSpec("AUTO", AUTO);
+        specs[44] = TokenSpec("USD3", USD3);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
@@ -1023,7 +1111,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         if (index == 33) {
             return
                 new sUSD3_Account(
-                    address(new ThreeJaneOracle(1, type(uint256).max, SUSD3)), factory, COW_SWAP_SETTLEMENT
+                    address(new SThreeJaneOracle(1, type(uint256).max, SUSD3)), factory, COW_SWAP_SETTLEMENT
                 );
         }
         if (index == 34) return new sthUSD_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
@@ -1061,6 +1149,10 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         if (index == 40) return new USCC_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 41) return new liUSD4w_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 42) return new liUSD13w_Account(factory, COW_SWAP_SETTLEMENT);
+        if (index == 44) {
+            return
+                new USD3_Account(address(new ThreeJaneOracle(1, type(uint256).max, USD3)), factory, COW_SWAP_SETTLEMENT);
+        }
         revert();
     }
 
@@ -1220,11 +1312,20 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             return;
         }
         if (index == 33) {
-            vm.expectCall(token, abi.encodeCall(IThreeJaneSUSD3.startCooldown, (amount)));
+            vm.expectCall(token, abi.encodeCall(ISThreeJaneSUSD3.startCooldown, (amount)));
             return;
         }
         if (index == 34) {
             vm.expectCall(token, abi.encodeCall(ISthUSD.initiateRedeem, (amount, address(account))));
+            return;
+        }
+        if (index == 44) {
+            uint256 withdrawable = IERC4626(token).maxWithdraw(address(account));
+            if (withdrawable > 0) {
+                vm.expectCall(
+                    token, abi.encodeCall(IERC4626.withdraw, (withdrawable, address(account), address(account)))
+                );
+            }
             return;
         }
         if (index == 35) {
@@ -1299,7 +1400,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         uint256 amount,
         string memory symbol
     ) internal {
-        if (index != 33) {
+        if (index != 33 && index != 44) {
             assertEq(IERC20(token).balanceOf(address(account)), 0, symbol);
         }
 
@@ -1328,11 +1429,15 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             return;
         }
         if (index == 33) {
-            _assertThreeJaneRedemption(account, token, amount, symbol);
+            _assertSThreeJaneRedemption(account, token, amount, symbol);
             return;
         }
         if (index == 34) {
             _assertTheoRedemption(account, token, amount, symbol);
+            return;
+        }
+        if (index == 44) {
+            _assertThreeJaneRedemption(account, token, asset, symbol);
             return;
         }
         if (index == 35) {
@@ -1410,7 +1515,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             return;
         }
         if (index == 33) {
-            (,, uint256 shares) = IThreeJaneSUSD3(token).getCooldownStatus(address(account));
+            (,, uint256 shares) = ISThreeJaneSUSD3(token).getCooldownStatus(address(account));
             assertEq(shares, amount, symbol);
             assertEq(IERC20(token).balanceOf(address(account)), 2 * amount, symbol);
             assertGt(account.totalAssets(), 0, symbol);
@@ -1419,6 +1524,11 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         if (index == 34) {
             (, uint256 shares,) = ISthUSD(token).currentRedeemRequest(address(account));
             assertGt(shares, 0, symbol);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 44) {
+            assertLe(IERC4626(token).maxWithdraw(address(account)), 1, symbol);
             assertGt(account.totalAssets(), 0, symbol);
             return;
         }
@@ -1566,12 +1676,21 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertGt(account.totalAssets(), 0, symbol);
     }
 
-    function _assertThreeJaneRedemption(IAccount account, address token, uint256 amount, string memory symbol)
+    function _assertSThreeJaneRedemption(IAccount account, address token, uint256 amount, string memory symbol)
         internal
         view
     {
-        (,, uint256 shares) = IThreeJaneSUSD3(token).getCooldownStatus(address(account));
+        (,, uint256 shares) = ISThreeJaneSUSD3(token).getCooldownStatus(address(account));
         assertEq(shares, amount, symbol);
+        assertGt(account.totalAssets(), 0, symbol);
+    }
+
+    function _assertThreeJaneRedemption(IAccount account, address token, address asset, string memory symbol)
+        internal
+        view
+    {
+        assertLe(IERC4626(token).maxWithdraw(address(account)), 1, symbol);
+        assertGt(IERC20(asset).balanceOf(address(account)), 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
 

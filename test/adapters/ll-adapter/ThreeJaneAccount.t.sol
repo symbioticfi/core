@@ -11,42 +11,35 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 contract ThreeJaneAccountTest is AccountsBase {
     function testThreeJaneAccountCachesRedemptionTopology() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
         ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, new MockOracle(1e18));
 
-        assertEq(account.USD3(), address(usd3));
         assertEq(account.REDEMPTION_TOKEN(), address(usdc));
     }
 
     function testThreeJaneAccountTotalAssetsUsesCachedRedemptionTopology() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
         ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, new MockOracle(1e18));
 
-        vm.mockCallRevert(address(tokenToRedeem), abi.encodeCall(IERC4626.asset, ()), bytes("sUSD3 asset lookup"));
-        vm.mockCallRevert(address(usd3), abi.encodeCall(IERC4626.asset, ()), bytes("USD3 asset lookup"));
+        vm.mockCallRevert(address(tokenToRedeem), abi.encodeCall(IERC4626.asset, ()), bytes("USD3 asset lookup"));
 
         assertEq(account.totalAssets(), 0);
     }
 
     function testThreeJaneAccountSyncUsesCachedRedemptionTopology() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
         ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, new MockOracle(1e18));
 
-        vm.mockCallRevert(address(tokenToRedeem), abi.encodeCall(IERC4626.asset, ()), bytes("sUSD3 asset lookup"));
-        vm.mockCallRevert(address(usd3), abi.encodeCall(IERC4626.asset, ()), bytes("USD3 asset lookup"));
+        vm.mockCallRevert(address(tokenToRedeem), abi.encodeCall(IERC4626.asset, ()), bytes("USD3 asset lookup"));
 
         account.sync();
     }
 
-    function testThreeJaneAccountSkipsSUSD3MaxWithdrawForEmptyAccount() public {
+    function testThreeJaneAccountSkipsUSD3MaxWithdrawForEmptyAccount() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
         ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, new MockOracle(1e18));
 
         vm.mockCallRevert(
@@ -58,32 +51,9 @@ contract ThreeJaneAccountTest is AccountsBase {
         account.sync();
     }
 
-    function testThreeJaneAccountSkipsRedemptionTokenDecimalsForZeroBalanceWhenAssetIsUSD3() public {
+    function testThreeJaneAccountSkipsUSDCDecimalsForZeroRedemptionTokenBalance() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
-        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usd3, new MockOracle(1e18));
-
-        vm.mockCallRevert(address(usdc), abi.encodeCall(IERC20Metadata.decimals, ()), bytes("zero conversion"));
-
-        assertEq(account.totalAssets(), 0);
-    }
-
-    function testThreeJaneAccountSkipsUSD3ConvertToAssetsForZeroUSD3Balance() public {
-        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
-        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, new MockOracle(1e18));
-
-        vm.mockCallRevert(address(usd3), abi.encodeCall(IERC4626.convertToAssets, (0)), bytes("zero conversion"));
-
-        assertEq(account.totalAssets(), 0);
-    }
-
-    function testThreeJaneAccountSkipsUSDCDecimalsForZeroIntermediateBalances() public {
-        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
         MockERC20 vaultAsset = new MockERC20("Target Stablecoin", "TARGET", 18);
         ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, vaultAsset, new MockOracle(1e18));
 
@@ -94,20 +64,37 @@ contract ThreeJaneAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 0);
     }
 
-    function testThreeJaneAccountRedeemsThroughUSD3ToUSDCAndValuesUSDC() public {
+    function testThreeJaneAccountSkipsWithdrawWhenLiquidityIsExhausted() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
+        MockERC20 vaultAsset = new MockERC20("Target Stablecoin", "TARGET", 18);
+        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, vaultAsset, new MockOracle(1e18));
+
+        tokenToRedeem.setMaxWithdraw(0);
+        tokenToRedeem.mint(address(account), 1000e6);
+        vm.mockCallRevert(
+            address(tokenToRedeem),
+            abi.encodeWithSelector(IERC4626.withdraw.selector),
+            bytes("withdraw should be skipped")
+        );
+
+        account.sync();
+
+        assertEq(tokenToRedeem.balanceOf(address(account)), 1000e6);
+        assertEq(usdc.balanceOf(address(account)), 0);
+        assertEq(account.totalAssets(), 1000e18);
+    }
+
+    function testThreeJaneAccountRedeemsUSD3ToUSDCAndValuesUSDC() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
         MockERC20 vaultAsset = new MockERC20("Target Stablecoin", "TARGET", 18);
         ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, vaultAsset, new MockOracle(1e18));
 
         tokenToRedeem.mint(address(account), 1000e6);
         account.sync();
-        vm.warp(vm.getBlockTimestamp() + 1 days);
-        account.sync();
 
         assertEq(tokenToRedeem.balanceOf(address(account)), 0);
-        assertEq(usd3.balanceOf(address(account)), 0);
         assertEq(usdc.balanceOf(address(account)), 1000e6);
         assertEq(vaultAsset.balanceOf(address(account)), 0);
         assertEq(account.totalAssets(), 1000e18);
@@ -115,117 +102,52 @@ contract ThreeJaneAccountTest is AccountsBase {
 
     function testThreeJaneAccountAlwaysRedeemsUSD3ToUSDC() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1.25e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
-        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usd3, new MockOracle(1e18));
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1.25e6);
+        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, new MockOracle(1.25e18));
 
         tokenToRedeem.mint(address(account), 1000e6);
         account.sync();
-        vm.warp(vm.getBlockTimestamp() + 1 days);
-        account.sync();
 
         assertEq(tokenToRedeem.balanceOf(address(account)), 0);
-        assertEq(usd3.balanceOf(address(account)), 0);
         assertEq(usdc.balanceOf(address(account)), 1250e6);
         assertEq(account.totalAssets(), 1250e6);
     }
 
-    function testThreeJaneAccountValuesHeldSUSD3ThroughStablecoinOracle() public {
+    function testThreeJaneAccountValuesHeldUSD3ThroughStablecoinOracle() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1.2e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1.1e6, 1 days, 2 days);
-        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usd3, new MockOracle(1.32e18));
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1.2e6);
+        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, new MockOracle(1.2e18));
 
         tokenToRedeem.mint(address(account), 1000e6);
 
-        assertEq(account.totalAssets(), 1320e6);
+        assertEq(account.totalAssets(), 1200e6);
     }
 
-    function testThreeJaneAccountRestartsExpiredCooldown() public {
+    function testThreeJaneAccountValuesPartialUSD3Redemptions() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
-        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, new MockOracle(1e18));
-
-        tokenToRedeem.mint(address(account), 1000e6);
-        account.sync();
-        (, uint48 windowEnd,) = tokenToRedeem.getCooldownStatus(address(account));
-
-        vm.warp(uint256(windowEnd) + 1);
-        account.sync();
-
-        (uint48 cooldownEnd, uint48 newWindowEnd, uint256 shares) = tokenToRedeem.getCooldownStatus(address(account));
-        assertEq(shares, 1000e6);
-        assertGt(cooldownEnd, block.timestamp);
-        assertGt(newWindowEnd, cooldownEnd);
-    }
-
-    function testThreeJaneAccountWithdrawsImmediatelyWhenCooldownIsZero() public {
-        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 0, 2 days);
-        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, new MockOracle(1e18));
-
-        tokenToRedeem.mint(address(account), 1000e6);
-        account.sync();
-
-        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
-        assertEq(usd3.balanceOf(address(account)), 0);
-        assertEq(usdc.balanceOf(address(account)), 1000e6);
-    }
-
-    function testThreeJaneAccountStartsNextCooldownAfterMaturedWithdrawal() public {
-        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
-        ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, new MockOracle(1e18));
-
-        tokenToRedeem.mint(address(account), 1000e6);
-        account.sync();
-        tokenToRedeem.mint(address(account), 500e6);
-        vm.warp(vm.getBlockTimestamp() + 1 days);
-        account.sync();
-
-        (uint48 cooldownEnd,, uint256 shares) = tokenToRedeem.getCooldownStatus(address(account));
-        assertEq(shares, 500e6);
-        assertGt(cooldownEnd, block.timestamp);
-        assertEq(tokenToRedeem.balanceOf(address(account)), 500e6);
-        assertEq(usdc.balanceOf(address(account)), 1000e6);
-    }
-
-    function testThreeJaneAccountValuesPartialSUSD3AndUSD3Redemptions() public {
-        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
         MockERC20 vaultAsset = new MockERC20("Target Stablecoin", "TARGET", 18);
         ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, vaultAsset, new MockOracle(1e18));
 
-        tokenToRedeem.setAvailableWithdrawLimit(600e6);
-        usd3.setMaxWithdraw(250e6);
+        tokenToRedeem.setMaxWithdraw(600e6);
         tokenToRedeem.mint(address(account), 1000e6);
         account.sync();
-        vm.warp(vm.getBlockTimestamp() + 1 days);
-        account.sync();
 
         assertEq(tokenToRedeem.balanceOf(address(account)), 400e6);
-        assertEq(usd3.balanceOf(address(account)), 350e6);
-        assertEq(usdc.balanceOf(address(account)), 250e6);
+        assertEq(usdc.balanceOf(address(account)), 600e6);
         assertEq(account.totalAssets(), 1000e18);
 
-        tokenToRedeem.setAvailableWithdrawLimit(0);
-        usd3.setMaxWithdraw(type(uint256).max);
+        tokenToRedeem.setMaxWithdraw(type(uint256).max);
         account.sync();
 
-        assertEq(tokenToRedeem.balanceOf(address(account)), 400e6);
-        assertEq(usd3.balanceOf(address(account)), 0);
-        assertEq(usdc.balanceOf(address(account)), 600e6);
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(usdc.balanceOf(address(account)), 1000e6);
         assertEq(account.totalAssets(), 1000e18);
     }
 
-    function testThreeJaneAccountRedeemsUSD3WhenVaultAssetDiffers() public {
+    function testThreeJaneAccountValuesUSD3ConsistentlyBeforeAndAfterSync() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1_001_000, 1 days, 2 days);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1_001_000);
         MockOracle oracle = new MockOracle(1_001_000_000_000_000_000);
         ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, usdc, oracle);
 
@@ -234,19 +156,15 @@ contract ThreeJaneAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 1001e6);
 
         account.sync();
-        vm.warp(vm.getBlockTimestamp() + 1 days);
-        account.sync();
 
         assertEq(tokenToRedeem.balanceOf(address(account)), 0);
-        assertEq(usd3.balanceOf(address(account)), 0);
         assertEq(usdc.balanceOf(address(account)), 1001e6);
         assertEq(account.totalAssets(), 1001e6);
     }
 
     function testThreeJaneAccountConvertsUSDCToVaultAssetThroughCoWSwap() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
-        MockThreeJaneSUSD3 tokenToRedeem = new MockThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
+        MockERC4626RedeemToken tokenToRedeem = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
         MockERC20 vaultAsset = new MockERC20("Tether USD", "USDT", 6);
         ThreeJaneAccount account = _deployThreeJane(tokenToRedeem, vaultAsset, new MockOracle(1e18));
 
@@ -266,19 +184,16 @@ contract ThreeJaneAccountTest is AccountsBase {
         assertTrue(settlement.lastSigned());
     }
 
-    function testSUSD3AccountHardcodesCurrentThreeJaneJuniorToken() public {
-        address usd3 = makeAddr("USD3");
+    function testUSD3AccountHardcodesCurrentThreeJaneSeniorToken() public {
         address usdc = makeAddr("USDC");
-        _mockDecimals(SUSD3_TOKEN_ADDRESS, 6);
-        vm.mockCall(SUSD3_TOKEN_ADDRESS, abi.encodeCall(IERC4626.asset, ()), abi.encode(usd3));
-        vm.mockCall(usd3, abi.encodeCall(IERC4626.asset, ()), abi.encode(usdc));
+        _mockDecimals(USD3_TOKEN_ADDRESS, 6);
+        vm.mockCall(USD3_TOKEN_ADDRESS, abi.encodeCall(IERC4626.asset, ()), abi.encode(usdc));
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
         MockOracle oracle = new MockOracle(1e18);
-        sUSD3_Account account = new sUSD3_Account(address(oracle), address(factory), cowSwapSettlement);
+        USD3_Account account = new USD3_Account(address(oracle), address(factory), cowSwapSettlement);
 
-        assertEq(account.TOKEN_TO_REDEEM(), SUSD3_TOKEN_ADDRESS);
-        assertEq(account.USD3(), usd3);
+        assertEq(account.TOKEN_TO_REDEEM(), USD3_TOKEN_ADDRESS);
         assertEq(account.REDEMPTION_TOKEN(), usdc);
     }
 }

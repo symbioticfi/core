@@ -20,7 +20,9 @@ import {JAAA_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to
 import {JTRSY_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JTRSY_Account.sol";
 import {sthUSD_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sthUSD_Account.sol";
 import {sUSD3_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSD3_Account.sol";
+import {USD3_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USD3_Account.sol";
 import {TheoAccount} from "../../../src/contracts/adapters/ll-adapter/TheoAccount.sol";
+import {SThreeJaneAccount} from "../../../src/contracts/adapters/ll-adapter/SThreeJaneAccount.sol";
 import {ThreeJaneAccount} from "../../../src/contracts/adapters/ll-adapter/ThreeJaneAccount.sol";
 import {weETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
@@ -69,6 +71,7 @@ abstract contract AccountsBase is Test {
     address internal constant SAID_TOKEN_ADDRESS = 0xB3B3c527BA57cd61648e2EC2F5e006A0B390A9F8;
     address internal constant STHUSD_TOKEN_ADDRESS = 0xA808Bc9775cb41c52C7842f8b50427fE7A770326;
     address internal constant SUSD3_TOKEN_ADDRESS = 0xf689555121e529Ff0463e191F9Bd9d1E496164a7;
+    address internal constant USD3_TOKEN_ADDRESS = 0x056B269Eb1f75477a8666ae8C7fE01b64dD55eCc;
     address internal constant USDC_TOKEN_ADDRESS = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     uint48 internal constant DUSD_TOKEN_COOLDOWN = 72 minutes;
     uint48 internal constant DIGIFT_SETTLEMENT_DURATION = 7 days;
@@ -208,7 +211,18 @@ abstract contract AccountsBase is Test {
         account = GaibAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
 
-    function _deployThreeJane(MockThreeJaneSUSD3 tokenToRedeem, MockERC20 asset, MockOracle oracle)
+    function _deploySThreeJane(MockSThreeJaneSUSD3 tokenToRedeem, MockERC20 asset, MockOracle oracle)
+        internal
+        returns (SThreeJaneAccount account)
+    {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        SThreeJaneAccount implementation =
+            new SThreeJaneAccount(address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement);
+        factory.whitelist(address(implementation));
+        account = SThreeJaneAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
+    }
+
+    function _deployThreeJane(MockERC4626RedeemToken tokenToRedeem, MockERC20 asset, MockOracle oracle)
         internal
         returns (ThreeJaneAccount account)
     {
@@ -638,7 +652,7 @@ contract MockERC4626RedeemToken is MockERC20 {
     }
 }
 
-contract MockThreeJaneSUSD3 is MockERC20 {
+contract MockSThreeJaneSUSD3 is MockERC20 {
     Vm internal constant VM = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     struct UserCooldown {

@@ -85,6 +85,12 @@ interface IOpenEdenExpress {
     function redeemAsset() external view returns (address asset);
 
     /**
+     * @notice Returns the minimum HYBOND amount accepted for a redemption request.
+     * @return minimum The minimum HYBOND amount.
+     */
+    function redeemMinimum() external view returns (uint256 minimum);
+
+    /**
      * @notice Requests HYBOND redemption for a receiver.
      * @param to The redemption receiver.
      * @param tokenAmount The HYBOND amount.

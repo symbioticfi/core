@@ -184,6 +184,35 @@ contract ProviderAccountsTest is AccountsBase {
         assertEq(account.totalAssets(), 2_398_800);
     }
 
+    function testOpenEdenSkipsRequestBelowExpressRedeemMinimum() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 hybond = new MockERC20("HYBOND", "HYBOND", 18);
+        MockOracle previewOracle = new MockOracle(12_006e14);
+        MockOpenEdenExpress express = new MockOpenEdenExpress(hybond, usdc, previewOracle);
+        OpenEdenOracle oracle = new OpenEdenOracle(1, type(uint256).max, address(hybond), address(express));
+        OpenEdenAccount account = _deployOpenEden(hybond, usdc, address(oracle), express);
+
+        express.setRedeemMinimum(100 ether);
+        hybond.mint(address(account), 99 ether);
+        vm.mockCallRevert(
+            address(express),
+            abi.encodeWithSelector(MockOpenEdenExpress.requestRedeem.selector),
+            bytes("request should be skipped")
+        );
+
+        account.sync();
+
+        assertEq(hybond.balanceOf(address(account)), 99 ether);
+        assertEq(express.pendingRedeemInfo(address(account)), 0);
+
+        vm.clearMockedCalls();
+        hybond.mint(address(account), 1 ether);
+        account.sync();
+
+        assertEq(hybond.balanceOf(address(account)), 0);
+        assertEq(express.pendingRedeemInfo(address(account)), 100 ether);
+    }
+
     function testOpenEdenSupportsDifferentStableAssetAndCountsSettledRedemptionToken() public {
         MockERC20 usdt = new MockERC20("Tether USD", "USDT", 6);
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
@@ -1006,6 +1035,7 @@ contract MockOpenEdenExpress {
     address public immutable token;
     address public immutable redeemAsset;
     address public immutable priceOracle;
+    uint256 public redeemMinimum;
 
     mapping(address account => uint256 amount) public pendingRedeemInfo;
     mapping(address account => uint256 amount) public redeemInfo;
@@ -1027,7 +1057,12 @@ contract MockOpenEdenExpress {
         netRedeemAssetAmt = redeemAssetAmt - feeAmt;
     }
 
+    function setRedeemMinimum(uint256 minimum) external {
+        redeemMinimum = minimum;
+    }
+
     function requestRedeem(address to, uint256 tokenAmount) external {
+        require(tokenAmount >= redeemMinimum, "RedeemLessThanMinimum");
         IERC20(token).transferFrom(msg.sender, address(this), tokenAmount);
         pendingRedeemInfo[to] += tokenAmount;
     }
