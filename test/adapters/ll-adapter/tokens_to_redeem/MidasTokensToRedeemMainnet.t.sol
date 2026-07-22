@@ -521,7 +521,7 @@ contract MidasTokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     function _expectedOracleBounds(uint256 index) internal pure returns (uint256 minPrice, uint256 maxPrice) {
         if (index == 0) return (275_900_000_000_000_000, 3_862_200_000_000_000_000);
         if (index == 1) return (266_300_000_000_000_000, 3_727_800_000_000_000_000);
-        if (index == 2) return (251_400_000_000_000_000, 3_520_200_000_000_000_000);
+        if (index == 2) return (233_840_317_500_000_000, 3_273_764_445_000_000_000);
         if (index == 3) return (277_200_000_000_000_000, 3_880_300_000_000_000_000);
         if (index == 4) return (253_500_000_000_000_000, 3_548_800_000_000_000_000);
         if (index == 6) return (266_900_000_000_000_000, 3_736_600_000_000_000_000);

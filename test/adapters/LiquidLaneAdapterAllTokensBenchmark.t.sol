@@ -191,7 +191,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 409);
+        assertEq(specs[5].cooldown, 18 hours, "PRIME");
+        assertEq(totalMaxAverageRequests, 410);
     }
 
     function testAUTOAccountBenchmarkConfiguration() public {
@@ -1420,6 +1421,9 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         }
         if (keccak256(bytes(symbol)) == keccak256("StockMarketTRBasisTrade")) {
             return 12 hours;
+        }
+        if (keccak256(bytes(symbol)) == keccak256("PRIME")) {
+            return 18 hours;
         }
 
         uint48 cooldown = maxDelay / 10;

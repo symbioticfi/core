@@ -6,7 +6,7 @@ import {FigureAccount} from "../FigureAccount.sol";
 import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
 
 contract PRIME_Account is FigureAccount {
-    uint48 internal constant TOKEN_COOLDOWN = 1 days;
+    uint48 internal constant TOKEN_COOLDOWN = 18 hours;
 
     constructor(
         address oracle,

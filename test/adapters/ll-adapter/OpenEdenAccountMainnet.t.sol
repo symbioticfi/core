@@ -19,7 +19,7 @@ contract OpenEdenAccountMainnetTest is Test {
     address internal constant HYBOND_EXPRESS = 0xD84C2571E05a59108Ead1c600D16133f0710E569;
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    uint48 internal constant TOKEN_COOLDOWN = 1 days;
+    uint48 internal constant TOKEN_COOLDOWN = 18 hours;
 
     address internal adapter = makeAddr("adapter");
     string internal mainnetRpcUrl;

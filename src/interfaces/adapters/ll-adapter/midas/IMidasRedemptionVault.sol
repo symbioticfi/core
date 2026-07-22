@@ -11,6 +11,12 @@ interface IMidasRedemptionVault {
     /* FUNCTIONS */
 
     /**
+     * @notice Returns the Midas token redeemed by this vault.
+     * @return token The Midas token address.
+     */
+    function mToken() external view returns (address token);
+
+    /**
      * @notice Returns the Midas token data feed.
      * @return dataFeed The Midas token data feed.
      */

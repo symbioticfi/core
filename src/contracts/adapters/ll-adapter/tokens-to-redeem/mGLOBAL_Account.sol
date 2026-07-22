@@ -18,7 +18,7 @@ contract mGLOBAL_Account is CutoffMidasAccount, IMidasTokenAccount {
 
     constructor(address factory, address cowSwapSettlement, address dataFeed)
         CutoffMidasAccount(
-            address(new MidasOracle(251_400_000_000_000_000, 3_520_200_000_000_000_000, dataFeed)),
+            address(new MidasOracle(233_840_317_500_000_000, 3_273_764_445_000_000_000, dataFeed)),
             factory,
             TOKEN_COOLDOWN,
             TOKEN_INITIAL_CUTOFF,
