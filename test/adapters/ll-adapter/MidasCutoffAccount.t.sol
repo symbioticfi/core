@@ -215,17 +215,26 @@ contract MidasCutoffAccountTest is Test {
         assertEq(account.totalAssets(), 92.07e6);
     }
 
-    function testCanceledRequestReturnsTokensAndClearsCohort() public {
+    function testCanceledRequestClearsBeforeManualTokenReturn() public {
         mGlobal.mint(address(account), 100e18);
         account.sync();
 
-        // Midas cancels the request and returns the token-to-redeem to the account
+        // Midas only marks rejected requests as canceled; returning the token is a separate admin action.
         redemptionVault.cancelRequest(0);
-        assertEq(mGlobal.balanceOf(address(account)), 100e18);
+        assertEq(mGlobal.balanceOf(address(account)), 0);
 
-        // sync prunes the canceled cohort and re-registers the returned tokens under a new request
+        // The account clears non-pending requests even though the return is a separate admin action.
         account.sync();
+        vm.expectRevert();
+        account.requestIds(0);
+        assertEq(account.totalAssets(), 0);
 
+        redemptionVault.returnCanceledRequest(0);
+        assertEq(mGlobal.balanceOf(address(account)), 100e18);
+        assertEq(account.totalAssets(), 93e6);
+
+        // A later manual return is picked up and submitted as a fresh request.
+        account.sync();
         assertEq(mGlobal.balanceOf(address(account)), 0);
         assertEq(account.requestIds(0), 1);
         assertEq(account.requestToBucket(1), 0);
@@ -383,8 +392,12 @@ contract MockMidasRedemptionVault {
     }
 
     function cancelRequest(uint256 requestId) public {
+        _requests[requestId].status = CANCELED;
+    }
+
+    function returnCanceledRequest(uint256 requestId) public {
         Request storage request = _requests[requestId];
-        request.status = CANCELED;
+        require(request.status == CANCELED);
         IERC20(tokenToRedeem).transfer(request.sender, request.amountMToken);
     }
 

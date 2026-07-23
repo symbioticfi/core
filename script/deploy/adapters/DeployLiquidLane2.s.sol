@@ -160,15 +160,17 @@ contract DeployLiquidLane2Script is DeployAdapterBase {
     uint48 public constant FIGURE_COOLDOWN = 18 hours;
 
     address public constant MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
-    // Midas mGLOBAL NAV feed (exit-fee adjusted); must equal the redemption vault's mTokenDataFeed.
-    address public constant MGLOBAL_DATA_FEED = 0xb468A6F63868cB6C6D99105EDfbe73d6B21f139E;
+    // Immutable Midas mGLOBAL market-price feed used by the account oracle.
+    address public constant MGLOBAL_DATA_FEED = 0x517cf115e750d02aeB978011fCE05691613d7ed7;
+    // Exit-fee-adjusted feed used by the Midas redemption vault.
+    address public constant MGLOBAL_REDEMPTION_DATA_FEED = 0xb468A6F63868cB6C6D99105EDfbe73d6B21f139E;
     address public constant MGLOBAL_MARKET_AGGREGATOR = 0x66Aa9fcD63DF74e1f67A9452E6E59Fbc67f75E38;
     address public constant MGLOBAL_REDEMPTION_VAULT = 0x1e0fd66753198c7b8bA64edEe8d41D8628Bf20D7;
     uint256 public constant MGLOBAL_REDEEM_MINIMUM = 1 ether;
     int256 public constant MGLOBAL_PRICE_ADJUSTMENT = -700_000_000;
-    // Oracle bounds use 25% and 350% of mainnet prices observed at block 25_588_500.
-    uint256 public constant MGLOBAL_MIN_PRICE = 233_840_317_500_000_000;
-    uint256 public constant MGLOBAL_MAX_PRICE = 3_273_764_445_000_000_000;
+    // Oracle bounds use 25% and 350% of their mainnet reference prices.
+    uint256 public constant MGLOBAL_MIN_PRICE = 251_441_200_000_000_000;
+    uint256 public constant MGLOBAL_MAX_PRICE = 3_520_176_800_000_000_000;
     // mGLOBAL_Account hardcodes this cooldown internally; asserted post-deployment.
     uint48 public constant MGLOBAL_COOLDOWN = 12 hours;
 
@@ -396,7 +398,7 @@ contract DeployLiquidLane2Script is DeployAdapterBase {
         IMidasRedemptionVaultConfig redemptionVault = IMidasRedemptionVaultConfig(MGLOBAL_REDEMPTION_VAULT);
         (address usdcDataFeed, uint256 fee, uint256 allowance, bool stable) =
             IMidasRedemptionVault(MGLOBAL_REDEMPTION_VAULT).tokensConfig(USDC);
-        address aggregator = IMidasDataFeed(MGLOBAL_DATA_FEED).aggregator();
+        address redemptionAggregator = IMidasDataFeed(MGLOBAL_REDEMPTION_DATA_FEED).aggregator();
 
         _validateCommonAccountDeployment(data);
         assert(IAccount(data.implementation).TOKEN_TO_REDEEM() == MGLOBAL);
@@ -422,10 +424,13 @@ contract DeployLiquidLane2Script is DeployAdapterBase {
         assert(IMidasOracle(data.oracle).DATA_FEED() == MGLOBAL_DATA_FEED);
         assert(MidasOracle(data.oracle).MIN_PRICE() == MGLOBAL_MIN_PRICE);
         assert(MidasOracle(data.oracle).MAX_PRICE() == MGLOBAL_MAX_PRICE);
-        assert(address(IMidasRedemptionVault(MGLOBAL_REDEMPTION_VAULT).mTokenDataFeed()) == MGLOBAL_DATA_FEED);
-        assert(IMGlobalAdjustedAggregator(aggregator).underlyingFeed() == MGLOBAL_MARKET_AGGREGATOR);
-        assert(IMGlobalAdjustedAggregator(aggregator).adjustmentPercentage() == MGLOBAL_PRICE_ADJUSTMENT);
-        assert(IMGlobalAdjustedAggregator(aggregator).decimals() == 8);
+        assert(IMidasDataFeed(MGLOBAL_DATA_FEED).aggregator() == MGLOBAL_MARKET_AGGREGATOR);
+        assert(
+            address(IMidasRedemptionVault(MGLOBAL_REDEMPTION_VAULT).mTokenDataFeed()) == MGLOBAL_REDEMPTION_DATA_FEED
+        );
+        assert(IMGlobalAdjustedAggregator(redemptionAggregator).underlyingFeed() == MGLOBAL_MARKET_AGGREGATOR);
+        assert(IMGlobalAdjustedAggregator(redemptionAggregator).adjustmentPercentage() == MGLOBAL_PRICE_ADJUSTMENT);
+        assert(IMGlobalAdjustedAggregator(redemptionAggregator).decimals() == 8);
         assert(IOracle(data.oracle).getPrice() > 0);
     }
 

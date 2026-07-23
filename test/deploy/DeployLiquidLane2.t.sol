@@ -12,6 +12,7 @@ import {IAsyncRedeemVault} from "../../src/interfaces/adapters/ll-adapter/IAsync
 import {ICooldownAccount} from "../../src/interfaces/adapters/ll-adapter/ICooldownAccount.sol";
 import {IERC7575Share} from "../../src/interfaces/adapters/ll-adapter/IERC7575Share.sol";
 import {IAccount} from "../../src/interfaces/adapters/ll-adapter/IAccount.sol";
+import {IMidasOracle} from "../../src/interfaces/adapters/ll-adapter/midas/IMidasOracle.sol";
 import {IMidasRedemptionVault} from "../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 import {ICoWSwapConverter, ICoWSwapSettlement} from "../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IMigratableEntity} from "../../src/interfaces/common/IMigratableEntity.sol";
@@ -245,7 +246,7 @@ contract DeployLiquidLane2Test is Test {
             1_031_458_000_000_000_000,
             1_734_996_000_000_000_000,
             1_049_663_000_000_000_000,
-            935_361_270_000_000_000
+            1_005_764_800_000_000_000
         ];
         uint256[8] memory configuredMinPrices = [
             harness.JAAA_MIN_PRICE(),
@@ -295,6 +296,12 @@ contract DeployLiquidLane2Test is Test {
 
     function testMGlobalMinimumIsExplicitDeploymentConfig() public view {
         assertEq(harness.MGLOBAL_REDEEM_MINIMUM(), 1 ether);
+    }
+
+    function testMGlobalOracleUsesImmutableMarketDataFeed() public {
+        DeployLiquidLane2Script.LiquidLane2DeploymentData memory data = harness.run();
+
+        assertEq(IMidasOracle(data.mGlobal.oracle).DATA_FEED(), 0x517cf115e750d02aeB978011fCE05691613d7ed7);
     }
 
     function testHybondCooldownIsEighteenHours() public {
@@ -409,7 +416,7 @@ contract DeployLiquidLane2Test is Test {
         vm.mockCall(
             harness.MGLOBAL_REDEMPTION_VAULT(),
             abi.encodeWithSignature("mTokenDataFeed()"),
-            abi.encode(harness.MGLOBAL_DATA_FEED())
+            abi.encode(harness.MGLOBAL_REDEMPTION_DATA_FEED())
         );
         vm.mockCall(
             harness.MGLOBAL_REDEMPTION_VAULT(),
@@ -439,7 +446,14 @@ contract DeployLiquidLane2Test is Test {
             abi.encode(true)
         );
         address aggregator = makeAddr("mGlobalAggregator");
-        vm.mockCall(harness.MGLOBAL_DATA_FEED(), abi.encodeWithSignature("aggregator()"), abi.encode(aggregator));
+        vm.mockCall(
+            harness.MGLOBAL_DATA_FEED(),
+            abi.encodeWithSignature("aggregator()"),
+            abi.encode(harness.MGLOBAL_MARKET_AGGREGATOR())
+        );
+        vm.mockCall(
+            harness.MGLOBAL_REDEMPTION_DATA_FEED(), abi.encodeWithSignature("aggregator()"), abi.encode(aggregator)
+        );
         vm.mockCall(
             aggregator, abi.encodeWithSignature("underlyingFeed()"), abi.encode(harness.MGLOBAL_MARKET_AGGREGATOR())
         );
@@ -449,7 +463,7 @@ contract DeployLiquidLane2Test is Test {
         vm.mockCall(
             harness.MGLOBAL_DATA_FEED(),
             abi.encodeWithSignature("getDataInBase18()"),
-            abi.encode(uint256(935_361_270_000_000_000))
+            abi.encode(uint256(1_005_764_800_000_000_000))
         );
     }
 

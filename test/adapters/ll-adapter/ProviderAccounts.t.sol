@@ -184,7 +184,7 @@ contract ProviderAccountsTest is AccountsBase {
         assertEq(account.totalAssets(), 2_398_800);
     }
 
-    function testOpenEdenSkipsRequestBelowExpressRedeemMinimum() public {
+    function testOpenEdenRevertsRequestBelowExpressRedeemMinimum() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockERC20 hybond = new MockERC20("HYBOND", "HYBOND", 18);
         MockOracle previewOracle = new MockOracle(12_006e14);
@@ -194,18 +194,13 @@ contract ProviderAccountsTest is AccountsBase {
 
         express.setRedeemMinimum(100 ether);
         hybond.mint(address(account), 99 ether);
-        vm.mockCallRevert(
-            address(express),
-            abi.encodeWithSelector(MockOpenEdenExpress.requestRedeem.selector),
-            bytes("request should be skipped")
-        );
 
+        vm.expectRevert(abi.encodeWithSignature("Error(string)", "RedeemLessThanMinimum"));
         account.sync();
 
         assertEq(hybond.balanceOf(address(account)), 99 ether);
         assertEq(express.pendingRedeemInfo(address(account)), 0);
 
-        vm.clearMockedCalls();
         hybond.mint(address(account), 1 ether);
         account.sync();
 
