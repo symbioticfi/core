@@ -135,12 +135,27 @@ contract FrontendLiquidityLensTest is Test {
         leg.cash1 = cash;
     }
 
-    /// @dev A Morpho-shaped adapter: all-or-nothing, drawing private vault idle then a shared market pool.
+    /// @dev A Morpho-shaped adapter: all-or-nothing, drawing private vault idle then the shared market
+    ///      pool in lockstep with a liquidity-adapter exit-position pool (private by default).
     function _morpho(uint256 position, uint256 idle, uint256 realAssets, bytes32 marketKey, uint256 marketCash)
         internal
         view
         returns (SourceLiquidity memory leg)
     {
+        leg = _morphoSharedExit(
+            position, idle, realAssets, marketKey, marketCash, keccak256(abi.encode("la", legs.length))
+        );
+    }
+
+    /// @dev A Morpho-shaped adapter whose liquidity-adapter exit position is shared under `laKey`.
+    function _morphoSharedExit(
+        uint256 position,
+        uint256 idle,
+        uint256 realAssets,
+        bytes32 marketKey,
+        uint256 marketCash,
+        bytes32 laKey
+    ) internal view returns (SourceLiquidity memory leg) {
         leg.position = position;
         leg.clamp = position < idle + realAssets ? position : idle + realAssets;
         leg.partialFill = false;
@@ -148,7 +163,8 @@ contract FrontendLiquidityLensTest is Test {
         leg.cash1 = idle;
         leg.key2 = marketKey;
         leg.cash2 = marketCash;
-        leg.position2 = realAssets;
+        leg.key3 = laKey;
+        leg.cash3 = realAssets;
     }
 
     /* REFERENCE CASCADE */
@@ -156,12 +172,13 @@ contract FrontendLiquidityLensTest is Test {
     /// @dev Independent replay of the delegator cascade: each adapter is asked for the full remainder,
     ///      delivers its idle plus a source draw, and shared pools are consumed once across adapters.
     function _refCoverable(uint256 target) internal view returns (bool) {
-        bytes32[] memory keys = new bytes32[](2 * legs.length);
-        uint256[] memory cash = new uint256[](2 * legs.length);
+        bytes32[] memory keys = new bytes32[](3 * legs.length);
+        uint256[] memory cash = new uint256[](3 * legs.length);
         uint256 sources;
         for (uint256 i; i < legs.length; ++i) {
             sources = _refRegister(keys, cash, sources, legs[i].key1, legs[i].cash1);
             sources = _refRegister(keys, cash, sources, legs[i].key2, legs[i].cash2);
+            sources = _refRegister(keys, cash, sources, legs[i].key3, legs[i].cash3);
         }
 
         uint256 unmet = target;
@@ -172,8 +189,9 @@ contract FrontendLiquidityLensTest is Test {
             }
             uint256 need = unmet - leg.free;
             uint256 firstCash = leg.key1 == bytes32(0) ? type(uint256).max : cash[_refFind(keys, sources, leg.key1)];
+            uint256 lockstepCash = leg.key3 == bytes32(0) ? type(uint256).max : cash[_refFind(keys, sources, leg.key3)];
             uint256 secondCash =
-                leg.key2 == bytes32(0) ? 0 : _min(cash[_refFind(keys, sources, leg.key2)], leg.position2);
+                leg.key2 == bytes32(0) ? 0 : _min(cash[_refFind(keys, sources, leg.key2)], lockstepCash);
             uint256 available = _min(leg.position, _satAdd(firstCash, secondCash));
 
             uint256 draw;
@@ -188,8 +206,13 @@ contract FrontendLiquidityLensTest is Test {
                 if (leg.key1 != bytes32(0)) {
                     cash[_refFind(keys, sources, leg.key1)] -= fromFirst;
                 }
-                if (leg.key2 != bytes32(0) && draw > fromFirst) {
-                    cash[_refFind(keys, sources, leg.key2)] -= draw - fromFirst;
+                if (draw > fromFirst) {
+                    if (leg.key2 != bytes32(0)) {
+                        cash[_refFind(keys, sources, leg.key2)] -= draw - fromFirst;
+                    }
+                    if (leg.key3 != bytes32(0)) {
+                        cash[_refFind(keys, sources, leg.key3)] -= draw - fromFirst;
+                    }
                 }
             }
             uint256 delivered = leg.free + draw;
@@ -208,6 +231,9 @@ contract FrontendLiquidityLensTest is Test {
         }
         for (uint256 j; j < count; ++j) {
             if (keys[j] == key) {
+                if (sourceCash > cash[j]) {
+                    cash[j] = sourceCash;
+                }
                 return count;
             }
         }
@@ -318,6 +344,63 @@ contract FrontendLiquidityLensTest is Test {
         uint256 max = _max();
         assertEq(max, 1_000_000e6);
         _assertTight(max);
+    }
+
+    /// @dev Two adapters wrapping the SAME morpho vault share one liquidity-adapter exit position:
+    ///      even with ample market cash, the exit route can only be drawn once.
+    function test_SameMorphoVaultTwoAdaptersShareExitPosition() public {
+        bytes32 market = keccak256("deep-market");
+        bytes32 la = keccak256("one-liquidity-adapter");
+        // Market holds 1M of cash but the shared liquidity adapter's exit position is only 10k.
+        _add(_morphoSharedExit(10_000e6, 0, 10_000e6, market, 1_000_000e6, la));
+        _add(_morphoSharedExit(10_000e6, 0, 10_000e6, market, 1_000_000e6, la));
+
+        uint256 max = _max();
+        assertEq(max, 10_000e6, "one exit position cannot be drawn twice");
+        _assertTight(max);
+    }
+
+    /// @dev Different morpho vaults on one market have their own liquidity adapters: the market cash is
+    ///      the shared bound, not the exit positions.
+    function test_DifferentVaultsSameMarketCapByMarketCash() public {
+        bytes32 market = keccak256("tight-market");
+        _add(_morpho({position: 800_000e6, idle: 0, realAssets: 800_000e6, marketKey: market, marketCash: 1_000_000e6}));
+        _add(_morpho({position: 800_000e6, idle: 0, realAssets: 800_000e6, marketKey: market, marketCash: 1_000_000e6}));
+
+        uint256 max = _max();
+        assertEq(max, 1_000_000e6, "market cash is consumed once across vaults");
+        _assertTight(max);
+    }
+
+    /* CASCADE TRUNCATION */
+
+    /// @dev Registers a delegator slot pointing at a codeless adapter WITHOUT mocking the lens probe:
+    ///      the real `sourceLiquidity` dispatch runs and aborts on returndata decoding.
+    function _addBroken() internal {
+        vm.mockCall(
+            DELEGATOR,
+            abi.encodeCall(IUniversalDelegator.adapters, (legs.length)),
+            abi.encode(address(uint160(0xB40CE + legs.length)))
+        );
+        legs.push(_private({free: 0, capacity: 0}));
+        _setAdapterCount(legs.length);
+    }
+
+    /// @dev The real cascade hard-reverts at a broken adapter, so nothing at or after it is fundable.
+    function test_CascadeTruncatesAtBrokenAdapter() public {
+        _add(_private({free: 0, capacity: 500_000e6}));
+        _addBroken();
+        _add(_private({free: 0, capacity: 300_000e6}));
+
+        assertEq(_max(), 500_000e6, "legs after the broken adapter must not be counted");
+    }
+
+    /// @dev A broken first adapter blocks every ask that needs the cascade at all.
+    function test_CascadeTruncatesEverythingWhenFirstAdapterBroken() public {
+        _addBroken();
+        _add(_private({free: 0, capacity: 500_000e6}));
+
+        assertEq(_max(), 0, "no cascade capacity is reachable past a broken first adapter");
     }
 
     /* SINGLE-SOURCE TESTS */
@@ -466,6 +549,57 @@ contract FrontendLiquidityLensTest is Test {
         assertEq(lens.getMaxAssets(TARGET, TOKEN), 4000e6);
     }
 
+    /* SOURCE PROBES */
+
+    function _mockAave(address adapter, address aToken, address pool, uint256 configuration) internal {
+        // The adapter needs reverting code: unmatched type probes (`morphoVault()`, ...) must revert to
+        // be caught by the probe's try/catch — empty success from a codeless mock would instead abort
+        // `sourceLiquidity` on returndata decoding (degraded to zero by the cascade's outer try/catch).
+        vm.etch(adapter, hex"60006000fd");
+        vm.mockCall(adapter, abi.encodeWithSignature("aToken()"), abi.encode(aToken));
+        vm.mockCall(aToken, abi.encodeWithSignature("POOL()"), abi.encode(pool));
+        vm.mockCall(pool, abi.encodeWithSignature("getConfiguration(address)", ASSET), abi.encode(configuration));
+        vm.mockCall(
+            pool, abi.encodeWithSignature("getVirtualUnderlyingBalance(address)", ASSET), abi.encode(uint128(70e6))
+        );
+        vm.mockCall(ASSET, abi.encodeWithSignature("balanceOf(address)", adapter), abi.encode(uint256(3e6)));
+        vm.mockCall(aToken, abi.encodeWithSignature("balanceOf(address)", adapter), abi.encode(uint256(40e6)));
+    }
+
+    /// @dev An active, unpaused reserve exposes the position against the shared virtual-balance pool.
+    function test_AaveLegActiveReserve() public {
+        address adapter = address(0xAA7E);
+        _mockAave(adapter, address(0xA70CE), address(0x90019), 1 << 56);
+
+        SourceLiquidity memory leg = lens.sourceLiquidity(adapter, ASSET);
+        assertEq(leg.free, 3e6);
+        assertEq(leg.position, 40e6);
+        assertEq(leg.cash1, 70e6);
+        assertTrue(leg.key1 != bytes32(0), "active reserve must be keyed to the shared pool");
+    }
+
+    /// @dev A paused reserve reverts withdrawals: the leg must carry no position, since a keyless leg
+    ///      is treated as privately unbounded by the cascade.
+    function test_AaveLegPausedReserveHasNoPosition() public {
+        address adapter = address(0xAA7E);
+        _mockAave(adapter, address(0xA70CE), address(0x90019), (1 << 56) | (1 << 60));
+
+        SourceLiquidity memory leg = lens.sourceLiquidity(adapter, ASSET);
+        assertEq(leg.free, 3e6, "idle balance is still delivered by the base wrapper");
+        assertEq(leg.position, 0, "paused reserve must contribute no position");
+        assertEq(leg.key1, bytes32(0));
+    }
+
+    /// @dev An inactive reserve is equally non-withdrawable.
+    function test_AaveLegInactiveReserveHasNoPosition() public {
+        address adapter = address(0xAA7E);
+        _mockAave(adapter, address(0xA70CE), address(0x90019), 0);
+
+        SourceLiquidity memory leg = lens.sourceLiquidity(adapter, ASSET);
+        assertEq(leg.position, 0, "inactive reserve must contribute no position");
+        assertEq(leg.key1, bytes32(0));
+    }
+
     /* UPGRADEABILITY */
 
     /// @dev The proxy's admin is a ProxyAdmin owned by the deployer-chosen owner.
@@ -527,11 +661,11 @@ contract FrontendLiquidityLensTest is Test {
 
             if ((kinds >> i) & 1 == 1) {
                 // All-or-nothing (Morpho-shaped): clamp may exceed the shared cash, creating the cliff.
-                _add(
-                    _morpho({
-                        position: position, idle: free % 100e6, realAssets: position, marketKey: key, marketCash: cash
-                    })
-                );
+                SourceLiquidity memory leg = _morpho({
+                    position: position, idle: cash % 100e6, realAssets: position, marketKey: key, marketCash: cash
+                });
+                leg.free = free % 100e6;
+                _add(leg);
             } else {
                 _add(_shared({free: free, position: position, key: key, cash: cash}));
             }

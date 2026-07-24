@@ -154,11 +154,14 @@ interface IEVaultCash {
  * @param partialFill Whether the adapter partial-fills (true) or is all-or-nothing at `clamp` (false).
  * @param key1 First source key, consumed first (zero means a private, unbounded source).
  * @param cash1 First source total instant cash.
- * @param key2 Second source key, consumed after the first (zero means none).
- * @param cash2 Second source total instant cash, shared with every adapter using the same key.
- * @param position2 Cap on this adapter's own withdrawal from the second source.
- * @dev Sources with the same key across adapters share one cash pool, so the cascade cannot
- *      withdraw the shared cash more than once (e.g. two vaults exiting the same Morpho market).
+ * @param key2 Second source key, consumed after the first (zero means no second source).
+ * @param cash2 Second source total instant cash.
+ * @param key3 Pool consumed in lockstep with the second source (zero means unbounded).
+ * @param cash3 Lockstep pool total instant cash.
+ * @dev Pools with the same key across adapters share one balance, so the cascade cannot withdraw the
+ *      shared cash more than once (e.g. two vaults exiting the same Morpho market). A second-source
+ *      draw decrements the `key2` and `key3` pools together: a forced Morpho market exit spends the
+ *      market's cash and the liquidity adapter's own position in lockstep.
  */
 struct SourceLiquidity {
     uint256 free;
@@ -169,5 +172,6 @@ struct SourceLiquidity {
     uint256 cash1;
     bytes32 key2;
     uint256 cash2;
-    uint256 position2;
+    bytes32 key3;
+    uint256 cash3;
 }

@@ -40,6 +40,13 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 ///      as the source liquidity modelling evolves; the owning `ProxyAdmin` performs upgrades. The lens
 ///      holds no state, so no initializer is needed: deploy with empty proxy init data, and a later
 ///      version may append state (and add a reinitializer) without disturbing this layout.
+/// @dev Accepted imprecision, each bounded and none suppressible without heavy machinery: (1) generic
+///      ERC4626 vaults shared by two adapters cannot be de-duplicated (no reliable cash getter); (2) the
+///      result can overstate by rounding dust when the delegator's share-based limit binds exactly (a
+///      cascade withdrawal can shave wei off the live vault total that limit derives from); (3) Morpho
+///      Vault V1 exit liquidity is pooled per V1 vault at the largest registered adapter's withdrawable
+///      (understates true sharing) and is not de-duplicated against a direct exit on one of the same V1
+///      vault's underlying markets (overstates in that mixed configuration only).
 contract FrontendLiquidityLens {
     using Math for uint256;
 
@@ -132,7 +139,7 @@ contract FrontendLiquidityLens {
         }
         return Math.min(
             IUniversalDelegator(delegator).limitOf(adapter).saturatingSub(IAdapter(adapter).totalAssets()),
-            IVaultV2(vault).freeAssets() + _maxDeallocatable(delegator, IERC4626(vault).asset())
+            IVaultV2(vault).freeAssets().saturatingAdd(_maxDeallocatable(delegator, IERC4626(vault).asset()))
         );
     }
 
@@ -140,8 +147,9 @@ contract FrontendLiquidityLens {
     function _maxDeallocatable(address delegator, address asset) internal view returns (uint256) {
         uint256 length = IUniversalDelegator(delegator).getAdaptersLength();
         SourceLiquidity[] memory legs = new SourceLiquidity[](length);
-        bytes32[] memory keys = new bytes32[](2 * length);
-        uint256[] memory cash = new uint256[](2 * length);
+        bytes32[] memory keys = new bytes32[](3 * length);
+        uint256[] memory cash = new uint256[](3 * length);
+        uint256 count;
         uint256 sources;
         uint256 hi;
         for (uint256 i; i < length; ++i) {
@@ -150,18 +158,24 @@ contract FrontendLiquidityLens {
                 SourceLiquidity memory probed
             ) {
                 leg = probed;
-            } catch {}
-            legs[i] = leg;
+            } catch {
+                // The real cascade calls each adapter's `deallocate` uncaught and its pre-clamp reads are
+                // the very calls that just reverted, so any ask reaching this adapter reverts outright:
+                // nothing at or after it is fundable in one transaction. Truncate rather than skip.
+                break;
+            }
+            legs[count++] = leg;
             hi = hi.saturatingAdd(leg.free).saturatingAdd(leg.position);
             sources = _register(keys, cash, sources, leg.key1, leg.cash1);
             sources = _register(keys, cash, sources, leg.key2, leg.cash2);
+            sources = _register(keys, cash, sources, leg.key3, leg.cash3);
         }
 
         // Binary search the largest ask the cascade fully covers (the fundable set is downward closed).
         uint256 lo;
         while (lo < hi) {
-            uint256 mid = (lo + hi + 1) >> 1;
-            if (_coverable(legs, keys, cash, sources, mid)) {
+            uint256 mid = hi - (hi - lo) / 2;
+            if (_coverable(legs, count, keys, cash, sources, mid)) {
                 lo = mid;
             } else {
                 hi = mid - 1;
@@ -170,7 +184,8 @@ contract FrontendLiquidityLens {
         return lo;
     }
 
-    /// @dev Records a shared source key with its cash once (first occurrence wins); returns the new count.
+    /// @dev Records a shared pool key once; a duplicate keeps the larger cash (registrations may be
+    ///      owner-capped views of one pool, and every draw stays bounded by its leg's own position).
     function _register(bytes32[] memory keys, uint256[] memory cash, uint256 count, bytes32 key, uint256 sourceCash)
         private
         pure
@@ -181,6 +196,9 @@ contract FrontendLiquidityLens {
         }
         for (uint256 j; j < count; ++j) {
             if (keys[j] == key) {
+                if (sourceCash > cash[j]) {
+                    cash[j] = sourceCash;
+                }
                 return count;
             }
         }
@@ -189,9 +207,10 @@ contract FrontendLiquidityLens {
         return count + 1;
     }
 
-    /// @dev Replays the cascade for a target ask against the per-source-capped leg model.
+    /// @dev Replays the cascade for a target ask against the pool-capped leg model.
     function _coverable(
         SourceLiquidity[] memory legs,
+        uint256 count,
         bytes32[] memory keys,
         uint256[] memory cash,
         uint256 sources,
@@ -202,13 +221,14 @@ contract FrontendLiquidityLens {
             remaining[j] = cash[j];
         }
         uint256 unmet = target;
-        for (uint256 i; i < legs.length && unmet > 0; ++i) {
+        for (uint256 i; i < count && unmet > 0; ++i) {
             unmet = _deliver(legs[i], keys, remaining, sources, unmet);
         }
         return unmet == 0;
     }
 
-    /// @dev Applies one adapter's delivery to the outstanding ask, consuming shared source cash in order.
+    /// @dev Applies one adapter's delivery to the outstanding ask: the first pool is drawn first, then
+    ///      the second source, whose draw decrements the `key2` and `key3` pools in lockstep.
     function _deliver(
         SourceLiquidity memory leg,
         bytes32[] memory keys,
@@ -221,11 +241,7 @@ contract FrontendLiquidityLens {
         }
         uint256 need = unmet - leg.free;
 
-        uint256 first = leg.key1 == bytes32(0) ? type(uint256).max : _find(keys, sources, leg.key1);
-        uint256 second = leg.key2 == bytes32(0) ? type(uint256).max : _find(keys, sources, leg.key2);
-        uint256 firstCash = first == type(uint256).max ? type(uint256).max : remaining[first];
-        uint256 secondCash = second == type(uint256).max ? 0 : Math.min(remaining[second], leg.position2);
-
+        (uint256 firstCash, uint256 secondCash) = _capacities(leg, keys, remaining, sources);
         uint256 available = Math.min(leg.position, firstCash.saturatingAdd(secondCash));
         uint256 draw;
         if (leg.partialFill) {
@@ -234,19 +250,49 @@ contract FrontendLiquidityLens {
             uint256 request = Math.min(need, leg.clamp);
             draw = request <= available ? request : 0;
         }
-
         if (draw != 0) {
-            uint256 fromFirst = Math.min(draw, firstCash);
-            if (first != type(uint256).max) {
-                remaining[first] -= fromFirst;
-            }
-            if (second != type(uint256).max && draw > fromFirst) {
-                remaining[second] -= draw - fromFirst;
-            }
+            _consume(leg, keys, remaining, sources, draw, firstCash);
         }
 
         uint256 delivered = leg.free + draw;
         return delivered >= unmet ? 0 : unmet - delivered;
+    }
+
+    /// @dev Returns the remaining first-pool and second-source capacities for a leg.
+    function _capacities(SourceLiquidity memory leg, bytes32[] memory keys, uint256[] memory remaining, uint256 sources)
+        private
+        pure
+        returns (uint256 firstCash, uint256 secondCash)
+    {
+        firstCash = leg.key1 == bytes32(0) ? type(uint256).max : remaining[_find(keys, sources, leg.key1)];
+        if (leg.key2 != bytes32(0)) {
+            secondCash = remaining[_find(keys, sources, leg.key2)];
+            if (leg.key3 != bytes32(0)) {
+                secondCash = Math.min(secondCash, remaining[_find(keys, sources, leg.key3)]);
+            }
+        }
+    }
+
+    /// @dev Consumes a draw: the first pool up to its cash, the rest from both second-source pools.
+    ///      A remainder past the first pool implies a keyed second source (`secondCash` was nonzero).
+    function _consume(
+        SourceLiquidity memory leg,
+        bytes32[] memory keys,
+        uint256[] memory remaining,
+        uint256 sources,
+        uint256 draw,
+        uint256 firstCash
+    ) private pure {
+        uint256 fromFirst = Math.min(draw, firstCash);
+        if (leg.key1 != bytes32(0)) {
+            remaining[_find(keys, sources, leg.key1)] -= fromFirst;
+        }
+        if (draw > fromFirst) {
+            remaining[_find(keys, sources, leg.key2)] -= draw - fromFirst;
+            if (leg.key3 != bytes32(0)) {
+                remaining[_find(keys, sources, leg.key3)] -= draw - fromFirst;
+            }
+        }
     }
 
     /// @dev Returns the index of a registered source key.
@@ -259,20 +305,22 @@ contract FrontendLiquidityLens {
         return type(uint256).max;
     }
 
-    /// @dev Aave supply: partial-fill capped by the shared reserve's virtual balance, zero if inactive or paused.
+    /// @dev Aave supply: partial-fill capped by the shared reserve's virtual balance. An inactive or
+    ///      paused reserve reverts withdrawals entirely, so it contributes no position at all: a keyless
+    ///      leg is treated as privately unbounded by `_deliver`, which must never happen for Aave.
     function _aaveLeg(address adapter, address aToken, address asset)
         internal
         view
         returns (SourceLiquidity memory leg)
     {
         leg.free = IERC20(asset).balanceOf(adapter);
-        leg.position = IERC20(aToken).balanceOf(adapter);
-        leg.clamp = leg.position;
         leg.partialFill = true;
 
         address pool = IAaveAToken(aToken).POOL();
         uint256 configuration = IAaveV3PoolConfiguration(pool).getConfiguration(asset);
         if (configuration & AAVE_ACTIVE_MASK != 0 && configuration & AAVE_PAUSED_MASK == 0) {
+            leg.position = IERC20(aToken).balanceOf(adapter);
+            leg.clamp = leg.position;
             leg.key1 = keccak256(abi.encode("aave", aToken));
             leg.cash1 = IAaveV3Pool(pool).getVirtualUnderlyingBalance(asset);
         }
@@ -316,32 +364,32 @@ contract FrontendLiquidityLens {
         leg.key1 = keccak256(abi.encode("morphoIdle", morphoVault));
         leg.cash1 = vaultIdle;
         if (liquidityAdapter != address(0)) {
-            (leg.key2, leg.cash2, leg.position2) = _morphoMarket(morphoVault, liquidityAdapter);
+            (leg.key2, leg.cash2, leg.key3, leg.cash3) = _morphoExit(morphoVault, liquidityAdapter);
         }
     }
 
-    /// @dev Returns the shared exit-source key and instant cash reachable through a Morpho liquidity adapter,
-    ///      mirroring the vault's forced exit from the single market encoded in `liquidityData`. Follows
-    ///      morpho-org/morpho-snippets `VaultV2LiquidityLib`: accrued market supply minus borrow, capped by
-    ///      the loan token held in the Morpho singleton. Unlike the reference, which returns the two already
-    ///      combined as one vault's withdrawable, the shared market cash and the liquidity adapter's own
-    ///      supply are returned separately, so two vaults exiting the same market consume one shared pool
-    ///      instead of each counting the whole of it.
-    function _morphoMarket(address morphoVault, address liquidityAdapter)
+    /// @dev Returns the shared pools a forced Morpho exit draws in lockstep: the exit route's cash (the
+    ///      Blue market, or the wrapped Vault V1) and the liquidity adapter's own exit position. Follows
+    ///      morpho-org/morpho-snippets `VaultV2LiquidityLib` for the market cash (accrued supply minus
+    ///      borrow, capped by the loan token held in the Morpho singleton). Unlike the reference, which
+    ///      returns everything combined as one vault's withdrawable, both resources are shared pools:
+    ///      two vaults exiting the same market consume its cash once, and two adapters wrapping the same
+    ///      vault consume the one liquidity-adapter position once.
+    function _morphoExit(address morphoVault, address liquidityAdapter)
         internal
         view
-        returns (bytes32 key, uint256 cash, uint256 position)
+        returns (bytes32 routeKey, uint256 routeCash, bytes32 positionKey, uint256 positionCash)
     {
         try IMorphoMarketV1Adapter(liquidityAdapter).morpho() returns (address morpho) {
             bytes memory liquidityData = IMorphoVaultV2(morphoVault).liquidityData();
             if (liquidityData.length == 0) {
-                return (bytes32(0), 0, 0);
+                return (bytes32(0), 0, bytes32(0), 0);
             }
             MorphoMarketParams memory marketParams = abi.decode(liquidityData, (MorphoMarketParams));
             bytes32 marketId = keccak256(abi.encode(marketParams));
             uint256 shares = IMorphoMarketV1Adapter(liquidityAdapter).supplyShares(marketId);
             if (shares == 0) {
-                return (bytes32(0), 0, 0);
+                return (bytes32(0), 0, bytes32(0), 0);
             }
             MorphoMarket memory market = IMorphoBlue(morpho).market(marketId);
             _morphoAccrueInterest(marketParams, market);
@@ -351,6 +399,7 @@ contract FrontendLiquidityLens {
                     uint256(market.totalSupplyAssets).saturatingSub(market.totalBorrowAssets),
                     IERC20(marketParams.loanToken).balanceOf(morpho)
                 ),
+                keccak256(abi.encode("morphoLiquidityAdapter", liquidityAdapter)),
                 shares.mulDiv(
                     uint256(market.totalSupplyAssets) + MORPHO_VIRTUAL_ASSETS,
                     uint256(market.totalSupplyShares) + MORPHO_VIRTUAL_SHARES
@@ -360,11 +409,17 @@ contract FrontendLiquidityLens {
         try IMorphoVaultV1Adapter(liquidityAdapter).morphoVaultV1() returns (address morphoVaultV1) {
             try IMorphoVaultV2(morphoVaultV1).liquidityAdapter() returns (address) {
                 // Nested Vault V2: conservatively ignored.
-                return (bytes32(0), 0, 0);
+                return (bytes32(0), 0, bytes32(0), 0);
             } catch {
-                // Morpho Vault V1 `maxWithdraw` walks its withdraw queue and is liquidity-aware.
+                // Morpho Vault V1 `maxWithdraw` walks its withdraw queue and is liquidity-aware. The V1
+                // pool is keyed per vault with owner-capped cash (`_register` keeps the largest view).
                 uint256 withdrawable = IERC4626(morphoVaultV1).maxWithdraw(liquidityAdapter);
-                return (keccak256(abi.encode("morphoVaultV1", morphoVaultV1)), withdrawable, withdrawable);
+                return (
+                    keccak256(abi.encode("morphoVaultV1", morphoVaultV1)),
+                    withdrawable,
+                    keccak256(abi.encode("morphoLiquidityAdapter", liquidityAdapter)),
+                    withdrawable
+                );
             }
         } catch {}
     }
