@@ -13,9 +13,9 @@ import {ILiquidLaneAdapter} from "../../../src/interfaces/adapters/ILiquidLaneAd
 import {IThreeFAdapter} from "../../../src/interfaces/adapters/IThreeFAdapter.sol";
 import {IUniversalDelegator} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../../src/interfaces/vault/IVaultV2.sol";
-import {IOwnable} from "../../../src/interfaces/adapters/utils/ILiquidityLensDependencies.sol";
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @dev Mainnet-fork regression comparing the lens against the delegator's real cascade.
 /// @dev Discovery runs in `setUp` so every test can decide to skip before making any call: `vm.skip`
@@ -163,7 +163,7 @@ contract FrontendLiquidityLensMainnetTest is Test {
     }
 
     function _acquired(address adapter, address tokenToRedeem) internal view returns (uint256 acquired) {
-        address owner = IOwnable(adapter).owner();
+        address owner = Ownable(adapter).owner();
         acquired = ILiquidLaneAdapter(adapter).acquireBalance(tokenToRedeem, owner);
         address marketMaker = ILiquidLaneAdapter(adapter).marketMaker();
         if (marketMaker != owner) {

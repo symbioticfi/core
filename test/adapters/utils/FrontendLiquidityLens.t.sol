@@ -10,7 +10,7 @@ import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol
 import {ILiquidLaneAdapter} from "../../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IUniversalDelegator} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../../src/interfaces/vault/IVaultV2.sol";
-import {IOwnable, SourceLiquidity} from "../../../src/interfaces/adapters/utils/ILiquidityLensDependencies.sol";
+import {SourceLiquidity} from "../../../src/interfaces/adapters/utils/ILiquidityLensDependencies.sol";
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -120,8 +120,6 @@ contract FrontendLiquidityLensTest is Test {
     function _private(uint256 free, uint256 capacity) internal pure returns (SourceLiquidity memory leg) {
         leg.free = free;
         leg.position = capacity;
-        leg.clamp = capacity;
-        leg.partialFill = true;
     }
 
     /// @dev A source that partial-fills, drawing its own `position` from a cash pool shared by `key`.
@@ -158,7 +156,7 @@ contract FrontendLiquidityLensTest is Test {
     ) internal view returns (SourceLiquidity memory leg) {
         leg.position = position;
         leg.clamp = position < idle + realAssets ? position : idle + realAssets;
-        leg.partialFill = false;
+        leg.allOrNothing = true;
         leg.key1 = keccak256(abi.encode("idle", legs.length));
         leg.cash1 = idle;
         leg.key2 = marketKey;
@@ -195,11 +193,11 @@ contract FrontendLiquidityLensTest is Test {
             uint256 available = _min(leg.position, _satAdd(firstCash, secondCash));
 
             uint256 draw;
-            if (leg.partialFill) {
-                draw = _min(need, available);
-            } else {
+            if (leg.allOrNothing) {
                 uint256 request = _min(need, leg.clamp);
                 draw = request <= available ? request : 0;
+            } else {
+                draw = _min(need, available);
             }
             if (draw > 0) {
                 uint256 fromFirst = _min(draw, firstCash);
@@ -480,7 +478,7 @@ contract FrontendLiquidityLensTest is Test {
 
         address owner = address(0x0FFEE);
         address marketMaker = address(0x33333);
-        vm.mockCall(TARGET, abi.encodeCall(IOwnable.owner, ()), abi.encode(owner));
+        vm.mockCall(TARGET, abi.encodeCall(Ownable.owner, ()), abi.encode(owner));
         vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.marketMaker, ()), abi.encode(marketMaker));
         vm.mockCall(
             TARGET, abi.encodeCall(ILiquidLaneAdapter.acquireBalance, (TOKEN, owner)), abi.encode(uint256(7000e6))
@@ -501,7 +499,7 @@ contract FrontendLiquidityLensTest is Test {
         _add(_private({free: 0, capacity: 0}));
 
         address owner = address(0x0FFEE);
-        vm.mockCall(TARGET, abi.encodeCall(IOwnable.owner, ()), abi.encode(owner));
+        vm.mockCall(TARGET, abi.encodeCall(Ownable.owner, ()), abi.encode(owner));
         vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.marketMaker, ()), abi.encode(owner));
         vm.mockCall(
             TARGET, abi.encodeCall(ILiquidLaneAdapter.acquireBalance, (TOKEN, owner)), abi.encode(uint256(7000e6))
@@ -523,7 +521,7 @@ contract FrontendLiquidityLensTest is Test {
         vm.mockCall(VAULT, abi.encodeCall(IVaultV2.freeAssets, ()), abi.encode(uint256(500_000e6)));
 
         address owner = address(0x0FFEE);
-        vm.mockCall(TARGET, abi.encodeCall(IOwnable.owner, ()), abi.encode(owner));
+        vm.mockCall(TARGET, abi.encodeCall(Ownable.owner, ()), abi.encode(owner));
         vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.marketMaker, ()), abi.encode(owner));
         vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.acquireBalance, (TOKEN, owner)), abi.encode(uint256(0)));
         vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.limit, (TOKEN)), abi.encode(uint256(90_000e6)));
@@ -539,7 +537,7 @@ contract FrontendLiquidityLensTest is Test {
         vm.mockCall(DELEGATOR, abi.encodeCall(IUniversalDelegator.sweepPending, ()), abi.encode(uint256(1)));
 
         address owner = address(0x0FFEE);
-        vm.mockCall(TARGET, abi.encodeCall(IOwnable.owner, ()), abi.encode(owner));
+        vm.mockCall(TARGET, abi.encodeCall(Ownable.owner, ()), abi.encode(owner));
         vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.marketMaker, ()), abi.encode(owner));
         vm.mockCall(
             TARGET, abi.encodeCall(ILiquidLaneAdapter.acquireBalance, (TOKEN, owner)), abi.encode(uint256(4000e6))

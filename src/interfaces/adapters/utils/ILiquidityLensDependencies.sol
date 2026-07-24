@@ -2,18 +2,6 @@
 pragma solidity ^0.8.0;
 
 /**
- * @title IOwnable
- * @notice Minimal ownable interface.
- */
-interface IOwnable {
-    /**
-     * @notice Returns the owner.
-     * @return owner Owner address.
-     */
-    function owner() external view returns (address owner);
-}
-
-/**
  * @title IAaveAToken
  * @notice Minimal Aave aToken interface.
  */
@@ -150,8 +138,9 @@ interface IEVaultCash {
  * @notice Per-adapter instant-liquidity decomposition for the deallocation cascade.
  * @param free Idle assets the adapter always delivers, independent of any shared source.
  * @param position Cap on the adapter's total source withdrawal (its own position).
- * @param clamp Requested-amount cap for all-or-nothing sources (equals `position` for partial-fill sources).
- * @param partialFill Whether the adapter partial-fills (true) or is all-or-nothing at `clamp` (false).
+ * @param clamp Requested-amount cap for all-or-nothing legs (unused for partial-fill legs).
+ * @param allOrNothing Whether the source delivers the full clamped request or nothing (Morpho) rather
+ *        than partial-filling (everything else).
  * @param key1 First source key, consumed first (zero means a private, unbounded source).
  * @param cash1 First source total instant cash.
  * @param key2 Second source key, consumed after the first (zero means no second source).
@@ -167,7 +156,7 @@ struct SourceLiquidity {
     uint256 free;
     uint256 position;
     uint256 clamp;
-    bool partialFill;
+    bool allOrNothing;
     bytes32 key1;
     uint256 cash1;
     bytes32 key2;
