@@ -6,7 +6,6 @@ import "./AccountsBase.t.sol";
 import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract SThreeJaneAccountTest is AccountsBase {
     function testSThreeJaneAccountCachesRedemptionTopology() public {
@@ -58,13 +57,11 @@ contract SThreeJaneAccountTest is AccountsBase {
         account.sync();
     }
 
-    function testSThreeJaneAccountSkipsRedemptionTokenDecimalsForZeroBalanceWhenAssetIsUSD3() public {
+    function testSThreeJaneAccountTotalAssetsZeroForZeroBalancesWhenAssetIsUSD3() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
         MockSThreeJaneSUSD3 tokenToRedeem = new MockSThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
         SThreeJaneAccount account = _deploySThreeJane(tokenToRedeem, usd3, new MockOracle(1e18));
-
-        vm.mockCallRevert(address(usdc), abi.encodeCall(IERC20Metadata.decimals, ()), bytes("zero conversion"));
 
         assertEq(account.totalAssets(), 0);
     }
@@ -80,18 +77,18 @@ contract SThreeJaneAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 0);
     }
 
-    function testSThreeJaneAccountSkipsUSDCDecimalsForZeroIntermediateBalances() public {
+    function testSThreeJaneAccountConvertsUSDCDecimalsIntoVaultAssetUnits() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockERC4626RedeemToken usd3 = new MockERC4626RedeemToken(usdc, "3Jane USD3", "USD3", 6, 1e6);
         MockSThreeJaneSUSD3 tokenToRedeem = new MockSThreeJaneSUSD3(usd3, 1e6, 1 days, 2 days);
         MockERC20 vaultAsset = new MockERC20("Target Stablecoin", "TARGET", 18);
         SThreeJaneAccount account = _deploySThreeJane(tokenToRedeem, vaultAsset, new MockOracle(1e18));
 
-        vm.mockCallRevert(
-            address(usdc), abi.encodeCall(IERC20Metadata.decimals, ()), bytes("decimals should be skipped")
-        );
-
         assertEq(account.totalAssets(), 0);
+
+        usdc.mint(address(account), 1000e6);
+
+        assertEq(account.totalAssets(), 1000e18);
     }
 
     function testSThreeJaneAccountRedeemsThroughUSD3ToUSDCAndValuesUSDC() public {

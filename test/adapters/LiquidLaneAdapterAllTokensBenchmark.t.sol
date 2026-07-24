@@ -600,6 +600,11 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         if (index == 33 || index == 34 || index == 37) {
             return 1;
         }
+        // Figure rejects a second PRIME redemption for ~36h after the first (longer than the account's
+        // 18h cooldown), so only one standing request can be seeded.
+        if (index == 5) {
+            return 1;
+        }
         // USD3 withdrawals settle instantly up to the liquid buffer and leave no standing request
         if (index == 44) {
             return 0;
