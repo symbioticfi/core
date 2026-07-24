@@ -21,6 +21,12 @@ interface IMorphoVaultV2 is IERC4626 {
     function liquidityAdapter() external view returns (address liquidityAdapterAddress);
 
     /**
+     * @notice Returns the liquidity adapter data (encodes the single exit market).
+     * @return data Liquidity data.
+     */
+    function liquidityData() external view returns (bytes memory data);
+
+    /**
      * @notice Returns whether the selector has been abdicated.
      * @param selector The selector to query.
      * @return status Whether the selector has been abdicated.
