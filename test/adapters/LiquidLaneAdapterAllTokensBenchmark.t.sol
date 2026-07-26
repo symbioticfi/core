@@ -30,6 +30,9 @@ import {AUTO_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-re
 import {PRIME_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PRIME_Account.sol";
 import {FigureSubAccount} from "../../src/contracts/adapters/ll-adapter/FigureAccount.sol";
 import {FigureOracle} from "../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
+import {ParetoOracle} from "../../src/contracts/adapters/ll-adapter/oracles/ParetoOracle.sol";
+import {SThreeJaneOracle} from "../../src/contracts/adapters/ll-adapter/oracles/SThreeJaneOracle.sol";
+import {ThreeJaneOracle} from "../../src/contracts/adapters/ll-adapter/oracles/ThreeJaneOracle.sol";
 import {
     StockMarketTRBasisTrade_Account
 } from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
@@ -62,6 +65,7 @@ import {msyrupUSDp_Account} from "../../src/contracts/adapters/ll-adapter/tokens
 import {sAID_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sAID_Account.sol";
 import {sUSN_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSN_Account.sol";
 import {sUSD3_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSD3_Account.sol";
+import {USD3_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USD3_Account.sol";
 import {sthUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sthUSD_Account.sol";
 import {USCC_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USCC_Account.sol";
 import {weETH_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
@@ -72,6 +76,7 @@ import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegat
 import {ILiquidLaneAdapter, MAX_TOKENS_TO_REDEEM} from "../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
 import {IAccount} from "../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IAsyncRedeemAccount} from "../../src/interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
+import {IERC7575Share} from "../../src/interfaces/adapters/ll-adapter/IERC7575Share.sol";
 import {ICooldownAccount} from "../../src/interfaces/adapters/ll-adapter/ICooldownAccount.sol";
 import {IDigiFTAccount} from "../../src/interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol";
 import {IEtherFiAccount} from "../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
@@ -84,10 +89,11 @@ import {IMidasAccount} from "../../src/interfaces/adapters/ll-adapter/midas/IMid
 import {IMidasRedemptionVault} from "../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 import {INoonAccount} from "../../src/interfaces/adapters/ll-adapter/noon/INoonAccount.sol";
 import {IParetoAccount} from "../../src/interfaces/adapters/ll-adapter/pareto/IParetoAccount.sol";
+import {IParetoCDO} from "../../src/interfaces/adapters/ll-adapter/pareto/IParetoCDO.sol";
 import {ISecuritizeAccount} from "../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeAccount.sol";
 import {ISuperstateAccount} from "../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol";
 import {ISthUSD} from "../../src/interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
-import {IThreeJaneSUSD3} from "../../src/interfaces/adapters/ll-adapter/threejane/IThreeJaneSUSD3.sol";
+import {ISThreeJaneSUSD3} from "../../src/interfaces/adapters/ll-adapter/sthreejane/ISThreeJaneSUSD3.sol";
 import {
     IUniversalDelegator,
     MAX_SHARE,
@@ -106,9 +112,19 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address internal constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
+    address internal constant ACRDX_TOKEN = 0x9477724Bb54AD5417de8Baff29e59DF3fB4DA74f;
+    address internal constant JAAA_TOKEN = 0x5a0F93D040De44e78F251b03c43be9CF317Dcf64;
+    address internal constant JTRSY_TOKEN = 0x8c213ee79581Ff4984583C6a801e5263418C4b86;
+    address internal constant DECRDX_TOKEN = 0x9E2679eABFF131b8b1b48fF7566140794E0eEdc4;
+    address internal constant DEJAAA_TOKEN = 0xAAA0008C8CF3A7Dca931adaF04336A5D808C82Cc;
+    address internal constant DEJTRSY_TOKEN = 0xA6233014B9b7aaa74f38fa1977ffC7A89642dC72;
+    address internal constant AA_FALCONX_TOKEN = 0xC26A6Fa2C37b38E549a4a1807543801Db684f99C;
+    address internal constant PARETO_FALCONX_CDO = 0x433D5B175148dA32Ffe1e1A37a939E1b7e79be4d;
 
     address internal constant PRIME_TOKEN = 0x19ebb35279A16207Ec4ba82799CC64715065F7F6;
     address internal constant AUTO_TOKEN = 0x997E2Efbce91D170B00EA402e35a66C887EE1da9;
+    address internal constant SUSD3_TOKEN = 0xf689555121e529Ff0463e191F9Bd9d1E496164a7;
+    address internal constant USD3_TOKEN = 0x056B269Eb1f75477a8666ae8C7fE01b64dD55eCc;
     address internal constant EETH = 0x35fA164735182de50811E8e2E824cFb9B6118ac2;
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
@@ -163,7 +179,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     function testCalculatesAllTokenCooldownsAndRequestCounts() public pure {
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
 
-        assertEq(specs.length, 44);
+        assertEq(specs.length, 45);
         assertLe(specs.length, MAX_TOKENS_TO_REDEEM);
 
         uint256 totalMaxAverageRequests;
@@ -175,7 +191,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
-        assertEq(totalMaxAverageRequests, 399);
+        assertEq(specs[5].cooldown, 18 hours, "PRIME");
+        assertEq(totalMaxAverageRequests, 410);
     }
 
     function testAUTOAccountBenchmarkConfiguration() public {
@@ -194,6 +211,48 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         assertEq(oracle.TOKEN_TO_REDEEM(), AUTO_TOKEN);
         assertEq(oracle.ASYNC_REDEEM_VAULT(), asyncRedeemVault);
         assertGt(oracle.getPrice(), 0);
+    }
+
+    function testSUSD3AccountBenchmarkConfiguration() public {
+        string memory rpcUrl = vm.envOr("ETH_RPC_URL", string(""));
+        _skipWithoutRpc(rpcUrl, "ETH_RPC_URL is required for sUSD3 benchmark configuration");
+        _createFork(rpcUrl);
+
+        MigratablesFactory factory = new MigratablesFactory(curator);
+        IAccount implementation = _deployImplementation(33, address(factory));
+        SThreeJaneOracle oracle = SThreeJaneOracle(implementation.ORACLE());
+        uint256 tokenUnit = 10 ** IERC20Metadata(SUSD3_TOKEN).decimals();
+        address usd3 = IERC4626(SUSD3_TOKEN).asset();
+        address usdc = IERC4626(usd3).asset();
+        uint256 expectedOraclePrice = IERC4626(usd3).convertToAssets(IERC4626(SUSD3_TOKEN).convertToAssets(tokenUnit))
+            * 1e18 / 10 ** IERC20Metadata(usdc).decimals();
+
+        assertEq(implementation.TOKEN_TO_REDEEM(), SUSD3_TOKEN);
+        assertEq(_assetFor(33, SUSD3_TOKEN), MAINNET_USDC);
+        assertEq(oracle.TOKEN_TO_REDEEM(), SUSD3_TOKEN);
+        assertEq(oracle.USD3(), usd3);
+        assertEq(usdc, MAINNET_USDC);
+        assertEq(oracle.getPrice(), expectedOraclePrice);
+    }
+
+    function testUSD3AccountBenchmarkConfiguration() public {
+        string memory rpcUrl = vm.envOr("ETH_RPC_URL", string(""));
+        _skipWithoutRpc(rpcUrl, "ETH_RPC_URL is required for USD3 benchmark configuration");
+        _createFork(rpcUrl);
+
+        MigratablesFactory factory = new MigratablesFactory(curator);
+        IAccount implementation = _deployImplementation(44, address(factory));
+        ThreeJaneOracle oracle = ThreeJaneOracle(implementation.ORACLE());
+        uint256 tokenUnit = 10 ** IERC20Metadata(USD3_TOKEN).decimals();
+        address usdc = IERC4626(USD3_TOKEN).asset();
+        uint256 expectedOraclePrice =
+            IERC4626(USD3_TOKEN).convertToAssets(tokenUnit) * 1e18 / 10 ** IERC20Metadata(usdc).decimals();
+
+        assertEq(implementation.TOKEN_TO_REDEEM(), USD3_TOKEN);
+        assertEq(_assetFor(44, USD3_TOKEN), MAINNET_USDC);
+        assertEq(oracle.TOKEN_TO_REDEEM(), USD3_TOKEN);
+        assertEq(usdc, MAINNET_USDC);
+        assertEq(oracle.getPrice(), expectedOraclePrice);
     }
 
     function testCorrelatedMidasTokenAccountsUseCorrelatedVaultAssets() public view {
@@ -357,8 +416,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return WETH;
         }
         if (
-            _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 37 || index == 38
-                || index == 40 || _isInfiniFi(index)
+            _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 33 || index == 37
+                || index == 38 || index == 40 || _isInfiniFi(index)
         ) {
             return MAINNET_USDC;
         }
@@ -541,6 +600,15 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         if (index == 33 || index == 34 || index == 37) {
             return 1;
         }
+        // Figure rejects a second PRIME redemption for ~36h after the first (longer than the account's
+        // 18h cooldown), so only one standing request can be seeded.
+        if (index == 5) {
+            return 1;
+        }
+        // USD3 withdrawals settle instantly up to the liquid buffer and leave no standing request
+        if (index == 44) {
+            return 0;
+        }
         return spec.maxAverageRequests;
     }
 
@@ -561,7 +629,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             _permissionDigiFTTransfer(token, account);
         }
         if (index == 37) {
-            deal(IParetoAccount(account).RECEIPT_TOKEN(), account, amount);
+            _permissionParetoAccount(account);
+            deal(token, account, amount);
             return;
         }
         if (index == 38) {
@@ -859,7 +928,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return _gaibSubAccountsLength(account);
         }
         if (index == 33) {
-            (,, uint256 shares) = IThreeJaneSUSD3(token).getCooldownStatus(account);
+            (,, uint256 shares) = ISThreeJaneSUSD3(token).getCooldownStatus(account);
             return shares > 0 ? 1 : 0;
         }
         if (index == 34) {
@@ -873,7 +942,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return _lidoRequestIdsLength(account);
         }
         if (index == 37) {
-            return IERC20(IParetoAccount(account).RECEIPT_TOKEN()).balanceOf(account) > 0 ? 1 : 0;
+            return _paretoQueueEpochsLength(account);
         }
         if (index == 38) {
             return _securitizePendingCutoffsLength(account);
@@ -893,6 +962,16 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     function _midasRequestIdsLength(address account) internal view returns (uint256 length) {
         while (true) {
             try IMidasAccount(account).requestIds(length) returns (uint64) {
+                ++length;
+            } catch {
+                return length;
+            }
+        }
+    }
+
+    function _paretoQueueEpochsLength(address account) internal view returns (uint256 length) {
+        while (true) {
+            try IParetoAccount(account).queueEpochs(length) returns (uint256) {
                 ++length;
             } catch {
                 return length;
@@ -1011,7 +1090,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     }
 
     function _tokenBenchSpecs() internal pure returns (TokenBenchSpec[] memory specs) {
-        specs = new TokenBenchSpec[](44);
+        specs = new TokenBenchSpec[](45);
         specs[0] = _spec("ACRDX", 1 days);
         specs[1] = _spec("CarryTradeUSDTRYLeverage", 2 days);
         specs[2] = _spec("DUSD", 12 hours);
@@ -1050,7 +1129,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         specs[34] = _spec("sthUSD", 7 days);
         specs[35] = _spec("weETH", 14 days);
         specs[36] = _spec("wstETH", 5 days);
-        specs[37] = _spec("AA_FalconXUSDC", 30 days);
+        // A request arriving just after NETTING can wait through the current and next full epoch.
+        specs[37] = _spec("AA_FalconXUSDC", 66 days);
         // ACRED cohort worst case: 91-day wait to cutoff + 30-day post-cutoff window.
         specs[38] = _spec("ACRED", 121 days);
         specs[39] = _spec("sUSN", 7 days);
@@ -1060,11 +1140,24 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         specs[41] = _spec("liUSD-4w", 36 days);
         specs[42] = _spec("liUSD-13w", 100 days);
         specs[43] = _spec("AUTO", 1 days);
+        // USD3 redeems instantly up to the vault's liquid buffer; the bound mirrors the sUSD3
+        // cooldown as the worst-case wait for liquidity to free up.
+        specs[44] = _spec("USD3", 30 days);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
         if (index == 0) {
-            return IAccount(address(new ACRDX_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new ACRDX_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(ACRDX_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 1) {
             return IAccount(address(new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT)));
@@ -1073,10 +1166,30 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return IAccount(address(new DUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 3) {
-            return IAccount(address(new JAAA_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new JAAA_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(JAAA_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 4) {
-            return IAccount(address(new JTRSY_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new JTRSY_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(JTRSY_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (_isFigure(index)) {
             address token = index == 5 ? PRIME_TOKEN : AUTO_TOKEN;
@@ -1099,13 +1212,43 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return IAccount(address(new bEQTY_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 8) {
-            return IAccount(address(new deCRDX_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new deCRDX_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(DECRDX_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 9) {
-            return IAccount(address(new deJAAA_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new deJAAA_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(DEJAAA_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 10) {
-            return IAccount(address(new deJTRSY_Account(_oracle(), factory, MAINNET_USDC, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new deJTRSY_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(DEJTRSY_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 11) {
             return IAccount(address(new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT)));
@@ -1174,7 +1317,13 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return IAccount(address(new sAID_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 33) {
-            return IAccount(address(new sUSD3_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new sUSD3_Account(
+                        address(new SThreeJaneOracle(1, type(uint256).max, SUSD3_TOKEN)), factory, COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 34) {
             return IAccount(address(new sthUSD_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
@@ -1206,7 +1355,15 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             );
         }
         if (index == 37) {
-            return IAccount(address(new AA_FalconX_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new AA_FalconX_Account(
+                        address(new ParetoOracle(0.9e18, 1.5e18, AA_FALCONX_TOKEN, PARETO_FALCONX_CDO)),
+                        factory,
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 38) {
             return IAccount(address(new ACRED_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
@@ -1222,6 +1379,15 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         }
         if (index == 42) {
             return IAccount(address(new liUSD13w_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 44) {
+            return IAccount(
+                address(
+                    new USD3_Account(
+                        address(new ThreeJaneOracle(1, type(uint256).max, USD3_TOKEN)), factory, COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         revert();
     }
@@ -1261,6 +1427,9 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         if (keccak256(bytes(symbol)) == keccak256("StockMarketTRBasisTrade")) {
             return 12 hours;
         }
+        if (keccak256(bytes(symbol)) == keccak256("PRIME")) {
+            return 18 hours;
+        }
 
         uint48 cooldown = maxDelay / 10;
         return cooldown < 1 days ? uint48(1 days) : cooldown;
@@ -1272,6 +1441,11 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
 
     function _oracle() internal returns (address) {
         return address(new BenchmarkConstantOracle());
+    }
+
+    function _permissionParetoAccount(address account) internal {
+        vm.mockCall(PARETO_FALCONX_CDO, abi.encodeCall(IParetoCDO.isEpochRunning, ()), abi.encode(true));
+        vm.mockCall(PARETO_FALCONX_CDO, abi.encodeCall(IParetoCDO.isWalletAllowed, (account)), abi.encode(true));
     }
 
     function _logBench(TokenBenchSpec[] memory specs, uint256 onboardingGas) internal {

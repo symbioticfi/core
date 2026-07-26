@@ -3,29 +3,63 @@ pragma solidity ^0.8.0;
 
 /**
  * @title IParetoCDO
- * @notice Interface for Pareto credit vault withdrawal requests.
+ * @notice Interface for Pareto CDO topology, eligibility, and tranche pricing.
  */
 interface IParetoCDO {
-    /* FUNCTIONS */
+    /**
+     * @notice Returns the AA tranche token.
+     * @return tranche The AA tranche address.
+     */
+    function AATranche() external view returns (address tranche);
 
     /**
-     * @notice Claims an eligible normal withdrawal request.
+     * @notice Returns whether an epoch is currently running.
+     * @return running Whether the epoch is running.
      */
-    function claimWithdrawRequest() external;
+    function isEpochRunning() external view returns (bool running);
 
     /**
-     * @notice Requests a normal tranche withdrawal.
-     * @param amount The tranche token amount.
-     * @param tranche The tranche token.
-     * @return assets The underlying amount requested.
+     * @notice Returns whether an account satisfies the configured Keyring policy.
+     * @param account The account to check.
+     * @return allowed Whether the account is allowed.
      */
-    function requestWithdraw(uint256 amount, address tranche) external returns (uint256 assets);
+    function isWalletAllowed(address account) external view returns (bool allowed);
+
+    /**
+     * @notice Returns the configured Keyring contract.
+     * @return keyringAddress The Keyring address.
+     */
+    function keyring() external view returns (address keyringAddress);
+
+    /**
+     * @notice Returns the configured Keyring policy.
+     * @return policy The Keyring policy identifier.
+     */
+    function keyringPolicyId() external view returns (uint256 policy);
+
+    /**
+     * @notice Returns the underlying-token unit used by the CDO.
+     * @return unit The underlying unit.
+     */
+    function oneToken() external view returns (uint256 unit);
+
+    /**
+     * @notice Returns the tranche-token unit used by the CDO.
+     * @return unit The tranche unit.
+     */
+    function ONE_TRANCHE_TOKEN() external view returns (uint256 unit);
 
     /**
      * @notice Returns the withdrawal receipt token.
      * @return receiptToken The receipt token address.
      */
     function strategy() external view returns (address receiptToken);
+
+    /**
+     * @notice Returns the withdrawal receipt token configured by the CDO.
+     * @return receiptToken The receipt-token address.
+     */
+    function strategyToken() external view returns (address receiptToken);
 
     /**
      * @notice Returns the underlying token.

@@ -20,7 +20,9 @@ import {JAAA_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to
 import {JTRSY_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JTRSY_Account.sol";
 import {sthUSD_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sthUSD_Account.sol";
 import {sUSD3_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSD3_Account.sol";
+import {USD3_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USD3_Account.sol";
 import {TheoAccount} from "../../../src/contracts/adapters/ll-adapter/TheoAccount.sol";
+import {SThreeJaneAccount} from "../../../src/contracts/adapters/ll-adapter/SThreeJaneAccount.sol";
 import {ThreeJaneAccount} from "../../../src/contracts/adapters/ll-adapter/ThreeJaneAccount.sol";
 import {weETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
@@ -69,6 +71,7 @@ abstract contract AccountsBase is Test {
     address internal constant SAID_TOKEN_ADDRESS = 0xB3B3c527BA57cd61648e2EC2F5e006A0B390A9F8;
     address internal constant STHUSD_TOKEN_ADDRESS = 0xA808Bc9775cb41c52C7842f8b50427fE7A770326;
     address internal constant SUSD3_TOKEN_ADDRESS = 0xf689555121e529Ff0463e191F9Bd9d1E496164a7;
+    address internal constant USD3_TOKEN_ADDRESS = 0x056B269Eb1f75477a8666ae8C7fE01b64dD55eCc;
     address internal constant USDC_TOKEN_ADDRESS = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     uint48 internal constant DUSD_TOKEN_COOLDOWN = 72 minutes;
     uint48 internal constant DIGIFT_SETTLEMENT_DURATION = 7 days;
@@ -153,9 +156,19 @@ abstract contract AccountsBase is Test {
         internal
         returns (TestAsyncRedeemAccount account)
     {
+        return _deployAsyncRedeem(tokenToRedeem, asset, oracle, cooldown, tokenToRedeem);
+    }
+
+    function _deployAsyncRedeem(
+        address tokenToRedeem,
+        MockERC20 asset,
+        address oracle,
+        uint48 cooldown,
+        address asyncRedeemVault
+    ) internal returns (TestAsyncRedeemAccount account) {
         MigratablesFactory factory = new MigratablesFactory(address(this));
         TestAsyncRedeemAccount implementation = new TestAsyncRedeemAccount(
-            oracle, address(factory), cooldown, tokenToRedeem, address(asset), cowSwapSettlement
+            oracle, address(factory), cooldown, tokenToRedeem, address(asset), asyncRedeemVault, cowSwapSettlement
         );
         factory.whitelist(address(implementation));
         account = TestAsyncRedeemAccount(factory.create(1, address(this), _initData(address(asset), tokenToRedeem)));
@@ -198,7 +211,18 @@ abstract contract AccountsBase is Test {
         account = GaibAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
     }
 
-    function _deployThreeJane(MockThreeJaneSUSD3 tokenToRedeem, MockERC20 asset, MockOracle oracle)
+    function _deploySThreeJane(MockSThreeJaneSUSD3 tokenToRedeem, MockERC20 asset, MockOracle oracle)
+        internal
+        returns (SThreeJaneAccount account)
+    {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        SThreeJaneAccount implementation =
+            new SThreeJaneAccount(address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement);
+        factory.whitelist(address(implementation));
+        account = SThreeJaneAccount(factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem))));
+    }
+
+    function _deployThreeJane(MockERC4626RedeemToken tokenToRedeem, MockERC20 asset, MockOracle oracle)
         internal
         returns (ThreeJaneAccount account)
     {
@@ -585,6 +609,7 @@ contract MockPrimeToken is MockERC20 {
 contract MockERC4626RedeemToken is MockERC20 {
     address internal immutable _asset;
     uint256 internal immutable _assetsPerShare;
+    uint256 internal _maxWithdraw = type(uint256).max;
 
     constructor(MockERC20 asset_, string memory name_, string memory symbol_, uint8 decimals_, uint256 assetsPerShare_)
         MockERC20(name_, symbol_, decimals_)
@@ -597,21 +622,37 @@ contract MockERC4626RedeemToken is MockERC20 {
         return _asset;
     }
 
-    function convertToAssets(uint256 shares) external view returns (uint256 assets) {
+    function convertToAssets(uint256 shares) public view returns (uint256 assets) {
         assets = shares * _assetsPerShare / 10 ** decimals();
     }
 
-    function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
+    function convertToShares(uint256 assets) public view returns (uint256 shares) {
+        shares = assets * 10 ** decimals() / _assetsPerShare;
+    }
+
+    function maxWithdraw(address owner) public view returns (uint256 assets) {
+        assets = convertToAssets(balanceOf(owner));
+        if (assets > _maxWithdraw) {
+            assets = _maxWithdraw;
+        }
+    }
+
+    function setMaxWithdraw(uint256 assets) external {
+        _maxWithdraw = assets;
+    }
+
+    function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
+        require(assets <= maxWithdraw(owner));
+        shares = (assets * 10 ** decimals() + _assetsPerShare - 1) / _assetsPerShare;
         if (msg.sender != owner) {
             _spendAllowance(owner, msg.sender, shares);
         }
         _burn(owner, shares);
-        assets = shares * _assetsPerShare / 10 ** decimals();
         MockERC20(_asset).mint(receiver, assets);
     }
 }
 
-contract MockThreeJaneSUSD3 is MockERC20 {
+contract MockSThreeJaneSUSD3 is MockERC20 {
     Vm internal constant VM = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     struct UserCooldown {
@@ -627,7 +668,6 @@ contract MockThreeJaneSUSD3 is MockERC20 {
 
     uint256 internal _availableWithdrawLimit;
 
-    mapping(address user => uint48 timestamp) public lockedUntil;
     mapping(address user => UserCooldown cooldown) internal _cooldowns;
 
     constructor(MockERC20 asset_, uint256 assetsPerShare_, uint48 cooldownDuration_, uint48 withdrawalWindow_)
@@ -644,16 +684,24 @@ contract MockThreeJaneSUSD3 is MockERC20 {
         return address(_asset);
     }
 
-    function availableWithdrawLimit(address) external view returns (uint256 assets) {
-        return _availableWithdrawLimit;
+    function maxWithdraw(address user) public view returns (uint256 assets) {
+        if (cooldownDuration == 0) {
+            assets = convertToAssets(balanceOf(user));
+        } else {
+            UserCooldown memory cooldown = _cooldowns[user];
+            uint256 timestamp = VM.getBlockTimestamp();
+            if (cooldown.shares == 0 || timestamp < cooldown.cooldownEnd || timestamp > cooldown.windowEnd) {
+                return 0;
+            }
+            assets = convertToAssets(cooldown.shares);
+        }
+        if (assets > _availableWithdrawLimit) {
+            assets = _availableWithdrawLimit;
+        }
     }
 
     function setAvailableWithdrawLimit(uint256 assets) external {
         _availableWithdrawLimit = assets;
-    }
-
-    function setLockedUntil(address user, uint48 timestamp) external {
-        lockedUntil[user] = timestamp;
     }
 
     function getCooldownStatus(address user)
@@ -669,7 +717,6 @@ contract MockThreeJaneSUSD3 is MockERC20 {
         uint48 timestamp = uint48(VM.getBlockTimestamp());
 
         require(shares > 0);
-        require(timestamp >= lockedUntil[msg.sender]);
         require(shares <= balanceOf(msg.sender));
         _cooldowns[msg.sender] = UserCooldown({
             shares: uint128(shares),
@@ -683,18 +730,20 @@ contract MockThreeJaneSUSD3 is MockERC20 {
     }
 
     function withdraw(uint256 assets, address receiver, address owner) external returns (uint256 shares) {
-        shares = assets * 10 ** decimals() / _assetsPerShare;
+        shares = (assets * 10 ** decimals() + _assetsPerShare - 1) / _assetsPerShare;
         if (msg.sender != owner) {
             _spendAllowance(owner, msg.sender, shares);
         }
-        require(assets <= _availableWithdrawLimit);
+        require(assets <= maxWithdraw(owner));
 
         UserCooldown storage cooldown = _cooldowns[owner];
-        require(cooldown.shares >= shares);
-        if (cooldown.shares == shares) {
-            delete _cooldowns[owner];
-        } else {
-            cooldown.shares -= uint128(shares);
+        if (cooldown.shares > 0) {
+            require(cooldown.shares >= shares);
+            if (cooldown.shares == shares) {
+                delete _cooldowns[owner];
+            } else {
+                cooldown.shares -= uint128(shares);
+            }
         }
         _burn(owner, shares);
         _asset.mint(receiver, assets);
@@ -1198,9 +1247,15 @@ contract MockEtherFiWithdrawRequestNFT {
 
 contract AccountsCoWSwapSettlementMock {
     address public vaultRelayer;
+    bytes32 public domainSeparator = keccak256("DOMAIN");
+    bool public lastSigned;
 
     constructor(address vaultRelayer_) {
         vaultRelayer = vaultRelayer_;
+    }
+
+    function setPreSignature(bytes calldata, bool signed) external {
+        lastSigned = signed;
     }
 }
 
@@ -1211,8 +1266,13 @@ contract TestAsyncRedeemAccount is CentrifugeAccount {
         uint48 cooldown,
         address tokenToRedeem,
         address redemptionToken,
+        address asyncRedeemVault,
         address cowSwapSettlement
-    ) CentrifugeAccount(oracle, factory, cooldown, tokenToRedeem, redemptionToken, cowSwapSettlement) {}
+    )
+        CentrifugeAccount(
+            oracle, factory, cooldown, tokenToRedeem, redemptionToken, asyncRedeemVault, cowSwapSettlement
+        )
+    {}
 
     function asyncRedeemVault() external view returns (address) {
         return _asyncRedeemVault();

@@ -2,28 +2,40 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {CooldownAccount} from "./common/CooldownAccount.sol";
+import {Account} from "./common/Account.sol";
 
 import {IParetoAccount} from "../../../interfaces/adapters/ll-adapter/pareto/IParetoAccount.sol";
 import {IParetoCDO} from "../../../interfaces/adapters/ll-adapter/pareto/IParetoCDO.sol";
+import {IParetoCreditVault} from "../../../interfaces/adapters/ll-adapter/pareto/IParetoCreditVault.sol";
+import {IParetoWithdrawalQueue} from "../../../interfaces/adapters/ll-adapter/pareto/IParetoWithdrawalQueue.sol";
 
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title ParetoAccount
-/// @notice Account for Pareto credit-vault tranche redemptions.
-contract ParetoAccount is CooldownAccount, IParetoAccount {
-    using SafeERC20 for IERC20;
+/// @notice Account for Pareto epoch-queue redemptions.
+contract ParetoAccount is Account, IParetoAccount {
     using Math for uint256;
+    using SafeERC20 for IERC20;
 
     /* IMMUTABLES */
 
     /// @inheritdoc IParetoAccount
-    address public immutable IDLE_CDO;
+    address public immutable WITHDRAWAL_QUEUE;
+
     /// @inheritdoc IParetoAccount
-    address public immutable RECEIPT_TOKEN;
+    address public immutable REDEMPTION_TOKEN;
+
+    /// @dev CDO that gates the queue's epoch state; fixed at queue initialization.
+    address internal immutable IDLE_CDO;
+    /// @dev Credit vault holding the epoch counter; fixed at queue initialization.
+    address internal immutable STRATEGY;
+
+    /* STATE VARIABLES */
+
+    /// @inheritdoc IParetoAccount
+    uint256[] public queueEpochs;
 
     /* CONSTRUCTOR */
 
@@ -31,52 +43,78 @@ contract ParetoAccount is CooldownAccount, IParetoAccount {
     constructor(
         address oracle,
         address factory,
-        uint48 cooldown,
         address tokenToRedeem,
-        address idleCdo,
+        address withdrawalQueue,
         address cowSwapSettlement
-    ) CooldownAccount(oracle, factory, cooldown, tokenToRedeem, cowSwapSettlement) {
-        IDLE_CDO = idleCdo;
-        RECEIPT_TOKEN = IParetoCDO(idleCdo).strategy();
+    ) Account(oracle, factory, tokenToRedeem, cowSwapSettlement) {
+        WITHDRAWAL_QUEUE = withdrawalQueue;
+        REDEMPTION_TOKEN = IParetoWithdrawalQueue(withdrawalQueue).underlying();
+        IDLE_CDO = IParetoWithdrawalQueue(withdrawalQueue).idleCDOEpoch();
+        STRATEGY = IParetoWithdrawalQueue(withdrawalQueue).strategy();
     }
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Values held Pareto tranche tokens through the credit-vault virtual price.
-    function _tokenToRedeemToAssets(uint256 amount) internal view override returns (uint256) {
-        address idleCdo = IDLE_CDO;
-        return _redemptionTokenToAssets(
-            IParetoCDO(idleCdo).token(),
-            amount.mulDiv(
-                IParetoCDO(idleCdo).virtualPrice(TOKEN_TO_REDEEM), 10 ** IERC20Metadata(TOKEN_TO_REDEEM).decimals()
-            )
-        );
+    /// @dev Returns outstanding Pareto queue-epoch value and any held redemption token, in vault assets.
+    function _totalAssets() internal view override returns (uint256 assets) {
+        uint256 length = queueEpochs.length;
+        uint256 unprocessedAmount;
+        uint256 redemptionTokenAmount;
+        for (uint256 i; i < length; ++i) {
+            uint256 epoch = queueEpochs[i];
+            uint256 amount = IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).userWithdrawalsEpochs(address(this), epoch);
+            uint256 price = IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).epochWithdrawPrice(epoch);
+            if (price == 0) {
+                unprocessedAmount += amount;
+            } else {
+                redemptionTokenAmount += amount.mulDiv(price, 1e18);
+            }
+        }
+
+        assets = _tokenToRedeemToAssets(unprocessedAmount);
+        assets += REDEMPTION_TOKEN == _asset
+            ? redemptionTokenAmount
+            : _redemptionTokenToAssets(
+                REDEMPTION_TOKEN, redemptionTokenAmount + IERC20(REDEMPTION_TOKEN).balanceOf(address(this))
+            );
     }
 
-    /// @dev Returns pending Pareto withdrawal receipt value in vault assets.
-    function _totalAssets() internal view override returns (uint256) {
-        return _redemptionTokenToAssets(IParetoCDO(IDLE_CDO).token(), IERC20(RECEIPT_TOKEN).balanceOf(address(this)));
-    }
+    /// @dev Claims ready epochs, then queues all held Pareto tranche tokens.
+    function _sync() internal override {
+        uint256 length = queueEpochs.length;
+        for (uint256 i = length; i > 0;) {
+            uint256 epoch = queueEpochs[--i];
+            if (IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).userWithdrawalsEpochs(address(this), epoch) > 0) {
+                if (
+                    IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).epochWithdrawPrice(epoch) == 0
+                        || IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).epochPendingClaims(epoch) > 0
+                ) {
+                    continue;
+                }
+                IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).claimWithdrawRequest(epoch);
+            }
 
-    /// @dev Claims eligible Pareto withdrawal requests.
-    function _finalizeRequests() internal override {
-        try IParetoCDO(IDLE_CDO).claimWithdrawRequest() {} catch {}
-    }
+            queueEpochs[i] = queueEpochs[--length];
+            queueEpochs.pop();
+        }
 
-    /// @dev Submits held tranche tokens into a Pareto withdrawal request.
-    function _requestRedeem() internal override returns (bool) {
-        IParetoCDO(IDLE_CDO).requestWithdraw(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), TOKEN_TO_REDEEM);
-        return true;
+        uint256 balance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        if (balance > 0 && IParetoCDO(IDLE_CDO).isEpochRunning()) {
+            uint256 nextEpoch = IParetoCreditVault(STRATEGY).epochNumber() + 1;
+            if (IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).userWithdrawalsEpochs(address(this), nextEpoch) == 0) {
+                queueEpochs.push(nextEpoch);
+            }
+            IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).requestWithdraw(balance);
+        }
     }
 
     /* INITIALIZATION */
 
-    /// @dev Initializes the account for an adapter and vault.
+    /// @dev Initializes the account for an adapter and vault. The vault asset may differ from the Pareto
+    ///      redemption token (e.g. a USDT vault redeeming Pareto's USDC underlying); the difference is
+    ///      settled through the CoW converter, mirroring the async-redeem and Midas accounts.
     function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
         super._initialize(initialVersion, initOwner, data);
-        if (IParetoCDO(IDLE_CDO).token() != _asset) {
-            revert InvalidAsset();
-        }
-        IERC20(TOKEN_TO_REDEEM).forceApprove(IDLE_CDO, type(uint256).max);
+        IERC20(TOKEN_TO_REDEEM).forceApprove(WITHDRAWAL_QUEUE, type(uint256).max);
     }
 }

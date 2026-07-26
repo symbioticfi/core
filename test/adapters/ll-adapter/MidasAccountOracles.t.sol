@@ -152,7 +152,7 @@ contract MidasAccountOraclesTest is Test {
         assertEq(asset.allowance(address(account), adapter), type(uint256).max);
     }
 
-    function testMidasAccountHandlesCanceledRequestByReturningTokenToRedeem() public {
+    function testMidasAccountHandlesManualTokenReturnAfterCancellation() public {
         MockERC20 tokenToRedeem = new MockERC20("Midas Token", "mTKN");
         MockERC20 asset = new MockERC20("Asset", "ASSET");
         MockMidasRedemptionVault redemptionVault =
@@ -166,14 +166,25 @@ contract MidasAccountOraclesTest is Test {
 
         assertEq(account.totalAssets(), 100 ether);
 
-        // Midas cancels the request and returns the token-to-redeem to the account.
+        // Midas cancellation only changes request status.
         redemptionVault.cancelRequest(0);
-        assertEq(tokenToRedeem.balanceOf(address(account)), 100 ether);
+        assertEq(tokenToRedeem.balanceOf(address(account)), 0);
 
-        // sync() prunes the canceled request and re-batches the returned token-to-redeem into a new request.
+        // The existing account behavior clears any request that is no longer pending.
+        account.sync();
+        vm.expectRevert();
+        account.requestIds(0);
+        assertEq(account.totalAssets(), 0);
+
+        redemptionVault.returnCanceledRequest(0);
+        assertEq(tokenToRedeem.balanceOf(address(account)), 100 ether);
+        assertEq(account.totalAssets(), 100 ether);
+
+        // A later manual return is submitted as a new redemption request.
         account.sync();
         assertEq(asset.balanceOf(address(account)), 0);
         assertEq(tokenToRedeem.balanceOf(address(account)), 0);
+        assertEq(account.requestIds(0), 1);
 
         // No value lost or double-counted: the re-submitted request is valued back at 100.
         assertEq(account.totalAssets(), 100 ether);
@@ -836,8 +847,12 @@ contract MockMidasRedemptionVault {
     }
 
     function cancelRequest(uint256 requestId) public {
+        requests[requestId].status = CANCELED;
+    }
+
+    function returnCanceledRequest(uint256 requestId) public {
         Request storage request = requests[requestId];
-        request.status = CANCELED;
+        require(request.status == CANCELED);
         IERC20(tokenToRedeem).transfer(request.sender, request.amountMToken);
     }
 

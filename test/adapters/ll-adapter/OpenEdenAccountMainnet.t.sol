@@ -19,7 +19,7 @@ contract OpenEdenAccountMainnetTest is Test {
     address internal constant HYBOND_EXPRESS = 0xD84C2571E05a59108Ead1c600D16133f0710E569;
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    uint48 internal constant TOKEN_COOLDOWN = 1 days;
+    uint48 internal constant TOKEN_COOLDOWN = 18 hours;
 
     address internal adapter = makeAddr("adapter");
     string internal mainnetRpcUrl;
@@ -80,17 +80,20 @@ contract OpenEdenAccountMainnetTest is Test {
         assertEq(IOpenEdenAccount(account).EXPRESS(), HYBOND_EXPRESS);
         assertEq(IERC20(HYBOND).allowance(account, HYBOND_EXPRESS), type(uint256).max);
 
-        uint256 amount = 1 ether;
+        uint256 amount = _requestAmount();
         (,, uint256 expectedAssets) = IOpenEdenExpress(HYBOND_EXPRESS).previewRedeem(amount);
         deal(HYBOND, account, amount);
 
-        assertEq(IAccount(account).totalAssets(), expectedAssets);
+        // The oracle truncates the net price per whole token, so valuation may round down by one
+        // redemption-token unit per token.
+        uint256 maxRounding = amount / 10 ** IERC20Metadata(HYBOND).decimals();
+        assertApproxEqAbs(IAccount(account).totalAssets(), expectedAssets, maxRounding);
 
         vm.expectCall(HYBOND_EXPRESS, abi.encodeCall(IOpenEdenExpress.requestRedeem, (account, amount)));
         try IAccount(account).sync() {
             assertEq(IERC20(HYBOND).balanceOf(account), 0);
             assertEq(IOpenEdenExpress(HYBOND_EXPRESS).pendingRedeemInfo(account), amount);
-            assertEq(IAccount(account).totalAssets(), expectedAssets);
+            assertApproxEqAbs(IAccount(account).totalAssets(), expectedAssets, maxRounding);
         } catch {
             assertEq(IERC20(HYBOND).balanceOf(account), amount);
         }
@@ -113,7 +116,7 @@ contract OpenEdenAccountMainnetTest is Test {
 
         assertEq(IAccount(account).ORACLE(), address(openEdenOracle));
 
-        uint256 amount = 1 ether;
+        uint256 amount = _requestAmount();
         deal(HYBOND, account, amount);
 
         try IAccount(account).sync() {}
@@ -131,6 +134,14 @@ contract OpenEdenAccountMainnetTest is Test {
         assertEq(IERC20(HYBOND).balanceOf(account), 0);
         assertEq(IOpenEdenExpress(HYBOND_EXPRESS).pendingRedeemInfo(account), 2 * amount);
         assertEq(IAccount(account).totalAssets(), expectedAssets);
+    }
+
+    /// @dev The account only submits requests at or above the live Express minimum.
+    function _requestAmount() internal view returns (uint256 amount) {
+        amount = IOpenEdenExpress(HYBOND_EXPRESS).redeemMinimum();
+        if (amount == 0) {
+            amount = 1 ether;
+        }
     }
 
     function _forkMainnet() internal {

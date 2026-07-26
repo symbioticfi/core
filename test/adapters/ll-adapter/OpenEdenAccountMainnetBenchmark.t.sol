@@ -44,7 +44,7 @@ contract OpenEdenAccountMainnetBenchmarkTest is Test {
     address internal constant HYBOND_EXPRESS_IMPLEMENTATION = 0xaA15d34a8D921FBA9De5Ec72Ba11feF49BC1fb36;
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
-    uint48 internal constant TOKEN_COOLDOWN = 1 days;
+    uint48 internal constant TOKEN_COOLDOWN = 18 hours;
     uint256 internal constant BENCHMARK_BLOCK = 25_524_292;
 
     bytes32 internal constant ERC1967_IMPLEMENTATION_SLOT =

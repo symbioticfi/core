@@ -3,13 +3,13 @@
 pragma solidity ^0.8.28;
 
 import {MigratablesFactory} from "../../../common/MigratablesFactory.sol";
-import {ThreeJaneAccount} from "../ThreeJaneAccount.sol";
+import {SThreeJaneAccount} from "../SThreeJaneAccount.sol";
 
-contract sUSD3_Account is ThreeJaneAccount {
+contract sUSD3_Account is SThreeJaneAccount {
     address internal constant TOKEN_ADDRESS = 0xf689555121e529Ff0463e191F9Bd9d1E496164a7;
 
     constructor(address oracle, address factory, address cowSwapSettlement)
-        ThreeJaneAccount(oracle, factory, TOKEN_ADDRESS, cowSwapSettlement)
+        SThreeJaneAccount(oracle, factory, TOKEN_ADDRESS, cowSwapSettlement)
     {}
 }
 
