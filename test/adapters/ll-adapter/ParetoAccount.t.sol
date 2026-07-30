@@ -24,7 +24,7 @@ contract ParetoAccountTest is AccountsBase {
     function setUp() public {
         usdc = new MockERC20("USD Coin", "USDC", 6);
         tranche = new MockERC20("Pareto AA Tranche", "AA_TEST", 18);
-        creditVault = new ParetoTestCreditVault();
+        creditVault = new ParetoTestCreditVault(usdc, tranche);
         withdrawalQueue = new ParetoTestWithdrawalQueue(creditVault, usdc, tranche);
         oracle = new MockOracle(VIRTUAL_PRICE * 1e12);
         account = _deployPareto();
@@ -173,7 +173,7 @@ contract ParetoAccountTest is AccountsBase {
         account.queueEpochs(0);
     }
 
-    function test_Sync_ClaimsDuringEpochBufferButDefersQueuingWhenEpochNotRunning() public {
+    function test_Sync_RequestsDirectWithdrawalDuringEpochBuffer() public {
         // Queue an epoch while the epoch is running, then settle it during the inter-epoch buffer.
         tranche.mint(address(account), TRANCHE_UNIT);
         account.sync();
@@ -181,23 +181,61 @@ contract ParetoAccountTest is AccountsBase {
         withdrawalQueue.processEpoch(13, 1_050_000);
         withdrawalQueue.settleEpoch(13);
 
-        // During the buffer the real queue reverts requestWithdraw with EpochNotRunning; a sync holding
-        // fresh tranche tokens must still claim the matured epoch and simply defer the new request.
+        // During the buffer the queue rejects new requests, so fresh tranche tokens must use the CDO directly.
         creditVault.setEpochRunning(false);
         tranche.mint(address(account), 2 * TRANCHE_UNIT);
         account.sync();
 
         assertEq(usdc.balanceOf(address(account)), 1_050_000, "matured epoch claimed during buffer");
-        assertEq(tranche.balanceOf(address(account)), 2 * TRANCHE_UNIT, "fresh tranche held, not queued");
+        assertEq(tranche.balanceOf(address(account)), 0, "fresh tranche submitted directly");
         assertEq(withdrawalQueue.requestCalls(), 1, "no requestWithdraw during buffer");
+        assertEq(creditVault.directRequestCalls(), 1);
+        assertEq(creditVault.balanceOf(address(account)), 2_200_000, "direct withdrawal receipt held");
+        assertEq(account.totalAssets(), 3_250_000, "queue claim plus direct receipt remains accounted");
         vm.expectRevert();
         account.queueEpochs(0);
+    }
 
-        // Once the epoch runs again, the held tranche is queued.
-        creditVault.setEpochRunning(true);
+    function test_Sync_PropagatesDirectWithdrawalFailureDuringEpochBuffer() public {
+        creditVault.setEpochRunning(false);
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+
+        vm.mockCall(address(creditVault), abi.encodeWithSignature("allowAAWithdrawRequest()"), abi.encode(false));
+        bytes memory revertData = abi.encodeWithSignature("AAWithdrawRequestNotAllowed()");
+        vm.mockCallRevert(
+            address(creditVault),
+            abi.encodeCall(ParetoTestCreditVault.requestWithdraw, (2 * TRANCHE_UNIT, address(tranche))),
+            revertData
+        );
+        vm.expectRevert(revertData);
         account.sync();
-        assertEq(withdrawalQueue.requestCalls(), 2, "queued after epoch resumes");
-        assertEq(account.queueEpochs(0), 14);
+    }
+
+    function test_Sync_ClaimsReadyDirectWithdrawal() public {
+        creditVault.setEpochRunning(false);
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+        account.sync();
+
+        creditVault.setDirectClaimReady(true);
+        account.sync();
+
+        assertEq(usdc.balanceOf(address(account)), 2_200_000);
+        assertEq(creditVault.balanceOf(address(account)), 0);
+        assertEq(account.totalAssets(), 2_200_000);
+    }
+
+    function test_Sync_ClaimsReadyDirectInstantWithdrawal() public {
+        creditVault.setEpochRunning(false);
+        creditVault.setDirectInstant(true);
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+        account.sync();
+
+        creditVault.setDirectClaimReady(true);
+        account.sync();
+
+        assertEq(usdc.balanceOf(address(account)), 2_200_000);
+        assertEq(creditVault.balanceOf(address(account)), 0);
+        assertEq(account.totalAssets(), 2_200_000);
     }
 
     function test_Initialize_ApprovesOfficialQueue() public view {
@@ -250,8 +288,27 @@ contract ParetoAccountTest is AccountsBase {
 }
 
 contract ParetoTestCreditVault {
+    using SafeERC20 for IERC20;
+
+    error DirectClaimNotReady();
+
+    MockERC20 public immutable underlying;
+    MockERC20 public immutable tranche;
+
     uint256 public epochNumber = 12;
     bool public isEpochRunning = true;
+    bool public directClaimReady;
+    bool public directInstant;
+    uint256 public directRequestCalls;
+
+    mapping(address account => uint256 amount) public balanceOf;
+    mapping(address account => uint256 amount) public directWithdrawals;
+    mapping(address account => uint256 amount) public directInstantWithdrawals;
+
+    constructor(MockERC20 underlying_, MockERC20 tranche_) {
+        underlying = underlying_;
+        tranche = tranche_;
+    }
 
     function setEpochNumber(uint256 epochNumber_) external {
         epochNumber = epochNumber_;
@@ -259,6 +316,47 @@ contract ParetoTestCreditVault {
 
     function setEpochRunning(bool running) external {
         isEpochRunning = running;
+    }
+
+    function setDirectClaimReady(bool ready) external {
+        directClaimReady = ready;
+    }
+
+    function setDirectInstant(bool instant) external {
+        directInstant = instant;
+    }
+
+    function requestWithdraw(uint256 amount, address requestedTranche) external returns (uint256 assets) {
+        require(requestedTranche == address(tranche));
+        ++directRequestCalls;
+        IERC20(address(tranche)).safeTransferFrom(msg.sender, address(this), amount);
+        assets = amount * 1_100_000 / 1e18;
+        balanceOf[msg.sender] += assets;
+        if (directInstant) {
+            directInstantWithdrawals[msg.sender] += assets;
+        } else {
+            directWithdrawals[msg.sender] += assets;
+        }
+    }
+
+    function claimWithdrawRequest() external {
+        if (!directClaimReady) {
+            revert DirectClaimNotReady();
+        }
+        uint256 assets = directWithdrawals[msg.sender];
+        directWithdrawals[msg.sender] = 0;
+        balanceOf[msg.sender] -= assets;
+        underlying.mint(msg.sender, assets);
+    }
+
+    function claimInstantWithdrawRequest() external {
+        if (!directClaimReady) {
+            revert DirectClaimNotReady();
+        }
+        uint256 assets = directInstantWithdrawals[msg.sender];
+        directInstantWithdrawals[msg.sender] = 0;
+        balanceOf[msg.sender] -= assets;
+        underlying.mint(msg.sender, assets);
     }
 }
 

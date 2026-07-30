@@ -6,12 +6,22 @@ import {Test} from "forge-std/Test.sol";
 import {FrontendLiquidityLens} from "../../../src/contracts/adapters/utils/FrontendLiquidityLens.sol";
 
 import {IAdapter} from "../../../src/interfaces/adapters/IAdapter.sol";
+import {IMorphoVaultV2Adapter} from "../../../src/interfaces/adapters/IMorphoVaultV2Adapter.sol";
 import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {ILiquidLaneAdapter} from "../../../src/interfaces/adapters/ILiquidLaneAdapter.sol";
+import {
+    IMorphoLiquidityAdapter
+} from "../../../src/interfaces/adapters/morpho_vaultv2_adapter/IMorphoLiquidityAdapter.sol";
+import {IMorphoVaultV2} from "../../../src/interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
 import {IUniversalDelegator} from "../../../src/interfaces/delegator/IUniversalDelegator.sol";
 import {IVaultV2} from "../../../src/interfaces/vault/IVaultV2.sol";
-import {SourceLiquidity} from "../../../src/interfaces/adapters/utils/ILiquidityLensDependencies.sol";
+import {
+    IMorphoMarketV1Adapter,
+    MorphoMarketParams,
+    SourceLiquidity
+} from "../../../src/interfaces/adapters/utils/ILiquidityLensDependencies.sol";
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
@@ -58,15 +68,42 @@ contract MockSweepingDelegator {
     }
 }
 
+contract FrontendLiquidityLensHarness is FrontendLiquidityLens {
+    mapping(address adapter => SourceLiquidity) private _sourceLiquidity;
+    mapping(address adapter => bool) private _hasSourceLiquidity;
+
+    function setSourceLiquidity(address adapter, SourceLiquidity calldata source) external {
+        _sourceLiquidity[adapter] = source;
+        _hasSourceLiquidity[adapter] = true;
+    }
+
+    function _leg(address adapter, address asset)
+        internal
+        view
+        override
+        returns (Leg memory leg, Source[3] memory sources)
+    {
+        if (!_hasSourceLiquidity[adapter]) return super._leg(adapter, asset);
+
+        SourceLiquidity memory source = _sourceLiquidity[adapter];
+        leg.free = source.free;
+        leg.amount = source.allOrNothing ? source.clamp : source.position;
+        leg.exact = source.allOrNothing;
+        sources[0] = Source(source.key1, source.cash1);
+        sources[1] = Source(source.key2, source.cash2);
+        sources[2] = Source(source.key3, source.cash3);
+    }
+}
+
 /// @dev A later lens implementation, used to prove the proxy keeps its address across an upgrade.
-contract FrontendLiquidityLensV2 is FrontendLiquidityLens {
+contract FrontendLiquidityLensV2 is FrontendLiquidityLensHarness {
     function upgradedMarker() external pure returns (uint256) {
         return 42;
     }
 }
 
 contract FrontendLiquidityLensTest is Test {
-    FrontendLiquidityLens internal lens;
+    FrontendLiquidityLensHarness internal lens;
     ProxyAdmin internal proxyAdmin;
     SourceLiquidity[] internal legs;
 
@@ -79,9 +116,9 @@ contract FrontendLiquidityLensTest is Test {
     address internal constant ACCOUNT = address(0xACC07);
 
     function setUp() public {
-        address implementation = address(new FrontendLiquidityLens());
+        address implementation = address(new FrontendLiquidityLensHarness());
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(implementation, PROXY_OWNER, "");
-        lens = FrontendLiquidityLens(address(proxy));
+        lens = FrontendLiquidityLensHarness(address(proxy));
         proxyAdmin = ProxyAdmin(_adminOf(address(proxy)));
 
         // Vault/delegator plumbing that leaves the cascade as the only binding term.
@@ -107,9 +144,7 @@ contract FrontendLiquidityLensTest is Test {
     function _add(SourceLiquidity memory leg) internal {
         address adapter = address(uint160(0x1000 + legs.length));
         vm.mockCall(DELEGATOR, abi.encodeCall(IUniversalDelegator.adapters, (legs.length)), abi.encode(adapter));
-        vm.mockCall(
-            address(lens), abi.encodeCall(FrontendLiquidityLens.sourceLiquidity, (adapter, ASSET)), abi.encode(leg)
-        );
+        lens.setSourceLiquidity(adapter, leg);
         legs.push(leg);
         _setAdapterCount(legs.length);
     }
@@ -372,8 +407,7 @@ contract FrontendLiquidityLensTest is Test {
 
     /* CASCADE TRUNCATION */
 
-    /// @dev Registers a delegator slot pointing at a codeless adapter WITHOUT mocking the lens probe:
-    ///      the real `sourceLiquidity` dispatch runs and aborts on returndata decoding.
+    /// @dev Registers a delegator slot pointing at a codeless adapter without a synthetic leg.
     function _addBroken() internal {
         vm.mockCall(
             DELEGATOR,
@@ -384,21 +418,23 @@ contract FrontendLiquidityLensTest is Test {
         _setAdapterCount(legs.length);
     }
 
-    /// @dev The real cascade hard-reverts at a broken adapter, so nothing at or after it is fundable.
-    function test_CascadeTruncatesAtBrokenAdapter() public {
+    /// @dev Once the requested headroom is covered, later broken adapters are not probed.
+    function test_CascadeStopsBeforeBrokenAdapterWhenHeadroomCovered() public {
         _add(_private({free: 0, capacity: 500_000e6}));
         _addBroken();
         _add(_private({free: 0, capacity: 300_000e6}));
+        vm.mockCall(DELEGATOR, abi.encodeCall(IUniversalDelegator.limitOf, (TARGET)), abi.encode(uint256(500_000e6)));
 
-        assertEq(_max(), 500_000e6, "legs after the broken adapter must not be counted");
+        assertEq(_max(), 500_000e6);
     }
 
-    /// @dev A broken first adapter blocks every ask that needs the cascade at all.
-    function test_CascadeTruncatesEverythingWhenFirstAdapterBroken() public {
+    /// @dev A broken adapter that must be probed bubbles its failure.
+    function test_CascadeRevertsWhenBrokenAdapterReached() public {
         _addBroken();
         _add(_private({free: 0, capacity: 500_000e6}));
 
-        assertEq(_max(), 0, "no cascade capacity is reachable past a broken first adapter");
+        vm.expectRevert();
+        _max();
     }
 
     /* SINGLE-SOURCE TESTS */
@@ -550,9 +586,8 @@ contract FrontendLiquidityLensTest is Test {
     /* SOURCE PROBES */
 
     function _mockAave(address adapter, address aToken, address pool, uint256 configuration) internal {
-        // The adapter needs reverting code: unmatched type probes (`morphoVault()`, ...) must revert to
-        // be caught by the probe's try/catch — empty success from a codeless mock would instead abort
-        // `sourceLiquidity` on returndata decoding (degraded to zero by the cascade's outer try/catch).
+        // The adapter needs reverting code so unmatched type probes are caught and `_leg` reaches Aave;
+        // empty success from a codeless mock would instead abort while decoding the returned address.
         vm.etch(adapter, hex"60006000fd");
         vm.mockCall(adapter, abi.encodeWithSignature("aToken()"), abi.encode(aToken));
         vm.mockCall(aToken, abi.encodeWithSignature("POOL()"), abi.encode(pool));
@@ -560,20 +595,22 @@ contract FrontendLiquidityLensTest is Test {
         vm.mockCall(
             pool, abi.encodeWithSignature("getVirtualUnderlyingBalance(address)", ASSET), abi.encode(uint128(70e6))
         );
-        vm.mockCall(ASSET, abi.encodeWithSignature("balanceOf(address)", adapter), abi.encode(uint256(3e6)));
-        vm.mockCall(aToken, abi.encodeWithSignature("balanceOf(address)", adapter), abi.encode(uint256(40e6)));
+        vm.mockCall(adapter, abi.encodeCall(IAdapter.freeAssets, ()), abi.encode(uint256(3e6)));
+        vm.mockCall(adapter, abi.encodeCall(IAdapter.totalAssets, ()), abi.encode(uint256(43e6)));
+    }
+
+    function _useAdapter(address adapter) internal {
+        vm.mockCall(DELEGATOR, abi.encodeCall(IUniversalDelegator.adapters, (0)), abi.encode(adapter));
+        _setAdapterCount(1);
     }
 
     /// @dev An active, unpaused reserve exposes the position against the shared virtual-balance pool.
     function test_AaveLegActiveReserve() public {
         address adapter = address(0xAA7E);
         _mockAave(adapter, address(0xA70CE), address(0x90019), 1 << 56);
+        _useAdapter(adapter);
 
-        SourceLiquidity memory leg = lens.sourceLiquidity(adapter, ASSET);
-        assertEq(leg.free, 3e6);
-        assertEq(leg.position, 40e6);
-        assertEq(leg.cash1, 70e6);
-        assertTrue(leg.key1 != bytes32(0), "active reserve must be keyed to the shared pool");
+        assertEq(_max(), 43e6);
     }
 
     /// @dev A paused reserve reverts withdrawals: the leg must carry no position, since a keyless leg
@@ -581,21 +618,60 @@ contract FrontendLiquidityLensTest is Test {
     function test_AaveLegPausedReserveHasNoPosition() public {
         address adapter = address(0xAA7E);
         _mockAave(adapter, address(0xA70CE), address(0x90019), (1 << 56) | (1 << 60));
+        _useAdapter(adapter);
 
-        SourceLiquidity memory leg = lens.sourceLiquidity(adapter, ASSET);
-        assertEq(leg.free, 3e6, "idle balance is still delivered by the base wrapper");
-        assertEq(leg.position, 0, "paused reserve must contribute no position");
-        assertEq(leg.key1, bytes32(0));
+        assertEq(_max(), 3e6, "paused reserve must contribute only free assets");
     }
 
     /// @dev An inactive reserve is equally non-withdrawable.
     function test_AaveLegInactiveReserveHasNoPosition() public {
         address adapter = address(0xAA7E);
         _mockAave(adapter, address(0xA70CE), address(0x90019), 0);
+        _useAdapter(adapter);
 
-        SourceLiquidity memory leg = lens.sourceLiquidity(adapter, ASSET);
-        assertEq(leg.position, 0, "inactive reserve must contribute no position");
-        assertEq(leg.key1, bytes32(0));
+        assertEq(_max(), 3e6, "inactive reserve must contribute only free assets");
+    }
+
+    function test_LegacyMorphoMarketWithoutExpectedAssetsKeepsVaultCash() public {
+        address adapter = address(0x1001);
+        address morphoVault = address(0x1002);
+        address liquidityAdapter = address(0x1003);
+        address morpho = address(0x1004);
+
+        vm.etch(adapter, hex"60006000fd");
+        vm.etch(morphoVault, hex"60006000fd");
+        vm.etch(liquidityAdapter, hex"60006000fd");
+
+        vm.mockCall(VAULT, abi.encodeCall(IVaultV2.freeAssets, ()), abi.encode(uint256(50e6)));
+        vm.mockCall(DELEGATOR, abi.encodeCall(IUniversalDelegator.limitOf, (TARGET)), abi.encode(uint256(100e6)));
+        _useAdapter(adapter);
+
+        vm.mockCall(adapter, abi.encodeCall(IAdapter.freeAssets, ()), abi.encode(uint256(0)));
+        vm.mockCall(adapter, abi.encodeCall(IAdapter.totalAssets, ()), abi.encode(uint256(100e6)));
+        vm.mockCall(adapter, abi.encodeCall(IMorphoVaultV2Adapter.morphoVault, ()), abi.encode(morphoVault));
+        vm.mockCall(ASSET, abi.encodeCall(IERC20.balanceOf, (morphoVault)), abi.encode(uint256(0)));
+        vm.mockCall(morphoVault, abi.encodeCall(IMorphoVaultV2.liquidityAdapter, ()), abi.encode(liquidityAdapter));
+        vm.mockCall(
+            morphoVault,
+            abi.encodeCall(IMorphoVaultV2.liquidityData, ()),
+            abi.encode(
+                abi.encode(
+                    MorphoMarketParams({
+                        loanToken: ASSET,
+                        collateralToken: address(0xCA11),
+                        oracle: address(0x0A11),
+                        irm: address(0x1A11),
+                        lltv: 8e17
+                    })
+                )
+            )
+        );
+        vm.mockCall(
+            liquidityAdapter, abi.encodeCall(IMorphoLiquidityAdapter.realAssets, ()), abi.encode(uint256(100e6))
+        );
+        vm.mockCall(liquidityAdapter, abi.encodeCall(IMorphoMarketV1Adapter.morpho, ()), abi.encode(morpho));
+
+        assertEq(_max(), 50e6, "legacy liquidity adapter must not hide fundable vault cash");
     }
 
     /* UPGRADEABILITY */

@@ -55,11 +55,11 @@ contract ParetoAccount is Account, IParetoAccount {
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Returns outstanding Pareto queue-epoch value and any held redemption token, in vault assets.
+    /// @dev Returns outstanding Pareto withdrawal value and any held redemption token, in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
         uint256 length = queueEpochs.length;
         uint256 unprocessedAmount;
-        uint256 redemptionTokenAmount;
+        uint256 redemptionTokenAmount = IERC20(STRATEGY).balanceOf(address(this));
         for (uint256 i; i < length; ++i) {
             uint256 epoch = queueEpochs[i];
             uint256 amount = IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).userWithdrawalsEpochs(address(this), epoch);
@@ -79,8 +79,13 @@ contract ParetoAccount is Account, IParetoAccount {
             );
     }
 
-    /// @dev Claims ready epochs, then queues all held Pareto tranche tokens.
+    /// @dev Claims ready withdrawals, then submits all held Pareto tranche tokens.
     function _sync() internal override {
+        if (IERC20(STRATEGY).balanceOf(address(this)) > 0) {
+            try IParetoCDO(IDLE_CDO).claimWithdrawRequest() {} catch {}
+            try IParetoCDO(IDLE_CDO).claimInstantWithdrawRequest() {} catch {}
+        }
+
         uint256 length = queueEpochs.length;
         for (uint256 i = length; i > 0;) {
             uint256 epoch = queueEpochs[--i];
@@ -99,12 +104,17 @@ contract ParetoAccount is Account, IParetoAccount {
         }
 
         uint256 balance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (balance > 0 && IParetoCDO(IDLE_CDO).isEpochRunning()) {
+        if (balance == 0) {
+            return;
+        }
+        if (IParetoCDO(IDLE_CDO).isEpochRunning()) {
             uint256 nextEpoch = IParetoCreditVault(STRATEGY).epochNumber() + 1;
             if (IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).userWithdrawalsEpochs(address(this), nextEpoch) == 0) {
                 queueEpochs.push(nextEpoch);
             }
             IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).requestWithdraw(balance);
+        } else {
+            IParetoCDO(IDLE_CDO).requestWithdraw(balance, TOKEN_TO_REDEEM);
         }
     }
 
@@ -116,5 +126,6 @@ contract ParetoAccount is Account, IParetoAccount {
     function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
         super._initialize(initialVersion, initOwner, data);
         IERC20(TOKEN_TO_REDEEM).forceApprove(WITHDRAWAL_QUEUE, type(uint256).max);
+        IERC20(TOKEN_TO_REDEEM).forceApprove(IDLE_CDO, type(uint256).max);
     }
 }
