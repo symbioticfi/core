@@ -23,6 +23,12 @@ interface IParetoCDO {
     function claimInstantWithdrawRequest() external;
 
     /**
+     * @notice Returns whether the CDO has defaulted.
+     * @return isDefaulted Whether the CDO has defaulted.
+     */
+    function defaulted() external view returns (bool isDefaulted);
+
+    /**
      * @notice Returns whether an epoch is currently running.
      * @return running Whether the epoch is running.
      */

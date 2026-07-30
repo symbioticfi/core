@@ -42,6 +42,21 @@ contract ParetoAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 2_100_000);
     }
 
+    function test_TotalAssets_DoesNotValueHeldTrancheAfterDefault() public {
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+        creditVault.setDefaulted(true);
+
+        assertEq(account.totalAssets(), 0);
+    }
+
+    function test_TotalAssets_DoesNotValueUnprocessedQueueInventoryAfterDefault() public {
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+        account.sync();
+        creditVault.setDefaulted(true);
+
+        assertEq(account.totalAssets(), 0);
+    }
+
     function test_Sync_ReturnsWithoutQueueCallWhenBalanceIsZero() public {
         account.sync();
 
@@ -297,6 +312,7 @@ contract ParetoTestCreditVault {
 
     uint256 public epochNumber = 12;
     bool public isEpochRunning = true;
+    bool public defaulted;
     bool public directClaimReady;
     bool public directInstant;
     uint256 public directRequestCalls;
@@ -316,6 +332,10 @@ contract ParetoTestCreditVault {
 
     function setEpochRunning(bool running) external {
         isEpochRunning = running;
+    }
+
+    function setDefaulted(bool defaulted_) external {
+        defaulted = defaulted_;
     }
 
     function setDirectClaimReady(bool ready) external {

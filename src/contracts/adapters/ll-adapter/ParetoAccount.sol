@@ -55,6 +55,13 @@ contract ParetoAccount is Account, IParetoAccount {
 
     /* INTERNAL FUNCTIONS */
 
+    /// @dev Values held Pareto tranche tokens at zero after the CDO defaults.
+    function _tokenToRedeemToAssets(uint256 amount) internal view override returns (uint256 assets) {
+        if (!IParetoCDO(IDLE_CDO).defaulted()) {
+            assets = super._tokenToRedeemToAssets(amount);
+        }
+    }
+
     /// @dev Returns outstanding Pareto withdrawal value and any held redemption token, in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
         uint256 length = queueEpochs.length;
