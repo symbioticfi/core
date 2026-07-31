@@ -25,6 +25,12 @@ contract ParetoOracleTest is Test {
         assertEq(oracle.getPrice(), 1_094_752e12);
     }
 
+    function test_GetPrice_ReturnsZeroAfterDefault() public {
+        cdo.setDefaulted(true);
+
+        assertEq(oracle.getPrice(), 0);
+    }
+
     function test_Constructor_RevertsForTokenOutsideCDO() public {
         MockERC20 other = new MockERC20("Other", "OTHER", 18);
 
@@ -47,6 +53,7 @@ contract ParetoOracleTestCDO {
     address public immutable token;
     address public immutable AATranche;
     uint256 internal _virtualPrice;
+    bool public defaulted;
 
     constructor(address token_, address tranche_, uint256 virtualPrice_) {
         token = token_;
@@ -56,6 +63,10 @@ contract ParetoOracleTestCDO {
 
     function setVirtualPrice(uint256 virtualPrice_) external {
         _virtualPrice = virtualPrice_;
+    }
+
+    function setDefaulted(bool defaulted_) external {
+        defaulted = defaulted_;
     }
 
     function virtualPrice(address tranche) external view returns (uint256 price) {

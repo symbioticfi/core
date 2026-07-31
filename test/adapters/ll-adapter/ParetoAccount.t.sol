@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {AccountsBase, MockERC20, MockOracle} from "./AccountsBase.t.sol";
+import {AccountsBase, MockERC20} from "./AccountsBase.t.sol";
 
 import {ParetoAccount} from "../../../src/contracts/adapters/ll-adapter/ParetoAccount.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
@@ -18,7 +18,7 @@ contract ParetoAccountTest is AccountsBase {
     MockERC20 internal usdc;
     ParetoTestCreditVault internal creditVault;
     ParetoTestWithdrawalQueue internal withdrawalQueue;
-    MockOracle internal oracle;
+    ParetoTestOracle internal oracle;
     ParetoAccount internal account;
 
     function setUp() public {
@@ -26,7 +26,7 @@ contract ParetoAccountTest is AccountsBase {
         tranche = new MockERC20("Pareto AA Tranche", "AA_TEST", 18);
         creditVault = new ParetoTestCreditVault(usdc, tranche);
         withdrawalQueue = new ParetoTestWithdrawalQueue(creditVault, usdc, tranche);
-        oracle = new MockOracle(VIRTUAL_PRICE * 1e12);
+        oracle = new ParetoTestOracle(creditVault, VIRTUAL_PRICE * 1e12);
         account = _deployPareto();
     }
 
@@ -57,10 +57,77 @@ contract ParetoAccountTest is AccountsBase {
         assertEq(account.totalAssets(), 0);
     }
 
+    function test_TotalAssets_UsesFixedPriceForProcessedQueueInventoryBeforeAndAfterFunding() public {
+        oracle.setPrice(1_050_000e12);
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+        account.sync();
+
+        creditVault.setEpochNumber(13);
+        withdrawalQueue.processEpoch(13, 1_100_000);
+        assertEq(account.totalAssets(), 2_200_000);
+
+        creditVault.setEpochNumber(14);
+        assertEq(account.totalAssets(), 2_200_000);
+
+        withdrawalQueue.settleEpoch(13);
+        assertEq(account.totalAssets(), 2_200_000);
+    }
+
+    function test_TotalAssets_DoesNotValueProcessedUnfundedQueueInventoryAfterDefault() public {
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+        account.sync();
+        creditVault.setEpochNumber(13);
+        withdrawalQueue.processEpoch(13, 1_100_000);
+        creditVault.setDefaulted(true);
+
+        assertEq(account.totalAssets(), 0);
+    }
+
+    function test_TotalAssets_ValuesFundedQueueInventoryAfterDefault() public {
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+        account.sync();
+        creditVault.setEpochNumber(13);
+        withdrawalQueue.processEpoch(13, 1_100_000);
+        creditVault.setEpochNumber(14);
+        creditVault.setDefaulted(true);
+
+        assertEq(account.totalAssets(), 2_200_000);
+    }
+
+    function test_TotalAssets_DoesNotValueDirectWithdrawalReceiptAfterDefault() public {
+        creditVault.setEpochRunning(false);
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+        account.sync();
+        creditVault.setDefaulted(true);
+
+        assertEq(account.totalAssets(), 0);
+    }
+
     function test_Sync_ReturnsWithoutQueueCallWhenBalanceIsZero() public {
         account.sync();
 
         assertEq(withdrawalQueue.requestCalls(), 0);
+    }
+
+    function test_Sync_DoesNotRequestQueueWithdrawalAfterDefault() public {
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+        creditVault.setDefaulted(true);
+
+        account.sync();
+
+        assertEq(withdrawalQueue.requestCalls(), 0);
+        assertEq(tranche.balanceOf(address(account)), 2 * TRANCHE_UNIT);
+    }
+
+    function test_Sync_DoesNotRequestDirectWithdrawalAfterDefault() public {
+        tranche.mint(address(account), 2 * TRANCHE_UNIT);
+        creditVault.setEpochRunning(false);
+        creditVault.setDefaulted(true);
+
+        account.sync();
+
+        assertEq(creditVault.directRequestCalls(), 0);
+        assertEq(tranche.balanceOf(address(account)), 2 * TRANCHE_UNIT);
     }
 
     function test_Sync_AggregatesSameQueueEpochWithoutDuplicateTracking() public {
@@ -299,6 +366,24 @@ contract ParetoAccountTest is AccountsBase {
         returns (ParetoAccount implementation)
     {
         implementation = new ParetoAccount(address(oracle), factory, token, queue, cowSwapSettlement);
+    }
+}
+
+contract ParetoTestOracle {
+    ParetoTestCreditVault public immutable cdo;
+    uint256 internal _price;
+
+    constructor(ParetoTestCreditVault cdo_, uint256 price_) {
+        cdo = cdo_;
+        _price = price_;
+    }
+
+    function setPrice(uint256 price_) external {
+        _price = price_;
+    }
+
+    function getPrice() external view returns (uint256) {
+        return cdo.defaulted() ? 0 : _price;
     }
 }
 

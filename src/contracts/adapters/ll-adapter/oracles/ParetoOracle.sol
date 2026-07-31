@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 
 import {Oracle} from "./Oracle.sol";
 
+import {IOracle} from "../../../../interfaces/adapters/ll-adapter/IOracle.sol";
 import {IParetoCDO} from "../../../../interfaces/adapters/ll-adapter/pareto/IParetoCDO.sol";
 import {IParetoOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/IParetoOracle.sol";
 
@@ -36,6 +37,12 @@ contract ParetoOracle is Oracle, IParetoOracle {
         TOKEN_TO_REDEEM = tokenToRedeem;
         IDLE_CDO = idleCdo;
         UNDERLYING_UNIT = 10 ** IERC20Metadata(IParetoCDO(idleCdo).token()).decimals();
+    }
+
+    /* VIEW FUNCTIONS */
+
+    function getPrice() public view override(Oracle, IOracle) returns (uint256) {
+        return IParetoCDO(IDLE_CDO).defaulted() ? 0 : super.getPrice();
     }
 
     /* INTERNAL VIEW FUNCTIONS */

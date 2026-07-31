@@ -55,26 +55,25 @@ contract ParetoAccount is Account, IParetoAccount {
 
     /* INTERNAL FUNCTIONS */
 
-    /// @dev Values held Pareto tranche tokens at zero after the CDO defaults.
-    function _tokenToRedeemToAssets(uint256 amount) internal view override returns (uint256 assets) {
-        if (!IParetoCDO(IDLE_CDO).defaulted()) {
-            assets = super._tokenToRedeemToAssets(amount);
-        }
-    }
-
     /// @dev Returns outstanding Pareto withdrawal value and any held redemption token, in vault assets.
     function _totalAssets() internal view override returns (uint256 assets) {
         uint256 length = queueEpochs.length;
         uint256 unprocessedAmount;
-        uint256 redemptionTokenAmount = IERC20(STRATEGY).balanceOf(address(this));
+        bool isNotDefaulted = !IParetoCDO(IDLE_CDO).defaulted();
+        uint256 redemptionTokenAmount = isNotDefaulted ? IERC20(STRATEGY).balanceOf(address(this)) : 0;
         for (uint256 i; i < length; ++i) {
             uint256 epoch = queueEpochs[i];
             uint256 amount = IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).userWithdrawalsEpochs(address(this), epoch);
             uint256 price = IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).epochWithdrawPrice(epoch);
-            if (price == 0) {
-                unprocessedAmount += amount;
+            if (price > 0) {
+                if (
+                    isNotDefaulted || IParetoWithdrawalQueue(WITHDRAWAL_QUEUE).epochPendingClaims(epoch) == 0
+                        || IParetoCreditVault(STRATEGY).epochNumber() > epoch
+                ) {
+                    redemptionTokenAmount += amount.mulDiv(price, 1e18);
+                }
             } else {
-                redemptionTokenAmount += amount.mulDiv(price, 1e18);
+                unprocessedAmount += amount;
             }
         }
 
@@ -111,7 +110,7 @@ contract ParetoAccount is Account, IParetoAccount {
         }
 
         uint256 balance = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
-        if (balance == 0) {
+        if (balance == 0 || IParetoCDO(IDLE_CDO).defaulted()) {
             return;
         }
         if (IParetoCDO(IDLE_CDO).isEpochRunning()) {
