@@ -13,4 +13,10 @@ interface IMakinaMachine {
      * @return token The accounting token address.
      */
     function accountingToken() external view returns (address token);
+
+    /**
+     * @notice Returns the timestamp of the latest global accounting update.
+     * @return timestamp The accounting timestamp.
+     */
+    function lastGlobalAccountingTime() external view returns (uint256 timestamp);
 }

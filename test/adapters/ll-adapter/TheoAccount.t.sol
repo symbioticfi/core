@@ -3,24 +3,7 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
-import {ITheoAccount} from "../../../src/interfaces/adapters/ll-adapter/theo/ITheoAccount.sol";
-
 contract TheoAccountTest is AccountsBase {
-    function testTheoAccountRejectsVaultAssetMismatch() public {
-        MockERC20 asset = new MockERC20("Theo USD", "thUSD", 6);
-        MockERC20 wrongAsset = new MockERC20("Wrong USD", "wUSD", 6);
-        MockSthUSD tokenToRedeem = new MockSthUSD(asset, 1_005_000, 1 days);
-        MockOracle oracle = new MockOracle(1_005_000_000_000_000_000);
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        TheoAccount implementation =
-            new TheoAccount(address(oracle), address(factory), address(tokenToRedeem), cowSwapSettlement);
-        factory.whitelist(address(implementation));
-        bytes memory data = _initData(address(wrongAsset), address(tokenToRedeem));
-
-        vm.expectRevert(ITheoAccount.InvalidAsset.selector);
-        factory.create(1, address(this), data);
-    }
-
     function testTheoAccountInitiatesAndClaimsSthUSDRedeem() public {
         MockERC20 asset = new MockERC20("Theo USD", "thUSD", 6);
         MockSthUSD tokenToRedeem = new MockSthUSD(asset, 1_005_000, 1 days);
@@ -54,11 +37,13 @@ contract TheoAccountTest is AccountsBase {
     }
 
     function testSthUSDAccountHardcodesCurrentTheoStakedToken() public {
+        address thUSD = makeAddr("thUSD");
         _mockDecimals(STHUSD_TOKEN_ADDRESS, 6);
+        _mockDecimals(thUSD, 6);
+        vm.mockCall(STHUSD_TOKEN_ADDRESS, abi.encodeWithSignature("asset()"), abi.encode(thUSD));
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        MockOracle oracle = new MockOracle(1e18);
-        sthUSD_Account account = new sthUSD_Account(address(oracle), address(factory), cowSwapSettlement);
+        sthUSD_Account account = new sthUSD_Account(address(factory), cowSwapSettlement);
 
         assertEq(account.TOKEN_TO_REDEEM(), STHUSD_TOKEN_ADDRESS);
     }

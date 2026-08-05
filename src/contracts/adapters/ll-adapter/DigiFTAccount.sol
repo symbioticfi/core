@@ -40,13 +40,10 @@ contract DigiFTAccount is SettlementAccount, IDigiFTAccount {
     }
 
     /// @dev Additionally guards the legacy layout: pre-settlement-family DigiFTAccount extended
-    ///      `Account` directly, so its `subAccounts` array length lived at slot 15 — the slot the
-    ///      current layout reinterprets as `lastRequestTimestamp` (via `CooldownAccount`). This hook
-    ///      runs exactly once per upgrade on the old implementation's storage, before the new layout
-    ///      writes anything, so a nonzero slot 15 at that moment means legacy in-flight subaccounts
-    ///      (which the new layout would strand at slot 16) — refuse to migrate. Note this is
-    ///      conservative: after the first request under the current layout, slot 15 holds a nonzero
-    ///      `lastRequestTimestamp` and later migrations are blocked as well.
+    ///      `Account` directly, so its `subAccounts` array length lived at slot 15. The current
+    ///      storage-gap layout leaves that slot reserved, so a nonzero value there identifies legacy
+    ///      in-flight subaccounts that the current layout would otherwise strand. Without a deployed
+    ///      version discriminator, retain this conservative legacy check.
     function _migrate(uint64 oldVersion, uint64 newVersion, bytes calldata data) internal override {
         uint256 legacySubAccountsLength;
         assembly {

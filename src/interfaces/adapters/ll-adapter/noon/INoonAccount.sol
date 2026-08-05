@@ -8,13 +8,6 @@ import {ICooldownAccount} from "../ICooldownAccount.sol";
  * @notice Interface for Noon liquidity lane accounts.
  */
 interface INoonAccount is ICooldownAccount {
-    /* ERRORS */
-
-    /**
-     * @notice Raised when the Noon withdrawal asset is not the vault asset.
-     */
-    error InvalidAsset();
-
     /* FUNCTIONS */
 
     /**

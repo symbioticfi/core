@@ -8,13 +8,6 @@ import {IAccount} from "../IAccount.sol";
  * @notice Interface for Lido liquidity lane accounts.
  */
 interface ILidoAccount is IAccount {
-    /* ERRORS */
-
-    /**
-     * @notice Raised when the vault asset is not WETH.
-     */
-    error InvalidAsset();
-
     /* FUNCTIONS */
 
     /**

@@ -3,33 +3,7 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
-import {ILidoAccount} from "../../../src/interfaces/adapters/ll-adapter/lido/ILidoAccount.sol";
-
 contract LidoAccountTest is AccountsBase {
-    function testWstETHAccountRejectsNonWETHVaultAsset() public {
-        MockERC20 stETH = new MockERC20("Liquid staked Ether", "stETH", 18);
-        MockWETH weth = new MockWETH();
-        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
-        MockWstETH wstETH = new MockWstETH(address(stETH));
-        MockOracle oracle = new MockOracle(1e18);
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        wstETH_Account implementation = new wstETH_Account(
-            address(stETH),
-            address(weth),
-            address(oracle),
-            address(wstETH),
-            address(factory),
-            address(new MockLidoWithdrawalQueue(address(wstETH), address(stETH))),
-            cowSwapSettlement
-        );
-        factory.whitelist(address(implementation));
-
-        bytes memory data = _initData(address(asset), address(wstETH));
-
-        vm.expectRevert(ILidoAccount.InvalidAsset.selector);
-        factory.create(1, address(this), data);
-    }
-
     function testWstETHAccountPrunesSuccessfulZeroClaim() public {
         MockERC20 stETH = new MockERC20("Liquid staked Ether", "stETH", 18);
         MockWETH weth = new MockWETH();

@@ -140,13 +140,17 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
         ) {
             uint256 ethBalanceBefore = address(this).balance;
             IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_MANAGER, amountToRedeem);
+            uint256 claimed;
             try IEtherFiRedemptionManager(REDEMPTION_MANAGER).redeemWeEth(amountToRedeem, address(this), outputToken) {
-                uint256 claimed = address(this).balance - ethBalanceBefore;
+                claimed = address(this).balance - ethBalanceBefore;
                 if (claimed > 0) {
                     IWETH(WETH).deposit{value: claimed}();
-                    return;
                 }
             } catch {}
+            IERC20(TOKEN_TO_REDEEM).forceApprove(REDEMPTION_MANAGER, 0);
+            if (claimed > 0) {
+                return;
+            }
 
             amountToRedeem = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
             if (amountToRedeem == 0) {
@@ -167,16 +171,6 @@ abstract contract EtherFiAccount is Account, IEtherFiAccount {
         }
 
         IWETH(WETH).deposit{value: claimed}();
-    }
-
-    /* INITIALIZATION */
-
-    /// @dev Initializes the account for an adapter and vault.
-    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
-        super._initialize(initialVersion, initOwner, data);
-        if (_asset != WETH) {
-            revert InvalidAsset();
-        }
     }
 
     /* RECEIVE */

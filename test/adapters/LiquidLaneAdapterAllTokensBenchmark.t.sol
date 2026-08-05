@@ -18,12 +18,12 @@ import {AccountRegistry} from "../../src/contracts/adapters/ll-adapter/AccountRe
 import {ACRDX_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
 import {ACRED_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRED_Account.sol";
 import {AA_FalconX_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/AA_FalconX_Account.sol";
-import {bEQTY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/bEQTY_Account.sol";
+import {STAC_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/STAC_Account.sol";
+import {VBILL_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/VBILL_Account.sol";
 import {
     CarryTradeUSDTRYLeverage_Account
 } from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/CarryTradeUSDTRYLeverage_Account.sol";
 import {UniversalDelegatorFactory} from "../../src/contracts/UniversalDelegatorFactory.sol";
-import {DUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
 import {JAAA_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JAAA_Account.sol";
 import {JTRSY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JTRSY_Account.sol";
 import {AUTO_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/AUTO_Account.sol";
@@ -67,7 +67,6 @@ import {sUSN_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-re
 import {sUSD3_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSD3_Account.sol";
 import {USD3_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USD3_Account.sol";
 import {sthUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sthUSD_Account.sol";
-import {USCC_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USCC_Account.sol";
 import {weETH_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {MigratablesFactory} from "../../src/contracts/common/MigratablesFactory.sol";
@@ -78,20 +77,20 @@ import {IAccount} from "../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {IAsyncRedeemAccount} from "../../src/interfaces/adapters/ll-adapter/IAsyncRedeemAccount.sol";
 import {IERC7575Share} from "../../src/interfaces/adapters/ll-adapter/IERC7575Share.sol";
 import {ICooldownAccount} from "../../src/interfaces/adapters/ll-adapter/ICooldownAccount.sol";
-import {IDigiFTAccount} from "../../src/interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol";
 import {IEtherFiAccount} from "../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
 import {IFigureAccount} from "../../src/interfaces/adapters/ll-adapter/figure/IFigureAccount.sol";
 import {IGaibAccount} from "../../src/interfaces/adapters/ll-adapter/gaib/IGaibAccount.sol";
 import {IInfiniFiAccount} from "../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiAccount.sol";
 import {ILidoAccount} from "../../src/interfaces/adapters/ll-adapter/lido/ILidoAccount.sol";
-import {IMakinaAccount} from "../../src/interfaces/adapters/ll-adapter/makina/IMakinaAccount.sol";
 import {IMidasAccount} from "../../src/interfaces/adapters/ll-adapter/midas/IMidasAccount.sol";
 import {IMidasRedemptionVault} from "../../src/interfaces/adapters/ll-adapter/midas/IMidasRedemptionVault.sol";
 import {INoonAccount} from "../../src/interfaces/adapters/ll-adapter/noon/INoonAccount.sol";
 import {IParetoAccount} from "../../src/interfaces/adapters/ll-adapter/pareto/IParetoAccount.sol";
 import {IParetoCDO} from "../../src/interfaces/adapters/ll-adapter/pareto/IParetoCDO.sol";
 import {ISecuritizeAccount} from "../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeAccount.sol";
-import {ISuperstateAccount} from "../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol";
+import {
+    ISecuritizeNoticeAccount
+} from "../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeNoticeAccount.sol";
 import {ISthUSD} from "../../src/interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
 import {ISThreeJaneSUSD3} from "../../src/interfaces/adapters/ll-adapter/sthreejane/ISThreeJaneSUSD3.sol";
 import {
@@ -99,7 +98,6 @@ import {
     MAX_SHARE,
     UNIVERSAL_DELEGATOR_VERSION
 } from "../../src/interfaces/delegator/IUniversalDelegator.sol";
-import {IMakinaRedeemer} from "../../src/interfaces/adapters/ll-adapter/makina/IMakinaRedeemer.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -110,6 +108,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     using Math for uint256;
 
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address internal constant MAINNET_RLUSD = 0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD;
+    address internal constant MAINNET_VBILL = 0x2255718832bC9fD3bE1CaF75084F4803DA14FF01;
     address internal constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address internal constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
     address internal constant ACRDX_TOKEN = 0x9477724Bb54AD5417de8Baff29e59DF3fB4DA74f;
@@ -133,13 +133,12 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     address internal constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
     address internal constant LIDO_WITHDRAWAL_QUEUE = 0x889edC2eDab5f40e902b864aD4d7AdE8E412F9B1;
     address internal constant ETHERFI_LIQUIDITY_POOL = 0x308861A430be4cce5502d0A12724771Fc6DaF216;
-    address internal constant ETHERFI_REDEMPTION_MANAGER = 0xE3F384Dc7002547Dd240AC1Ad69a430CCE1e292d;
+    address internal constant ETHERFI_REDEMPTION_MANAGER = 0xDadEf1fFBFeaAB4f68A9fD181395F68b4e4E7Ae0;
     address internal constant ETHERFI_WITHDRAW_REQUEST_NFT = 0x7d5706f6ef3F89B3951E23e557CDFBC3239D4E2c;
     address internal constant CENTRIFUGE_HOOK_WARD_1 = 0x7Ed48C31f2fdC40d37407cBaBf0870B2b688368f;
     address internal constant CENTRIFUGE_HOOK_WARD_2 = 0xEC3582fcDc34078a4B7a8c75a5a3AE46f48525aB;
     address internal constant MIDAS_ACCESS_CONTROL_ADMIN = 0xd4195CF4df289a4748C1A7B6dDBE770e27bA1227;
     address internal constant MIDAS_GREENLIST_ADMIN = 0xb5CcD8dC8082467849eE008d4242f7b3b569EF05;
-    uint256 internal constant SUPERSTATE_BENCHMARK_ENTITY_ID = 2_026_061_101;
 
     address internal curator = makeAddr("curator");
     address internal pauser = makeAddr("pauser");
@@ -179,18 +178,22 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     function testCalculatesAllTokenCooldownsAndRequestCounts() public pure {
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
 
-        assertEq(specs.length, 45);
-        assertLe(specs.length, MAX_TOKENS_TO_REDEEM);
+        assertEq(specs.length, 48);
 
         uint256 totalMaxAverageRequests;
+        uint256 readyTokens;
         for (uint256 i; i < specs.length; ++i) {
+            if (_isReadinessExcluded(i)) continue;
             uint48 expectedCooldown = _cooldown(specs[i].symbol, specs[i].maxDelay);
             assertEq(specs[i].cooldown, expectedCooldown, specs[i].symbol);
             assertEq(
                 specs[i].maxAverageRequests, _maxAverageRequests(specs[i].maxDelay, expectedCooldown), specs[i].symbol
             );
             totalMaxAverageRequests += specs[i].maxAverageRequests;
+            ++readyTokens;
         }
+        assertEq(readyTokens, 44);
+        assertLe(readyTokens, MAX_TOKENS_TO_REDEEM);
         assertEq(specs[5].cooldown, 18 hours, "PRIME");
         assertEq(totalMaxAverageRequests, 410);
     }
@@ -231,6 +234,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         assertEq(_assetFor(33, SUSD3_TOKEN), MAINNET_USDC);
         assertEq(oracle.TOKEN_TO_REDEEM(), SUSD3_TOKEN);
         assertEq(oracle.USD3(), usd3);
+        assertEq(oracle.MIN_PRICE(), 0.5e18);
+        assertEq(oracle.MAX_PRICE(), 2.5e18);
         assertEq(usdc, MAINNET_USDC);
         assertEq(oracle.getPrice(), expectedOraclePrice);
     }
@@ -251,6 +256,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         assertEq(implementation.TOKEN_TO_REDEEM(), USD3_TOKEN);
         assertEq(_assetFor(44, USD3_TOKEN), MAINNET_USDC);
         assertEq(oracle.TOKEN_TO_REDEEM(), USD3_TOKEN);
+        assertEq(oracle.MIN_PRICE(), 0.5e18);
+        assertEq(oracle.MAX_PRICE(), 2.5e18);
         assertEq(usdc, MAINNET_USDC);
         assertEq(oracle.getPrice(), expectedOraclePrice);
     }
@@ -280,7 +287,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         uint256 onboardingGas = gasBefore - gasleft();
 
         vm.pauseGasMetering();
-        assertEq(adapter.getTokensToRedeemLength(), specs.length);
+        assertEq(adapter.getTokensToRedeemLength(), 44);
         _logBench(specs, onboardingGas);
     }
 
@@ -302,10 +309,15 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
 
         assertEq(benches.length, specs.length);
         for (uint256 i; i < benches.length; ++i) {
+            if (_isReadinessExcluded(i)) continue;
             uint256 targetRequests = _seedTarget(i, specs[i]);
             assertGt(benches[i].totalAssetsGas, 0, specs[i].symbol);
             assertGt(benches[i].syncGas, 0, specs[i].symbol);
             assertEq(benches[i].seededRequests, targetRequests, specs[i].symbol);
+            if (_isVerifiedReady(i)) {
+                assertTrue(benches[i].totalAssetsSuccess, specs[i].symbol);
+                assertTrue(benches[i].syncSuccess, specs[i].symbol);
+            }
         }
 
         assertGt(aggregateBench.adapterTotalAssetsGas, 0);
@@ -326,6 +338,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         _onboardTokens(tokens);
 
         for (uint256 i; i < specs.length; ++i) {
+            if (_isReadinessExcluded(i)) continue;
             address account = adapter.accounts(tokens[i]);
             uint256 seededRequests = _seedRequests(i, specs[i], tokens[i], account);
             uint256 targetRequests = _seedTarget(i, specs[i]);
@@ -387,6 +400,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
 
         vm.startPrank(curator);
         for (uint256 i; i < specs.length; ++i) {
+            if (_isReadinessExcluded(i)) continue;
             MigratablesFactory accountFactory = new MigratablesFactory(curator);
             IAccount implementation = _deployImplementation(i, address(accountFactory));
             address token = implementation.TOKEN_TO_REDEEM();
@@ -402,6 +416,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     function _onboardTokens(address[] memory tokens) internal {
         vm.startPrank(curator);
         for (uint256 i; i < tokens.length; ++i) {
+            if (_isReadinessExcluded(i)) continue;
             _mockVaultAsset(_assetFor(i, tokens[i]));
             adapter.addTokenToRedeem(tokens[i]);
         }
@@ -409,6 +424,9 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     }
 
     function _assetFor(uint256 index, address token) internal view returns (address) {
+        if (index == 45) {
+            return MAINNET_RLUSD;
+        }
         if (_isMidasBtc(index)) {
             return WBTC;
         }
@@ -416,8 +434,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return WETH;
         }
         if (
-            _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 33 || index == 37
-                || index == 38 || index == 40 || _isInfiniFi(index)
+            _isMidas(index) || _isCentrifuge(index) || index == 33 || index == 37 || index == 38 || index == 44
+                || index == 46 || _isInfiniFi(index)
         ) {
             return MAINNET_USDC;
         }
@@ -460,6 +478,15 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         return index == 5 || index == 43;
     }
 
+    function _isReadinessExcluded(uint256 index) internal pure returns (bool) {
+        return index == 2 || index == 7 || index == 40 || index == 47;
+    }
+
+    function _isVerifiedReady(uint256 index) internal pure returns (bool) {
+        return (index >= 32 && index <= 36) || index == 39 || index == 41 || index == 42 || index == 44 || index == 45
+            || index == 46;
+    }
+
     function _mockVaultAsset(address asset) internal {
         vm.mockCall(address(vault), abi.encodeCall(IERC4626.asset, ()), abi.encode(asset));
     }
@@ -474,6 +501,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         uint256 totalSyncGas;
 
         for (uint256 i; i < specs.length; ++i) {
+            if (_isReadinessExcluded(i)) continue;
             address account = adapter.accounts(tokens[i]);
             assertGt(account.code.length, 0, specs[i].symbol);
 
@@ -520,7 +548,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             emit log_named_uint("sync gas", syncGas);
         }
 
-        emit log_named_uint("accounts benchmarked", specs.length);
+        emit log_named_uint("accounts benchmarked", 44);
         emit log_named_uint("total totalAssets gas", totalTotalAssetsGas);
         emit log_named_uint("total sync gas", totalSyncGas);
     }
@@ -597,7 +625,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     }
 
     function _seedTarget(uint256 index, TokenBenchSpec memory spec) internal pure returns (uint256) {
-        if (index == 33 || index == 34 || index == 37) {
+        if (index == 33 || index == 34 || index == 37 || index == 46) {
             return 1;
         }
         // Figure rejects a second PRIME redemption for ~36h after the first (longer than the account's
@@ -606,7 +634,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return 1;
         }
         // USD3 withdrawals settle instantly up to the liquid buffer and leave no standing request
-        if (index == 44) {
+        if (index == 44 || index == 45) {
             return 0;
         }
         return spec.maxAverageRequests;
@@ -622,23 +650,13 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         if (_isMidas(index)) {
             _configureMidasRequestPath(index, token, account);
         }
-        if (index == 2) {
-            _whitelistMakinaRedeemer(account);
-        }
-        if (index == 7) {
-            _permissionDigiFTTransfer(token, account);
-        }
         if (index == 37) {
             _permissionParetoAccount(account);
             deal(token, account, amount);
             return;
         }
-        if (index == 38) {
+        if (index == 38 || index == 45 || index == 46) {
             _fundSecuritizeRequest(token, account, amount);
-            return;
-        }
-        if (index == 40) {
-            _fundSuperstateRequest(token, account, amount);
             return;
         }
         if (_isInfiniFi(index)) {
@@ -653,18 +671,6 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         }
 
         deal(token, account, amount);
-    }
-
-    function _whitelistMakinaRedeemer(address account) internal {
-        address redeemer = IMakinaAccount(account).REDEEMER();
-        if (!IMakinaWhitelist(redeemer).isWhitelistEnabled() || IMakinaWhitelist(redeemer).isWhitelistedUser(account)) {
-            return;
-        }
-
-        address[] memory users = new address[](1);
-        users[0] = account;
-        vm.prank(IMakinaMachineGovernance(IMakinaRedeemer(redeemer).machine()).riskManager());
-        IMakinaWhitelist(redeemer).setWhitelistedUsers(users, true);
     }
 
     function _dealCentrifugeShare(address token, address account, uint256 amount) internal {
@@ -776,24 +782,6 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         IMidasAccessControl(accessControl).grantRole(role, account);
     }
 
-    function _permissionDigiFTTransfer(address token, address account) internal {
-        address management = IDigiFTSecurityToken(token).management();
-        address subAccount = vm.computeCreateAddress(account, vm.getNonce(account));
-
-        _storeObservedBool(management, abi.encodeCall(IDigiFTManagement.isWhiteContract, (account)), true);
-        _storeObservedBool(management, abi.encodeCall(IDigiFTManagement.isWhiteInvestor, (subAccount)), true);
-    }
-
-    function _storeObservedBool(address target, bytes memory callData, bool value) internal {
-        vm.record();
-        (bool success,) = target.staticcall(callData);
-        assertTrue(success);
-        (bytes32[] memory reads,) = vm.accesses(target);
-
-        assertGt(reads.length, 0);
-        vm.store(target, reads[reads.length - 1], bytes32(uint256(value ? 1 : 0)));
-    }
-
     function _fundSecuritizeRequest(address token, address account, uint256 amount) internal {
         address registry = IDSServiceConsumer(token).getDSService(4);
         address trustService = IDSServiceConsumer(token).getDSService(1);
@@ -806,14 +794,37 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             IDSRegistryService(registry).registerInvestor(investorId, "");
         }
 
+        if (keccak256(bytes(IDSRegistryService(registry).getCountry(investorId))) != keccak256("US")) {
+            vm.prank(owner);
+            IDSRegistryService(registry).setCountry(investorId, "US");
+        }
+        _setSecuritizeAttribute(registry, owner, investorId, 1); // KYC approved
+        _setSecuritizeAttribute(registry, owner, investorId, 2); // accredited
+        if (token == MAINNET_VBILL) {
+            _setSecuritizeAttribute(registry, owner, investorId, 4); // qualified purchaser
+        }
+
         _registerSecuritizeWallet(registry, owner, account, investorId);
         _registerSecuritizeWallet(registry, owner, nextSubAccount, investorId);
 
         vm.prank(owner);
         try IDSTrustService(trustService).setRole(nextSubAccount, 8) {} catch {}
 
+        address compliance = IDSServiceConsumer(token).getDSService(8);
+        address configuration = IDSServiceConsumer(compliance).getDSService(256);
+        uint256 lockPeriod = IDSComplianceConfigurationService(configuration).getUSLockPeriod();
+        uint256 currentTimestamp = block.timestamp;
+        vm.warp(currentTimestamp - lockPeriod - 1);
         vm.prank(owner);
         IDSecuritizeToken(token).issueTokens(account, amount);
+        vm.warp(currentTimestamp);
+    }
+
+    function _setSecuritizeAttribute(address registry, address owner, string memory investorId, uint8 attributeId)
+        internal
+    {
+        vm.prank(owner);
+        IDSRegistryService(registry).setAttribute(investorId, attributeId, 1, type(uint256).max, "");
     }
 
     function _registerSecuritizeWallet(address registry, address owner, address wallet, string memory investorId)
@@ -825,43 +836,6 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
 
         vm.prank(owner);
         IDSRegistryService(registry).addWallet(wallet, investorId);
-    }
-
-    function _fundSuperstateRequest(address token, address account, uint256 amount) internal {
-        address allowlist = ISuperstateLiveToken(token).allowlistV2();
-        address subAccount = vm.computeCreateAddress(account, vm.getNonce(account));
-
-        _allowSuperstateAddress(allowlist, account);
-        _allowSuperstateAddress(allowlist, subAccount);
-
-        vm.prank(IOwnable(token).owner());
-        ISuperstateLiveToken(token).mint(account, amount);
-    }
-
-    function _allowSuperstateAddress(address allowlist, address account) internal {
-        if (ISuperstateAllowlist(allowlist).addressEntityIds(account) == SUPERSTATE_BENCHMARK_ENTITY_ID) {
-            return;
-        }
-
-        address owner = IOwnable(allowlist).owner();
-        if (ISuperstateAllowlist(allowlist).isEntityAllowedForPrivateInstrument(SUPERSTATE_BENCHMARK_ENTITY_ID, "USCC"))
-        {
-            vm.prank(owner);
-            ISuperstateAllowlist(allowlist).setEntityIdForAddress(SUPERSTATE_BENCHMARK_ENTITY_ID, account);
-            return;
-        }
-
-        string[] memory fundSymbols = new string[](1);
-        bool[] memory permissions = new bool[](1);
-        address[] memory accounts = new address[](1);
-
-        accounts[0] = account;
-        fundSymbols[0] = "USCC";
-        permissions[0] = true;
-
-        vm.prank(owner);
-        ISuperstateAllowlist(allowlist)
-            .setEntityPermissionsAndAddresses(SUPERSTATE_BENCHMARK_ENTITY_ID, accounts, fundSymbols, permissions);
     }
 
     function _tryMintERC4626Shares(address token, address account, uint256 shares) internal returns (bool) {
@@ -918,12 +892,6 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         if (_isFigure(index)) {
             return _figureSubAccountsLength(account);
         }
-        if (index == 2) {
-            return _makinaRequestIdsLength(account);
-        }
-        if (index == 7) {
-            return _digiFTSubAccountsLength(account);
-        }
         if (index == 32) {
             return _gaibSubAccountsLength(account);
         }
@@ -950,8 +918,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         if (index == 39) {
             return _noonRequestIdsLength(account);
         }
-        if (index == 40) {
-            return _superstateSubAccountsLength(account);
+        if (index == 46) {
+            return ISecuritizeNoticeAccount(account).pendingAssets() > 0 ? 1 : 0;
         }
         if (_isInfiniFi(index)) {
             return _infiniFiUnwindingTimestampsLength(account);
@@ -999,16 +967,6 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         }
     }
 
-    function _makinaRequestIdsLength(address account) internal view returns (uint256 length) {
-        while (true) {
-            try IMakinaAccount(account).requestIds(length) returns (uint64) {
-                ++length;
-            } catch {
-                return length;
-            }
-        }
-    }
-
     function _etherFiRequestIdsLength(address account) internal view returns (uint256 length) {
         while (true) {
             try IEtherFiAccount(payable(account)).requestIds(length) returns (uint64) {
@@ -1049,16 +1007,6 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         }
     }
 
-    function _digiFTSubAccountsLength(address account) internal view returns (uint256 length) {
-        while (true) {
-            try IDigiFTAccount(account).subAccounts(length) returns (address) {
-                ++length;
-            } catch {
-                return length;
-            }
-        }
-    }
-
     function _securitizePendingCutoffsLength(address account) internal view returns (uint256 length) {
         while (true) {
             (uint256 amount,) = ISecuritizeAccount(account).pendingCutoffs(length);
@@ -1079,27 +1027,18 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         }
     }
 
-    function _superstateSubAccountsLength(address account) internal view returns (uint256 length) {
-        while (true) {
-            try ISuperstateAccount(account).subAccounts(length) returns (address) {
-                ++length;
-            } catch {
-                return length;
-            }
-        }
-    }
-
     function _tokenBenchSpecs() internal pure returns (TokenBenchSpec[] memory specs) {
-        specs = new TokenBenchSpec[](45);
+        specs = new TokenBenchSpec[](48);
         specs[0] = _spec("ACRDX", 1 days);
         specs[1] = _spec("CarryTradeUSDTRYLeverage", 2 days);
-        specs[2] = _spec("DUSD", 12 hours);
+        // Reserved index: DUSD is excluded while fresh accounts are unauthorized by the live Makina redeemer.
+        specs[2] = TokenBenchSpec("DUSD (excluded)", 0, 0, 0);
         specs[3] = _spec("JAAA", 1 days);
         specs[4] = _spec("JTRSY", 1 days);
         specs[5] = _spec("PRIME", 1 days);
         specs[6] = _spec("StockMarketTRBasisTrade", 2 days);
-        // bEQTY settles through DigiFT subaccounts with a 7-day write-off duration.
-        specs[7] = _spec("bEQTY", 7 days);
+        // Reserved index: bEQTY is excluded because no authoritative onchain NAV is available.
+        specs[7] = TokenBenchSpec("bEQTY (excluded)", 0, 0, 0);
         specs[8] = _spec("deCRDX", 1 days);
         specs[9] = _spec("deJAAA", 1 days);
         specs[10] = _spec("deJTRSY", 1 days);
@@ -1134,7 +1073,8 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         // ACRED cohort worst case: 91-day wait to cutoff + 30-day post-cutoff window.
         specs[38] = _spec("ACRED", 121 days);
         specs[39] = _spec("sUSN", 7 days);
-        specs[40] = _spec("USCC", 3 days);
+        // Reserved index: USCC requires issuer-managed enrollment and offchain payout routing.
+        specs[40] = TokenBenchSpec("USCC (excluded)", 0, 0, 0);
         // liUSD positions unwind from the next weekly epoch for N epochs: 4w worst case is 35 days
         // wall clock and 13w is 98 days, plus a small margin for withdrawal processing.
         specs[41] = _spec("liUSD-4w", 36 days);
@@ -1143,6 +1083,10 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         // USD3 redeems instantly up to the vault's liquid buffer; the bound mirrors the sUSD3
         // cooldown as the worst-case wait for liquidity to free up.
         specs[44] = _spec("USD3", 30 days);
+        specs[45] = _spec("VBILL", 1 days);
+        specs[46] = _spec("STAC", 30 days);
+        // Reserved index: SPKCC remains excluded while Spiko authorizes fiat but not USDC settlement.
+        specs[47] = TokenBenchSpec("SPKCC (excluded)", 0, 0, 0);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
@@ -1161,9 +1105,6 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         }
         if (index == 1) {
             return IAccount(address(new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT)));
-        }
-        if (index == 2) {
-            return IAccount(address(new DUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 3) {
             return IAccount(
@@ -1207,9 +1148,6 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         }
         if (index == 6) {
             return IAccount(address(new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT)));
-        }
-        if (index == 7) {
-            return IAccount(address(new bEQTY_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 8) {
             return IAccount(
@@ -1317,42 +1255,16 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return IAccount(address(new sAID_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 33) {
-            return IAccount(
-                address(
-                    new sUSD3_Account(
-                        address(new SThreeJaneOracle(1, type(uint256).max, SUSD3_TOKEN)), factory, COW_SWAP_SETTLEMENT
-                    )
-                )
-            );
+            return IAccount(address(new sUSD3_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 34) {
-            return IAccount(address(new sthUSD_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new sthUSD_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 35) {
-            return IAccount(
-                address(
-                    new weETH_Account(
-                        EETH,
-                        WETH,
-                        WEETH,
-                        _oracle(),
-                        factory,
-                        ETHERFI_LIQUIDITY_POOL,
-                        ETHERFI_REDEMPTION_MANAGER,
-                        COW_SWAP_SETTLEMENT,
-                        ETHERFI_WITHDRAW_REQUEST_NFT
-                    )
-                )
-            );
+            return IAccount(address(new weETH_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 36) {
-            return IAccount(
-                address(
-                    new wstETH_Account(
-                        STETH, WETH, _oracle(), WSTETH, factory, LIDO_WITHDRAWAL_QUEUE, COW_SWAP_SETTLEMENT
-                    )
-                )
-            );
+            return IAccount(address(new wstETH_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 37) {
             return IAccount(
@@ -1369,10 +1281,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return IAccount(address(new ACRED_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 39) {
-            return IAccount(address(new sUSN_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
-        }
-        if (index == 40) {
-            return IAccount(address(new USCC_Account(_oracle(), factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new sUSN_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 41) {
             return IAccount(address(new liUSD4w_Account(factory, COW_SWAP_SETTLEMENT)));
@@ -1381,13 +1290,13 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             return IAccount(address(new liUSD13w_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 44) {
-            return IAccount(
-                address(
-                    new USD3_Account(
-                        address(new ThreeJaneOracle(1, type(uint256).max, USD3_TOKEN)), factory, COW_SWAP_SETTLEMENT
-                    )
-                )
-            );
+            return IAccount(address(new USD3_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 45) {
+            return IAccount(address(new VBILL_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 46) {
+            return IAccount(address(new STAC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         revert();
     }
@@ -1450,10 +1359,11 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
 
     function _logBench(TokenBenchSpec[] memory specs, uint256 onboardingGas) internal {
         uint256 totalMaxAverageRequests;
-        emit log_named_uint("tokens onboarded", specs.length);
+        emit log_named_uint("tokens onboarded", 44);
         emit log_named_uint("all-token onboarding gas", onboardingGas);
 
         for (uint256 i; i < specs.length; ++i) {
+            if (_isReadinessExcluded(i)) continue;
             totalMaxAverageRequests += specs[i].maxAverageRequests;
             emit log_named_string("token", specs[i].symbol);
             emit log_named_uint("maxDelay", specs[i].maxDelay);
@@ -1528,16 +1438,6 @@ interface ICentrifugeTransferHook {
     function updateMember(address token, address user, uint64 validUntil) external;
 }
 
-interface IDigiFTSecurityToken {
-    function management() external view returns (address);
-}
-
-interface IDigiFTManagement {
-    function isWhiteContract(address contractAddress) external view returns (bool);
-
-    function isWhiteInvestor(address investor) external view returns (bool);
-}
-
 interface IOwnable {
     function owner() external view returns (address);
 }
@@ -1549,43 +1449,35 @@ interface IDSServiceConsumer {
 interface IDSRegistryService {
     function addWallet(address wallet, string calldata investorId) external returns (bool);
 
+    function getCountry(string calldata investorId) external view returns (string memory);
+
     function isInvestor(string calldata investorId) external view returns (bool);
 
     function isWallet(address wallet) external view returns (bool);
 
     function registerInvestor(string calldata investorId, string calldata collisionHash) external returns (bool);
+
+    function setCountry(string calldata investorId, string calldata country) external returns (bool);
+
+    function setAttribute(
+        string calldata investorId,
+        uint8 attributeId,
+        uint256 value,
+        uint256 expiry,
+        string calldata proofHash
+    ) external returns (bool);
 }
 
 interface IDSecuritizeToken {
     function issueTokens(address account, uint256 amount) external returns (bool);
 }
 
+interface IDSComplianceConfigurationService {
+    function getUSLockPeriod() external view returns (uint256);
+}
+
 interface IDSTrustService {
     function setRole(address account, uint8 role) external returns (bool);
-}
-
-interface ISuperstateLiveToken {
-    function allowlistV2() external view returns (address);
-
-    function mint(address account, uint256 amount) external;
-}
-
-interface ISuperstateAllowlist {
-    function addressEntityIds(address account) external view returns (uint256);
-
-    function isEntityAllowedForPrivateInstrument(uint256 entityId, string calldata instrument)
-        external
-        view
-        returns (bool);
-
-    function setEntityIdForAddress(uint256 entityId, address account) external;
-
-    function setEntityPermissionsAndAddresses(
-        uint256 entityId,
-        address[] calldata accounts,
-        string[] calldata fundSymbols,
-        bool[] calldata permissions
-    ) external;
 }
 
 interface IMidasAccessControl {
@@ -1635,16 +1527,4 @@ interface IChainlinkAggregatorV3 {
         external
         view
         returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound);
-}
-
-interface IMakinaMachineGovernance {
-    function riskManager() external view returns (address);
-}
-
-interface IMakinaWhitelist {
-    function isWhitelistEnabled() external view returns (bool);
-
-    function isWhitelistedUser(address user) external view returns (bool);
-
-    function setWhitelistedUsers(address[] calldata users, bool whitelisted) external;
 }

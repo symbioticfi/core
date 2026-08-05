@@ -2,17 +2,6 @@
 // Copyright (c) 2026 Symbiotic
 pragma solidity ^0.8.28;
 
-import {IAdapter} from "../../../interfaces/adapters/IAdapter.sol";
-import {IAaveV3Adapter} from "../../../interfaces/adapters/IAaveV3Adapter.sol";
-import {IERC4626Adapter} from "../../../interfaces/adapters/IERC4626Adapter.sol";
-import {IEulerAdapter} from "../../../interfaces/adapters/IEulerAdapter.sol";
-import {ILiquidLaneAdapter} from "../../../interfaces/adapters/ILiquidLaneAdapter.sol";
-import {IAccount} from "../../../interfaces/adapters/ll-adapter/IAccount.sol";
-import {IMorphoLiquidityAdapter} from "../../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoLiquidityAdapter.sol";
-import {IMorphoVaultV2} from "../../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
-import {IMorphoVaultV2Adapter} from "../../../interfaces/adapters/IMorphoVaultV2Adapter.sol";
-import {IUniversalDelegator} from "../../../interfaces/delegator/IUniversalDelegator.sol";
-import {IVaultV2} from "../../../interfaces/vault/IVaultV2.sol";
 import {
     IAaveAToken,
     IAaveV3PoolConfiguration,
@@ -23,12 +12,23 @@ import {
     MorphoMarket,
     MorphoMarketParams
 } from "../../../interfaces/adapters/utils/ILiquidityLensDependencies.sol";
+import {IAaveV3Adapter} from "../../../interfaces/adapters/IAaveV3Adapter.sol";
 import {IAaveV3Pool} from "../../../interfaces/adapters/aave_v3_adapter/IAaveV3AdapterDependencies.sol";
+import {IAccount} from "../../../interfaces/adapters/ll-adapter/IAccount.sol";
+import {IAdapter} from "../../../interfaces/adapters/IAdapter.sol";
+import {IERC4626Adapter} from "../../../interfaces/adapters/IERC4626Adapter.sol";
+import {IEulerAdapter} from "../../../interfaces/adapters/IEulerAdapter.sol";
+import {ILiquidLaneAdapter} from "../../../interfaces/adapters/ILiquidLaneAdapter.sol";
+import {IMorphoLiquidityAdapter} from "../../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoLiquidityAdapter.sol";
+import {IMorphoVaultV2Adapter} from "../../../interfaces/adapters/IMorphoVaultV2Adapter.sol";
+import {IMorphoVaultV2} from "../../../interfaces/adapters/morpho_vaultv2_adapter/IMorphoVaultV2.sol";
+import {IUniversalDelegator} from "../../../interfaces/delegator/IUniversalDelegator.sol";
+import {IVaultV2} from "../../../interfaces/vault/IVaultV2.sol";
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IMorphoMarketV1ExpectedAssets {
     function expectedSupplyAssets(bytes32 marketId) external view returns (uint256);

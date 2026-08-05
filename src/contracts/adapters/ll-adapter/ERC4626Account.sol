@@ -6,7 +6,6 @@ import {Account} from "./common/Account.sol";
 
 import {IERC4626Account} from "../../../interfaces/adapters/ll-adapter/IERC4626Account.sol";
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 /// @title ERC4626Account
@@ -33,19 +32,9 @@ contract ERC4626Account is Account, IERC4626Account {
 
     /// @dev Redeems held ERC-4626 shares into the vault asset.
     function _sync() internal override {
-        uint256 shares = IERC20(TOKEN_TO_REDEEM).balanceOf(address(this));
+        uint256 shares = IERC4626(TOKEN_TO_REDEEM).maxRedeem(address(this));
         if (shares > 0) {
             IERC4626(TOKEN_TO_REDEEM).redeem(shares, address(this), address(this));
-        }
-    }
-
-    /* INITIALIZATION */
-
-    /// @dev Initializes the account for an adapter and vault.
-    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
-        super._initialize(initialVersion, initOwner, data);
-        if (IERC4626(TOKEN_TO_REDEEM).asset() != _asset) {
-            revert InvalidAsset();
         }
     }
 }

@@ -197,10 +197,6 @@ contract LidoAccount is Account, ILidoAccount {
     /// @dev Initializes the account for an adapter and vault.
     function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
         super._initialize(initialVersion, initOwner, data);
-        if (_asset != WETH) {
-            revert InvalidAsset();
-        }
-
         IERC20(WSTETH).forceApprove(WITHDRAWAL_QUEUE, type(uint256).max);
         IERC20(STETH).forceApprove(WITHDRAWAL_QUEUE, type(uint256).max);
     }
