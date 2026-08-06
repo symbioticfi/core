@@ -54,8 +54,9 @@ contract DeployLiquidLane3Script is DeployAdapterBase {
     address public constant AUDITED_RECEIPT_IMPLEMENTATION = 0x62568889198F1bAb603E26dA7b6c1808838fE489;
     address public constant AUDITED_QUEUE_IMPLEMENTATION = 0xC05B41EF0567C7644d1C40feCB951100a30814E4;
     uint256 public constant PARETO_KEYRING_POLICY = 18;
-    uint256 public constant MIN_PRICE = 0.9e18;
-    uint256 public constant MAX_PRICE = 1.5e18;
+    // Oracle bounds use 25% and 350% of the mainnet reference price (1.102079 USDC per AA_FalconX).
+    uint256 public constant MIN_PRICE = 275_519_750_000_000_000;
+    uint256 public constant MAX_PRICE = 3_857_276_500_000_000_000;
 
     bytes32 internal constant ERC1967_IMPLEMENTATION_SLOT =
         0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
