@@ -52,16 +52,6 @@ depth = 64
 max_time_delay = 1209600
 max_block_delay = 2
 
-# Fork CI runs every mainnet suite against a single provider key and was tripping HTTP 429,
-# which surfaces as `sharedbackend: Failed to send/recv` and then bare `EvmError: Revert`
-# rather than as an obvious rate-limit error. These must live here rather than on the command
-# line: forge gates --compute-units-per-second/--fork-retries/--fork-retry-backoff behind
-# --rpc-url, and --rpc-url is an alias for --fork-url, which would fork every test.
-[profile.pr]
-compute_units_per_second = 200
-fork_retries = 10
-fork_retry_backoff = 4
-
 [profile.pr.fuzz]
 runs = 100
 max_test_rejects = 4294967295
