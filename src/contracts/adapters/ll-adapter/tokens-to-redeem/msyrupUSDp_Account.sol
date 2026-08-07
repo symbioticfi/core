@@ -11,7 +11,11 @@ import {IMidasTokenAccount} from "../../../../interfaces/adapters/ll-adapter/mid
 
 contract msyrupUSDp_Account is MidasCompAccount, IMidasTokenAccount {
     uint48 internal constant TOKEN_COOLDOWN = 1 days;
-    address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    /// @dev Unlike the other Midas USD vaults, this redemption vault lists only USDT as a payment
+    ///      token, so USDC would be rejected. MidasAccount._requestRedeem falls back to
+    ///      REDEMPTION_TOKEN when the vault has no config for the vault asset, and the USDT is
+    ///      settled back to the vault asset through the CoW converter.
+    address internal constant MAINNET_USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
     address internal constant TOKEN_ADDRESS = 0x2fE058CcF29f123f9dd2aEC0418AA66a877d8E50;
     address internal constant REDEMPTION_VAULT_ADDRESS = 0x71EFa7AF1686C5c04AA34a120a91cb4262679C44;
 
@@ -27,7 +31,7 @@ contract msyrupUSDp_Account is MidasCompAccount, IMidasTokenAccount {
             factory,
             TOKEN_COOLDOWN,
             TOKEN_ADDRESS,
-            MAINNET_USDC,
+            MAINNET_USDT,
             REDEMPTION_VAULT_ADDRESS,
             cowSwapSettlement
         )
