@@ -12,6 +12,8 @@ import {
     AcredSecuritizeAccount,
     SecuritizeAccount
 } from "../../../src/contracts/adapters/ll-adapter/SecuritizeAccount.sol";
+import {SecuritizeNoticeAccount} from "../../../src/contracts/adapters/ll-adapter/SecuritizeNoticeAccount.sol";
+import {SecuritizeOffRampAccount} from "../../../src/contracts/adapters/ll-adapter/SecuritizeOffRampAccount.sol";
 import {SuperstateAccount} from "../../../src/contracts/adapters/ll-adapter/SuperstateAccount.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {IAssetoAccount} from "../../../src/interfaces/adapters/ll-adapter/asseto/IAssetoAccount.sol";
@@ -19,6 +21,12 @@ import {
     IOpenEdenAccount,
     MAX_REDEEM_QUEUE_LENGTH
 } from "../../../src/interfaces/adapters/ll-adapter/openeden/IOpenEdenAccount.sol";
+import {
+    ISecuritizeNoticeAccount
+} from "../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeNoticeAccount.sol";
+import {
+    ISecuritizeOffRampAccount
+} from "../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeOffRampAccount.sol";
 import {ISettlementAccount} from "../../../src/interfaces/adapters/ll-adapter/ISettlementAccount.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -128,7 +136,7 @@ contract ProviderAccountsTest is AccountsBase {
     function testNoonRequestsAndClaimsThroughWithdrawalHandler() public {
         MockERC20 usn = new MockERC20("USN", "USN", 18);
         MockNoonWithdrawalHandler withdrawalHandler = new MockNoonWithdrawalHandler(usn, TOKEN_COOLDOWN);
-        MockNoonSUSN susn = new MockNoonSUSN(usn, withdrawalHandler, 12e17);
+        MockNoonSUSN susn = new MockNoonSUSN(usn, 12e17);
         NoonAccount account = _deployNoon(susn, usn, withdrawalHandler);
 
         susn.mint(address(account), 10 ether);
@@ -596,6 +604,209 @@ contract ProviderAccountsTest is AccountsBase {
         assertEq(account.totalAssets(), 0);
     }
 
+    function testSecuritizeOffRampRedeemsFullBalanceWithQuotedMinimumAndClearsAllowance() public {
+        MockERC20 rlusd = new MockERC20("Ripple USD", "RLUSD", 18);
+        MockERC20 vbill = new MockERC20("VanEck Treasury Fund", "VBILL", 6);
+        MockSecuritizeOffRamp offRamp = new MockSecuritizeOffRamp(vbill, rlusd, 1e18, 1e18);
+        SecuritizeOffRampAccount account = _deploySecuritizeOffRamp(vbill, rlusd, new MockOracle(1e18), offRamp);
+
+        vbill.mint(address(account), 2e6);
+        vm.expectCall(address(offRamp), abi.encodeCall(MockSecuritizeOffRamp.calculateLiquidityTokenAmount, (2e6)));
+        account.sync();
+
+        assertEq(vbill.balanceOf(address(account)), 0);
+        assertEq(vbill.balanceOf(address(offRamp)), 2e6);
+        assertEq(rlusd.balanceOf(address(account)), 2e18);
+        assertEq(offRamp.lastAssetAmount(), 2e6);
+        assertEq(offRamp.lastMinOutputAmount(), 2e18);
+        assertEq(offRamp.allowanceDuringRedeem(), 2e6);
+        assertEq(vbill.allowance(address(account), address(offRamp)), 0);
+        assertEq(account.totalAssets(), 2e18);
+    }
+
+    function testSecuritizeOffRampRejectsQuoteBelowOracleValue() public {
+        MockERC20 rlusd = new MockERC20("Ripple USD", "RLUSD", 18);
+        MockERC20 vbill = new MockERC20("VanEck Treasury Fund", "VBILL", 6);
+        MockSecuritizeOffRamp offRamp = new MockSecuritizeOffRamp(vbill, rlusd, 0.95e18, 0.95e18);
+        SecuritizeOffRampAccount account = _deploySecuritizeOffRamp(vbill, rlusd, new MockOracle(1e18), offRamp);
+
+        vbill.mint(address(account), 2e6);
+
+        vm.expectRevert(abi.encodeWithSelector(ISecuritizeOffRampAccount.InsufficientQuote.selector, 19e17, 2e18));
+        account.sync();
+
+        assertEq(vbill.balanceOf(address(account)), 2e6);
+        assertEq(vbill.allowance(address(account), address(offRamp)), 0);
+    }
+
+    function testSecuritizeOffRampClearsResidualApproval() public {
+        MockERC20 rlusd = new MockERC20("Ripple USD", "RLUSD", 18);
+        MockERC20 vbill = new MockERC20("VanEck Treasury Fund", "VBILL", 6);
+        MockSecuritizeOffRamp offRamp = new MockSecuritizeOffRamp(vbill, rlusd, 1e18, 1e18);
+        SecuritizeOffRampAccount account = _deploySecuritizeOffRamp(vbill, rlusd, new MockOracle(1e18), offRamp);
+        offRamp.setSpendAmount(1e6);
+        vbill.mint(address(account), 2e6);
+
+        account.sync();
+
+        assertEq(offRamp.allowanceDuringRedeem(), 2e6);
+        assertEq(vbill.allowance(address(account), address(offRamp)), 0);
+        assertEq(vbill.balanceOf(address(account)), 1e6);
+        assertEq(rlusd.balanceOf(address(account)), 2e18);
+    }
+
+    function testSecuritizeOffRampRejectsUnderDeliveryAtomically() public {
+        MockERC20 rlusd = new MockERC20("Ripple USD", "RLUSD", 18);
+        MockERC20 vbill = new MockERC20("VanEck Treasury Fund", "VBILL", 6);
+        MockSecuritizeOffRamp offRamp = new MockSecuritizeOffRamp(vbill, rlusd, 1e18, 0.95e18);
+        SecuritizeOffRampAccount account = _deploySecuritizeOffRamp(vbill, rlusd, new MockOracle(1e18), offRamp);
+
+        vbill.mint(address(account), 2e6);
+        rlusd.mint(address(account), 10e18); // proves the account checks the balance delta, not its absolute balance
+
+        vm.expectRevert(abi.encodeWithSelector(ISecuritizeOffRampAccount.InsufficientOutput.selector, 19e17, 2e18));
+        account.sync();
+
+        assertEq(vbill.balanceOf(address(account)), 2e6);
+        assertEq(rlusd.balanceOf(address(account)), 10e18);
+        assertEq(vbill.allowance(address(account), address(offRamp)), 0);
+    }
+
+    function testSecuritizeOffRampRevalidatesMutableRoute() public {
+        MockERC20 rlusd = new MockERC20("Ripple USD", "RLUSD", 18);
+        MockERC20 vbill = new MockERC20("VanEck Treasury Fund", "VBILL", 6);
+        MockERC20 other = new MockERC20("Other", "OTHER", 6);
+        MockSecuritizeOffRamp offRamp = new MockSecuritizeOffRamp(vbill, rlusd, 1e18, 1e18);
+        SecuritizeOffRampAccount account = _deploySecuritizeOffRamp(vbill, rlusd, new MockOracle(1e18), offRamp);
+        vbill.mint(address(account), 1e6);
+
+        offRamp.setAssetAddress(address(other));
+        vm.expectRevert(ISecuritizeOffRampAccount.InvalidTokenToRedeem.selector);
+        account.sync();
+
+        offRamp.setAssetAddress(address(vbill));
+        offRamp.setLiquidityProvider(address(new MockSecuritizeLiquidityProvider(address(other))));
+        vm.expectRevert(ISecuritizeOffRampAccount.InvalidAsset.selector);
+        account.sync();
+
+        assertEq(vbill.balanceOf(address(account)), 1e6);
+        assertEq(vbill.allowance(address(account), address(offRamp)), 0);
+    }
+
+    function testSecuritizeNoticeSubmitsOneFrozenReceivableAndQueuesLaterTokens() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 stac = new MockERC20("Securitize Tokenized AAA CLO Fund", "STAC", 6);
+        MockOracle oracle = new MockOracle(11e18);
+        SecuritizeNoticeAccount account = _deploySecuritizeNotice(stac, usdc, oracle, SETTLEMENT_DURATION);
+        uint48 requestTimestamp = uint48(vm.getBlockTimestamp());
+
+        stac.mint(address(account), 1e6);
+        account.sync();
+
+        assertEq(stac.balanceOf(address(account)), 0);
+        assertEq(stac.balanceOf(redemptionWallet), 1e6);
+        assertEq(account.pendingAssets(), 11e6);
+        assertEq(account.pendingExpiry(), requestTimestamp + SETTLEMENT_DURATION);
+        assertEq(usdc.allowance(address(account), adapter), 0);
+        assertEq(account.totalAssets(), 11e6);
+
+        oracle.setPrice(13e18);
+        stac.mint(address(account), 2e6);
+        account.sync();
+
+        assertEq(stac.balanceOf(address(account)), 2e6);
+        assertEq(stac.balanceOf(redemptionWallet), 1e6);
+        assertEq(account.pendingAssets(), 11e6);
+        assertEq(account.totalAssets(), 37e6);
+    }
+
+    function testSecuritizeNoticeReconcilesSettlementWithoutDoubleCounting() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 stac = new MockERC20("Securitize Tokenized AAA CLO Fund", "STAC", 6);
+        SecuritizeNoticeAccount account =
+            _deploySecuritizeNotice(stac, usdc, new MockOracle(11e18), SETTLEMENT_DURATION);
+        address receiver = makeAddr("settlementReceiver");
+
+        stac.mint(address(account), 1e6);
+        account.sync();
+
+        usdc.mint(address(account), 6_600_000);
+        assertEq(account.totalAssets(), 11e6);
+        vm.prank(adapter);
+        vm.expectRevert();
+        usdc.transferFrom(address(account), receiver, 6_600_000);
+
+        account.sync();
+
+        assertEq(account.pendingAssets(), 4_400_000);
+        assertEq(usdc.allowance(address(account), adapter), 6_600_000);
+        assertEq(account.totalAssets(), 11e6);
+
+        vm.prank(adapter);
+        usdc.transferFrom(address(account), receiver, 6_600_000);
+        assertEq(account.totalAssets(), 4_400_000);
+
+        usdc.mint(address(account), 4_400_000);
+        assertEq(account.totalAssets(), 4_400_000);
+        account.sync();
+
+        assertEq(account.pendingAssets(), 0);
+        assertEq(account.pendingExpiry(), 0);
+        assertEq(usdc.allowance(address(account), adapter), 4_400_000);
+        assertEq(account.totalAssets(), 4_400_000);
+    }
+
+    function testSecuritizeNoticeSubmitsQueuedTokensAfterSettlement() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 stac = new MockERC20("Securitize Tokenized AAA CLO Fund", "STAC", 6);
+        SecuritizeNoticeAccount account =
+            _deploySecuritizeNotice(stac, usdc, new MockOracle(11e18), SETTLEMENT_DURATION);
+
+        stac.mint(address(account), 1e6);
+        account.sync();
+        uint48 firstExpiry = account.pendingExpiry();
+        stac.mint(address(account), 2e6);
+        usdc.mint(address(account), 11e6);
+        vm.warp(vm.getBlockTimestamp() + 1 days);
+
+        account.sync();
+
+        assertEq(stac.balanceOf(address(account)), 0);
+        assertEq(stac.balanceOf(redemptionWallet), 3e6);
+        assertEq(account.pendingAssets(), 22e6);
+        assertEq(account.pendingExpiry(), uint48(vm.getBlockTimestamp()) + SETTLEMENT_DURATION);
+        assertNotEq(account.pendingExpiry(), firstExpiry);
+        assertEq(usdc.allowance(address(account), adapter), 11e6);
+        assertEq(account.totalAssets(), 33e6);
+    }
+
+    function testSecuritizeNoticeWritesOffOnlyUnpaidResidual() public {
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
+        MockERC20 stac = new MockERC20("Securitize Tokenized AAA CLO Fund", "STAC", 6);
+        SecuritizeNoticeAccount account =
+            _deploySecuritizeNotice(stac, usdc, new MockOracle(11e18), SETTLEMENT_DURATION);
+
+        stac.mint(address(account), 1e6);
+        account.sync();
+        usdc.mint(address(account), 4e6);
+        uint48 expiry = account.pendingExpiry();
+        vm.warp(expiry - 1);
+        assertEq(account.totalAssets(), 11e6);
+        vm.warp(expiry);
+
+        assertEq(account.totalAssets(), 4e6);
+        vm.expectEmit(false, false, false, true, address(account));
+        emit ISecuritizeNoticeAccount.ReconcileSettlement(4e6, 7e6);
+        vm.expectEmit(false, false, false, true, address(account));
+        emit ISecuritizeNoticeAccount.WriteOff(7e6);
+        account.sync();
+
+        assertEq(account.pendingAssets(), 0);
+        assertEq(account.pendingExpiry(), 0);
+        assertEq(usdc.allowance(address(account), adapter), 4e6);
+        assertEq(account.totalAssets(), 4e6);
+    }
+
     function testSettlementAccountMigrationRevertsWithLiveSubAccountsAndSucceedsWhenEmpty() public {
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockSuperstateToken uscc = new MockSuperstateToken();
@@ -814,6 +1025,48 @@ contract ProviderAccountsTest is AccountsBase {
         account = SecuritizeAccount(factory.create(1, address(this), _initData(address(asset), address(acred))));
     }
 
+    function _deploySecuritizeOffRamp(
+        MockERC20 tokenToRedeem,
+        MockERC20 asset,
+        MockOracle oracle,
+        MockSecuritizeOffRamp offRamp
+    ) internal returns (SecuritizeOffRampAccount account) {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        SecuritizeOffRampAccount implementation = new SecuritizeOffRampAccount(
+            address(oracle),
+            address(factory),
+            address(tokenToRedeem),
+            address(offRamp),
+            address(asset),
+            cowSwapSettlement
+        );
+        factory.whitelist(address(implementation));
+        account = SecuritizeOffRampAccount(
+            factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem)))
+        );
+    }
+
+    function _deploySecuritizeNotice(
+        MockERC20 tokenToRedeem,
+        MockERC20 asset,
+        MockOracle oracle,
+        uint48 settlementDuration
+    ) internal returns (SecuritizeNoticeAccount account) {
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        SecuritizeNoticeAccount implementation = new SecuritizeNoticeAccount(
+            address(oracle),
+            address(factory),
+            address(tokenToRedeem),
+            redemptionWallet,
+            settlementDuration,
+            cowSwapSettlement
+        );
+        factory.whitelist(address(implementation));
+        account = SecuritizeNoticeAccount(
+            factory.create(1, address(this), _initData(address(asset), address(tokenToRedeem)))
+        );
+    }
+
     function _freezeSecuritize(SecuritizeAccount account, MockPriceDataOracle oracle, uint256 price) internal {
         uint48 cutoff = account.bucketToTimestamp(account.currentBucket());
         vm.warp(cutoff);
@@ -944,15 +1197,11 @@ contract MockAssetoManager {
 
 contract MockNoonSUSN is MockERC20 {
     MockERC20 internal immutable _asset;
-    MockNoonWithdrawalHandler internal immutable _withdrawalHandler;
     uint256 internal immutable _assetsPerShare;
 
-    constructor(MockERC20 asset_, MockNoonWithdrawalHandler withdrawalHandler_, uint256 assetsPerShare_)
-        MockERC20("Staked USN", "sUSN", 18)
-    {
+    constructor(MockERC20 asset_, uint256 assetsPerShare_) MockERC20("Staked USN", "sUSN", 18) {
         _asset = asset_;
         _assetsPerShare = assetsPerShare_;
-        _withdrawalHandler = withdrawalHandler_;
     }
 
     function asset() external view returns (address) {
@@ -964,13 +1213,12 @@ contract MockNoonSUSN is MockERC20 {
     }
 
     function redeem(uint256 shares, address receiver, address owner) external returns (uint256 assets) {
-        require(receiver == address(_withdrawalHandler));
         require(owner == msg.sender);
 
         assets = convertToAssets(shares);
         _burn(owner, shares);
         _asset.mint(receiver, assets);
-        _withdrawalHandler.createWithdrawalRequest(owner, assets);
+        MockNoonWithdrawalHandler(receiver).createWithdrawalRequest(owner, assets);
     }
 }
 
@@ -1149,5 +1397,58 @@ contract MockSuperstateToken is MockERC20 {
     function offchainRedeem(uint256 amount) external {
         _burn(msg.sender, amount);
         redeemed[msg.sender] += amount;
+    }
+}
+
+contract MockSecuritizeOffRamp {
+    address public assetAddress;
+    address public liquidityProvider;
+
+    uint256 public quotePerWholeToken;
+    uint256 public payoutPerWholeToken;
+    uint256 public spendAmount;
+    uint256 public lastAssetAmount;
+    uint256 public lastMinOutputAmount;
+    uint256 public allowanceDuringRedeem;
+
+    constructor(MockERC20 tokenToRedeem_, MockERC20 liquidityToken_, uint256 quote_, uint256 payout_) {
+        assetAddress = address(tokenToRedeem_);
+        liquidityProvider = address(new MockSecuritizeLiquidityProvider(address(liquidityToken_)));
+        quotePerWholeToken = quote_;
+        payoutPerWholeToken = payout_;
+    }
+
+    function setAssetAddress(address assetAddress_) external {
+        assetAddress = assetAddress_;
+    }
+
+    function setLiquidityProvider(address liquidityProvider_) external {
+        liquidityProvider = liquidityProvider_;
+    }
+
+    function setSpendAmount(uint256 spendAmount_) external {
+        spendAmount = spendAmount_;
+    }
+
+    function calculateLiquidityTokenAmount(uint256 assetAmount) external view returns (uint256) {
+        return assetAmount * quotePerWholeToken / 1e6;
+    }
+
+    function redeem(uint256 assetAmount, uint256 minOutputAmount) external {
+        require(assetAmount * quotePerWholeToken / 1e6 >= minOutputAmount);
+        lastAssetAmount = assetAmount;
+        lastMinOutputAmount = minOutputAmount;
+        allowanceDuringRedeem = IERC20(assetAddress).allowance(msg.sender, address(this));
+        IERC20(assetAddress).transferFrom(msg.sender, address(this), spendAmount == 0 ? assetAmount : spendAmount);
+        MockERC20(MockSecuritizeLiquidityProvider(liquidityProvider).liquidityToken())
+            .mint(msg.sender, assetAmount * payoutPerWholeToken / 1e6);
+    }
+}
+
+contract MockSecuritizeLiquidityProvider {
+    address public liquidityToken;
+
+    constructor(address liquidityToken_) {
+        liquidityToken = liquidityToken_;
     }
 }

@@ -3,8 +3,6 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
-import {IEtherFiAccount} from "../../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
-
 contract EtherFiAccountTest is AccountsBase {
     function testWeETHAccountPrunesSuccessfulZeroClaim() public {
         LstMocks memory mocks = _lstMocks();
@@ -55,6 +53,7 @@ contract EtherFiAccountTest is AccountsBase {
         assertEq(mocks.stETH.balanceOf(address(account)), 0);
         assertEq(mocks.weth.balanceOf(address(account)), 9 ether);
         assertEq(mocks.redemptionManager.lastOutputToken(), ethAddress);
+        assertEq(mocks.weETH.allowance(address(account), address(mocks.redemptionManager)), 0);
         assertEq(mocks.liquidityPool.lastAmount(), 0);
         assertEq(account.totalAssets(), 9 ether);
     }
@@ -95,6 +94,7 @@ contract EtherFiAccountTest is AccountsBase {
         assertEq(mocks.liquidityPool.lastRecipient(), address(account));
         assertEq(mocks.liquidityPool.lastAmount(), 4 ether);
         assertEq(mocks.redemptionManager.lastWeETHAmount(), 0);
+        assertEq(mocks.weETH.allowance(address(account), address(mocks.redemptionManager)), 0);
         assertEq(account.pendingAssets(), 4 ether);
         assertEq(account.totalAssets(), 4 ether);
     }
@@ -240,29 +240,5 @@ contract EtherFiAccountTest is AccountsBase {
         assertEq(mocks.liquidityPool.lastAmount(), 4 ether);
         assertEq(account.pendingAssets(), 4 ether);
         assertEq(account.totalAssets(), 4 ether);
-    }
-
-    function testWeETHAccountRejectsNonWETHVaultAsset() public {
-        LstMocks memory mocks = _lstMocks();
-        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
-        MockOracle oracle = new MockOracle(1e18);
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        weETH_Account implementation = new weETH_Account(
-            address(mocks.eETH),
-            address(mocks.weth),
-            address(mocks.weETH),
-            address(oracle),
-            address(factory),
-            address(mocks.liquidityPool),
-            address(mocks.redemptionManager),
-            cowSwapSettlement,
-            address(mocks.withdrawRequestNft)
-        );
-        factory.whitelist(address(implementation));
-
-        bytes memory data = _initData(address(asset), address(mocks.weETH));
-
-        vm.expectRevert(IEtherFiAccount.InvalidAsset.selector);
-        factory.create(1, address(this), data);
     }
 }

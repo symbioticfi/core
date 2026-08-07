@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
+import {ThreeJaneOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ThreeJaneOracle.sol";
 import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -188,12 +189,15 @@ contract ThreeJaneAccountTest is AccountsBase {
         address usdc = makeAddr("USDC");
         _mockDecimals(USD3_TOKEN_ADDRESS, 6);
         vm.mockCall(USD3_TOKEN_ADDRESS, abi.encodeCall(IERC4626.asset, ()), abi.encode(usdc));
+        _mockDecimals(usdc, 6);
 
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        MockOracle oracle = new MockOracle(1e18);
-        USD3_Account account = new USD3_Account(address(oracle), address(factory), cowSwapSettlement);
+        USD3_Account account = new USD3_Account(address(factory), cowSwapSettlement);
+        ThreeJaneOracle oracle = ThreeJaneOracle(account.ORACLE());
 
         assertEq(account.TOKEN_TO_REDEEM(), USD3_TOKEN_ADDRESS);
         assertEq(account.REDEMPTION_TOKEN(), usdc);
+        assertEq(oracle.MIN_PRICE(), 0.5e18);
+        assertEq(oracle.MAX_PRICE(), 2.5e18);
     }
 }

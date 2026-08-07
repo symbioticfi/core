@@ -8,6 +8,9 @@ import {CoWSwapConverter} from "../../../src/contracts/adapters/common/CoWSwapCo
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {Registry} from "../../../src/contracts/common/Registry.sol";
 import {
+    COW_SWAP_BALANCE_ERC20,
+    COW_SWAP_KIND_SELL,
+    COW_SWAP_ORDER_UID_LENGTH,
     EXECUTION_DELAY,
     ICoWSwapConverter,
     MAX_VALID_TO_DURATION
@@ -57,6 +60,35 @@ contract CoWSwapConverterTest is Test {
     function test_InitializeRegistersConverterFromInitData() public view {
         assertEq(converter.owner(), owner);
         assertEq(converter.converters(0), converterRoleHolder);
+    }
+
+    function test_ComputeOrderUidMatchesCanonicalMainnetFixture() public view {
+        address orderOwner = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
+        uint32 validTo = 2200;
+        bytes memory orderUid = converter.computeOrderUid(
+            ICoWSwapConverter.Data({
+                sellToken: 0x9994E35Db50125E0DF82e4c2dde62496CE330999,
+                buyToken: 0x1111111111111111111111111111111111111111,
+                receiver: orderOwner,
+                sellAmount: 5,
+                buyAmount: 990_000,
+                validTo: validTo,
+                appData: 0x412c256874305de3f4aa0f8391d6f829d4918f6ea6ef32931c6ed62a3e2bc897,
+                feeAmount: 0,
+                kind: COW_SWAP_KIND_SELL,
+                partiallyFillable: true,
+                sellTokenBalance: COW_SWAP_BALANCE_ERC20,
+                buyTokenBalance: COW_SWAP_BALANCE_ERC20
+            }),
+            0xc078f884a2676e1345748b1feace7b0abee5d00ecadb6e574dcdd109a63e8943,
+            orderOwner,
+            validTo
+        );
+
+        assertEq(
+            orderUid,
+            hex"fddd8f2e7930f6882586ca5be3923ece8b3479e55e144e4d029bf77b36cd143aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000898"
+        );
     }
 
     function test_ConvertPresignsOrderAndApprovesRelayer() public {
@@ -356,6 +388,16 @@ contract CoWSwapConverterHarness is Adapter, CoWSwapConverter {
 
     function totalAssets() public pure override returns (uint256) {
         return 0;
+    }
+
+    function computeOrderUid(
+        ICoWSwapConverter.Data memory order,
+        bytes32 domainSeparator,
+        address orderOwner,
+        uint32 validTo
+    ) public pure returns (bytes memory orderUid) {
+        orderUid = new bytes(COW_SWAP_ORDER_UID_LENGTH);
+        _packOrderUidParams(orderUid, _hash(order, domainSeparator), orderOwner, validTo);
     }
 
     function __initialize(address, bytes memory data) internal override {

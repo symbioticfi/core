@@ -3,31 +3,13 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
-import {IMakinaAccount} from "../../../src/interfaces/adapters/ll-adapter/makina/IMakinaAccount.sol";
 import {IMakinaMachine} from "../../../src/interfaces/adapters/ll-adapter/makina/IMakinaMachine.sol";
 import {IMakinaRedeemer} from "../../../src/interfaces/adapters/ll-adapter/makina/IMakinaRedeemer.sol";
+import {IOracle} from "../../../src/interfaces/adapters/ll-adapter/IOracle.sol";
 
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract MakinaAccountTest is AccountsBase {
-    function testMakinaAccountRejectsVaultAssetMismatch() public {
-        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
-        MockERC20 tokenToRedeem = new MockERC20("Dialectic USD", "DUSD", 18);
-        MockERC20 wrongAsset = new MockERC20("Wrong USD", "wUSD", 6);
-        MockMakinaMachine machine = new MockMakinaMachine(tokenToRedeem, asset, 1_028_683);
-        MockMakinaRedeemer redeemer = new MockMakinaRedeemer(machine);
-        MockOracle oracle = new MockOracle(1_028_683e12);
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        MakinaAccount implementation = new MakinaAccount(
-            address(oracle), address(factory), 0, address(redeemer), address(tokenToRedeem), cowSwapSettlement
-        );
-        factory.whitelist(address(implementation));
-        bytes memory data = _initData(address(wrongAsset), address(tokenToRedeem));
-
-        vm.expectRevert(IMakinaAccount.InvalidAsset.selector);
-        factory.create(1, address(this), data);
-    }
-
     function testMakinaAccountRequestsAndClaimsRedeemerReceipt() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockERC20 tokenToRedeem = new MockERC20("Dialectic USD", "DUSD", 18);
@@ -131,10 +113,48 @@ contract MakinaAccountTest is AccountsBase {
 
     function testMakinaOracleUsesSharePrice() public {
         MockMakinaSharePriceOracle source = new MockMakinaSharePriceOracle(8, 102_868_300);
-        MakinaOracle oracle = new MakinaOracle(1, type(uint256).max, address(source));
+        MockMakinaAccountingClock machine = new MockMakinaAccountingClock();
+        machine.setLastGlobalAccountingTime(block.timestamp);
+        MakinaOracle oracle = new MakinaOracle(1, type(uint256).max, address(source), address(machine), 48 hours);
 
         assertEq(oracle.SHARE_PRICE_ORACLE(), address(source));
+        assertEq(oracle.MACHINE(), address(machine));
+        assertEq(oracle.STALENESS_DURATION(), 48 hours);
         assertEq(oracle.getPrice(), 1_028_683e12);
+    }
+
+    function testMakinaOracleRejectsStaleAccounting() public {
+        vm.warp(10 days);
+        MockMakinaSharePriceOracle source = new MockMakinaSharePriceOracle(18, 1.03e18);
+        MockMakinaAccountingClock machine = new MockMakinaAccountingClock();
+        machine.setLastGlobalAccountingTime(block.timestamp - 48 hours - 1);
+        MakinaOracle oracle = new MakinaOracle(0.5e18, 2.5e18, address(source), address(machine), 48 hours);
+
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPrice();
+    }
+
+    function testMakinaOracleRejectsFutureAccountingTimestamp() public {
+        vm.warp(10 days);
+        MockMakinaSharePriceOracle source = new MockMakinaSharePriceOracle(18, 1.03e18);
+        MockMakinaAccountingClock machine = new MockMakinaAccountingClock();
+        machine.setLastGlobalAccountingTime(block.timestamp + 1);
+        MakinaOracle oracle = new MakinaOracle(0.5e18, 2.5e18, address(source), address(machine), 48 hours);
+
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPrice();
+    }
+
+    function testMakinaOracleRejectsZeroSharePrice() public {
+        _assertMakinaOracleRejectsPrice(0);
+    }
+
+    function testMakinaOracleRejectsSharePriceBelowBound() public {
+        _assertMakinaOracleRejectsPrice(0.5e18 - 1);
+    }
+
+    function testMakinaOracleRejectsSharePriceAboveBound() public {
+        _assertMakinaOracleRejectsPrice(2.5e18 + 1);
     }
 
     function testDUSDAccountHardcodesMainnetTokenRedeemerAndOracle() public {
@@ -155,5 +175,25 @@ contract MakinaAccountTest is AccountsBase {
         assertEq(implementation.REDEEMER(), DUSD_REDEEMER_ADDRESS);
         assertEq(implementation.COOLDOWN(), DUSD_TOKEN_COOLDOWN);
         assertEq(oracle.SHARE_PRICE_ORACLE(), DUSD_SHARE_PRICE_ORACLE_ADDRESS);
+        assertEq(oracle.MACHINE(), DUSD_MACHINE_ADDRESS);
+        assertEq(oracle.STALENESS_DURATION(), 48 hours);
+    }
+
+    function _assertMakinaOracleRejectsPrice(uint256 price) internal {
+        MockMakinaSharePriceOracle source = new MockMakinaSharePriceOracle(18, price);
+        MockMakinaAccountingClock machine = new MockMakinaAccountingClock();
+        machine.setLastGlobalAccountingTime(block.timestamp);
+        MakinaOracle oracle = new MakinaOracle(0.5e18, 2.5e18, address(source), address(machine), 48 hours);
+
+        vm.expectRevert(IOracle.InvalidPrice.selector);
+        oracle.getPrice();
+    }
+}
+
+contract MockMakinaAccountingClock {
+    uint256 public lastGlobalAccountingTime;
+
+    function setLastGlobalAccountingTime(uint256 timestamp) external {
+        lastGlobalAccountingTime = timestamp;
     }
 }

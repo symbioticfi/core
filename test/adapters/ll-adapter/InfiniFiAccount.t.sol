@@ -9,7 +9,6 @@ import {liUSD13w_Account} from "../../../src/contracts/adapters/ll-adapter/token
 import {liUSD4w_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/liUSD4w_Account.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
-import {IInfiniFiAccount} from "../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiAccount.sol";
 import {IInfiniFiGateway} from "../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiGateway.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -32,6 +31,7 @@ contract InfiniFiAccountTest is Test {
     MockInfiniFiRedeemController internal redeemController;
     MockInfiniFiGateway internal gateway;
     MockOracle internal oracle;
+    MigratablesFactory internal factory;
     InfiniFiAccount internal account;
 
     function setUp() public {
@@ -43,7 +43,7 @@ contract InfiniFiAccountTest is Test {
         gateway = new MockInfiniFiGateway(liusd, iusd, unwindingModule, redeemController, UNWINDING_DURATION);
         oracle = new MockOracle(1e18);
 
-        MigratablesFactory factory = new MigratablesFactory(address(this));
+        factory = new MigratablesFactory(address(this));
         vm.mockCall(cowSettlement, abi.encodeCall(ICoWSwapSettlement.vaultRelayer, ()), abi.encode(cowRelayer));
         InfiniFiAccount implementation = new InfiniFiAccount(
             address(oracle),

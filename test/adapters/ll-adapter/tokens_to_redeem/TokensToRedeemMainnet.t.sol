@@ -18,7 +18,6 @@ import {
 import {
     CarryTradeUSDTRYLeverage_Account
 } from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/CarryTradeUSDTRYLeverage_Account.sol";
-import {DUSD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
 import {JAAA_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JAAA_Account.sol";
 import {JTRSY_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JTRSY_Account.sol";
 import {AUTO_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/AUTO_Account.sol";
@@ -27,7 +26,6 @@ import {FigureSubAccount} from "../../../../src/contracts/adapters/ll-adapter/Fi
 import {
     StockMarketTRBasisTrade_Account
 } from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
-import {bEQTY_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/bEQTY_Account.sol";
 import {deCRDX_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deCRDX_Account.sol";
 import {deJAAA_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJAAA_Account.sol";
 import {deJTRSY_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJTRSY_Account.sol";
@@ -59,14 +57,16 @@ import {
 import {sAID_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sAID_Account.sol";
 import {sUSN_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSN_Account.sol";
 import {sUSD3_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSD3_Account.sol";
+import {STAC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/STAC_Account.sol";
 import {USD3_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USD3_Account.sol";
+import {VBILL_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/VBILL_Account.sol";
 import {sthUSD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sthUSD_Account.sol";
-import {USCC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/USCC_Account.sol";
 import {weETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
 import {wstETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {AsyncRedeemOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/AsyncRedeemOracle.sol";
 import {CentrifugeAccount} from "../../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
 import {SThreeJaneAccount} from "../../../../src/contracts/adapters/ll-adapter/SThreeJaneAccount.sol";
+import {ChainlinkOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/ChainlinkOracle.sol";
 import {FigureOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
 import {ParetoOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/ParetoOracle.sol";
 import {SThreeJaneOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles/SThreeJaneOracle.sol";
@@ -84,10 +84,6 @@ import {IAsyncRedeemVault} from "../../../../src/interfaces/adapters/ll-adapter/
 import {IAccount} from "../../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
 import {ICutoffAccount} from "../../../../src/interfaces/adapters/ll-adapter/ICutoffAccount.sol";
 import {IERC7575Share} from "../../../../src/interfaces/adapters/ll-adapter/IERC7575Share.sol";
-import {IDigiFTAccount} from "../../../../src/interfaces/adapters/ll-adapter/digift/IDigiFTAccount.sol";
-import {
-    IDigiFTSubRedManagement
-} from "../../../../src/interfaces/adapters/ll-adapter/digift/IDigiFTSubRedManagement.sol";
 import {IEtherFiAccount} from "../../../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiAccount.sol";
 import {IEtherFiLiquidityPool} from "../../../../src/interfaces/adapters/ll-adapter/etherfi/IEtherFiLiquidityPool.sol";
 import {
@@ -108,8 +104,6 @@ import {
 } from "../../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiUnwindingModule.sol";
 import {ILidoAccount} from "../../../../src/interfaces/adapters/ll-adapter/lido/ILidoAccount.sol";
 import {ILidoWithdrawalQueue} from "../../../../src/interfaces/adapters/ll-adapter/lido/ILidoWithdrawalQueue.sol";
-import {IMakinaAccount} from "../../../../src/interfaces/adapters/ll-adapter/makina/IMakinaAccount.sol";
-import {IMakinaRedeemer} from "../../../../src/interfaces/adapters/ll-adapter/makina/IMakinaRedeemer.sol";
 import {
     IMidasAccount,
     REQUEST_STATUS_PENDING
@@ -122,7 +116,16 @@ import {IParetoCDO} from "../../../../src/interfaces/adapters/ll-adapter/pareto/
 import {IParetoCreditVault} from "../../../../src/interfaces/adapters/ll-adapter/pareto/IParetoCreditVault.sol";
 import {IParetoWithdrawalQueue} from "../../../../src/interfaces/adapters/ll-adapter/pareto/IParetoWithdrawalQueue.sol";
 import {ISecuritizeAccount} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeAccount.sol";
-import {ISuperstateAccount} from "../../../../src/interfaces/adapters/ll-adapter/superstate/ISuperstateAccount.sol";
+import {
+    ISecuritizeNoticeAccount
+} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeNoticeAccount.sol";
+import {
+    ISecuritizeLiquidityProvider,
+    ISecuritizeOffRamp
+} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeOffRamp.sol";
+import {
+    ISecuritizeOffRampAccount
+} from "../../../../src/interfaces/adapters/ll-adapter/securitize/ISecuritizeOffRampAccount.sol";
 import {ISthUSD} from "../../../../src/interfaces/adapters/ll-adapter/theo/ISthUSD.sol";
 import {ISThreeJaneSUSD3} from "../../../../src/interfaces/adapters/ll-adapter/sthreejane/ISThreeJaneSUSD3.sol";
 
@@ -149,7 +152,6 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     address internal constant ACRED = 0x17418038ecF73BA4026c4f428547BF099706F27B;
     address internal constant AA_FALCONX = 0xC26A6Fa2C37b38E549a4a1807543801Db684f99C;
     address internal constant AUTO = 0x997E2Efbce91D170B00EA402e35a66C887EE1da9;
-    address internal constant BEQTY = 0xEaFD6D38f41f882BCFd5fEaABccCc714B983b701;
     address internal constant CARRY_TRADE_USD_TRY_LEVERAGE = 0x2bf11d2E04Bc40daa95c24B8b90EC4F5c57Dd326;
     address internal constant CENTRIFUGE_ASYNC_MANAGER = 0xF48256AbDDf96EcDDc4B3DbD23E8C1921f9761Ae;
     address internal constant CENTRIFUGE_HOOK_WARD_1 = 0x7Ed48C31f2fdC40d37407cBaBf0870B2b688368f;
@@ -161,10 +163,9 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     address internal constant DECRDX = 0x9E2679eABFF131b8b1b48fF7566140794E0eEdc4;
     address internal constant DEJAAA = 0xAAA0008C8CF3A7Dca931adaF04336A5D808C82Cc;
     address internal constant DEJTRSY = 0xA6233014B9b7aaa74f38fa1977ffC7A89642dC72;
-    address internal constant DUSD = 0x1e33E98aF620F1D563fcD3cfd3C75acE841204ef;
     address internal constant EETH = 0x35fA164735182de50811E8e2E824cFb9B6118ac2;
     address internal constant ETHERFI_LIQUIDITY_POOL = 0x308861A430be4cce5502d0A12724771Fc6DaF216;
-    address internal constant ETHERFI_REDEMPTION_MANAGER = 0xE3F384Dc7002547Dd240AC1Ad69a430CCE1e292d;
+    address internal constant ETHERFI_REDEMPTION_MANAGER = 0xDadEf1fFBFeaAB4f68A9fD181395F68b4e4E7Ae0;
     address internal constant ETHERFI_WITHDRAW_REQUEST_NFT = 0x7d5706f6ef3F89B3951E23e557CDFBC3239D4E2c;
     address internal constant INFINIFI_GATEWAY = 0x3f04b65Ddbd87f9CE0A2e7Eb24d80e7fb87625b5;
     address internal constant INFINIFI_UNWINDING_MODULE = 0x7092A43aE5407666C78dBEA657a1891f42b3dFcc;
@@ -200,11 +201,18 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     address internal constant STOCK_MARKET_TR_BASIS_TRADE = 0x827Ce7E8e35861D9Ac7fE002755767b695A5594a;
     address internal constant STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
     address internal constant STHUSD = 0xA808Bc9775cb41c52C7842f8b50427fE7A770326;
+    address internal constant SPKCC = 0x4f33aCf823E6eEb697180d553cE0c710124C8D59;
+    address internal constant STAC = 0x51C2d74017390CbBd30550179A16A1c28F7210fc;
+    address internal constant STAC_NAV_FEED = 0xEdC6287D3D41b322AF600317628D7E226DD3add4;
+    address internal constant STAC_REDEMPTION_WALLET = 0xbb543C77436645C8b95B64eEc39E3C0d48D4842b;
     address internal constant S_USN = 0xE24a3DC889621612422A64E6388927901608B91D;
     address internal constant SUSD3 = 0xf689555121e529Ff0463e191F9Bd9d1E496164a7;
     address internal constant USD3 = 0x056B269Eb1f75477a8666ae8C7fE01b64dD55eCc;
     address internal constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address internal constant USCC = 0x14d60E7FDC0D71d8611742720E4C50E7a974020c;
+    address internal constant VBILL = 0x2255718832bC9fD3bE1CaF75084F4803DA14FF01;
+    address internal constant VBILL_NAV_FEED = 0xA569E68B5D110F2A255482c2997DFDBe1b2ab912;
+    address internal constant VBILL_OFF_RAMP = 0x1eD617529d80AE87E6611f11D8de8532ECED42bC;
+    address internal constant RLUSD = 0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD;
     address internal constant WEETH = 0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee;
     address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
     address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -216,6 +224,83 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
 
     function setUp() public {
         mainnetRpcUrl = vm.envOr("ETH_RPC_URL", string(""));
+    }
+
+    function testVBILLMainnetTopology() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet VBILL checks");
+        _createFork();
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        IAccount implementation = new VBILL_Account(address(factory), COW_SWAP_SETTLEMENT);
+        ISecuritizeOffRampAccount account = ISecuritizeOffRampAccount(address(implementation));
+        ChainlinkOracle oracle = ChainlinkOracle(implementation.ORACLE());
+        ISecuritizeOffRamp offRamp = ISecuritizeOffRamp(account.OFF_RAMP());
+
+        assertEq(implementation.TOKEN_TO_REDEEM(), VBILL, "VBILL token");
+        assertEq(account.OFF_RAMP(), VBILL_OFF_RAMP, "VBILL off-ramp");
+        assertEq(account.REDEMPTION_TOKEN(), RLUSD, "VBILL settlement token");
+        assertEq(offRamp.assetAddress(), VBILL, "VBILL live off-ramp asset");
+        assertEq(
+            ISecuritizeLiquidityProvider(offRamp.liquidityProvider()).liquidityToken(),
+            RLUSD,
+            "VBILL live off-ramp output"
+        );
+        assertEq(oracle.AGGREGATOR_0(), VBILL_NAV_FEED, "VBILL NAV feed");
+        assertEq(oracle.AGGREGATOR_1(), address(0), "VBILL second feed");
+        assertEq(oracle.STALENESS_DURATION_0(), 30 hours, "VBILL feed max age");
+        assertEq(oracle.STALENESS_DURATION_1(), 0, "VBILL second-feed max age");
+        assertEq(oracle.MIN_PRICE(), 0.95e18, "VBILL oracle minimum");
+        assertEq(oracle.MAX_PRICE(), 1.05e18, "VBILL oracle maximum");
+        assertGt(oracle.getPrice(), 0, "VBILL oracle price");
+    }
+
+    function testSTACMainnetTopology() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet STAC checks");
+        _createFork();
+
+        MigratablesFactory factory = new MigratablesFactory(address(this));
+        IAccount implementation = new STAC_Account(address(factory), COW_SWAP_SETTLEMENT);
+        ISecuritizeNoticeAccount account = ISecuritizeNoticeAccount(address(implementation));
+        ChainlinkOracle oracle = ChainlinkOracle(implementation.ORACLE());
+
+        assertEq(implementation.TOKEN_TO_REDEEM(), STAC, "STAC token");
+        assertEq(account.REDEMPTION_WALLET(), STAC_REDEMPTION_WALLET, "STAC redemption wallet");
+        assertEq(account.SETTLEMENT_DURATION(), 30 days, "STAC settlement duration");
+        assertEq(oracle.AGGREGATOR_0(), STAC_NAV_FEED, "STAC NAV feed");
+        assertEq(oracle.AGGREGATOR_1(), address(0), "STAC second feed");
+        assertEq(oracle.STALENESS_DURATION_0(), 30 hours, "STAC feed max age");
+        assertEq(oracle.STALENESS_DURATION_1(), 0, "STAC second-feed max age");
+        assertEq(oracle.MIN_PRICE(), 100e18, "STAC oracle minimum");
+        assertEq(oracle.MAX_PRICE(), 10_000e18, "STAC oracle maximum");
+        assertGt(oracle.getPrice(), 0, "STAC oracle price");
+    }
+
+    function testVBILLMainnetRedemptionSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet VBILL redemption checks");
+        _createFork();
+
+        _assertRedemptionSequence(45, TokenSpec("VBILL", VBILL));
+    }
+
+    function testVBILLMainnetCloseRedemptionSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet VBILL close checks");
+        _createFork();
+
+        _assertCloseRedemptionSequence(45, TokenSpec("VBILL", VBILL));
+    }
+
+    function testSTACMainnetRedemptionSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet STAC redemption checks");
+        _createFork();
+
+        _assertRedemptionSequence(46, TokenSpec("STAC", STAC));
+    }
+
+    function testSTACMainnetCloseRedemptionSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet STAC close checks");
+        _createFork();
+
+        _assertCloseRedemptionSequence(46, TokenSpec("STAC", STAC));
     }
 
     function testMidasTokenAccountsUseUsdcVaultAsset() public view {
@@ -286,12 +371,14 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertEq(SThreeJaneAccount(address(account)).REDEMPTION_TOKEN(), USDC, "sUSD3 account USDC");
         assertEq(oracle.TOKEN_TO_REDEEM(), SUSD3, "sUSD3 oracle token");
         assertEq(oracle.USD3(), usd3, "sUSD3 oracle USD3");
+        assertEq(oracle.MIN_PRICE(), 0.5e18, "sUSD3 oracle minimum");
+        assertEq(oracle.MAX_PRICE(), 2.5e18, "sUSD3 oracle maximum");
         assertEq(usd3, USD3, "sUSD3 USD3 topology");
         assertEq(usdc, USDC, "sUSD3 USDC topology");
         assertEq(oracle.getPrice(), expectedOraclePrice, "sUSD3 oracle price");
     }
 
-    function testSThreeJaneMainnetValuesHeldSUSD3InUSD3() public {
+    function testSThreeJaneMainnetValuesHeldSUSD3InUSDC() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane valuation checks");
         _createFork();
 
@@ -299,16 +386,16 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         IAccount implementation = _deployImplementation(33, address(factory));
         factory.whitelist(address(implementation));
         IAccount account =
-            IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(USD3)), adapter)));
+            IAccount(factory.create(1, address(this), abi.encode(address(new MainnetAssetVault(USDC)), adapter)));
 
         uint256 amount = _redemptionAmount(33, SUSD3);
         deal(SUSD3, address(account), amount);
         uint256 expectedAssets = IERC4626(USD3).convertToAssets(IERC4626(SUSD3).convertToAssets(amount));
 
-        assertEq(account.totalAssets(), expectedAssets, "sUSD3 value in USD3");
+        assertEq(account.totalAssets(), expectedAssets, "sUSD3 value in USDC");
         account.sync();
         assertEq(IERC20(SUSD3).balanceOf(address(account)), amount, "sUSD3 cooldown balance");
-        assertEq(account.totalAssets(), expectedAssets, "sUSD3 cooldown value in USD3");
+        assertEq(account.totalAssets(), expectedAssets, "sUSD3 cooldown value in USDC");
 
         (uint256 cooldownEnd,,) = ISThreeJaneSUSD3(SUSD3).getCooldownStatus(address(account));
         assertGt(cooldownEnd, block.timestamp, "sUSD3 cooldown end");
@@ -318,37 +405,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertGt(IERC4626(SUSD3).maxWithdraw(address(account)), 0, "sUSD3 matured withdrawal");
         account.sync();
         assertLt(IERC20(SUSD3).balanceOf(address(account)), balanceBefore, "sUSD3 matured balance");
-        assertApproxEqAbs(account.totalAssets(), expectedAssets, 2, "sUSD3 matured value in USD3");
-    }
-
-    function testSThreeJaneMainnetAdapterUsesStablecoinOracleForUSD3Vault() public {
-        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane quote checks");
-        _createFork();
-
-        TokensMainnetVaultRegistry vaultRegistry = new TokensMainnetVaultRegistry();
-        TokensMainnetLiquidLaneVault vault = new TokensMainnetLiquidLaneVault(USD3);
-        AdapterFactory adapterFactory = new AdapterFactory(address(this));
-        MigratablesFactory accountFactory = new MigratablesFactory(address(this));
-        AccountRegistry accountRegistry = new AccountRegistry(address(this));
-
-        vaultRegistry.add(address(vault));
-        LiquidLaneAdapter adapterImplementation =
-            new LiquidLaneAdapter(address(vaultRegistry), address(adapterFactory), address(accountRegistry));
-        IAccount accountImplementation = _deployImplementation(33, address(accountFactory));
-        adapterFactory.whitelist(address(adapterImplementation));
-        accountFactory.whitelist(address(accountImplementation));
-        accountRegistry.setAccountFactory(USD3, SUSD3, address(accountFactory));
-
-        ILiquidLaneAdapter.InitParams memory params =
-            ILiquidLaneAdapter.InitParams({pauser: address(this), unpauser: address(this)});
-        LiquidLaneAdapter llAdapter =
-            LiquidLaneAdapter(adapterFactory.create(1, address(this), abi.encode(address(vault), abi.encode(params))));
-        llAdapter.addTokenToRedeem(SUSD3);
-
-        uint256 amount = _redemptionAmount(33, SUSD3);
-        uint256 expectedAssets = IERC4626(USD3).convertToAssets(IERC4626(SUSD3).convertToAssets(amount));
-        assertEq(llAdapter.getAmountOut(SUSD3, amount), expectedAssets);
-        assertEq(llAdapter.getMaxRate(SUSD3), expectedAssets * 1e18 / 10 ** IERC20Metadata(USD3).decimals());
+        assertApproxEqAbs(account.totalAssets(), expectedAssets, 2, "sUSD3 matured value in USDC");
     }
 
     function testThreeJaneMainnetOracleUsesOneHopConversion() public {
@@ -373,6 +430,8 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertEq(account.ORACLE(), address(oracle), "USD3 account oracle");
         assertEq(ThreeJaneAccount(address(account)).REDEMPTION_TOKEN(), USDC, "USD3 account USDC");
         assertEq(oracle.TOKEN_TO_REDEEM(), USD3, "USD3 oracle token");
+        assertEq(oracle.MIN_PRICE(), 0.5e18, "USD3 oracle minimum");
+        assertEq(oracle.MAX_PRICE(), 2.5e18, "USD3 oracle maximum");
         assertEq(usdc, USDC, "USD3 USDC topology");
         assertEq(oracle.getPrice(), expectedOraclePrice, "USD3 oracle price");
     }
@@ -460,12 +519,16 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 45);
+        assertEq(specs.length, 48);
 
         uint256 length = specs.length;
+        uint256 readyTokens;
         for (uint256 i; i < length; ++i) {
+            if (_isReadinessExcluded(i)) continue;
             _assertTokenAccount(i, specs[i]);
+            ++readyTokens;
         }
+        assertEq(readyTokens, 44);
     }
 
     function testAllTokenAccountsRunMainnetRedemptionSequence() public {
@@ -473,12 +536,18 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 45);
+        assertEq(specs.length, 48);
 
         uint256 length = specs.length;
+        uint256 readyTokens;
         for (uint256 i; i < length; ++i) {
+            if (_isReadinessExcluded(i)) continue;
+            uint256 snapshot = vm.snapshotState();
             _assertRedemptionSequence(i, specs[i]);
+            assertTrue(vm.revertToState(snapshot), specs[i].symbol);
+            ++readyTokens;
         }
+        assertEq(readyTokens, 44);
     }
 
     function testAllTokenAccountsRunMainnetCloseRedemptionSequences() public {
@@ -486,12 +555,18 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         _createFork();
 
         TokenSpec[] memory specs = _tokenSpecs();
-        assertEq(specs.length, 45);
+        assertEq(specs.length, 48);
 
         uint256 length = specs.length;
+        uint256 readyTokens;
         for (uint256 i; i < length; ++i) {
+            if (_isReadinessExcluded(i)) continue;
+            uint256 snapshot = vm.snapshotState();
             _assertCloseRedemptionSequence(i, specs[i]);
+            assertTrue(vm.revertToState(snapshot), specs[i].symbol);
+            ++readyTokens;
         }
+        assertEq(readyTokens, 44);
     }
 
     function testCentrifugeMainnetFullSwapRedemptionCycles() public {
@@ -612,20 +687,6 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         }
     }
 
-    function testDigiFTBEQTYMainnetRedemptionSequence() public {
-        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet DigiFT checks");
-        _createFork();
-
-        _assertRedemptionSequence(7, TokenSpec("bEQTY", BEQTY));
-    }
-
-    function testDigiFTBEQTYMainnetCloseRedemptionSequence() public {
-        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet DigiFT checks");
-        _createFork();
-
-        _assertCloseRedemptionSequence(7, TokenSpec("bEQTY", BEQTY));
-    }
-
     function testSThreeJaneSUSD3MainnetCooldownSequence() public {
         _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet 3Jane checks");
         _createFork();
@@ -652,6 +713,20 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         _createFork();
 
         _assertCloseRedemptionSequence(44, TokenSpec("USD3", USD3));
+    }
+
+    function testSUSNMainnetRedemptionSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet Noon checks");
+        _createFork();
+
+        _assertRedemptionSequence(39, TokenSpec("sUSN", S_USN));
+    }
+
+    function testWeETHMainnetRedemptionSequence() public {
+        _skipWithoutRpc(mainnetRpcUrl, "ETH_RPC_URL is required for Ethereum mainnet ether.fi checks");
+        _createFork();
+
+        _assertRedemptionSequence(35, TokenSpec("weETH", WEETH));
     }
 
     function testSThreeJaneSUSD3MainnetMaturedCooldownSync() public {
@@ -743,12 +818,9 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         }
 
         _warpToRedemptionWindow(index, account);
-        if (index == 7) {
-            _permissionDigiFTTransfer(spec.token, address(account));
-        }
 
         uint256 amount = _redemptionAmount(index, spec.token);
-        deal(spec.token, address(account), amount);
+        _dealTokenToAccount(index, spec.token, address(account), amount);
         assertEq(IERC20(spec.token).balanceOf(address(account)), amount, spec.symbol);
 
         _expectRedemptionSequenceCall(index, account, spec.token, asset, amount);
@@ -974,23 +1046,80 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             _dealCentrifugeShare(token, account, IERC20(token).balanceOf(account) + amount);
             return;
         }
-        if (index == 7) {
-            _permissionDigiFTTransfer(token, account);
+        if (_isRestrictedSecuritize(index)) {
+            _fundSecuritizeRequest(token, account, amount);
+            return;
         }
-
         deal(token, account, IERC20(token).balanceOf(account) + amount);
     }
 
+    function _fundSecuritizeRequest(address token, address account, uint256 amount) internal {
+        address registry = IDSServiceConsumer(token).getDSService(4);
+        address trustService = IDSServiceConsumer(token).getDSService(1);
+        address owner = IOwnable(registry).owner();
+        address nextSubAccount = vm.computeCreateAddress(account, vm.getNonce(account));
+        string memory investorId = "liquid-lane-mainnet";
+
+        if (!IDSRegistryService(registry).isInvestor(investorId)) {
+            vm.prank(owner);
+            IDSRegistryService(registry).registerInvestor(investorId, "");
+        }
+        if (keccak256(bytes(IDSRegistryService(registry).getCountry(investorId))) != keccak256(bytes("US"))) {
+            vm.prank(owner);
+            IDSRegistryService(registry).setCountry(investorId, "US");
+        }
+        _setSecuritizeAttribute(registry, owner, investorId, 1); // KYC approved
+        _setSecuritizeAttribute(registry, owner, investorId, 2); // accredited
+        if (token == VBILL) {
+            _setSecuritizeAttribute(registry, owner, investorId, 4); // qualified purchaser
+        }
+
+        _registerSecuritizeWallet(registry, owner, account, investorId);
+        _registerSecuritizeWallet(registry, owner, nextSubAccount, investorId);
+
+        vm.prank(owner);
+        try IDSTrustService(trustService).setRole(nextSubAccount, 8) {} catch {}
+
+        address compliance = IDSServiceConsumer(token).getDSService(8);
+        address configuration = IDSServiceConsumer(compliance).getDSService(256);
+        uint256 lockPeriod = IDSComplianceConfigurationService(configuration).getUSLockPeriod();
+        uint256 currentTimestamp = block.timestamp;
+        vm.warp(currentTimestamp - lockPeriod - 1);
+        vm.prank(owner);
+        IDSecuritizeToken(token).issueTokens(account, amount);
+        vm.warp(currentTimestamp);
+    }
+
+    function _setSecuritizeAttribute(address registry, address owner, string memory investorId, uint8 attributeId)
+        internal
+    {
+        vm.prank(owner);
+        IDSRegistryService(registry).setAttribute(investorId, attributeId, 1, type(uint256).max, "");
+    }
+
+    function _registerSecuritizeWallet(address registry, address owner, address wallet, string memory investorId)
+        internal
+    {
+        if (IDSRegistryService(registry).isWallet(wallet)) {
+            return;
+        }
+
+        vm.prank(owner);
+        IDSRegistryService(registry).addWallet(wallet, investorId);
+    }
+
     function _tokenSpecs() internal pure returns (TokenSpec[] memory specs) {
-        specs = new TokenSpec[](45);
+        specs = new TokenSpec[](48);
         specs[0] = TokenSpec("ACRDX", ACRDX);
         specs[1] = TokenSpec("CarryTradeUSDTRYLeverage", CARRY_TRADE_USD_TRY_LEVERAGE);
-        specs[2] = TokenSpec("DUSD", DUSD);
+        // Reserved index: DUSD is excluded while fresh accounts are unauthorized by the live Makina redeemer.
+        specs[2] = TokenSpec("DUSD (excluded)", address(0));
         specs[3] = TokenSpec("JAAA", JAAA);
         specs[4] = TokenSpec("JTRSY", JTRSY);
         specs[5] = TokenSpec("PRIME", PRIME);
         specs[6] = TokenSpec("StockMarketTRBasisTrade", STOCK_MARKET_TR_BASIS_TRADE);
-        specs[7] = TokenSpec("bEQTY", BEQTY);
+        // Reserved index: bEQTY is excluded because no authoritative onchain NAV is available.
+        specs[7] = TokenSpec("bEQTY (excluded)", address(0));
         specs[8] = TokenSpec("deCRDX", DECRDX);
         specs[9] = TokenSpec("deJAAA", DEJAAA);
         specs[10] = TokenSpec("deJTRSY", DEJTRSY);
@@ -1023,11 +1152,16 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         specs[37] = TokenSpec("AA_FalconXUSDC", AA_FALCONX);
         specs[38] = TokenSpec("ACRED", ACRED);
         specs[39] = TokenSpec("sUSN", S_USN);
-        specs[40] = TokenSpec("USCC", USCC);
+        // Reserved index: USCC requires issuer-managed enrollment and offchain payout routing.
+        specs[40] = TokenSpec("USCC (excluded)", address(0));
         specs[41] = TokenSpec("liUSD-4w", LIUSD4W);
         specs[42] = TokenSpec("liUSD-13w", LIUSD13W);
         specs[43] = TokenSpec("AUTO", AUTO);
         specs[44] = TokenSpec("USD3", USD3);
+        specs[45] = TokenSpec("VBILL", VBILL);
+        specs[46] = TokenSpec("STAC", STAC);
+        // Reserved index: SPKCC remains excluded while Spiko authorizes fiat but not USDC settlement.
+        specs[47] = TokenSpec("SPKCC (excluded)", SPKCC);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
@@ -1037,7 +1171,6 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             );
         }
         if (index == 1) return new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT);
-        if (index == 2) return new DUSD_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 3) {
             return new JAAA_Account(
                 address(new MainnetConstantOracle()), factory, USDC, _asyncRedeemVault(JAAA, USDC), COW_SWAP_SETTLEMENT
@@ -1058,7 +1191,6 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             return new AUTO_Account(oracle, factory, token, subAccountImplementation, COW_SWAP_SETTLEMENT);
         }
         if (index == 6) return new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT);
-        if (index == 7) return new bEQTY_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
         if (index == 8) {
             return new deCRDX_Account(
                 address(new MainnetConstantOracle()),
@@ -1108,36 +1240,13 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         if (index == 30) return new msyrupUSD_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 31) return new msyrupUSDp_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 32) return new sAID_Account(factory, COW_SWAP_SETTLEMENT);
-        if (index == 33) {
-            return
-                new sUSD3_Account(
-                    address(new SThreeJaneOracle(1, type(uint256).max, SUSD3)), factory, COW_SWAP_SETTLEMENT
-                );
-        }
-        if (index == 34) return new sthUSD_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+        if (index == 33) return new sUSD3_Account(factory, COW_SWAP_SETTLEMENT);
+        if (index == 34) return new sthUSD_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 35) {
-            return new weETH_Account(
-                EETH,
-                WETH,
-                WEETH,
-                address(new MainnetConstantOracle()),
-                factory,
-                ETHERFI_LIQUIDITY_POOL,
-                ETHERFI_REDEMPTION_MANAGER,
-                COW_SWAP_SETTLEMENT,
-                ETHERFI_WITHDRAW_REQUEST_NFT
-            );
+            return new weETH_Account(factory, COW_SWAP_SETTLEMENT);
         }
         if (index == 36) {
-            return new wstETH_Account(
-                STETH,
-                WETH,
-                address(new MainnetConstantOracle()),
-                WSTETH,
-                factory,
-                LIDO_WITHDRAWAL_QUEUE,
-                COW_SWAP_SETTLEMENT
-            );
+            return new wstETH_Account(factory, COW_SWAP_SETTLEMENT);
         }
         if (index == 37) {
             return new AA_FalconX_Account(
@@ -1145,14 +1254,12 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             );
         }
         if (index == 38) return new ACRED_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
-        if (index == 39) return new sUSN_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
-        if (index == 40) return new USCC_Account(address(new MainnetConstantOracle()), factory, COW_SWAP_SETTLEMENT);
+        if (index == 39) return new sUSN_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 41) return new liUSD4w_Account(factory, COW_SWAP_SETTLEMENT);
         if (index == 42) return new liUSD13w_Account(factory, COW_SWAP_SETTLEMENT);
-        if (index == 44) {
-            return
-                new USD3_Account(address(new ThreeJaneOracle(1, type(uint256).max, USD3)), factory, COW_SWAP_SETTLEMENT);
-        }
+        if (index == 44) return new USD3_Account(factory, COW_SWAP_SETTLEMENT);
+        if (index == 45) return new VBILL_Account(factory, COW_SWAP_SETTLEMENT);
+        if (index == 46) return new STAC_Account(factory, COW_SWAP_SETTLEMENT);
         revert();
     }
 
@@ -1167,9 +1274,12 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     }
 
     function _assetFor(uint256 index, address token) internal view returns (address) {
+        if (index == 45) {
+            return RLUSD;
+        }
         if (
-            _isMidas(index) || _isCentrifuge(index) || index == 2 || index == 7 || index == 33 || index == 37
-                || _isSecuritize(index) || index == 40 || _isInfiniFi(index)
+            _isMidas(index) || _isCentrifuge(index) || index == 33 || index == 37 || _isSecuritize(index) || index == 44
+                || index == 46 || _isInfiniFi(index)
         ) {
             return USDC;
         }
@@ -1236,7 +1346,16 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         return index == 38;
     }
 
+    function _isRestrictedSecuritize(uint256 index) internal pure returns (bool) {
+        return index == 38 || index == 45 || index == 46;
+    }
+
+    function _isReadinessExcluded(uint256 index) internal pure returns (bool) {
+        return index == 2 || index == 7 || index == 40 || index == 47;
+    }
+
     function _isKnownMainnetSyncRestricted(uint256 index) internal pure returns (bool) {
+        if (index == 39 || index == 45 || index == 46) return false;
         return _isCentrifuge(index) || _isMidas(index) || index == 2 || _isFigure(index) || _isSecuritize(index)
             || index == 39 || index == 40;
     }
@@ -1289,22 +1408,8 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             );
             return;
         }
-        if (index == 2) {
-            vm.expectCall(
-                IMakinaAccount(address(account)).REDEEMER(),
-                abi.encodeCall(IMakinaRedeemer.requestRedeem, (amount, address(account), uint256(0)))
-            );
-            return;
-        }
         if (_isFigure(index)) {
             vm.expectCall(token, abi.encodeCall(IERC4626.redeem, (amount, address(account), address(account))));
-            return;
-        }
-        if (index == 7) {
-            vm.expectCall(
-                IDigiFTAccount(address(account)).SUB_RED_MANAGEMENT(),
-                abi.encodeCall(IDigiFTSubRedManagement.redeem, (token, asset, amount, block.timestamp))
-            );
             return;
         }
         if (index == 32) {
@@ -1341,14 +1446,20 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         }
         if (_isSecuritize(index)) {
             // redemption notice is an ERC-20 transfer to the Securitize redemption wallet
-            vm.expectCall(token, abi.encodeCall(IERC20.transfer, (0xbb543C77436645C8b95B64eEc39E3C0d48D4842b, amount)));
+            vm.expectCall(token, abi.encodeCall(IERC20.transfer, (STAC_REDEMPTION_WALLET, amount)));
+            return;
+        }
+        if (index == 45) {
+            uint256 quote = ISecuritizeOffRamp(VBILL_OFF_RAMP).calculateLiquidityTokenAmount(amount);
+            vm.expectCall(VBILL_OFF_RAMP, abi.encodeCall(ISecuritizeOffRamp.redeem, (amount, quote)));
+            return;
+        }
+        if (index == 46) {
+            vm.expectCall(token, abi.encodeCall(IERC20.transfer, (STAC_REDEMPTION_WALLET, amount)));
             return;
         }
         if (index == 39) {
             vm.expectCall(token, abi.encodeCall(IERC4626.redeem, (amount, NOON_WITHDRAWAL_HANDLER, address(account))));
-            return;
-        }
-        if (index == 40) {
             return;
         }
         if (_isInfiniFi(index)) {
@@ -1412,16 +1523,8 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             _assertAsyncRedemption(account, amount, symbol);
             return;
         }
-        if (index == 2) {
-            _assertMakinaRedemption(account, amount, symbol);
-            return;
-        }
         if (_isFigure(index)) {
             _assertFigureRedemption(account, token, symbol);
-            return;
-        }
-        if (index == 7) {
-            _assertDigiFTRedemption(account, symbol);
             return;
         }
         if (index == 32) {
@@ -1452,12 +1555,23 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             _assertSecuritizeRedemption(account, symbol);
             return;
         }
-        if (index == 39) {
-            _assertNoonRedemption(account, symbol);
+        if (index == 45) {
+            uint256 quote = ISecuritizeOffRamp(VBILL_OFF_RAMP).calculateLiquidityTokenAmount(amount);
+            assertGe(IERC20(asset).balanceOf(address(account)), quote, symbol);
+            assertEq(IERC20(token).allowance(address(account), VBILL_OFF_RAMP), 0, symbol);
+            assertGt(account.totalAssets(), 0, symbol);
             return;
         }
-        if (index == 40) {
-            _assertSuperstateRedemption(account, symbol);
+        if (index == 46) {
+            ISecuritizeNoticeAccount noticeAccount = ISecuritizeNoticeAccount(address(account));
+            assertEq(noticeAccount.REDEMPTION_WALLET(), STAC_REDEMPTION_WALLET, symbol);
+            assertGt(noticeAccount.pendingAssets(), 0, symbol);
+            assertGt(noticeAccount.pendingExpiry(), block.timestamp, symbol);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 39) {
+            _assertNoonRedemption(account, symbol);
             return;
         }
         if (_isInfiniFi(index)) {
@@ -1490,22 +1604,12 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             assertGt(account.totalAssets(), 0, symbol);
             return;
         }
-        if (index == 2) {
-            IMakinaAccount(address(account)).requestIds(1);
-            assertGt(account.totalAssets(), 0, symbol);
-            return;
-        }
         if (_isFigure(index)) {
             address firstSubAccount = IFigureAccount(address(account)).subAccounts(0);
             address secondSubAccount = IFigureAccount(address(account)).subAccounts(1);
             assertNotEq(secondSubAccount, firstSubAccount, symbol);
             assertGt(firstSubAccount.code.length, 0, symbol);
             assertGt(secondSubAccount.code.length, 0, symbol);
-            assertGt(account.totalAssets(), 0, symbol);
-            return;
-        }
-        if (index == 7) {
-            IDigiFTAccount(address(account)).subAccounts(1);
             assertGt(account.totalAssets(), 0, symbol);
             return;
         }
@@ -1557,13 +1661,22 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             assertGt(account.totalAssets(), 0, symbol);
             return;
         }
-        if (index == 39) {
-            INoonAccount(address(account)).requestIds(1);
+        if (index == 45) {
+            assertEq(IERC20(token).balanceOf(address(account)), 0, symbol);
+            assertGt(IERC20(RLUSD).balanceOf(address(account)), 0, symbol);
             assertGt(account.totalAssets(), 0, symbol);
             return;
         }
-        if (index == 40) {
-            ISuperstateAccount(address(account)).subAccounts(1);
+        if (index == 46) {
+            ISecuritizeNoticeAccount noticeAccount = ISecuritizeNoticeAccount(address(account));
+            assertEq(IERC20(token).balanceOf(address(account)), amount, symbol);
+            assertGt(noticeAccount.pendingAssets(), 0, symbol);
+            assertGt(noticeAccount.pendingExpiry(), block.timestamp, symbol);
+            assertGt(account.totalAssets(), 0, symbol);
+            return;
+        }
+        if (index == 39) {
+            INoonAccount(address(account)).requestIds(1);
             assertGt(account.totalAssets(), 0, symbol);
             return;
         }
@@ -1629,41 +1742,10 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         }
     }
 
-    function _permissionDigiFTTransfer(address token, address account) internal {
-        address management = IMainnetDigiFTSecurityToken(token).management();
-        address subAccount = vm.computeCreateAddress(account, vm.getNonce(account));
-
-        _storeObservedBool(management, abi.encodeCall(IMainnetDigiFTManagement.isWhiteContract, (account)), true);
-        _storeObservedBool(management, abi.encodeCall(IMainnetDigiFTManagement.isWhiteInvestor, (subAccount)), true);
-    }
-
-    function _storeObservedBool(address target, bytes memory callData, bool value) internal {
-        vm.record();
-        (bool success,) = target.staticcall(callData);
-        assertTrue(success);
-        (bytes32[] memory reads,) = vm.accesses(target);
-
-        assertGt(reads.length, 0);
-        vm.store(target, reads[0], bytes32(uint256(value ? 1 : 0)));
-    }
-
-    function _assertMakinaRedemption(IAccount account, uint256 amount, string memory symbol) internal view {
-        uint256 requestId = IMakinaAccount(address(account)).requestIds(0);
-        assertGt(IMakinaRedeemer(IMakinaAccount(address(account)).REDEEMER()).getShares(requestId), 0, symbol);
-        assertLe(IMakinaRedeemer(IMakinaAccount(address(account)).REDEEMER()).getShares(requestId), amount, symbol);
-        assertGt(account.totalAssets(), 0, symbol);
-    }
-
     function _assertFigureRedemption(IAccount account, address token, string memory symbol) internal view {
         address subAccount = IFigureAccount(address(account)).subAccounts(0);
         (uint256 shares,,) = IFigureYieldVault(IERC4626(token).asset()).pendingRedemptions(subAccount);
         assertGt(shares, 0, symbol);
-        assertGt(subAccount.code.length, 0, symbol);
-        assertGt(account.totalAssets(), 0, symbol);
-    }
-
-    function _assertDigiFTRedemption(IAccount account, string memory symbol) internal view {
-        address subAccount = IDigiFTAccount(address(account)).subAccounts(0);
         assertGt(subAccount.code.length, 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
@@ -1739,6 +1821,7 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
 
     function _assertSecuritizeRedemption(IAccount account, string memory symbol) internal view {
         (uint256 amount,) = ISecuritizeAccount(address(account)).pendingCutoffs(0);
+        assertEq(ISecuritizeAccount(address(account)).REDEMPTION_WALLET(), STAC_REDEMPTION_WALLET, symbol);
         assertGt(amount, 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
@@ -1751,12 +1834,6 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
 
         assertFalse(request.claimed, symbol);
         assertGt(request.amount, 0, symbol);
-        assertGt(account.totalAssets(), 0, symbol);
-    }
-
-    function _assertSuperstateRedemption(IAccount account, string memory symbol) internal view {
-        address subAccount = ISuperstateAccount(address(account)).subAccounts(0);
-        assertGt(subAccount.code.length, 0, symbol);
         assertGt(account.totalAssets(), 0, symbol);
     }
 
@@ -1924,18 +2001,50 @@ interface IMainnetCentrifugeVault {
     function scId() external view returns (bytes16);
 }
 
-interface IMainnetDigiFTSecurityToken {
-    function management() external view returns (address);
-}
-
-interface IMainnetDigiFTManagement {
-    function isWhiteContract(address contractAddress) external view returns (bool);
-
-    function isWhiteInvestor(address investor) external view returns (bool);
-}
-
 interface IMidasRedemptionVaultWithPaymentTokens is IMidasRedemptionVault {
     function getPaymentTokens() external view returns (address[] memory);
+}
+
+interface IOwnable {
+    function owner() external view returns (address);
+}
+
+interface IDSServiceConsumer {
+    function getDSService(uint256 serviceId) external view returns (address);
+}
+
+interface IDSRegistryService {
+    function addWallet(address wallet, string calldata investorId) external returns (bool);
+
+    function getCountry(string calldata investorId) external view returns (string memory);
+
+    function isInvestor(string calldata investorId) external view returns (bool);
+
+    function isWallet(address wallet) external view returns (bool);
+
+    function registerInvestor(string calldata investorId, string calldata collisionHash) external returns (bool);
+
+    function setCountry(string calldata investorId, string calldata country) external returns (bool);
+
+    function setAttribute(
+        string calldata investorId,
+        uint8 attributeId,
+        uint256 value,
+        uint256 expiry,
+        string calldata proofHash
+    ) external returns (bool);
+}
+
+interface IDSecuritizeToken {
+    function issueTokens(address account, uint256 amount) external returns (bool);
+}
+
+interface IDSComplianceConfigurationService {
+    function getUSLockPeriod() external view returns (uint256);
+}
+
+interface IDSTrustService {
+    function setRole(address account, uint8 role) external returns (bool);
 }
 
 contract MainnetConstantOracle {

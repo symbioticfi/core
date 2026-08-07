@@ -83,14 +83,4 @@ contract NoonAccount is CooldownAccount, INoonAccount {
             .redeem(IERC20(TOKEN_TO_REDEEM).balanceOf(address(this)), WITHDRAWAL_HANDLER, address(this));
         return true;
     }
-
-    /* INITIALIZATION */
-
-    /// @dev Initializes the account for an adapter and vault.
-    function _initialize(uint64 initialVersion, address initOwner, bytes memory data) internal override {
-        super._initialize(initialVersion, initOwner, data);
-        if (INoonWithdrawalHandler(WITHDRAWAL_HANDLER).usn() != _asset) {
-            revert InvalidAsset();
-        }
-    }
 }

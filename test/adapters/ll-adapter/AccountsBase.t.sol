@@ -8,7 +8,9 @@ import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/Cent
 import {AsyncRedeemAccount} from "../../../src/contracts/adapters/ll-adapter/common/AsyncRedeemAccount.sol";
 import {DigiFTAccount} from "../../../src/contracts/adapters/ll-adapter/DigiFTAccount.sol";
 import {DUSD_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/DUSD_Account.sol";
+import {EtherFiAccount} from "../../../src/contracts/adapters/ll-adapter/EtherFiAccount.sol";
 import {GaibAccount} from "../../../src/contracts/adapters/ll-adapter/GaibAccount.sol";
+import {LidoAccount} from "../../../src/contracts/adapters/ll-adapter/LidoAccount.sol";
 import {MakinaAccount} from "../../../src/contracts/adapters/ll-adapter/MakinaAccount.sol";
 import {PRIME_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PRIME_Account.sol";
 import {FigureSubAccount} from "../../../src/contracts/adapters/ll-adapter/FigureAccount.sol";
@@ -24,8 +26,6 @@ import {USD3_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to
 import {TheoAccount} from "../../../src/contracts/adapters/ll-adapter/TheoAccount.sol";
 import {SThreeJaneAccount} from "../../../src/contracts/adapters/ll-adapter/SThreeJaneAccount.sol";
 import {ThreeJaneAccount} from "../../../src/contracts/adapters/ll-adapter/ThreeJaneAccount.sol";
-import {weETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/weETH_Account.sol";
-import {wstETH_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/wstETH_Account.sol";
 import {ChainlinkOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ChainlinkOracle.sol";
 import {AsyncRedeemOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/AsyncRedeemOracle.sol";
 import {MakinaOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/MakinaOracle.sol";
@@ -308,6 +308,46 @@ abstract contract AccountsBase is Test {
     function _mockDecimals(address token, uint8 decimals_) internal {
         vm.mockCall(token, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(decimals_));
     }
+}
+
+/// @dev Test-only configurable EtherFi implementation; production uses the bound `weETH_Account` wrapper.
+contract weETH_Account is EtherFiAccount {
+    constructor(
+        address eETH,
+        address weth,
+        address tokenToRedeem,
+        address oracle,
+        address factory,
+        address liquidityPool,
+        address redemptionManager,
+        address cowSwapSettlement,
+        address withdrawRequestNft
+    )
+        EtherFiAccount(
+            eETH,
+            weth,
+            oracle,
+            factory,
+            liquidityPool,
+            tokenToRedeem,
+            redemptionManager,
+            cowSwapSettlement,
+            withdrawRequestNft
+        )
+    {}
+}
+
+/// @dev Test-only configurable Lido implementation; production uses the bound `wstETH_Account` wrapper.
+contract wstETH_Account is LidoAccount {
+    constructor(
+        address stETH,
+        address weth,
+        address oracle,
+        address tokenToRedeem,
+        address factory,
+        address withdrawalQueue,
+        address cowSwapSettlement
+    ) LidoAccount(stETH, weth, oracle, tokenToRedeem, factory, withdrawalQueue, cowSwapSettlement) {}
 }
 
 struct LstMocks {
@@ -912,10 +952,6 @@ contract MockAsyncRedeemVault is MockERC20 {
 
     function setFreshRequestIds(bool status) external {
         freshRequestIds = status;
-    }
-
-    function setNextRequestId(uint256 requestId) external {
-        nextRequestId = requestId;
     }
 
     function setRevertPreviewWithdraw(bool status) external {

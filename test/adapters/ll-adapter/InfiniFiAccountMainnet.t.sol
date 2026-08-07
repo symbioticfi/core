@@ -60,6 +60,7 @@ contract InfiniFiAccountMainnetTest is Test {
         assertGt(IUSD.code.length, 0);
         assertGt(REDEEM_CONTROLLER.code.length, 0);
         assertGt(UNWINDING_MODULE.code.length, 0);
+        assertEq(IMainnetInfiniFiGateway(GATEWAY).getAddress("redeemController"), REDEEM_CONTROLLER);
         assertEq(IMainnetInfiniFiRedeemController(REDEEM_CONTROLLER).assetToken(), USDC);
         assertEq(IERC20Metadata(IUSD).decimals(), 18);
     }
@@ -101,19 +102,15 @@ contract InfiniFiAccountMainnetTest is Test {
 
             uint256 timestamp = vm.getBlockTimestamp();
             vm.expectCall(GATEWAY, abi.encodeCall(IInfiniFiGateway.startUnwinding, (amount, specs[i].epochs)));
-            try IAccount(account).sync() {
-                uint48 unwindingTimestamp = IInfiniFiAccount(account).unwindingTimestamps(0);
-                assertEq(unwindingTimestamp, timestamp, specs[i].symbol);
-                assertEq(IERC20(specs[i].token).balanceOf(account), 0, specs[i].symbol);
-                assertGt(
-                    IInfiniFiUnwindingModule(UNWINDING_MODULE).balanceOf(account, unwindingTimestamp),
-                    0,
-                    specs[i].symbol
-                );
-                assertGt(IAccount(account).totalAssets(), 0, specs[i].symbol);
-            } catch {
-                assertEq(IERC20(specs[i].token).balanceOf(account), amount, specs[i].symbol);
-            }
+            IAccount(account).sync();
+
+            uint48 unwindingTimestamp = IInfiniFiAccount(account).unwindingTimestamps(0);
+            assertEq(unwindingTimestamp, timestamp, specs[i].symbol);
+            assertEq(IERC20(specs[i].token).balanceOf(account), 0, specs[i].symbol);
+            assertGt(
+                IInfiniFiUnwindingModule(UNWINDING_MODULE).balanceOf(account, unwindingTimestamp), 0, specs[i].symbol
+            );
+            assertGt(IAccount(account).totalAssets(), 0, specs[i].symbol);
         }
     }
 
@@ -160,4 +157,8 @@ interface IInfiniFiLockedPositionToken {
 
 interface IMainnetInfiniFiRedeemController {
     function assetToken() external view returns (address token);
+}
+
+interface IMainnetInfiniFiGateway {
+    function getAddress(string calldata name) external view returns (address value);
 }

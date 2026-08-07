@@ -13,6 +13,22 @@ interface IParetoCDO {
     function AATranche() external view returns (address tranche);
 
     /**
+     * @notice Claims a ready normal withdrawal receipt for the caller.
+     */
+    function claimWithdrawRequest() external;
+
+    /**
+     * @notice Claims a ready instant withdrawal receipt for the caller.
+     */
+    function claimInstantWithdrawRequest() external;
+
+    /**
+     * @notice Returns whether the CDO has defaulted.
+     * @return isDefaulted Whether the CDO has defaulted.
+     */
+    function defaulted() external view returns (bool isDefaulted);
+
+    /**
      * @notice Returns whether an epoch is currently running.
      * @return running Whether the epoch is running.
      */
@@ -48,6 +64,14 @@ interface IParetoCDO {
      * @return unit The tranche unit.
      */
     function ONE_TRANCHE_TOKEN() external view returns (uint256 unit);
+
+    /**
+     * @notice Submits tranche tokens for withdrawal directly through the CDO.
+     * @param amount The tranche-token amount.
+     * @param tranche The tranche token to withdraw.
+     * @return assets The underlying amount represented by the withdrawal receipt.
+     */
+    function requestWithdraw(uint256 amount, address tranche) external returns (uint256 assets);
 
     /**
      * @notice Returns the withdrawal receipt token.

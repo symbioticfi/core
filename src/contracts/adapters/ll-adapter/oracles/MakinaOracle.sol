@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 
 import {Oracle} from "./Oracle.sol";
 
+import {IMakinaMachine} from "../../../../interfaces/adapters/ll-adapter/makina/IMakinaMachine.sol";
 import {IMakinaOracle} from "../../../../interfaces/adapters/ll-adapter/oracles/IMakinaOracle.sol";
 import {IMakinaSharePriceOracle} from "../../../../interfaces/adapters/ll-adapter/makina/IMakinaSharePriceOracle.sol";
 
@@ -18,6 +19,10 @@ contract MakinaOracle is Oracle, IMakinaOracle {
 
     /// @inheritdoc IMakinaOracle
     address public immutable SHARE_PRICE_ORACLE;
+    /// @inheritdoc IMakinaOracle
+    address public immutable MACHINE;
+    /// @inheritdoc IMakinaOracle
+    uint48 public immutable STALENESS_DURATION;
 
     /// @dev Source oracle unit.
     uint256 internal immutable _priceUnit;
@@ -25,8 +30,12 @@ contract MakinaOracle is Oracle, IMakinaOracle {
     /* CONSTRUCTOR */
 
     /// @notice Creates the Makina share-price oracle adapter.
-    constructor(uint256 minPrice, uint256 maxPrice, address sharePriceOracle) Oracle(minPrice, maxPrice) {
+    constructor(uint256 minPrice, uint256 maxPrice, address sharePriceOracle, address machine, uint48 stalenessDuration)
+        Oracle(minPrice, maxPrice)
+    {
         SHARE_PRICE_ORACLE = sharePriceOracle;
+        MACHINE = machine;
+        STALENESS_DURATION = stalenessDuration;
         _priceUnit = 10 ** IMakinaSharePriceOracle(sharePriceOracle).decimals();
     }
 
@@ -34,6 +43,10 @@ contract MakinaOracle is Oracle, IMakinaOracle {
 
     /// @inheritdoc Oracle
     function _getPrice() internal view override returns (uint256) {
+        uint256 updatedAt = IMakinaMachine(MACHINE).lastGlobalAccountingTime();
+        if (updatedAt == 0 || updatedAt > block.timestamp || block.timestamp - updatedAt > STALENESS_DURATION) {
+            return 0;
+        }
         return IMakinaSharePriceOracle(SHARE_PRICE_ORACLE).getSharePrice().mulDiv(1e18, _priceUnit);
     }
 }
