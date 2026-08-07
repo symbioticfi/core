@@ -59,7 +59,13 @@ jobs:
     env:
       FOUNDRY_PROFILE: pr
       ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
-      MAINNET_FORK_BLOCK: 25422678
+      # Must be at or after the Liquid Lane 3 deployment (blocks 25697401-25697403), otherwise
+      # the mainnet suites assert against contracts that do not yet exist at the fork block.
+      # Bump this whenever a deployment adds live state that new fork tests depend on.
+      MAINNET_FORK_BLOCK: 25700000
+      # The three suites run concurrently against a single provider key, so throttle each one
+      # to keep the combined request rate inside the plan limit and retry patiently on 429s.
+      FORK_RPC_FLAGS: --compute-units-per-second 100 --fork-retries 10 --fork-retry-backoff 4
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -80,4 +86,4 @@ jobs:
             ${{ runner.os }}-foundry-rpc-mainnet-${{ env.MAINNET_FORK_BLOCK }}-
 
       - name: Run Forge mainnet tests
-        run: ${{ matrix.suite.command }}
+        run: ${{ matrix.suite.command }} $FORK_RPC_FLAGS
