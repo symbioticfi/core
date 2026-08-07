@@ -96,8 +96,34 @@ jobs:
             ${{ runner.os }}-foundry-rpc-mainnet-${{ env.MAINNET_FORK_BLOCK }}-${{ matrix.suite.id }}
             ${{ runner.os }}-foundry-rpc-mainnet-${{ env.MAINNET_FORK_BLOCK }}-
 
+      # A cold RPC cache makes the first attempt fetch every mainnet slot at once, which trips the
+      # provider rate limit (HTTP 429). Foundry persists each response it does get to ~/.foundry/cache/rpc,
+      # so every attempt starts warmer and needs fewer live requests - retrying in-job is what converges.
+      # A fresh workflow run would not: Actions scopes caches per ref and main cannot read the ones a PR
+      # branch wrote, so the first run after every merge starts cold. Only 429s are retried; any other
+      # failure is a real one and exits immediately.
       - name: Run Forge mainnet tests
-        run: ${{ matrix.suite.command }} $FORK_TEST_FLAGS
+        run: |
+          log="$RUNNER_TEMP/forge-attempt.log"
+          for attempt in 1 2 3; do
+            set +e
+            ${{ matrix.suite.command }} $FORK_TEST_FLAGS 2>&1 | tee "$log"
+            status=${PIPESTATUS[0]}
+            set -e
+            if [ "$status" -eq 0 ]; then
+              exit 0
+            fi
+            if ! grep -q 'HTTP error 429' "$log"; then
+              echo "::error::Attempt $attempt failed for reasons other than provider rate limiting."
+              exit "$status"
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::Attempt $attempt hit HTTP 429; backing off $((attempt * 60))s, then retrying with a warmer RPC cache."
+              sleep "$((attempt * 60))"
+            fi
+          done
+          echo "::error::Provider rate limit persisted across 3 attempts."
+          exit 1
 
       - name: Save Foundry RPC cache
         if: always()
