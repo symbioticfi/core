@@ -45,6 +45,9 @@ jobs:
     timeout-minutes: 180
     strategy:
       fail-fast: false
+      # The suites share one provider key. Running them one at a time keeps the combined
+      # request rate inside the plan limit; concurrently they trip HTTP 429.
+      max-parallel: 1
       matrix:
         suite:
           - name: mainnet forks
@@ -59,7 +62,15 @@ jobs:
     env:
       FOUNDRY_PROFILE: pr
       ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
-      MAINNET_FORK_BLOCK: 25422678
+      # Must be at or after the Liquid Lane 3 deployment (blocks 25697401-25697403), otherwise
+      # the mainnet suites assert against contracts that do not yet exist at the fork block.
+      # Bump this whenever a deployment adds live state that new fork tests depend on.
+      MAINNET_FORK_BLOCK: 25700000
+      # Cap in-job test parallelism as a second brake on the provider request rate.
+      # Note: --compute-units-per-second and --fork-retries cannot be used here. They are
+      # gated behind --rpc-url, and --rpc-url is an alias for --fork-url, which would fork
+      # every test rather than only the ones that call vm.createSelectFork.
+      FORK_TEST_FLAGS: --threads 2
     steps:
       - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -71,13 +82,28 @@ jobs:
         with:
           version: v1.7.1
 
-      - name: Cache Foundry RPC responses
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      # Restore and save are split so the cache is written even when the suite fails.
+      # actions/cache skips its post-run save on job failure, so while the suites were
+      # failing every run started cold, re-fetched all state, and tripped the provider
+      # rate limit - which failed the job, which skipped the save. A partial cache from
+      # a failed run still removes most of the requests the next run would make.
+      - name: Restore Foundry RPC cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.foundry/cache/rpc
           key: ${{ runner.os }}-foundry-rpc-mainnet-${{ env.MAINNET_FORK_BLOCK }}-${{ matrix.suite.id }}
           restore-keys: |
+            ${{ runner.os }}-foundry-rpc-mainnet-${{ env.MAINNET_FORK_BLOCK }}-${{ matrix.suite.id }}
             ${{ runner.os }}-foundry-rpc-mainnet-${{ env.MAINNET_FORK_BLOCK }}-
 
       - name: Run Forge mainnet tests
-        run: ${{ matrix.suite.command }}
+        run: ${{ matrix.suite.command }} $FORK_TEST_FLAGS
+
+      - name: Save Foundry RPC cache
+        if: always()
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.foundry/cache/rpc
+          # Unique per run: cache/save errors on an existing key, and restore-keys above
+          # matches the prefix so the newest entry is picked up regardless.
+          key: ${{ runner.os }}-foundry-rpc-mainnet-${{ env.MAINNET_FORK_BLOCK }}-${{ matrix.suite.id }}-${{ github.run_id }}-${{ github.run_attempt }}
