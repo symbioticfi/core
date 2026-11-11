@@ -24,6 +24,22 @@ Symbiotic core consists of:
 
 ## Usage
 
+### Frontend liquidity lens
+
+`FrontendLiquidityLens` estimates capacity for 3F and LiquidLane adapters. For multiple LiquidLane
+tokens, use `getMaxAssetsBatch(adapter, tokensToRedeem)`: it runs the shared sweep and deallocation
+estimate once, then returns `{success, maxAssets}` for each token in input order. Token failures are
+isolated; a shared capacity failure reverts the batch. The existing single-token getters remain
+available. These getters simulate `sweepPending()` and are intended for `eth_call`.
+
+Upgrade an existing lens proxy's implementation through its `ProxyAdmin` owner using
+`upgradeAndCall(proxy, newImplementation, 0x)`, or deploy a new proxy with
+`script/deploy/utils/DeployFrontendLiquidityLens.s.sol`. A standalone lens needs a new deployment and
+a configured-address update. Verify the batch getter before rolling out a solver that requires it.
+Upgrading an existing proxy preserves its configured address.
+The batch uses call-local values only and adds no storage. `getTokenMaxAssets` is a self-call helper
+for failure isolation and rejects external callers.
+
 ### Dependencies
 
 - Git ([installation](https://git-scm.com/downloads))
