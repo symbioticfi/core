@@ -24,6 +24,29 @@ Symbiotic core consists of:
 
 ## Usage
 
+### Frontend liquidity lens
+
+`FrontendLiquidityLens` estimates capacity for 3F and LiquidLane adapters. For multiple LiquidLane
+tokens, use `getMaxAssetsBatch(adapter, tokensToRedeem)`: it runs the shared sweep and deallocation
+estimate once, then returns `{success, maxAssets}` for each token in input order. Token failures are
+isolated; a shared capacity failure reverts the batch. The existing single-token getters remain
+available. These getters simulate `sweepPending()` and are intended for `eth_call`.
+
+Upgrade an existing lens proxy's implementation through its `ProxyAdmin` owner using
+`upgradeAndCall(proxy, newImplementation, 0x)`, or deploy a new proxy with
+`script/deploy/utils/DeployFrontendLiquidityLens.s.sol`. A standalone lens needs a new deployment and
+a configured-address update. Verify the batch getter before rolling out a solver that requires it.
+Upgrading an existing proxy preserves its configured address.
+The batch uses call-local values only and adds no storage. `getTokenMaxAssets` is a self-call helper
+for failure isolation and rejects external callers.
+
+The batch-capable mainnet deployment from November 11, 2026 uses proxy
+[`0xf3f6397f15e0c3f3e645212f24f25cc2b91721f6`](https://etherscan.io/address/0xf3f6397f15e0c3f3e645212f24f25cc2b91721f6#code),
+implementation [`0x7afb7adfb6aff8c0321b09e38bf6117958d0db00`](https://etherscan.io/address/0x7afb7adfb6aff8c0321b09e38bf6117958d0db00#code),
+and ProxyAdmin `0x502f96ed24cf1e8b072303d51276d9edce64e23e`.
+The ProxyAdmin owner is the same Safe as the previous deployment,
+`0x5721ce64ee0d772ce613b62d411350091c544cd0`. Consumers should use the proxy address.
+
 ### Dependencies
 
 - Git ([installation](https://git-scm.com/downloads))
