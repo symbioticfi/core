@@ -150,13 +150,13 @@ contract CreateHoodiAppAdapterVault is Script {
         return ITestnetBurnerRouterFactory(BURNER_ROUTER_FACTORY)
             .create(
                 ITestnetBurnerRouterFactory.InitParams({
-                owner: OWNER,
-                collateral: USDC,
-                delay: 0,
-                globalReceiver: OWNER,
-                networkReceivers: networkReceivers,
-                operatorNetworkReceivers: operatorNetworkReceivers
-            })
+                    owner: OWNER,
+                    collateral: USDC,
+                    delay: 0,
+                    globalReceiver: OWNER,
+                    networkReceivers: networkReceivers,
+                    operatorNetworkReceivers: operatorNetworkReceivers
+                })
             );
     }
 
@@ -171,12 +171,12 @@ contract CreateHoodiAppAdapterVault is Script {
                     vault,
                     abi.encode(
                         IAppAdapter.InitParams({
-                        burner: burner,
-                        duration: DURATION,
-                        operator: OWNER,
-                        subnetwork: _subnetwork(OWNER, SUBNETWORK_IDENTIFIER),
-                        converters: converters
-                    })
+                            burner: burner,
+                            duration: DURATION,
+                            operator: OWNER,
+                            subnetwork: _subnetwork(OWNER, SUBNETWORK_IDENTIFIER),
+                            converters: converters
+                        })
                     )
                 )
             );

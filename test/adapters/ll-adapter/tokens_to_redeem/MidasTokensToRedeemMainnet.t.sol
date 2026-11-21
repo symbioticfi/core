@@ -288,8 +288,8 @@ contract MidasTokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         LiquidLaneAdapter(cycle.llAdapter)
             .swap(
                 ILiquidLaneAdapter.Swap({
-                recipient: recipient, tokenIn: MGLOBAL, amountIn: amountIn, amountOut: amountOut
-            })
+                    recipient: recipient, tokenIn: MGLOBAL, amountIn: amountIn, amountOut: amountOut
+                })
             );
 
         (requestId, expectedRedeemedAssets) =

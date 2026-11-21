@@ -77,15 +77,15 @@ contract DeployV1VaultLocalScript is Script {
         (address vault, address delegator, address slasher) = IVaultConfigurator(VAULT_CONFIGURATOR)
             .create(
                 IVaultConfigurator.InitParams({
-                version: 1,
-                owner: owner,
-                vaultParams: vaultParams,
-                delegatorIndex: 0,
-                delegatorParams: delegatorParams,
-                withSlasher: true,
-                slasherIndex: 1,
-                slasherParams: slasherParams
-            })
+                    version: 1,
+                    owner: owner,
+                    vaultParams: vaultParams,
+                    delegatorIndex: 0,
+                    delegatorParams: delegatorParams,
+                    withSlasher: true,
+                    slasherIndex: 1,
+                    slasherParams: slasherParams
+                })
             );
 
         vm.stopBroadcast();

@@ -44,6 +44,7 @@ contract FigureOracle is Oracle, IFigureOracle {
     /// @inheritdoc Oracle
     function _getPrice() internal view override returns (uint256) {
         return IFigureYieldVault(ASYNC_REDEEM_VAULT)
-            .convertToAssets(IERC4626(TOKEN_TO_REDEEM).convertToAssets(TOKEN_UNIT)).mulDiv(1e18, REDEMPTION_TOKEN_UNIT);
+            .convertToAssets(IERC4626(TOKEN_TO_REDEEM).convertToAssets(TOKEN_UNIT))
+            .mulDiv(1e18, REDEMPTION_TOKEN_UNIT);
     }
 }

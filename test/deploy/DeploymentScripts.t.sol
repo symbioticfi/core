@@ -435,36 +435,36 @@ contract DeploymentScriptsTest is Test {
         DeployAaveV3AdapterBase.DeploymentData memory aave = new DeployAaveV3AdapterBaseHarness(address(vaultFactory))
             .runBase(
                 DeployAaveV3AdapterBase.DeployParams({
-                adapterFactoryOwner: owner,
-                aavePool: address(0x5001),
-                cowSwapSettlement: address(0x5002),
-                merklDistributor: address(0x5004)
-            })
+                    adapterFactoryOwner: owner,
+                    aavePool: address(0x5001),
+                    cowSwapSettlement: address(0x5002),
+                    merklDistributor: address(0x5004)
+                })
             );
         DeployAppAdapterBase.DeploymentData memory app = new DeployAppAdapterBaseHarness(address(vaultFactory))
             .runBase(
                 DeployAppAdapterBase.DeployParams({
-                adapterFactoryOwner: owner,
-                cowSwapSettlement: address(0x6002),
-                networkMiddlewareService: address(0x6004)
-            })
+                    adapterFactoryOwner: owner,
+                    cowSwapSettlement: address(0x6002),
+                    networkMiddlewareService: address(0x6004)
+                })
             );
         DeployERC4626AdapterBase.DeploymentData memory erc4626 = new DeployERC4626AdapterBaseHarness(
                 address(vaultFactory)
             )
             .runBase(
                 DeployERC4626AdapterBase.DeployParams({
-                adapterFactoryOwner: owner, cowSwapSettlement: address(0x7002), merklDistributor: address(0x7004)
-            })
+                    adapterFactoryOwner: owner, cowSwapSettlement: address(0x7002), merklDistributor: address(0x7004)
+                })
             );
         DeployEulerAdapterBase.DeploymentData memory euler = new DeployEulerAdapterBaseHarness(address(vaultFactory))
             .runBase(
                 DeployEulerAdapterBase.DeployParams({
-                adapterFactoryOwner: owner,
-                eulerLendVaultFactory: address(0x8001),
-                cowSwapSettlement: address(0x8002),
-                merklDistributor: address(0x8004)
-            })
+                    adapterFactoryOwner: owner,
+                    eulerLendVaultFactory: address(0x8001),
+                    cowSwapSettlement: address(0x8002),
+                    merklDistributor: address(0x8004)
+                })
             );
         DeployLiquidLaneAdapterBase.DeploymentData memory liquidLane = new DeployLiquidLaneAdapterBaseHarness(
                 address(vaultFactory)
@@ -477,22 +477,22 @@ contract DeploymentScriptsTest is Test {
             )
             .runBase(
                 DeployMorphoVaultV2AdapterBase.DeployParams({
-                adapterFactoryOwner: owner,
-                morphoVaultFactory: address(0x9001),
-                morphoAdapterRegistry: address(0x9004),
-                cowSwapSettlement: address(0x9002),
-                merklDistributor: address(0x9005)
-            })
+                    adapterFactoryOwner: owner,
+                    morphoVaultFactory: address(0x9001),
+                    morphoAdapterRegistry: address(0x9004),
+                    cowSwapSettlement: address(0x9002),
+                    merklDistributor: address(0x9005)
+                })
             );
         DeployRestakingAppAdapterBase.DeploymentData memory restaking = new DeployRestakingAppAdapterBaseHarness(
                 address(vaultFactory)
             )
             .runBase(
                 DeployRestakingAppAdapterBase.DeployParams({
-                adapterFactoryOwner: owner,
-                cowSwapSettlement: address(0xA002),
-                networkMiddlewareService: address(0xA004)
-            })
+                    adapterFactoryOwner: owner,
+                    cowSwapSettlement: address(0xA002),
+                    networkMiddlewareService: address(0xA004)
+                })
             );
         DeployThreeFAdapterBase.DeploymentData memory threeF = new DeployThreeFAdapterBaseHarness(address(vaultFactory))
             .runBase(

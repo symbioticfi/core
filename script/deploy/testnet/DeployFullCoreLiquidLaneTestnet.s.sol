@@ -613,13 +613,13 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
         return TestnetBurnerRouterFactoryMock(burnerRouterFactory)
             .create(
                 TestnetBurnerRouterFactoryMock.InitParams({
-                owner: owner,
-                collateral: collateral,
-                delay: 0,
-                globalReceiver: globalReceiver,
-                networkReceivers: networkReceivers,
-                operatorNetworkReceivers: operatorNetworkReceivers
-            })
+                    owner: owner,
+                    collateral: collateral,
+                    delay: 0,
+                    globalReceiver: globalReceiver,
+                    networkReceivers: networkReceivers,
+                    operatorNetworkReceivers: operatorNetworkReceivers
+                })
             );
     }
 
@@ -639,12 +639,12 @@ contract DeployFullCoreLiquidLaneTestnetScript is Script {
                     vault,
                     abi.encode(
                         IAppAdapter.InitParams({
-                        burner: burner,
-                        duration: 1 days,
-                        operator: params.marketMaker,
-                        converters: converters,
-                        subnetwork: _testnetSubnetwork(params.owner, subnetworkId)
-                    })
+                            burner: burner,
+                            duration: 1 days,
+                            operator: params.marketMaker,
+                            converters: converters,
+                            subnetwork: _testnetSubnetwork(params.owner, subnetworkId)
+                        })
                     )
                 )
             );

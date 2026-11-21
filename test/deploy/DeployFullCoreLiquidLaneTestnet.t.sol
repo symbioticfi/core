@@ -849,13 +849,13 @@ contract DeployFullCoreLiquidLaneTestnetTest is Test {
         return TestnetBurnerRouterFactoryMock(burnerRouterFactory)
             .create(
                 TestnetBurnerRouterFactoryMock.InitParams({
-                owner: owner,
-                collateral: collateral,
-                delay: 0,
-                globalReceiver: owner,
-                networkReceivers: networkReceivers,
-                operatorNetworkReceivers: operatorNetworkReceivers
-            })
+                    owner: owner,
+                    collateral: collateral,
+                    delay: 0,
+                    globalReceiver: owner,
+                    networkReceivers: networkReceivers,
+                    operatorNetworkReceivers: operatorNetworkReceivers
+                })
             );
     }
 

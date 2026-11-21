@@ -1239,15 +1239,15 @@ contract DeployV1VaultsChaosTestnetScript is Script {
         (record.vault, record.delegator, record.slasher) = IVaultConfigurator(configurator)
             .create(
                 IVaultConfigurator.InitParams({
-                version: plan.vaultVersion,
-                owner: executor,
-                vaultParams: _vaultParams(executor, plan),
-                delegatorIndex: plan.delegatorType,
-                delegatorParams: _delegatorParams(executor, plan),
-                withSlasher: withSlasher,
-                slasherIndex: slasherIndex,
-                slasherParams: withSlasher ? _slasherParams(plan) : bytes("")
-            })
+                    version: plan.vaultVersion,
+                    owner: executor,
+                    vaultParams: _vaultParams(executor, plan),
+                    delegatorIndex: plan.delegatorType,
+                    delegatorParams: _delegatorParams(executor, plan),
+                    withSlasher: withSlasher,
+                    slasherIndex: slasherIndex,
+                    slasherParams: withSlasher ? _slasherParams(plan) : bytes("")
+                })
             );
         record.asset = plan.asset;
         record.vaultVersion = plan.vaultVersion;

@@ -75,7 +75,8 @@ contract FrontendLiquidityLens {
         return acquired
             + Math.min(
             maxAssets,
-            ILiquidLaneAdapter(adapter).limit(tokenToRedeem)
+            ILiquidLaneAdapter(adapter)
+                .limit(tokenToRedeem)
                 .saturatingSub(IAccount(ILiquidLaneAdapter(adapter).accounts(tokenToRedeem)).totalAssets())
         );
     }

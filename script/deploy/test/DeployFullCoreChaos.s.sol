@@ -447,12 +447,12 @@ contract DeployFullCoreChaosScript is Script {
                     vault.vault,
                     abi.encode(
                         IAppAdapter.InitParams({
-                        burner: ctx.actors.burner,
-                        duration: uint48(1 + (ctx.seed + i) % 365 days),
-                        operator: ctx.actors.operator,
-                        converters: converters,
-                        subnetwork: ctx.actors.network.subnetwork(uint96(ctx.seed + i))
-                    })
+                            burner: ctx.actors.burner,
+                            duration: uint48(1 + (ctx.seed + i) % 365 days),
+                            operator: ctx.actors.operator,
+                            converters: converters,
+                            subnetwork: ctx.actors.network.subnetwork(uint96(ctx.seed + i))
+                        })
                     )
                 )
             );
@@ -492,8 +492,8 @@ contract DeployFullCoreChaosScript is Script {
         DeployMorphoVaultV2MocksBaseScript.DeploymentData memory morphoMocks = new DeployMorphoVaultV2MocksBaseScript()
             .runBase(
                 DeployMorphoVaultV2MocksBaseScript.DeployParams({
-                collateral: vault.asset, adapterRegistryOwner: ctx.owner
-            })
+                    collateral: vault.asset, adapterRegistryOwner: ctx.owner
+                })
             );
         factory =
         new DeployFullCoreChaosMorphoVaultV2AdapterScript(address(core.vaultFactory))
