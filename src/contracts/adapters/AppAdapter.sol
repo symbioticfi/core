@@ -84,21 +84,24 @@ contract AppAdapter is Adapter, CoWSwapConverter, IAppAdapter {
     /// @dev Computes the slashable stake for the current stake.
     function _slashable() internal view returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.latest()];
-        return curStake.initialStake.saturatingSub(curStake.slashed.latest())
+        return curStake.initialStake
+            .saturatingSub(curStake.slashed.latest())
             .saturatingSub(curStake.debt.upperLookupRecent(block.timestamp));
     }
 
     /// @inheritdoc IAppAdapter
     function stake() public view virtual returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.latest()];
-        return curStake.initialStake.saturatingSub(curStake.slashed.latest())
+        return curStake.initialStake
+            .saturatingSub(curStake.slashed.latest())
             .saturatingSub(curStake.debt.upperLookupRecent(block.timestamp + duration - 1));
     }
 
     /// @inheritdoc IAppAdapter
     function stakeAt(uint48 timestamp) public view virtual returns (uint256) {
         Stake storage curStake = _stakes[_stakePos.upperLookupRecent(timestamp)];
-        return curStake.initialStake.saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
+        return curStake.initialStake
+            .saturatingSub(curStake.slashed.upperLookupRecent(timestamp))
             .saturatingSub(curStake.debt.upperLookupRecent(timestamp + duration - 1));
     }
 

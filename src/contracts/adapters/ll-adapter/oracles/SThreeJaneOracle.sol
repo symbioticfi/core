@@ -43,7 +43,8 @@ contract SThreeJaneOracle is Oracle, ISThreeJaneOracle {
     /// @inheritdoc Oracle
     function _getPrice() internal view override returns (uint256) {
         return
-            IERC4626(USD3).convertToAssets(IERC4626(TOKEN_TO_REDEEM).convertToAssets(TOKEN_UNIT))
+            IERC4626(USD3)
+                .convertToAssets(IERC4626(TOKEN_TO_REDEEM).convertToAssets(TOKEN_UNIT))
                 .mulDiv(1e18, USDC_UNIT);
     }
 }

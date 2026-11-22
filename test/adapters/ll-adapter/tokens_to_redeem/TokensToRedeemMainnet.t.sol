@@ -1795,7 +1795,8 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         uint256 requestId = IEtherFiAccount(payable(address(account))).requestIds(0);
         IEtherFiWithdrawRequestNFT.WithdrawRequest memory request = IEtherFiWithdrawRequestNFT(
                 IEtherFiAccount(payable(address(account))).WITHDRAW_REQUEST_NFT()
-            ).getRequest(requestId);
+            )
+            .getRequest(requestId);
 
         assertTrue(request.isValid, symbol);
         assertGt(IEtherFiAccount(payable(address(account))).pendingAssets(), 0, symbol);
@@ -1830,7 +1831,8 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         uint256 requestId = INoonAccount(address(account)).requestIds(0);
         INoonWithdrawalHandler.WithdrawalRequest memory request = INoonWithdrawalHandler(
                 INoonAccount(address(account)).WITHDRAWAL_HANDLER()
-            ).getWithdrawalRequest(address(account), requestId);
+            )
+            .getWithdrawalRequest(address(account), requestId);
 
         assertFalse(request.claimed, symbol);
         assertGt(request.amount, 0, symbol);

@@ -22,7 +22,8 @@ contract DeployVaultV2Base is Script {
         vm.startBroadcast();
 
         address vault_ = address(
-            SymbioticCoreConstants.core().vaultFactory
+            SymbioticCoreConstants.core()
+                .vaultFactory
                 .create(_getVaultVersion(), params.owner, _getVaultParamsEncoded(params))
         );
         address delegator_ = IVaultV2(vault_).delegator();

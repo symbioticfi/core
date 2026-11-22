@@ -131,7 +131,8 @@ contract LiquidLaneAdapter is Adapter, EIP712Upgradeable, PausableUpgradeable, I
 
     /// @inheritdoc ILiquidLaneAdapter
     function getMaxRate(address tokenToRedeem) public view returns (uint256) {
-        return IOracle(IAccount(accounts[tokenToRedeem]).ORACLE()).getPrice()
+        return IOracle(IAccount(accounts[tokenToRedeem]).ORACLE())
+            .getPrice()
             .mulDiv(DISCOUNT_PRECISION - minDiscount[tokenToRedeem], DISCOUNT_PRECISION);
     }
 

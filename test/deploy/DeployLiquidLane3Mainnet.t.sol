@@ -26,12 +26,15 @@ contract DeployLiquidLane3MainnetHarness is DeployLiquidLane3Script {
 }
 
 contract DeployLiquidLane3MainnetTest is Test {
-    function testDeploysCompleteCurrentMainnetConfiguration() public {
+    // Replay the deployment with the audited Pareto implementations.
+    uint256 internal constant MAINNET_TEST_BLOCK = 25_700_000;
+
+    function testDeploysCompleteMainnetConfiguration() public {
         string memory rpcUrl = vm.envOr("ETH_RPC_URL", string(""));
         if (bytes(rpcUrl).length == 0) {
             vm.skip(true);
         }
-        vm.createSelectFork(rpcUrl);
+        vm.createSelectFork(rpcUrl, MAINNET_TEST_BLOCK);
 
         DeployLiquidLane3MainnetHarness harness = new DeployLiquidLane3MainnetHarness();
         DeployLiquidLane3Script.LiquidLane3DeploymentData memory data = harness.run();

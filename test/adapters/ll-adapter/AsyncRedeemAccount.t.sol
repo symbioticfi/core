@@ -480,7 +480,8 @@ contract AsyncRedeemAccountTest is AccountsBase {
                     _centrifugeAccountAddress(
                         new JTRSY_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
                     )
-                ).TOKEN_TO_REDEEM(),
+                )
+                .TOKEN_TO_REDEEM(),
             JTRSY_TOKEN_ADDRESS
         );
         assertEq(
@@ -488,7 +489,8 @@ contract AsyncRedeemAccountTest is AccountsBase {
                     _centrifugeAccountAddress(
                         new JAAA_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
                     )
-                ).TOKEN_TO_REDEEM(),
+                )
+                .TOKEN_TO_REDEEM(),
             JAAA_TOKEN_ADDRESS
         );
         assertEq(
@@ -496,7 +498,8 @@ contract AsyncRedeemAccountTest is AccountsBase {
                     _centrifugeAccountAddress(
                         new ACRDX_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
                     )
-                ).TOKEN_TO_REDEEM(),
+                )
+                .TOKEN_TO_REDEEM(),
             ACRDX_TOKEN_ADDRESS
         );
         assertEq(
@@ -504,7 +507,8 @@ contract AsyncRedeemAccountTest is AccountsBase {
                     _centrifugeAccountAddress(
                         new deCRDX_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
                     )
-                ).TOKEN_TO_REDEEM(),
+                )
+                .TOKEN_TO_REDEEM(),
             DECRDX_TOKEN_ADDRESS
         );
         assertEq(
@@ -514,7 +518,8 @@ contract AsyncRedeemAccountTest is AccountsBase {
                             address(oracle), address(factory), address(1), address(2), cowSwapSettlement
                         )
                     )
-                ).TOKEN_TO_REDEEM(),
+                )
+                .TOKEN_TO_REDEEM(),
             DEJTRSY_TOKEN_ADDRESS
         );
         assertEq(
@@ -522,7 +527,8 @@ contract AsyncRedeemAccountTest is AccountsBase {
                     _centrifugeAccountAddress(
                         new deJAAA_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
                     )
-                ).TOKEN_TO_REDEEM(),
+                )
+                .TOKEN_TO_REDEEM(),
             DEJAAA_TOKEN_ADDRESS
         );
     }

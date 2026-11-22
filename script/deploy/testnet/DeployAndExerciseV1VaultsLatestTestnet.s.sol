@@ -309,15 +309,15 @@ contract DeployAndExerciseV1VaultsLatestTestnetScript is Script {
         (address vault, address delegator, address slasher) = IVaultConfigurator(core.vaultConfigurator)
             .create(
                 IVaultConfigurator.InitParams({
-                version: config.vaultVersion,
-                owner: owner,
-                vaultParams: config.vaultParams,
-                delegatorIndex: config.delegatorType,
-                delegatorParams: config.delegatorParams,
-                withSlasher: config.withSlasher,
-                slasherIndex: config.slasherType,
-                slasherParams: config.slasherParams
-            })
+                    version: config.vaultVersion,
+                    owner: owner,
+                    vaultParams: config.vaultParams,
+                    delegatorIndex: config.delegatorType,
+                    delegatorParams: config.delegatorParams,
+                    withSlasher: config.withSlasher,
+                    slasherIndex: config.slasherType,
+                    slasherParams: config.slasherParams
+                })
             );
 
         vaultData = V1Vault({

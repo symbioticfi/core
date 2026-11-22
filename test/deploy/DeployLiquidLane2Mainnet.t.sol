@@ -16,12 +16,15 @@ contract DeployLiquidLane2MainnetHarness is DeployLiquidLane2Script {
 }
 
 contract DeployLiquidLane2MainnetTest is Test {
-    function testDeploysCompleteCurrentMainnetConfiguration() public {
+    // Replay the Liquid Lane 2 deployment configuration at a fixed historical block.
+    uint256 internal constant MAINNET_TEST_BLOCK = 25_700_000;
+
+    function testDeploysCompleteMainnetConfiguration() public {
         string memory rpcUrl = vm.envOr("ETH_RPC_URL", string(""));
         if (bytes(rpcUrl).length == 0) {
             vm.skip(true);
         }
-        vm.createSelectFork(rpcUrl);
+        vm.createSelectFork(rpcUrl, MAINNET_TEST_BLOCK);
 
         DeployLiquidLane2Script.LiquidLane2DeploymentData memory data = (new DeployLiquidLane2MainnetHarness()).run();
         DeployLiquidLane2Script.AccountDeploymentData[8] memory deployments =

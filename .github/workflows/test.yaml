@@ -12,6 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  FOUNDRY_VERSION: v1.10.0
   FOUNDRY_PROFILE: ${{ github.event_name == 'push' && 'ci' || 'pr' }}
 
 jobs:
@@ -20,15 +21,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: bullfrogsec/bullfrog@7dee337d4575320b6d8cbe9a56d48d2fb765963a # v0.11.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@82dee4ba654bd2146511f85f0d013af94670c4de # v1.4.0
+        uses: foundry-rs/foundry-toolchain@dba66c27052e63476d886f22216e119ba7e615bf # v1.9.2
         with:
-          version: v1.7.1
+          version: ${{ env.FOUNDRY_VERSION }}
 
       - name: Run Forge fmt check
         run: forge fmt --check
@@ -70,17 +71,17 @@ jobs:
       # Note: --compute-units-per-second and --fork-retries cannot be used here. They are
       # gated behind --rpc-url, and --rpc-url is an alias for --fork-url, which would fork
       # every test rather than only the ones that call vm.createSelectFork.
-      FORK_TEST_FLAGS: --threads 2
+      FORK_TEST_THREADS: 2
     steps:
-      - uses: bullfrogsec/bullfrog@1831f79cce8ad602eef14d2163873f27081ebfb3 # v0.8.4
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: bullfrogsec/bullfrog@7dee337d4575320b6d8cbe9a56d48d2fb765963a # v0.11.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@82dee4ba654bd2146511f85f0d013af94670c4de # v1.4.0
+        uses: foundry-rs/foundry-toolchain@dba66c27052e63476d886f22216e119ba7e615bf # v1.9.2
         with:
-          version: v1.7.1
+          version: ${{ env.FOUNDRY_VERSION }}
 
       # Restore and save are split so the cache is written even when the suite fails.
       # actions/cache skips its post-run save on job failure, so while the suites were
@@ -88,7 +89,7 @@ jobs:
       # rate limit - which failed the job, which skipped the save. A partial cache from
       # a failed run still removes most of the requests the next run would make.
       - name: Restore Foundry RPC cache
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.foundry/cache/rpc
           key: ${{ runner.os }}-foundry-rpc-mainnet-${{ env.MAINNET_FORK_BLOCK }}-${{ matrix.suite.id }}
@@ -107,7 +108,7 @@ jobs:
           log="$RUNNER_TEMP/forge-attempt.log"
           for attempt in 1 2 3; do
             set +e
-            ${{ matrix.suite.command }} $FORK_TEST_FLAGS 2>&1 | tee "$log"
+            ${{ matrix.suite.command }} --threads "$FORK_TEST_THREADS" 2>&1 | tee "$log"
             status=${PIPESTATUS[0]}
             set -e
             if [ "$status" -eq 0 ]; then
@@ -127,7 +128,7 @@ jobs:
 
       - name: Save Foundry RPC cache
         if: always()
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.foundry/cache/rpc
           # Unique per run: cache/save errors on an existing key, and restore-keys above
