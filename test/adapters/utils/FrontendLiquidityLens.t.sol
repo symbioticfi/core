@@ -48,6 +48,7 @@ contract MockLaneAccount {
 contract MockSweepingDelegator {
     MockLaneAccount internal immutable ACCOUNT;
     uint256 internal immutable SETTLED;
+    uint256 public sweeps;
 
     constructor(MockLaneAccount account, uint256 settled) {
         ACCOUNT = account;
@@ -55,6 +56,7 @@ contract MockSweepingDelegator {
     }
 
     function sweepPending() external returns (uint256) {
+        ++sweeps;
         ACCOUNT.settle(SETTLED);
         return 0;
     }
@@ -584,6 +586,130 @@ contract FrontendLiquidityLensTest is Test {
     }
 
     /* SOURCE PROBES */
+
+    function _mockBatchToken(address token, address account, uint256 acquired, uint256 limit, uint256 assets) internal {
+        vm.mockCall(TARGET, abi.encodeCall(Ownable.owner, ()), abi.encode(PROXY_OWNER));
+        vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.marketMaker, ()), abi.encode(PROXY_OWNER));
+        vm.mockCall(
+            TARGET, abi.encodeCall(ILiquidLaneAdapter.acquireBalance, (token, PROXY_OWNER)), abi.encode(acquired)
+        );
+        vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.limit, (token)), abi.encode(limit));
+        vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.accounts, (token)), abi.encode(account));
+        vm.mockCall(account, abi.encodeCall(IAccount.totalAssets, ()), abi.encode(assets));
+    }
+
+    function test_LiquidLaneBatchSweepsOnceAndPreservesTokenOrder() public {
+        MockLaneAccount account = new MockLaneAccount(60_000e6);
+        MockSweepingDelegator sweeping = new MockSweepingDelegator(account, 20_000e6);
+        vm.mockCall(VAULT, abi.encodeCall(IVaultV2.delegator, ()), abi.encode(address(sweeping)));
+        vm.mockCall(VAULT, abi.encodeCall(IVaultV2.freeAssets, ()), abi.encode(uint256(500_000e6)));
+        // Leave the real account unmocked to observe its post-sweep assets.
+        vm.mockCall(TARGET, abi.encodeCall(Ownable.owner, ()), abi.encode(PROXY_OWNER));
+        vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.marketMaker, ()), abi.encode(PROXY_OWNER));
+        vm.mockCall(
+            TARGET, abi.encodeCall(ILiquidLaneAdapter.acquireBalance, (TOKEN, PROXY_OWNER)), abi.encode(uint256(7000e6))
+        );
+        vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.limit, (TOKEN)), abi.encode(uint256(90_000e6)));
+        vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.accounts, (TOKEN)), abi.encode(address(account)));
+        address second = address(0x70CEA);
+        _mockBatchToken(second, ACCOUNT, 3000e6, 10_000e6, 20_000e6);
+        address[] memory tokens = new address[](3);
+        tokens[0] = second;
+        tokens[1] = TOKEN;
+        tokens[2] = TOKEN;
+        FrontendLiquidityLens.MaxAssetsResult[] memory results = lens.getMaxAssetsBatch(TARGET, tokens);
+        assertEq(results.length, 3);
+        assertTrue(results[0].success);
+        assertEq(results[0].maxAssets, 3000e6);
+        assertTrue(results[1].success);
+        assertEq(results[1].maxAssets, 77_000e6);
+        assertEq(results[2].maxAssets, 77_000e6);
+        assertEq(sweeping.sweeps(), 1);
+    }
+
+    function test_LiquidLaneBatchIsolatesTokenFailuresAndOverflow() public {
+        vm.mockCall(VAULT, abi.encodeCall(IVaultV2.freeAssets, ()), abi.encode(uint256(100)));
+        address badToken = address(0xBAD);
+        address overflowToken = address(0x0F10);
+        _mockBatchToken(TOKEN, ACCOUNT, 12, 80, 30);
+        _mockBatchToken(badToken, ACCOUNT, 12, 80, 30);
+        vm.mockCallRevert(TARGET, abi.encodeCall(ILiquidLaneAdapter.limit, (badToken)), "bad token limit");
+        _mockBatchToken(overflowToken, ACCOUNT, type(uint256).max, 80, 30);
+        address[] memory tokens = new address[](3);
+        tokens[0] = badToken;
+        tokens[1] = overflowToken;
+        tokens[2] = TOKEN;
+        FrontendLiquidityLens.MaxAssetsResult[] memory results = lens.getMaxAssetsBatch(TARGET, tokens);
+        assertFalse(results[0].success);
+        assertFalse(results[1].success);
+        assertTrue(results[2].success);
+        assertEq(results[2].maxAssets, 62);
+    }
+
+    function test_LiquidLaneBatchZeroCapacityKeepsAcquireOnly() public {
+        vm.mockCall(DELEGATOR, abi.encodeCall(IUniversalDelegator.sweepPending, ()), abi.encode(uint256(1)));
+        vm.mockCall(TARGET, abi.encodeCall(Ownable.owner, ()), abi.encode(PROXY_OWNER));
+        vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.marketMaker, ()), abi.encode(PROXY_OWNER));
+        vm.mockCall(
+            TARGET, abi.encodeCall(ILiquidLaneAdapter.acquireBalance, (TOKEN, PROXY_OWNER)), abi.encode(uint256(12))
+        );
+        address[] memory tokens = new address[](1);
+        tokens[0] = TOKEN;
+        FrontendLiquidityLens.MaxAssetsResult[] memory results = lens.getMaxAssetsBatch(TARGET, tokens);
+        assertTrue(results[0].success);
+        assertEq(results[0].maxAssets, 12);
+    }
+
+    function test_LiquidLaneBatchEmptyDoesNotReadAdapter() public {
+        assertEq(lens.getMaxAssetsBatch(address(0), new address[](0)).length, 0);
+    }
+
+    function test_LiquidLaneBatchAddsDistinctMarketMakerAndIsolatesMalformedReads() public {
+        vm.mockCall(VAULT, abi.encodeCall(IVaultV2.freeAssets, ()), abi.encode(uint256(40)));
+        _mockBatchToken(TOKEN, ACCOUNT, 5, 80, 30);
+        address maker = address(0x33333);
+        vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.marketMaker, ()), abi.encode(maker));
+        vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.acquireBalance, (TOKEN, maker)), abi.encode(uint256(7)));
+        address badToken = address(0xBAD);
+        vm.mockCall(TARGET, abi.encodeCall(ILiquidLaneAdapter.acquireBalance, (badToken, PROXY_OWNER)), hex"01");
+        address[] memory tokens = new address[](2);
+        tokens[0] = badToken;
+        tokens[1] = TOKEN;
+        FrontendLiquidityLens.MaxAssetsResult[] memory results = lens.getMaxAssetsBatch(TARGET, tokens);
+        assertFalse(results[0].success);
+        assertTrue(results[1].success);
+        assertEq(results[1].maxAssets, 52);
+    }
+
+    function test_LiquidLaneBatchBubblesSharedFailure() public {
+        vm.mockCallRevert(
+            DELEGATOR, abi.encodeCall(IUniversalDelegator.sweepPending, ()), "shared capacity unavailable"
+        );
+        address[] memory tokens = new address[](1);
+        tokens[0] = TOKEN;
+        vm.expectRevert("shared capacity unavailable");
+        lens.getMaxAssetsBatch(TARGET, tokens);
+    }
+
+    function test_TokenCapacityHelperRejectsExternalCallers() public {
+        vm.expectRevert(FrontendLiquidityLens.NotSelf.selector);
+        lens.getTokenMaxAssets(TARGET, TOKEN, type(uint256).max);
+    }
+
+    function testFuzz_LiquidLaneBatchMatchesSingleTokenGetter(uint96 free, uint96 acquired, uint96 limit, uint96 used)
+        public
+    {
+        vm.mockCall(VAULT, abi.encodeCall(IVaultV2.freeAssets, ()), abi.encode(uint256(free)));
+        _mockBatchToken(TOKEN, ACCOUNT, acquired, limit, used);
+        address[] memory tokens = new address[](1);
+        tokens[0] = TOKEN;
+        FrontendLiquidityLens.MaxAssetsResult[] memory results = lens.getMaxAssetsBatch(TARGET, tokens);
+        assertTrue(results[0].success);
+        uint256 headroom = limit > used ? uint256(limit) - used : 0;
+        uint256 expected = uint256(acquired) + (free < headroom ? free : headroom);
+        assertEq(results[0].maxAssets, expected);
+        assertEq(results[0].maxAssets, lens.getMaxAssets(TARGET, TOKEN));
+    }
 
     function _mockAave(address adapter, address aToken, address pool, uint256 configuration) internal {
         // The adapter needs reverting code so unmatched type probes are caught and `_leg` reaches Aave;

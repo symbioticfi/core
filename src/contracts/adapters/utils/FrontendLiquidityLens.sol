@@ -41,6 +41,13 @@ interface IMorphoMarketV1ExpectedAssets {
 contract FrontendLiquidityLens {
     using Math for uint256;
 
+    error NotSelf();
+
+    struct MaxAssetsResult {
+        bool success;
+        uint256 maxAssets;
+    }
+
     uint256 internal constant AAVE_ACTIVE_MASK = 1 << 56;
     uint256 internal constant AAVE_PAUSED_MASK = 1 << 60;
 
@@ -62,14 +69,54 @@ contract FrontendLiquidityLens {
     }
 
     function getMaxAssets(address adapter, address tokenToRedeem) external returns (uint256) {
+        uint256 acquired = _acquired(adapter, tokenToRedeem);
+        return _tokenMaxAssets(adapter, tokenToRedeem, acquired, _getMaxAssets(adapter));
+    }
+
+    /// @notice Quotes each token independently after one shared adapter-capacity calculation.
+    /// @dev Results preserve input order. A token read or arithmetic failure only marks that token
+    ///      unsuccessful; a shared capacity failure reverts the batch. No state is cached across calls.
+    function getMaxAssetsBatch(address adapter, address[] calldata tokensToRedeem)
+        external
+        returns (MaxAssetsResult[] memory results)
+    {
+        results = new MaxAssetsResult[](tokensToRedeem.length);
+        if (results.length == 0) return results;
+
+        uint256 maxAssets = _getMaxAssets(adapter);
+        for (uint256 i; i < tokensToRedeem.length; ++i) {
+            try this.getTokenMaxAssets(adapter, tokensToRedeem[i], maxAssets) returns (uint256 assets) {
+                results[i] = MaxAssetsResult(true, assets);
+            } catch {}
+        }
+    }
+
+    /// @dev Self-call boundary lets the batch catch per-token failures, including uint256 overflow.
+    ///      Acquire balances are storage values unchanged by sweepPending; account assets are read
+    ///      after that shared sweep. The supplied capacity is only accepted from this lens itself.
+    function getTokenMaxAssets(address adapter, address tokenToRedeem, uint256 maxAssets)
+        external
+        view
+        returns (uint256)
+    {
+        if (msg.sender != address(this)) revert NotSelf();
+        return _tokenMaxAssets(adapter, tokenToRedeem, _acquired(adapter, tokenToRedeem), maxAssets);
+    }
+
+    function _acquired(address adapter, address tokenToRedeem) private view returns (uint256 acquired) {
         address owner = Ownable(adapter).owner();
-        uint256 acquired = ILiquidLaneAdapter(adapter).acquireBalance(tokenToRedeem, owner);
+        acquired = ILiquidLaneAdapter(adapter).acquireBalance(tokenToRedeem, owner);
         address marketMaker = ILiquidLaneAdapter(adapter).marketMaker();
         if (marketMaker != owner) {
             acquired += ILiquidLaneAdapter(adapter).acquireBalance(tokenToRedeem, marketMaker);
         }
+    }
 
-        uint256 maxAssets = _getMaxAssets(adapter);
+    function _tokenMaxAssets(address adapter, address tokenToRedeem, uint256 acquired, uint256 maxAssets)
+        private
+        view
+        returns (uint256)
+    {
         if (maxAssets == 0) return acquired;
 
         return acquired
