@@ -1,13 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @dev Mainnet-fork suite: requires `ETH_RPC_URL` (skipped otherwise). Last updated for the
-///      infiniFi locked iUSD change (liUSD-4w/liUSD-13w on InfiniFiAccount): their redemption
-///      notice is a gateway `startUnwinding` call keyed by the block timestamp. Previously
-///      updated for the cutoff-based redemptions change (ACRED/USCC/bEQTY on SettlementAccount +
-///      CutoffAccount, mGLOBAL on CutoffMidasAccount): oracles passed to those accounts must
-///      expose `getPriceData()`, and ACRED's notice is an ERC-20 transfer to the Securitize
-///      redemption wallet. Re-run on fork after any change to those accounts.
+/// @dev Mainnet-fork suite for the retained Liquid Lane token accounts. Set ETH_RPC_URL to run it.
+
 import {MGlobalDataFeedHelper} from "../../../helpers/MGlobalDataFeedHelper.sol";
 
 import {ACRDX_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
@@ -69,8 +64,6 @@ import {ICutoffAccount} from "../../../../src/interfaces/adapters/ll-adapter/ICu
 import {IERC7575Share} from "../../../../src/interfaces/adapters/ll-adapter/IERC7575Share.sol";
 import {IFigureAccount} from "../../../../src/interfaces/adapters/ll-adapter/figure/IFigureAccount.sol";
 import {IFigureYieldVault} from "../../../../src/interfaces/adapters/ll-adapter/figure/IFigureYieldVault.sol";
-import {ILidoAccount} from "../../../../src/interfaces/adapters/ll-adapter/lido/ILidoAccount.sol";
-import {ILidoWithdrawalQueue} from "../../../../src/interfaces/adapters/ll-adapter/lido/ILidoWithdrawalQueue.sol";
 import {
     IMidasAccount,
     REQUEST_STATUS_PENDING
@@ -905,10 +898,6 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             );
             return;
         }
-        vm.expectCall(
-            ILidoAccount(payable(address(account))).WITHDRAWAL_QUEUE(),
-            bytes.concat(ILidoWithdrawalQueue.requestWithdrawalsWstETH.selector)
-        );
     }
 
     function _assertRedemptionPostState(
@@ -937,7 +926,6 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
             _assertParetoRedemption(account, symbol);
             return;
         }
-        _assertLidoRedemption(account, symbol);
     }
 
     function _assertCloseRedemptionPostState(
@@ -1057,20 +1045,6 @@ contract TokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     function _permissionParetoAccount(address account) internal {
         vm.mockCall(PARETO_FALCONX_CDO, abi.encodeCall(IParetoCDO.isEpochRunning, ()), abi.encode(true));
         vm.mockCall(PARETO_FALCONX_CDO, abi.encodeCall(IParetoCDO.isWalletAllowed, (account)), abi.encode(true));
-    }
-
-    function _assertLidoRedemption(IAccount account, string memory symbol) internal view {
-        uint256 requestId = ILidoAccount(payable(address(account))).requestIds(0);
-        uint256[] memory ids = new uint256[](1);
-        ids[0] = requestId;
-
-        ILidoWithdrawalQueue.WithdrawalRequestStatus[] memory statuses =
-            ILidoWithdrawalQueue(ILidoAccount(payable(address(account))).WITHDRAWAL_QUEUE()).getWithdrawalStatus(ids);
-
-        assertEq(statuses[0].owner, address(account), symbol);
-        assertFalse(statuses[0].isClaimed, symbol);
-        assertGt(statuses[0].amountOfStETH, 0, symbol);
-        assertGt(account.totalAssets(), 0, symbol);
     }
 
     function _skipWithoutRpc(string memory rpcUrl, string memory reason) internal {
