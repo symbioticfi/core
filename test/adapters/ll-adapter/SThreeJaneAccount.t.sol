@@ -3,7 +3,6 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
-import {SThreeJaneOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/SThreeJaneOracle.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 contract SThreeJaneAccountTest is AccountsBase {
@@ -211,24 +210,5 @@ contract SThreeJaneAccountTest is AccountsBase {
         assertEq(usd3.balanceOf(address(account)), 0);
         assertEq(usdc.balanceOf(address(account)), 1001e6);
         assertEq(account.totalAssets(), 1001e6);
-    }
-
-    function testSUSD3AccountHardcodesCurrentSThreeJaneJuniorToken() public {
-        address usd3 = makeAddr("USD3");
-        address usdc = makeAddr("USDC");
-        _mockDecimals(SUSD3_TOKEN_ADDRESS, 6);
-        vm.mockCall(SUSD3_TOKEN_ADDRESS, abi.encodeCall(IERC4626.asset, ()), abi.encode(usd3));
-        vm.mockCall(usd3, abi.encodeCall(IERC4626.asset, ()), abi.encode(usdc));
-        _mockDecimals(usdc, 6);
-
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        sUSD3_Account account = new sUSD3_Account(address(factory), cowSwapSettlement);
-        SThreeJaneOracle oracle = SThreeJaneOracle(account.ORACLE());
-
-        assertEq(account.TOKEN_TO_REDEEM(), SUSD3_TOKEN_ADDRESS);
-        assertEq(account.USD3(), usd3);
-        assertEq(account.REDEMPTION_TOKEN(), usdc);
-        assertEq(oracle.MIN_PRICE(), 0.5e18);
-        assertEq(oracle.MAX_PRICE(), 2.5e18);
     }
 }

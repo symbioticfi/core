@@ -10,7 +10,7 @@ contract LidoAccountTest is AccountsBase {
         MockWstETH wstETH = new MockWstETH(address(stETH));
         MockLidoWithdrawalQueue withdrawalQueue = new MockLidoWithdrawalQueue(address(wstETH), address(stETH));
         MockOracle oracle = new MockOracle(1e18);
-        wstETH_Account account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
+        MockWstETHAccount account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
 
         wstETH.mint(address(account), 25 ether);
         account.sync();
@@ -28,7 +28,7 @@ contract LidoAccountTest is AccountsBase {
         MockWstETH wstETH = new MockWstETH(address(stETH));
         MockLidoWithdrawalQueue withdrawalQueue = new MockLidoWithdrawalQueue(address(wstETH), address(stETH));
         MockOracle oracle = new MockOracle(1e18);
-        wstETH_Account account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
+        MockWstETHAccount account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
 
         wstETH.mint(address(account), 25 ether);
 
@@ -55,7 +55,7 @@ contract LidoAccountTest is AccountsBase {
         MockWstETH wstETH = new MockWstETH(address(stETH));
         MockLidoWithdrawalQueue withdrawalQueue = new MockLidoWithdrawalQueue(address(wstETH), address(stETH));
         MockOracle oracle = new MockOracle(2e18);
-        wstETH_Account account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
+        MockWstETHAccount account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
 
         wstETH.mint(address(account), 25 ether);
         account.sync();
@@ -77,7 +77,7 @@ contract LidoAccountTest is AccountsBase {
         MockWstETH wstETH = new MockWstETH(address(stETH));
         MockLidoWithdrawalQueue withdrawalQueue = new MockLidoWithdrawalQueue(address(wstETH), address(stETH));
         MockOracle oracle = new MockOracle(1e18);
-        wstETH_Account account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
+        MockWstETHAccount account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
 
         wstETH.mint(address(account), 25 ether);
         account.sync();
@@ -96,7 +96,7 @@ contract LidoAccountTest is AccountsBase {
         MockWstETH wstETH = new MockWstETH(address(stETH));
         MockLidoWithdrawalQueue withdrawalQueue = new MockLidoWithdrawalQueue(address(wstETH), address(stETH));
         MockOracle oracle = new MockOracle(1e18);
-        wstETH_Account account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
+        MockWstETHAccount account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
 
         wstETH.mint(address(account), 25 ether);
         account.sync();
@@ -113,7 +113,7 @@ contract LidoAccountTest is AccountsBase {
         MockWstETH wstETH = new MockWstETH(address(stETH));
         MockLidoWithdrawalQueue withdrawalQueue = new MockLidoWithdrawalQueue(address(wstETH), address(stETH));
         MockOracle oracle = new MockOracle(1e18);
-        wstETH_Account account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
+        MockWstETHAccount account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
 
         wstETH.mint(address(account), 25 ether);
         account.sync();
@@ -130,7 +130,7 @@ contract LidoAccountTest is AccountsBase {
         MockWstETH wstETH = new MockWstETH(address(stETH));
         MockLidoWithdrawalQueue withdrawalQueue = new MockLidoWithdrawalQueue(address(wstETH), address(stETH));
         MockOracle oracle = new MockOracle(1e18);
-        wstETH_Account account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
+        MockWstETHAccount account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
 
         wstETH.mint(address(account), 2500 ether);
         account.sync();
@@ -149,7 +149,7 @@ contract LidoAccountTest is AccountsBase {
         MockWstETH wstETH = new MockWstETH(address(stETH));
         MockLidoWithdrawalQueue withdrawalQueue = new MockLidoWithdrawalQueue(address(wstETH), address(stETH));
         MockOracle oracle = new MockOracle(1e18);
-        wstETH_Account account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
+        MockWstETHAccount account = _deployWstETH(wstETH, stETH, weth, withdrawalQueue, oracle);
 
         wstETH.mint(address(account), 1250 ether);
 
@@ -166,7 +166,7 @@ contract LidoAccountTest is AccountsBase {
         MockWstETH wstETH = new MockWstETH(address(stETH));
         MockOracle oracle = new MockOracle(1e18);
         MigratablesFactory factory = new MigratablesFactory(address(this));
-        wstETH_Account implementation = new wstETH_Account(
+        MockWstETHAccount implementation = new MockWstETHAccount(
             address(stETH),
             address(weth),
             address(oracle),
@@ -177,8 +177,8 @@ contract LidoAccountTest is AccountsBase {
         );
         factory.whitelist(address(implementation));
 
-        wstETH_Account account =
-            wstETH_Account(payable(factory.create(1, address(this), _initData(address(weth), address(wstETH)))));
+        MockWstETHAccount account =
+            MockWstETHAccount(payable(factory.create(1, address(this), _initData(address(weth), address(wstETH)))));
 
         assertEq(MockVault(account.vault()).asset(), address(weth));
         assertEq(account.totalAssets(), 0);

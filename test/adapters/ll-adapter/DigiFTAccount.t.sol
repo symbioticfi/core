@@ -3,7 +3,6 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
-import {bEQTY_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/bEQTY_Account.sol";
 import {ISettlementAccount} from "../../../src/interfaces/adapters/ll-adapter/ISettlementAccount.sol";
 import {ISettlementSubAccount} from "../../../src/interfaces/adapters/ll-adapter/ISettlementSubAccount.sol";
 
@@ -255,18 +254,6 @@ contract DigiFTAccountTest is AccountsBase {
         factory.migrate(address(account), 2, "");
 
         assertEq(account.version(), 2);
-    }
-
-    function testBEQTYAccountHardcodesMainnetTokenAndSubRedManagement() public {
-        _mockDecimals(BEQTY_TOKEN_ADDRESS, 18);
-
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        MockPriceDataOracle oracle = new MockPriceDataOracle(1e18);
-        bEQTY_Account account = new bEQTY_Account(address(oracle), address(factory), cowSwapSettlement);
-
-        assertEq(account.TOKEN_TO_REDEEM(), BEQTY_TOKEN_ADDRESS);
-        assertEq(account.SUB_RED_MANAGEMENT(), BEQTY_SUB_RED_MANAGEMENT_ADDRESS);
-        assertEq(account.POST_CUTOFF_WINDOW(), 7 days);
     }
 }
 

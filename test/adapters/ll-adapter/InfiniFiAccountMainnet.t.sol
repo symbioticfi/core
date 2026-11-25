@@ -3,18 +3,6 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 
-import {liUSD13w_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/liUSD13w_Account.sol";
-import {liUSD4w_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/liUSD4w_Account.sol";
-import {ChainlinkOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ChainlinkOracle.sol";
-import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
-import {IAccount} from "../../../src/interfaces/adapters/ll-adapter/IAccount.sol";
-import {IInfiniFiAccount} from "../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiAccount.sol";
-import {IInfiniFiGateway} from "../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiGateway.sol";
-import {
-    IInfiniFiUnwindingModule
-} from "../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiUnwindingModule.sol";
-
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract InfiniFiAccountMainnetTest is Test {
@@ -26,7 +14,6 @@ contract InfiniFiAccountMainnetTest is Test {
         uint48 cooldown;
     }
 
-    address internal constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
     address internal constant GATEWAY = 0x3f04b65Ddbd87f9CE0A2e7Eb24d80e7fb87625b5;
     address internal constant IUSD = 0x48f9e38f3070AD8945DFEae3FA70987722E3D89c;
     address internal constant LIUSD_4W = 0x66bCF6151D5558AfB47c38B20663589843156078;
@@ -63,69 +50,6 @@ contract InfiniFiAccountMainnetTest is Test {
         assertEq(IMainnetInfiniFiGateway(GATEWAY).getAddress("redeemController"), REDEEM_CONTROLLER);
         assertEq(IMainnetInfiniFiRedeemController(REDEEM_CONTROLLER).assetToken(), USDC);
         assertEq(IERC20Metadata(IUSD).decimals(), 18);
-    }
-
-    function testInfiniFiMainnetAccountWiring() public {
-        _forkMainnet();
-
-        TokenSpec[2] memory specs = _specs();
-        for (uint256 i; i < specs.length; ++i) {
-            address account = _createAccount(specs[i]);
-
-            assertEq(IAccount(account).TOKEN_TO_REDEEM(), specs[i].token, specs[i].symbol);
-            assertEq(IInfiniFiAccount(account).GATEWAY(), GATEWAY, specs[i].symbol);
-            assertEq(IInfiniFiAccount(account).UNWINDING_MODULE(), UNWINDING_MODULE, specs[i].symbol);
-            assertEq(IInfiniFiAccount(account).IUSD(), IUSD, specs[i].symbol);
-            assertEq(IInfiniFiAccount(account).UNWINDING_EPOCHS(), specs[i].epochs, specs[i].symbol);
-            assertEq(IInfiniFiAccount(account).COOLDOWN(), specs[i].cooldown, specs[i].symbol);
-            assertEq(ChainlinkOracle(IAccount(account).ORACLE()).AGGREGATOR_0(), specs[i].feed, specs[i].symbol);
-            assertGt(ChainlinkOracle(IAccount(account).ORACLE()).getPrice(), 0, specs[i].symbol);
-            assertEq(IERC20(specs[i].token).allowance(account, GATEWAY), type(uint256).max, specs[i].symbol);
-            assertEq(IERC20(IUSD).allowance(account, GATEWAY), type(uint256).max, specs[i].symbol);
-            assertEq(IAccount(account).totalAssets(), 0, specs[i].symbol);
-        }
-    }
-
-    function testInfiniFiMainnetStartUnwindingThroughGateway() public {
-        _forkMainnet();
-
-        TokenSpec[2] memory specs = _specs();
-        for (uint256 i; i < specs.length; ++i) {
-            address account = _createAccount(specs[i]);
-            uint256 amount = 1 ether;
-            uint256 expectedAssets = IAccount(account).totalAssets();
-
-            deal(specs[i].token, account, amount);
-            expectedAssets = IAccount(account).totalAssets() - expectedAssets;
-
-            assertGt(expectedAssets, 0, specs[i].symbol);
-
-            uint256 timestamp = vm.getBlockTimestamp();
-            vm.expectCall(GATEWAY, abi.encodeCall(IInfiniFiGateway.startUnwinding, (amount, specs[i].epochs)));
-            IAccount(account).sync();
-
-            uint48 unwindingTimestamp = IInfiniFiAccount(account).unwindingTimestamps(0);
-            assertEq(unwindingTimestamp, timestamp, specs[i].symbol);
-            assertEq(IERC20(specs[i].token).balanceOf(account), 0, specs[i].symbol);
-            assertGt(
-                IInfiniFiUnwindingModule(UNWINDING_MODULE).balanceOf(account, unwindingTimestamp), 0, specs[i].symbol
-            );
-            assertGt(IAccount(account).totalAssets(), 0, specs[i].symbol);
-        }
-    }
-
-    function _createAccount(TokenSpec memory spec) internal returns (address account) {
-        address factory = address(new MigratablesFactory(address(this)));
-        address implementation;
-        if (spec.token == LIUSD_4W) {
-            implementation = address(new liUSD4w_Account(factory, COW_SWAP_SETTLEMENT));
-        } else {
-            implementation = address(new liUSD13w_Account(factory, COW_SWAP_SETTLEMENT));
-        }
-
-        MigratablesFactory(factory).whitelist(implementation);
-        account = MigratablesFactory(factory)
-            .create(1, address(this), abi.encode(address(new InfiniFiMainnetVault()), adapter));
     }
 
     function _forkMainnet() internal {

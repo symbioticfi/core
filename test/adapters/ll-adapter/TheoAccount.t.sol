@@ -35,16 +35,4 @@ contract TheoAccountTest is AccountsBase {
         assertEq(asset.balanceOf(address(account)), 1005e6);
         assertEq(account.totalAssets(), 1005e6);
     }
-
-    function testSthUSDAccountHardcodesCurrentTheoStakedToken() public {
-        address thUSD = makeAddr("thUSD");
-        _mockDecimals(STHUSD_TOKEN_ADDRESS, 6);
-        _mockDecimals(thUSD, 6);
-        vm.mockCall(STHUSD_TOKEN_ADDRESS, abi.encodeWithSignature("asset()"), abi.encode(thUSD));
-
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        sthUSD_Account account = new sthUSD_Account(address(factory), cowSwapSettlement);
-
-        assertEq(account.TOKEN_TO_REDEEM(), STHUSD_TOKEN_ADDRESS);
-    }
 }

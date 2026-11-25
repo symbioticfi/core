@@ -3,11 +3,7 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
-import {IMakinaMachine} from "../../../src/interfaces/adapters/ll-adapter/makina/IMakinaMachine.sol";
-import {IMakinaRedeemer} from "../../../src/interfaces/adapters/ll-adapter/makina/IMakinaRedeemer.sol";
 import {IOracle} from "../../../src/interfaces/adapters/ll-adapter/IOracle.sol";
-
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract MakinaAccountTest is AccountsBase {
     function testMakinaAccountRequestsAndClaimsRedeemerReceipt() public {
@@ -155,28 +151,6 @@ contract MakinaAccountTest is AccountsBase {
 
     function testMakinaOracleRejectsSharePriceAboveBound() public {
         _assertMakinaOracleRejectsPrice(2.5e18 + 1);
-    }
-
-    function testDUSDAccountHardcodesMainnetTokenRedeemerAndOracle() public {
-        vm.mockCall(DUSD_TOKEN_ADDRESS, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
-        vm.mockCall(
-            DUSD_REDEEMER_ADDRESS, abi.encodeCall(IMakinaRedeemer.machine, ()), abi.encode(DUSD_MACHINE_ADDRESS)
-        );
-        vm.mockCall(
-            DUSD_MACHINE_ADDRESS, abi.encodeCall(IMakinaMachine.accountingToken, ()), abi.encode(USDC_TOKEN_ADDRESS)
-        );
-        vm.mockCall(DUSD_SHARE_PRICE_ORACLE_ADDRESS, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
-
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        DUSD_Account implementation = new DUSD_Account(address(factory), cowSwapSettlement);
-        MakinaOracle oracle = MakinaOracle(implementation.ORACLE());
-
-        assertEq(implementation.TOKEN_TO_REDEEM(), DUSD_TOKEN_ADDRESS);
-        assertEq(implementation.REDEEMER(), DUSD_REDEEMER_ADDRESS);
-        assertEq(implementation.COOLDOWN(), DUSD_TOKEN_COOLDOWN);
-        assertEq(oracle.SHARE_PRICE_ORACLE(), DUSD_SHARE_PRICE_ORACLE_ADDRESS);
-        assertEq(oracle.MACHINE(), DUSD_MACHINE_ADDRESS);
-        assertEq(oracle.STALENESS_DURATION(), 48 hours);
     }
 
     function _assertMakinaOracleRejectsPrice(uint256 price) internal {

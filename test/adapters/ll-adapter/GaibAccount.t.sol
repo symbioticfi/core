@@ -3,9 +3,6 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-
 contract GaibAccountTest is AccountsBase {
     function testGaibAccountUnstakesAndTracksPendingAid() public {
         MockERC20 asset = new MockERC20("AI Dollar", "AID", 18);
@@ -109,19 +106,5 @@ contract GaibAccountTest is AccountsBase {
 
         assertEq(oracle.VAULT(), address(said));
         assertEq(oracle.getPrice(), 987e15);
-    }
-
-    function testSAIDAccountHardcodesMainnetTokenAndOracle() public {
-        vm.mockCall(SAID_TOKEN_ADDRESS, abi.encodeCall(IERC4626.asset, ()), abi.encode(AID_TOKEN_ADDRESS));
-        vm.mockCall(SAID_TOKEN_ADDRESS, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
-        vm.mockCall(AID_TOKEN_ADDRESS, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
-
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        sAID_Account implementation = new sAID_Account(address(factory), cowSwapSettlement);
-        SaidOracle oracle = SaidOracle(implementation.ORACLE());
-
-        assertEq(implementation.TOKEN_TO_REDEEM(), SAID_TOKEN_ADDRESS);
-        assertEq(implementation.COOLDOWN(), SAID_TOKEN_COOLDOWN);
-        assertEq(oracle.VAULT(), SAID_TOKEN_ADDRESS);
     }
 }

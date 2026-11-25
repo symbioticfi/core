@@ -5,9 +5,6 @@ import {Test} from "forge-std/Test.sol";
 
 import {ERC4626Oracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ERC4626Oracle.sol";
 import {NoonOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/NoonOracle.sol";
-import {sUSN_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sUSN_Account.sol";
-import {sthUSD_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/sthUSD_Account.sol";
-import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {IOracle} from "../../../src/interfaces/adapters/ll-adapter/IOracle.sol";
 
 contract MockStableNativeToken {
@@ -73,11 +70,6 @@ contract MockStableNativeCowSettlement {
 contract StableNativeOraclesTest is Test {
     uint256 internal constant MIN_PRICE = 0.5e18;
     uint256 internal constant MAX_PRICE = 2.5e18;
-
-    address internal constant SUSN = 0xE24a3DC889621612422A64E6388927901608B91D;
-    address internal constant NOON_WITHDRAWAL_HANDLER = 0x0DaBc0D9B270c9B0C4C77AaCeAa712b56D0F9178;
-    address internal constant NOON_RATE_PROVIDER = 0x7f741401422Afff770360fD13127F7462C6E1A79;
-    address internal constant STHUSD = 0xA808Bc9775cb41c52C7842f8b50427fE7A770326;
 
     address internal cowSwapSettlement;
 
@@ -152,45 +144,6 @@ contract StableNativeOraclesTest is Test {
         oracle.getPrice();
     }
 
-    function testSUSNAccountBindsCurrentNoonEndpointsAndBoundedOracle() public {
-        address usn = makeAddr("USN");
-        _mockVault(SUSN, usn, 18, 18);
-        vm.mockCall(
-            NOON_RATE_PROVIDER,
-            abi.encodeWithSignature("getQuote(uint256,address,address)", 1e18, SUSN, usn),
-            abi.encode(1.2e18)
-        );
-
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        sUSN_Account account = new sUSN_Account(address(factory), cowSwapSettlement);
-        NoonOracle oracle = NoonOracle(account.ORACLE());
-
-        assertEq(account.TOKEN_TO_REDEEM(), SUSN);
-        assertEq(account.WITHDRAWAL_HANDLER(), NOON_WITHDRAWAL_HANDLER);
-        assertEq(oracle.RATE_PROVIDER(), NOON_RATE_PROVIDER);
-        assertEq(oracle.TOKEN_TO_REDEEM(), SUSN);
-        assertEq(oracle.QUOTE_TOKEN(), usn);
-        assertEq(oracle.MIN_PRICE(), MIN_PRICE);
-        assertEq(oracle.MAX_PRICE(), MAX_PRICE);
-        assertEq(oracle.getPrice(), 1.2e18);
-    }
-
-    function testSthUSDAccountBindsCurrentVaultAndBoundedOracle() public {
-        address thUSD = makeAddr("thUSD");
-        _mockVault(STHUSD, thUSD, 6, 6);
-        vm.mockCall(STHUSD, abi.encodeWithSignature("convertToAssets(uint256)", 1e6), abi.encode(1_015_160));
-
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        sthUSD_Account account = new sthUSD_Account(address(factory), cowSwapSettlement);
-        ERC4626Oracle oracle = ERC4626Oracle(account.ORACLE());
-
-        assertEq(account.TOKEN_TO_REDEEM(), STHUSD);
-        assertEq(oracle.VAULT(), STHUSD);
-        assertEq(oracle.MIN_PRICE(), MIN_PRICE);
-        assertEq(oracle.MAX_PRICE(), MAX_PRICE);
-        assertEq(oracle.getPrice(), 1_015_160_000_000_000_000);
-    }
-
     function _deployNoonOracle()
         internal
         returns (NoonOracle oracle, MockNoonRateProvider rateProvider, address token, address quoteToken)
@@ -207,11 +160,5 @@ contract StableNativeOraclesTest is Test {
         vault = new MockStableNativeVault(18, address(asset));
         vault.setAssetsPerShareUnit(1_000_000);
         oracle = new ERC4626Oracle(MIN_PRICE, MAX_PRICE, address(vault));
-    }
-
-    function _mockVault(address vault, address asset, uint8 shareDecimals, uint8 assetDecimals) internal {
-        vm.mockCall(vault, abi.encodeWithSignature("asset()"), abi.encode(asset));
-        vm.mockCall(vault, abi.encodeWithSignature("decimals()"), abi.encode(shareDecimals));
-        vm.mockCall(asset, abi.encodeWithSignature("decimals()"), abi.encode(assetDecimals));
     }
 }

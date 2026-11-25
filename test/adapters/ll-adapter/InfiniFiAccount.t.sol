@@ -4,16 +4,12 @@ pragma solidity ^0.8.28;
 import {Test} from "forge-std/Test.sol";
 
 import {InfiniFiAccount} from "../../../src/contracts/adapters/ll-adapter/InfiniFiAccount.sol";
-import {ChainlinkOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/ChainlinkOracle.sol";
-import {liUSD13w_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/liUSD13w_Account.sol";
-import {liUSD4w_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/liUSD4w_Account.sol";
 import {MigratablesFactory} from "../../../src/contracts/common/MigratablesFactory.sol";
 import {ICoWSwapSettlement} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IInfiniFiGateway} from "../../../src/interfaces/adapters/ll-adapter/infinifi/IInfiniFiGateway.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract InfiniFiAccountTest is Test {
     uint48 internal constant COOLDOWN = 3 days;
@@ -273,37 +269,6 @@ contract InfiniFiAccountTest is Test {
         // 100e18 iUSD-equivalents normalize to 100e6 vault assets
         iusd.mint(address(account), 100e18);
         assertEq(account.totalAssets(), 100e6);
-    }
-
-    function testLiUSDAccountsHardcodeMainnetWiring() public {
-        address liUSD4w = 0x66bCF6151D5558AfB47c38B20663589843156078;
-        address liUSD13w = 0xbd3f9814eB946E617f1d774A6762cDbec0bf087A;
-        vm.mockCall(liUSD4w, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
-        vm.mockCall(liUSD13w, abi.encodeCall(IERC20Metadata.decimals, ()), abi.encode(uint8(18)));
-
-        MigratablesFactory factory = new MigratablesFactory(address(this));
-        liUSD4w_Account account4w = new liUSD4w_Account(address(factory), cowSettlement);
-        liUSD13w_Account account13w = new liUSD13w_Account(address(factory), cowSettlement);
-
-        assertEq(account4w.TOKEN_TO_REDEEM(), liUSD4w);
-        assertEq(account4w.COOLDOWN(), 3 days);
-        assertEq(account4w.UNWINDING_EPOCHS(), 4);
-        assertEq(ChainlinkOracle(account4w.ORACLE()).AGGREGATOR_0(), 0xF8472D8D3Ef3f8aEb83A2B09aC69f40dF1ace66c);
-
-        assertEq(account13w.TOKEN_TO_REDEEM(), liUSD13w);
-        assertEq(account13w.COOLDOWN(), 7 days);
-        assertEq(account13w.UNWINDING_EPOCHS(), 13);
-        assertEq(ChainlinkOracle(account13w.ORACLE()).AGGREGATOR_0(), 0x8D5FFAa15730D87C90C34A4c2e80684043704417);
-
-        address[2] memory accounts = [address(account4w), address(account13w)];
-        for (uint256 i; i < accounts.length; ++i) {
-            InfiniFiAccount tokenAccount = InfiniFiAccount(accounts[i]);
-            assertEq(tokenAccount.GATEWAY(), 0x3f04b65Ddbd87f9CE0A2e7Eb24d80e7fb87625b5);
-            assertEq(tokenAccount.UNWINDING_MODULE(), 0x7092A43aE5407666C78dBEA657a1891f42b3dFcc);
-            assertEq(tokenAccount.IUSD(), 0x48f9e38f3070AD8945DFEae3FA70987722E3D89c);
-            assertEq(ChainlinkOracle(tokenAccount.ORACLE()).AGGREGATOR_1(), address(0));
-            assertEq(ChainlinkOracle(tokenAccount.ORACLE()).STALENESS_DURATION_0(), 30 days);
-        }
     }
 }
 

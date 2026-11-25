@@ -10,29 +10,11 @@ import {MidasOracle} from "../../../../src/contracts/adapters/ll-adapter/oracles
 import {
     CarryTradeUSDTRYLeverage_Account
 } from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/CarryTradeUSDTRYLeverage_Account.sol";
-import {mAPOLLO_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mAPOLLO_Account.sol";
-import {mBASIS_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBASIS_Account.sol";
-import {mBTC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBTC_Account.sol";
-import {mEDGE_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mEDGE_Account.sol";
-import {mEVUSD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mEVUSD_Account.sol";
-import {mFARM_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mFARM_Account.sol";
 import {mFONE_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mFONE_Account.sol";
 import {mGLOBAL_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mGLOBAL_Account.sol";
 import {mHYPER_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHYPER_Account.sol";
-import {mHyperBTC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHyperBTC_Account.sol";
-import {mHyperETH_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHyperETH_Account.sol";
 import {mM1USD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mM1USD_Account.sol";
-import {mMEV_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mMEV_Account.sol";
-import {mevBTC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mevBTC_Account.sol";
-import {mRe7BTC_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mRe7BTC_Account.sol";
-import {mRe7YIELD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mRe7YIELD_Account.sol";
 import {mROX_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mROX_Account.sol";
-import {mSL_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mSL_Account.sol";
-import {
-    msyrupUSDp_Account
-} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/msyrupUSDp_Account.sol";
-import {msyrupUSD_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/msyrupUSD_Account.sol";
-import {mTBILL_Account} from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mTBILL_Account.sol";
 import {
     StockMarketTRBasisTrade_Account
 } from "../../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
@@ -68,11 +50,9 @@ contract MidasTokensToRedeemMainnetTest is MGlobalDataFeedHelper {
 
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
-    address internal constant COW_SWAP_VAULT_RELAYER = 0xC92E8bdf79f0507f65a392b0ab4667716BFE0110;
     address internal constant MIDAS_ACCESS_CONTROL_ADMIN = 0xd4195CF4df289a4748C1A7B6dDBE770e27bA1227;
     address internal constant MIDAS_GREENLIST_ADMIN = 0xb5CcD8dC8082467849eE008d4242f7b3b569EF05;
     address internal constant MGLOBAL = 0x7433806912Eae67919e66aea853d46Fa0aef98A8;
-    address internal constant MGLOBAL_REDEMPTION_VAULT = 0x1e0fd66753198c7b8bA64edEe8d41D8628Bf20D7;
     uint48 internal constant MGLOBAL_JUNE_SUBS_OPEN = 1_781_856_000; // 2026-06-19 08:00 UTC
     uint48 internal constant MGLOBAL_JUNE_TOKEN_CUTOFF = 1_782_482_400; // 2026-06-26 14:00 UTC
     uint48 internal constant MGLOBAL_JUNE_FUND_CUTOFF = 1_782_493_200; // 2026-06-26 17:00 UTC
@@ -125,7 +105,7 @@ contract MidasTokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         _createFork();
 
         TokenSpec[] memory specs = _ethereumMainnetSpecs();
-        assertEq(specs.length, 23);
+        assertEq(specs.length, 7);
 
         uint256 length = specs.length;
         for (uint256 i; i < length; ++i) {
@@ -141,7 +121,7 @@ contract MidasTokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         TokenSpec[] memory specs = _ethereumMainnetSpecs();
 
         uint256 length = specs.length;
-        for (uint256 i = 21; i < length; ++i) {
+        for (uint256 i = 5; i < length; ++i) {
             MidasTokensToRedeemAssetVault vault = new MidasTokensToRedeemAssetVault(_assetFor(i));
             _assertOnboarded(i, specs[i], vault);
         }
@@ -397,7 +377,7 @@ contract MidasTokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         assertEq(account.adapter(), adapter);
         assertEq(account.vault(), address(vault));
         address oracleDataFeed = MidasOracle(account.ORACLE()).DATA_FEED();
-        if (index == 2) {
+        if (index == 1) {
             assertEq(oracleDataFeed, MGLOBAL_DATA_FEED);
             assertEq(IMidasDataFeed(oracleDataFeed).aggregator(), MGLOBAL_MARKET_AGGREGATOR);
         } else {
@@ -455,30 +435,14 @@ contract MidasTokensToRedeemMainnetTest is MGlobalDataFeedHelper {
     }
 
     function _ethereumMainnetSpecs() internal pure returns (TokenSpec[] memory specs) {
-        specs = new TokenSpec[](23);
+        specs = new TokenSpec[](7);
         specs[0] = TokenSpec("mF-ONE", 36 hours);
-        specs[1] = _ethereumCompSpec("mTBILL", 1 days);
-        specs[2] = _ethereumCompSpec("mGLOBAL", 12 hours);
-        specs[3] = _ethereumCompSpec("mHYPER", 6 hours);
-        specs[4] = _ethereumCompSpec("mM1-USD", 1 days);
-        specs[5] = _ethereumCompSpec("mHyperBTC", 1 days);
-        specs[6] = _ethereumCompSpec("mRe7YIELD", 3 days);
-        specs[7] = _ethereumCompSpec("mHyperETH", 1 days);
-        specs[8] = _ethereumCompSpec("mSL", 1 days);
-        specs[9] = _ethereumCompSpec("mAPOLLO", 1 days);
-        specs[10] = _ethereumCompSpec("mROX", 6 hours);
-        specs[11] = _ethereumCompSpec("msyrupUSDp", 1 days);
-        specs[12] = _ethereumCompSpec("mEVUSD", 1 days);
-        specs[13] = _ethereumCompSpec("mEDGE", 1 days);
-        specs[14] = _ethereumCompSpec("mMEV", 1 days);
-        specs[15] = _ethereumCompSpec("mBASIS", 1 days);
-        specs[16] = _ethereumCompSpec("mRe7BTC", 2 days);
-        specs[17] = _ethereumCompSpec("mBTC", 1 days);
-        specs[18] = _ethereumCompSpec("mevBTC", 1 days);
-        specs[19] = _ethereumCompSpec("msyrupUSD", 1 days);
-        specs[20] = _ethereumCompSpec("mFARM", 1 days);
-        specs[21] = _ethereumCompSpec("CarryTradeUSDTRYLeverage", 12 hours);
-        specs[22] = _ethereumCompSpec("StockMarketTRBasisTrade", 12 hours);
+        specs[1] = _ethereumCompSpec("mGLOBAL", 12 hours);
+        specs[2] = _ethereumCompSpec("mHYPER", 6 hours);
+        specs[3] = _ethereumCompSpec("mM1-USD", 1 days);
+        specs[4] = _ethereumCompSpec("mROX", 6 hours);
+        specs[5] = _ethereumCompSpec("CarryTradeUSDTRYLeverage", 12 hours);
+        specs[6] = _ethereumCompSpec("StockMarketTRBasisTrade", 12 hours);
     }
 
     function _deployImplementation(uint256 index, MigratablesFactory factory)
@@ -488,27 +452,11 @@ contract MidasTokensToRedeemMainnetTest is MGlobalDataFeedHelper {
         if (index == 0) {
             return new mFONE_Account(address(factory), COW_SWAP_SETTLEMENT);
         }
-        if (index == 1) return new mTBILL_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 2) return new mGLOBAL_Account(address(factory), COW_SWAP_SETTLEMENT, MGLOBAL_DATA_FEED);
-        if (index == 3) return new mHYPER_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 4) return new mM1USD_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 5) return new mHyperBTC_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 6) return new mRe7YIELD_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 7) return new mHyperETH_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 8) return new mSL_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 9) return new mAPOLLO_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 10) return new mROX_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 11) return new msyrupUSDp_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 12) return new mEVUSD_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 13) return new mEDGE_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 14) return new mMEV_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 15) return new mBASIS_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 16) return new mRe7BTC_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 17) return new mBTC_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 18) return new mevBTC_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 19) return new msyrupUSD_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 20) return new mFARM_Account(address(factory), COW_SWAP_SETTLEMENT);
-        if (index == 21) {
+        if (index == 1) return new mGLOBAL_Account(address(factory), COW_SWAP_SETTLEMENT, MGLOBAL_DATA_FEED);
+        if (index == 2) return new mHYPER_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 3) return new mM1USD_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 4) return new mROX_Account(address(factory), COW_SWAP_SETTLEMENT);
+        if (index == 5) {
             return new CarryTradeUSDTRYLeverage_Account(address(factory), COW_SWAP_SETTLEMENT);
         }
         return new StockMarketTRBasisTrade_Account(address(factory), COW_SWAP_SETTLEMENT);
@@ -520,19 +468,12 @@ contract MidasTokensToRedeemMainnetTest is MGlobalDataFeedHelper {
 
     function _expectedOracleBounds(uint256 index) internal pure returns (uint256 minPrice, uint256 maxPrice) {
         if (index == 0) return (275_900_000_000_000_000, 3_862_200_000_000_000_000);
-        if (index == 1) return (266_300_000_000_000_000, 3_727_800_000_000_000_000);
-        if (index == 2) return (251_441_200_000_000_000, 3_520_176_800_000_000_000);
-        if (index == 3) return (277_200_000_000_000_000, 3_880_300_000_000_000_000);
-        if (index == 4) return (253_500_000_000_000_000, 3_548_800_000_000_000_000);
-        if (index == 6) return (266_900_000_000_000_000, 3_736_600_000_000_000_000);
-        if (index == 9) return (275_000_000_000_000_000, 3_850_500_000_000_000_000);
-        if (index == 10) return (282_900_000_000_000_000, 3_961_200_000_000_000_000);
-        if (index == 11) return (264_400_000_000_000_000, 3_701_100_000_000_000_000);
-        if (index == 13) return (280_800_000_000_000_000, 3_931_300_000_000_000_000);
-        if (index == 14) return (282_900_000_000_000_000, 3_961_200_000_000_000_000);
-        if (index == 15) return (298_900_000_000_000_000, 4_184_700_000_000_000_000);
-        if (index == 21) return (261_000_000_000_000_000, 3_653_400_000_000_000_000);
-        if (index == 22) return (253_000_000_000_000_000, 3_541_400_000_000_000_000);
+        if (index == 1) return (251_441_200_000_000_000, 3_520_176_800_000_000_000);
+        if (index == 2) return (277_200_000_000_000_000, 3_880_300_000_000_000_000);
+        if (index == 3) return (253_500_000_000_000_000, 3_548_800_000_000_000_000);
+        if (index == 4) return (282_900_000_000_000_000, 3_961_200_000_000_000_000);
+        if (index == 5) return (261_000_000_000_000_000, 3_653_400_000_000_000_000);
+        if (index == 6) return (253_000_000_000_000_000, 3_541_400_000_000_000_000);
     }
 
     function _configureMidasRequestPath(address account, address llAdapter) internal {
