@@ -15,6 +15,7 @@ import {AdapterFactory} from "../../src/contracts/adapters/AdapterFactory.sol";
 import {LiquidLaneAdapter} from "../../src/contracts/adapters/LiquidLaneAdapter.sol";
 import {AdapterRegistry} from "../../src/contracts/AdapterRegistry.sol";
 import {AccountRegistry} from "../../src/contracts/adapters/ll-adapter/AccountRegistry.sol";
+import {ACRDX_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
 import {AA_FalconX_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/AA_FalconX_Account.sol";
 import {
     CarryTradeUSDTRYLeverage_Account
@@ -22,6 +23,7 @@ import {
 import {UniversalDelegatorFactory} from "../../src/contracts/UniversalDelegatorFactory.sol";
 import {JAAA_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JAAA_Account.sol";
 import {JTRSY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/JTRSY_Account.sol";
+import {AUTO_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/AUTO_Account.sol";
 import {PRIME_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/PRIME_Account.sol";
 import {FigureSubAccount} from "../../src/contracts/adapters/ll-adapter/FigureAccount.sol";
 import {FigureOracle} from "../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
@@ -29,13 +31,30 @@ import {ParetoOracle} from "../../src/contracts/adapters/ll-adapter/oracles/Pare
 import {
     StockMarketTRBasisTrade_Account
 } from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/StockMarketTRBasisTrade_Account.sol";
+import {deCRDX_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deCRDX_Account.sol";
 import {deJAAA_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJAAA_Account.sol";
 import {deJTRSY_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deJTRSY_Account.sol";
+import {mAPOLLO_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mAPOLLO_Account.sol";
+import {mBASIS_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBASIS_Account.sol";
+import {mBTC_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mBTC_Account.sol";
+import {mEDGE_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mEDGE_Account.sol";
+import {mEVUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mEVUSD_Account.sol";
+import {mFARM_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mFARM_Account.sol";
 import {mFONE_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mFONE_Account.sol";
 import {mGLOBAL_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mGLOBAL_Account.sol";
 import {mHYPER_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHYPER_Account.sol";
+import {mHyperBTC_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHyperBTC_Account.sol";
+import {mHyperETH_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mHyperETH_Account.sol";
 import {mM1USD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mM1USD_Account.sol";
+import {mMEV_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mMEV_Account.sol";
 import {mROX_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mROX_Account.sol";
+import {mRe7BTC_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mRe7BTC_Account.sol";
+import {mRe7YIELD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mRe7YIELD_Account.sol";
+import {mSL_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mSL_Account.sol";
+import {mTBILL_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mTBILL_Account.sol";
+import {mevBTC_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/mevBTC_Account.sol";
+import {msyrupUSD_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/msyrupUSD_Account.sol";
+import {msyrupUSDp_Account} from "../../src/contracts/adapters/ll-adapter/tokens-to-redeem/msyrupUSDp_Account.sol";
 import {MigratablesFactory} from "../../src/contracts/common/MigratablesFactory.sol";
 import {Registry} from "../../src/contracts/common/Registry.sol";
 import {UniversalDelegator} from "../../src/contracts/delegator/UniversalDelegator.sol";
@@ -65,14 +84,19 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
 
     address internal constant MAINNET_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address internal constant COW_SWAP_SETTLEMENT = 0x9008D19f58AAbD9eD0D60971565AA8510560ab41;
+    address internal constant ACRDX_TOKEN = 0x9477724Bb54AD5417de8Baff29e59DF3fB4DA74f;
     address internal constant JAAA_TOKEN = 0x5a0F93D040De44e78F251b03c43be9CF317Dcf64;
     address internal constant JTRSY_TOKEN = 0x8c213ee79581Ff4984583C6a801e5263418C4b86;
+    address internal constant DECRDX_TOKEN = 0x9E2679eABFF131b8b1b48fF7566140794E0eEdc4;
     address internal constant DEJAAA_TOKEN = 0xAAA0008C8CF3A7Dca931adaF04336A5D808C82Cc;
     address internal constant DEJTRSY_TOKEN = 0xA6233014B9b7aaa74f38fa1977ffC7A89642dC72;
     address internal constant AA_FALCONX_TOKEN = 0xC26A6Fa2C37b38E549a4a1807543801Db684f99C;
     address internal constant PARETO_FALCONX_CDO = 0x433D5B175148dA32Ffe1e1A37a939E1b7e79be4d;
 
     address internal constant PRIME_TOKEN = 0x19ebb35279A16207Ec4ba82799CC64715065F7F6;
+    address internal constant AUTO_TOKEN = 0x997E2Efbce91D170B00EA402e35a66C887EE1da9;
+    address internal constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address internal constant WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
     address internal constant CENTRIFUGE_HOOK_WARD_1 = 0x7Ed48C31f2fdC40d37407cBaBf0870B2b688368f;
     address internal constant CENTRIFUGE_HOOK_WARD_2 = 0xEC3582fcDc34078a4B7a8c75a5a3AE46f48525aB;
     address internal constant MIDAS_ACCESS_CONTROL_ADMIN = 0xd4195CF4df289a4748C1A7B6dDBE770e27bA1227;
@@ -116,7 +140,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     function testCalculatesAllTokenCooldownsAndRequestCounts() public pure {
         TokenBenchSpec[] memory specs = _tokenBenchSpecs();
 
-        assertEq(specs.length, 13);
+        assertEq(specs.length, 32);
 
         uint256 totalMaxAverageRequests;
         for (uint256 i; i < specs.length; ++i) {
@@ -128,8 +152,34 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             totalMaxAverageRequests += specs[i].maxAverageRequests;
         }
         assertLe(specs.length, MAX_TOKENS_TO_REDEEM);
-        assertEq(specs[3].cooldown, 18 hours, "PRIME");
-        assertEq(totalMaxAverageRequests, 219);
+        assertEq(specs[4].cooldown, 18 hours, "PRIME");
+        assertEq(totalMaxAverageRequests, 310);
+    }
+
+    function testAUTOAccountBenchmarkConfiguration() public {
+        string memory rpcUrl = vm.envOr("ETH_RPC_URL", string(""));
+        _skipWithoutRpc(rpcUrl, "ETH_RPC_URL is required for AUTO benchmark configuration");
+        _createFork(rpcUrl);
+
+        MigratablesFactory factory = new MigratablesFactory(curator);
+        IAccount implementation = _deployImplementation(31, address(factory));
+        FigureOracle oracle = FigureOracle(implementation.ORACLE());
+        address asyncRedeemVault = IERC4626(AUTO_TOKEN).asset();
+
+        assertEq(implementation.TOKEN_TO_REDEEM(), AUTO_TOKEN);
+        assertEq(ICooldownAccount(address(implementation)).COOLDOWN(), 1 days);
+        assertEq(_assetFor(31, AUTO_TOKEN), MAINNET_USDC);
+        assertEq(oracle.TOKEN_TO_REDEEM(), AUTO_TOKEN);
+        assertEq(oracle.ASYNC_REDEEM_VAULT(), asyncRedeemVault);
+        assertGt(oracle.getPrice(), 0);
+    }
+
+    function testCorrelatedMidasTokenAccountsUseCorrelatedVaultAssets() public view {
+        _assertCorrelatedAsset(11, WBTC);
+        _assertCorrelatedAsset(18, WBTC);
+        _assertCorrelatedAsset(19, WETH);
+        _assertCorrelatedAsset(23, WBTC);
+        _assertCorrelatedAsset(27, WBTC);
     }
 
     function testBenchmarkOnboardsAllTokensToLiquidLaneAdapter() public {
@@ -149,7 +199,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         uint256 onboardingGas = gasBefore - gasleft();
 
         vm.pauseGasMetering();
-        assertEq(adapter.getTokensToRedeemLength(), 13);
+        assertEq(adapter.getTokensToRedeemLength(), 32);
         _logBench(specs, onboardingGas);
     }
 
@@ -278,22 +328,42 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     }
 
     function _assetFor(uint256 index, address token) internal view returns (address) {
+        if (_isMidasBtc(index)) {
+            return WBTC;
+        }
+        if (_isMidasEth(index)) {
+            return WETH;
+        }
         if (_isFigure(index)) {
             return IERC4626(IERC4626(token).asset()).asset();
         }
         return MAINNET_USDC;
     }
 
+    function _assertCorrelatedAsset(uint256 index, address expectedAsset) internal view {
+        address asset = _assetFor(index, address(0));
+        assertEq(asset, expectedAsset);
+        assertNotEq(asset, MAINNET_USDC);
+    }
+
     function _isMidas(uint256 index) internal pure returns (bool) {
-        return index == 0 || index == 4 || (index >= 7 && index <= 11);
+        return index == 1 || index == 5 || (index >= 9 && index <= 29);
+    }
+
+    function _isMidasBtc(uint256 index) internal pure returns (bool) {
+        return index == 11 || index == 18 || index == 23 || index == 27;
+    }
+
+    function _isMidasEth(uint256 index) internal pure returns (bool) {
+        return index == 19;
     }
 
     function _isCentrifuge(uint256 index) internal pure returns (bool) {
-        return index == 1 || index == 2 || index == 5 || index == 6;
+        return index == 0 || index == 2 || index == 3 || (index >= 6 && index <= 8);
     }
 
     function _isFigure(uint256 index) internal pure returns (bool) {
-        return index == 3;
+        return index == 4 || index == 31;
     }
 
     function _mockVaultAsset(address asset) internal {
@@ -433,12 +503,12 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     }
 
     function _seedTarget(uint256 index, TokenBenchSpec memory spec) internal pure returns (uint256) {
-        if (index == 12) {
+        if (index == 30) {
             return 1;
         }
         // Figure rejects a second PRIME redemption for ~36h after the first (longer than the account's
         // 18h cooldown), so only one standing request can be seeded.
-        if (index == 3) {
+        if (index == 4) {
             return 1;
         }
         return spec.maxAverageRequests;
@@ -454,7 +524,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         if (_isMidas(index)) {
             _configureMidasRequestPath(index, token, account);
         }
-        if (index == 12) {
+        if (index == 30) {
             _permissionParetoAccount(account);
             deal(token, account, amount);
             return;
@@ -620,7 +690,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         if (_isFigure(index)) {
             return _figureSubAccountsLength(account);
         }
-        if (index == 12) {
+        if (index == 30) {
             return _paretoQueueEpochsLength(account);
         }
         return 0;
@@ -667,28 +737,60 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
     }
 
     function _tokenBenchSpecs() internal pure returns (TokenBenchSpec[] memory specs) {
-        specs = new TokenBenchSpec[](13);
-        specs[0] = _spec("CarryTradeUSDTRYLeverage", 2 days);
-        specs[1] = _spec("JAAA", 1 days);
-        specs[2] = _spec("JTRSY", 1 days);
-        specs[3] = _spec("PRIME", 1 days);
-        specs[4] = _spec("StockMarketTRBasisTrade", 2 days);
-        specs[5] = _spec("deJAAA", 1 days);
-        specs[6] = _spec("deJTRSY", 1 days);
-        specs[7] = _spec("mFONE", 35 days);
-        specs[8] = _spec("mGLOBAL", 65 days);
-        specs[9] = _spec("mHYPER", 3 days);
-        specs[10] = _spec("mM1USD", 17 days);
-        specs[11] = _spec("mROX", 3 days);
+        specs = new TokenBenchSpec[](32);
+        specs[0] = _spec("ACRDX", 1 days);
+        specs[1] = _spec("CarryTradeUSDTRYLeverage", 2 days);
+        specs[2] = _spec("JAAA", 1 days);
+        specs[3] = _spec("JTRSY", 1 days);
+        specs[4] = _spec("PRIME", 1 days);
+        specs[5] = _spec("StockMarketTRBasisTrade", 2 days);
+        specs[6] = _spec("deCRDX", 1 days);
+        specs[7] = _spec("deJAAA", 1 days);
+        specs[8] = _spec("deJTRSY", 1 days);
+        specs[9] = _spec("mAPOLLO", 3 days);
+        specs[10] = _spec("mBASIS", 7 days);
+        specs[11] = _spec("mBTC", 7 days);
+        specs[12] = _spec("mEDGE", 3 days);
+        specs[13] = _spec("mEVUSD", 3 days);
+        specs[14] = _spec("mFARM", 7 days);
+        specs[15] = _spec("mFONE", 35 days);
+        specs[16] = _spec("mGLOBAL", 65 days);
+        specs[17] = _spec("mHYPER", 3 days);
+        specs[18] = _spec("mHyperBTC", 7 days);
+        specs[19] = _spec("mHyperETH", 7 days);
+        specs[20] = _spec("mM1USD", 17 days);
+        specs[21] = _spec("mMEV", 3 days);
+        specs[22] = _spec("mROX", 3 days);
+        specs[23] = _spec("mRe7BTC", 24 days);
+        specs[24] = _spec("mRe7YIELD", 24 days);
+        specs[25] = _spec("mSL", 3 days);
+        specs[26] = _spec("mTBILL", 3 days);
+        specs[27] = _spec("mevBTC", 7 days);
+        specs[28] = _spec("msyrupUSD", 7 days);
+        specs[29] = _spec("msyrupUSDp", 3 days);
         // A request arriving just after NETTING can wait through the current and next full epoch.
-        specs[12] = _spec("AA_FalconXUSDC", 66 days);
+        specs[30] = _spec("AA_FalconXUSDC", 66 days);
+        specs[31] = _spec("AUTO", 1 days);
     }
 
     function _deployImplementation(uint256 index, address factory) internal returns (IAccount implementation) {
         if (index == 0) {
-            return IAccount(address(new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(
+                address(
+                    new ACRDX_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(ACRDX_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
         }
         if (index == 1) {
+            return IAccount(address(new CarryTradeUSDTRYLeverage_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 2) {
             return IAccount(
                 address(
                     new JAAA_Account(
@@ -701,7 +803,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
                 )
             );
         }
-        if (index == 2) {
+        if (index == 3) {
             return IAccount(
                 address(
                     new JTRSY_Account(
@@ -715,18 +817,36 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
             );
         }
         if (_isFigure(index)) {
-            address token = PRIME_TOKEN;
+            address token = index == 4 ? PRIME_TOKEN : AUTO_TOKEN;
             address subAccountImplementation = address(new FigureSubAccount(token));
             address oracle = address(new FigureOracle(1, type(uint256).max, token));
-            return
-                IAccount(
+            if (index == 4) {
+                return IAccount(
                     address(new PRIME_Account(oracle, factory, token, subAccountImplementation, COW_SWAP_SETTLEMENT))
                 );
-        }
-        if (index == 4) {
-            return IAccount(address(new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT)));
+            }
+            return
+                IAccount(
+                    address(new AUTO_Account(oracle, factory, token, subAccountImplementation, COW_SWAP_SETTLEMENT))
+                );
         }
         if (index == 5) {
+            return IAccount(address(new StockMarketTRBasisTrade_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 6) {
+            return IAccount(
+                address(
+                    new deCRDX_Account(
+                        _oracle(),
+                        factory,
+                        MAINNET_USDC,
+                        IERC7575Share(DECRDX_TOKEN).vault(MAINNET_USDC),
+                        COW_SWAP_SETTLEMENT
+                    )
+                )
+            );
+        }
+        if (index == 7) {
             return IAccount(
                 address(
                     new deJAAA_Account(
@@ -739,7 +859,7 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
                 )
             );
         }
-        if (index == 6) {
+        if (index == 8) {
             return IAccount(
                 address(
                     new deJTRSY_Account(
@@ -752,22 +872,70 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
                 )
             );
         }
-        if (index == 7) {
-            return IAccount(address(new mFONE_Account(factory, COW_SWAP_SETTLEMENT)));
-        }
-        if (index == 8) {
-            return IAccount(address(new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT, MGLOBAL_DATA_FEED)));
-        }
         if (index == 9) {
-            return IAccount(address(new mHYPER_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mAPOLLO_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 10) {
-            return IAccount(address(new mM1USD_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mBASIS_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 11) {
-            return IAccount(address(new mROX_Account(factory, COW_SWAP_SETTLEMENT)));
+            return IAccount(address(new mBTC_Account(factory, COW_SWAP_SETTLEMENT)));
         }
         if (index == 12) {
+            return IAccount(address(new mEDGE_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 13) {
+            return IAccount(address(new mEVUSD_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 14) {
+            return IAccount(address(new mFARM_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 15) {
+            return IAccount(address(new mFONE_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 16) {
+            return IAccount(address(new mGLOBAL_Account(factory, COW_SWAP_SETTLEMENT, MGLOBAL_DATA_FEED)));
+        }
+        if (index == 17) {
+            return IAccount(address(new mHYPER_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 18) {
+            return IAccount(address(new mHyperBTC_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 19) {
+            return IAccount(address(new mHyperETH_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 20) {
+            return IAccount(address(new mM1USD_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 21) {
+            return IAccount(address(new mMEV_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 22) {
+            return IAccount(address(new mROX_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 23) {
+            return IAccount(address(new mRe7BTC_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 24) {
+            return IAccount(address(new mRe7YIELD_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 25) {
+            return IAccount(address(new mSL_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 26) {
+            return IAccount(address(new mTBILL_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 27) {
+            return IAccount(address(new mevBTC_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 28) {
+            return IAccount(address(new msyrupUSD_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 29) {
+            return IAccount(address(new msyrupUSDp_Account(factory, COW_SWAP_SETTLEMENT)));
+        }
+        if (index == 30) {
             return IAccount(
                 address(
                     new AA_FalconX_Account(
@@ -806,6 +974,9 @@ contract LiquidLaneAdapterAllTokensBenchmarkTest is MGlobalDataFeedHelper {
         }
         if (keccak256(bytes(symbol)) == keccak256("mROX")) {
             return 6 hours;
+        }
+        if (keccak256(bytes(symbol)) == keccak256("mRe7YIELD")) {
+            return 3 days;
         }
         if (keccak256(bytes(symbol)) == keccak256("CarryTradeUSDTRYLeverage")) {
             return 12 hours;

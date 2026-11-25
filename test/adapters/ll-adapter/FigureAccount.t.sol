@@ -3,8 +3,13 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
-import {FigureSubAccount} from "../../../src/contracts/adapters/ll-adapter/FigureAccount.sol";
+import {FigureAccount, FigureSubAccount} from "../../../src/contracts/adapters/ll-adapter/FigureAccount.sol";
 import {FigureOracle} from "../../../src/contracts/adapters/ll-adapter/oracles/FigureOracle.sol";
+import {
+    AUTO_Account,
+    AUTO_AccountFactory
+} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/AUTO_Account.sol";
+import {IFigureAccount} from "../../../src/interfaces/adapters/ll-adapter/figure/IFigureAccount.sol";
 
 interface ILegacyFigureFinalizeRedeem {
     function finalizeRedeem() external;
@@ -15,6 +20,47 @@ interface ILegacyFigureRequestRedeem {
 }
 
 contract FigureAccountTest is AccountsBase {
+    bytes32 internal constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
+    function testAUTOAccountFactoryConfigurationAndCloneRedemptionPath() public {
+        MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
+        MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);
+        MockPrimeToken autoToken = new MockPrimeToken(wylds, 125e4);
+        FigureOracle oracle = new FigureOracle(1, type(uint256).max, address(autoToken));
+        AUTO_AccountFactory factory = new AUTO_AccountFactory(address(this));
+        FigureSubAccount subAccountImplementation = new FigureSubAccount(address(autoToken));
+        AUTO_Account implementation = new AUTO_Account(
+            address(oracle), address(factory), address(autoToken), address(subAccountImplementation), cowSwapSettlement
+        );
+        factory.whitelist(address(implementation));
+        AUTO_Account account =
+            AUTO_Account(factory.create(1, address(this), _initData(address(asset), address(autoToken))));
+
+        assertEq(factory.owner(), address(this));
+        assertEq(factory.implementation(1), address(implementation));
+        assertEq(implementation.FACTORY(), address(factory));
+        assertEq(implementation.ORACLE(), address(oracle));
+        assertEq(implementation.TOKEN_TO_REDEEM(), address(autoToken));
+        assertEq(account.ORACLE(), address(oracle));
+        assertEq(account.TOKEN_TO_REDEEM(), address(autoToken));
+        assertEq(account.COOLDOWN(), 1 days);
+        assertEq(oracle.ASYNC_REDEEM_VAULT(), address(wylds));
+
+        autoToken.mint(address(account), 100e6);
+        account.sync();
+
+        address subAccount = account.subAccounts(0);
+        (uint256 pendingShares,,) = wylds.pendingRedemptions(subAccount);
+        assertEq(_cloneImplementation(subAccount), address(subAccountImplementation));
+        assertEq(pendingShares, 125e6);
+
+        wylds.completeFigureRedeem(subAccount);
+        account.sync();
+
+        assertEq(asset.balanceOf(address(account)), 125e6);
+        assertEq(account.totalAssets(), 125e6);
+    }
+
     function testFigureAccountCreatesStandardCloneSubAccount() public {
         MockERC20 asset = new MockERC20("USD Coin", "USDC", 6);
         MockAsyncRedeemVault wylds = new MockAsyncRedeemVault("Wrapped YLDS", "wYLDS", 6, asset, 1e6);

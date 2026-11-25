@@ -3,6 +3,8 @@ pragma solidity ^0.8.28;
 
 import "./AccountsBase.t.sol";
 
+import {ACRDX_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/ACRDX_Account.sol";
+import {deCRDX_Account} from "../../../src/contracts/adapters/ll-adapter/tokens-to-redeem/deCRDX_Account.sol";
 import {CentrifugeAccount} from "../../../src/contracts/adapters/ll-adapter/CentrifugeAccount.sol";
 import {ICoWSwapConverter} from "../../../src/interfaces/adapters/common/ICoWSwapConverter.sol";
 import {IERC7575Share} from "../../../src/interfaces/adapters/ll-adapter/IERC7575Share.sol";
@@ -402,6 +404,8 @@ contract AsyncRedeemAccountTest is AccountsBase {
 
         _mockDecimals(JTRSY_TOKEN_ADDRESS, 18);
         _mockDecimals(JAAA_TOKEN_ADDRESS, 18);
+        _mockDecimals(ACRDX_TOKEN_ADDRESS, 18);
+        _mockDecimals(DECRDX_TOKEN_ADDRESS, 18);
         _mockDecimals(DEJTRSY_TOKEN_ADDRESS, 18);
         _mockDecimals(DEJAAA_TOKEN_ADDRESS, 18);
 
@@ -414,6 +418,16 @@ contract AsyncRedeemAccountTest is AccountsBase {
             new JAAA_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
                 .TOKEN_TO_REDEEM(),
             JAAA_TOKEN_ADDRESS
+        );
+        assertEq(
+            new ACRDX_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
+                .TOKEN_TO_REDEEM(),
+            ACRDX_TOKEN_ADDRESS
+        );
+        assertEq(
+            new deCRDX_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
+                .TOKEN_TO_REDEEM(),
+            DECRDX_TOKEN_ADDRESS
         );
         assertEq(
             new deJTRSY_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
@@ -434,6 +448,14 @@ contract AsyncRedeemAccountTest is AccountsBase {
             new JAAA_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement).COOLDOWN(), 0
         );
         assertEq(
+            new ACRDX_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement).COOLDOWN(),
+            0
+        );
+        assertEq(
+            new deCRDX_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement).COOLDOWN(),
+            0
+        );
+        assertEq(
             new deJTRSY_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
                 .COOLDOWN(),
             0
@@ -450,6 +472,8 @@ contract AsyncRedeemAccountTest is AccountsBase {
 
         _mockDecimals(JTRSY_TOKEN_ADDRESS, 18);
         _mockDecimals(JAAA_TOKEN_ADDRESS, 18);
+        _mockDecimals(ACRDX_TOKEN_ADDRESS, 18);
+        _mockDecimals(DECRDX_TOKEN_ADDRESS, 18);
         _mockDecimals(DEJTRSY_TOKEN_ADDRESS, 18);
         _mockDecimals(DEJAAA_TOKEN_ADDRESS, 18);
 
@@ -470,6 +494,24 @@ contract AsyncRedeemAccountTest is AccountsBase {
                 )
                 .TOKEN_TO_REDEEM(),
             JAAA_TOKEN_ADDRESS
+        );
+        assertEq(
+            IAccount(
+                    _centrifugeAccountAddress(
+                        new ACRDX_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
+                    )
+                )
+                .TOKEN_TO_REDEEM(),
+            ACRDX_TOKEN_ADDRESS
+        );
+        assertEq(
+            IAccount(
+                    _centrifugeAccountAddress(
+                        new deCRDX_Account(address(oracle), address(factory), address(1), address(2), cowSwapSettlement)
+                    )
+                )
+                .TOKEN_TO_REDEEM(),
+            DECRDX_TOKEN_ADDRESS
         );
         assertEq(
             IAccount(
